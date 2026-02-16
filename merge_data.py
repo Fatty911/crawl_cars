@@ -76,7 +76,7 @@ def norm_rows(rows, source):
                     if v not in ('', '-') and v != nr[u]:
                         nr[u] = f'{nr[u]}|{v}'
                 else:
-                    nr[u] = vout.append(nr)
+                        nr[u] = vout.append(nr)
     return out
 
 
@@ -115,7 +115,8 @@ def main():
         with open(os.path.join(DIR, 'diff_report.csv'), 'w', encoding='utf-8-sig', newline='') as f:
             w = csv.DictWriter(f, fieldnames=['车型', '配置项', '汽车之家', '懂车帝'])
             w.writeheader()
-            w.writerows(diffs)print(f'差异: {len(diffs)} 处')
+            w.writerows(diffs)
+        print(f'差异: {len(diffs)} 处')
     else:
         print('无差异')
 

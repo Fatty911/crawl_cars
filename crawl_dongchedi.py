@@ -3,6 +3,8 @@
 使用 Selenium 绕过反爬，提取目标配置字段
 """
 import os
+import sys
+import shutil
 import json
 import time
 import random
@@ -53,10 +55,6 @@ TARGET_FIELDS = [
     '纯电续航', 'CLTC纯电续航', 'NEDC纯电续航',
 ]
 
-# chromedriver 路径 - 根据实际情况修改
-CHROMEDRIVER_PATH = r"D:\Scripts\chromedriver.exe"
-CHROME_BINARY = r"C:\Program Files\Google\Chrome Beta\Application\chrome.exe"
-
 CURRENT_YEAR = 2026
 MIN_YEAR = CURRENT_YEAR - 3  # 只要2023年及以后的车型
 
@@ -68,21 +66,43 @@ def is_target_field(name):
     return False
 
 
+def find_chrome_binary():
+    for c in [shutil.which('chromium-browser'), shutil.which('chromium'),
+              shutil.which('google-chrome'), shutil.which('google-chrome-stable'),
+              r"C:\Program Files\Google\Chrome Beta\Application\chrome.exe",
+              r"C:\Program Files\Google\Chrome\Application\chrome.exe"]:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
+def find_chromedriver():
+    for c in [shutil.which('chromedriver'), r"D:\Scripts\chromedriver.exe"]:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
 def create_browser():
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
     chrome_options.add_argument(
         'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
         'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     )
     chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])
-    chrome_options.binary_location = CHROME_BINARY
-
-    service = Service(CHROMEDRIVER_PATH)
-    browser = webdriver.Chrome(service=service, options=chrome_options)
+    cb = find_chrome_binary()
+    if cb:
+        chrome_options.binary_location = cb
+    cd = find_chromedriver()
+    if cd:
+        browser = webdriver.Chrome(service=Service(cd), options=chrome_options)
+    else:
+        browser = webdriver.Chrome(options=chrome_options)
     browser.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
         'source': 'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
     })

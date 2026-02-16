@@ -194,4 +194,5 @@ def find_chromedriver():
 
 if __name__ == '__main__':
     fix_autohome()
-    fix_dongchedi()print('Done! Now run: python3 -m py_compile test_autohome.py && python3 -m py_compile crawl_dongchedi.py')
+    fix_dongchedi()
+    print('Done! Now run: python3 -m py_compile test_autohome.py && python3 -m py_compile crawl_dongchedi.py')
