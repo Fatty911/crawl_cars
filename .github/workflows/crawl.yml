@@ -26,7 +26,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: car-data-${{ github.run_number }}
-          path: |*.xls
+          path: |
+            *.xls
             *.csv
             *_all.json
           retention-days: 90
