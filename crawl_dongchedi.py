@@ -193,7 +193,8 @@ def crawl_series_config(browser, series_list):
             # 保存页面源码用于解析
             page_source = browser.page_source
             with open(os.path.join(dcd_json_dir, f'{series_id}.html'), 'w', encoding='utf-8') as f:
-                f.write(page_source)except Exception as e:
+                f.write(page_source)
+        except Exception as e:
             print(f'  爬取异常: {e}')
             with open(os.path.join(dcd_exception_dir, 'exception.txt'), 'a', encoding='utf-8') as f:
                 f.write(f'{series_id} {series_name}: {e}\n')
