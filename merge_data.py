@@ -76,7 +76,7 @@ def norm_rows(rows, source):
                     if v not in ('', '-') and v != nr[u]:
                         nr[u] = f'{nr[u]}|{v}'
                 else:
-                        nr[u] = vout.append(nr)
+                    nr[u] = vout.append(nr)
     return out
 
 

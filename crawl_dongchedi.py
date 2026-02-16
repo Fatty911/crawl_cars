@@ -32,9 +32,11 @@ progress_file = os.path.join(dcd_dir, 'progress.json')
 if os.path.exists(progress_file):
     with open(progress_file, 'r', encoding='utf-8') as f:
         progress = json.load(f)
-    choice = input('懂车帝进度文件存在，输入1继续，输入2从头开始：')
-    if choice == '2':
+    if '--restart' in sys.argv:
         progress = {}
+        print('已重置进度')
+    else:
+        print('从上次进度继续（使用 --restart 可重新开始）')
 else:
     progress = {}
 
