@@ -25,15 +25,17 @@ def fix_autohome():
         indent = len(line) - len(stripped)
         if stripped.startswith('if car_id:') and indent == 24:
             in_block = True
-            fixed.append(line)continue
+            fixed.append(line)
+            continue
         if in_block:
             if stripped == '':
-                fixed.append('')continue
+                fixed.append('')
+                continue
             if indent == 26:
                 fixed.append(' ' * 28 + stripped)
             else:
                 fixed.append(line)
-            if'f.write(content)' in stripped:
+            if 'f.write(content)' in stripped:
                 in_block = False
             continue
         fixed.append(line)
