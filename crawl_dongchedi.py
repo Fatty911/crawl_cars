@@ -166,7 +166,7 @@ def get_series_list(browser):
                         'id': series_id,
                         'name': series_name,
                         'brand': brand_name,
-                        })processed_brands.append(brand_name)
+                    })processed_brands.append(brand_name)
         progress['processed_brands'] = processed_brands
         progress['series_list'] = series_list
         save_progress()
