@@ -120,7 +120,7 @@ def parse_js_to_html():
         parsed_files = []
 
     for file in os.listdir(html_dir):
-        if file not in parsed_files and 7342 < int(file) < 7348:
+        if file not in parsed_files:
             print(f'正在解析文件:{file}')
             content = ''
             with open(os.path.join(html_dir, file), 'r', encoding='utf-8') as f:

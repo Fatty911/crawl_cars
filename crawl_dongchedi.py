@@ -144,7 +144,8 @@ def get_series_list(browser):
                         'id': series_id,
                         'name': series_name,
                         'brand': brand_name,
-                    })processed_brands.append(brand_name)
+                        })
+            processed_brands.append(brand_name)
         progress['processed_brands'] = processed_brands
         progress['series_list'] = series_list
         save_progress()
@@ -251,7 +252,8 @@ def parse_config_pages(series_list):
 
                         if header == '车型名称' or header == '官方指导价':
                             if header == '车型名称':
-                                car_names = valuesif header and header not in car_data:
+                                car_names = values
+                        if header and header not in car_data:
                             car_data[header] = values
                             if header not in all_headers:
                                 all_headers.append(header)
