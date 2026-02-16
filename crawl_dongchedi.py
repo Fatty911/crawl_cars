@@ -99,7 +99,7 @@ def get_series_list(browser):
     """通过懂车帝选车页面获取所有车系"""
     print('第一步：获取所有车系列表')
 
-    if'series_list' in progress and progress['series_list']:
+    if 'series_list' in progress and progress['series_list']:
         print(f'已有{len(progress["series_list"])} 个车系，跳过获取')
         return progress['series_list']
 
