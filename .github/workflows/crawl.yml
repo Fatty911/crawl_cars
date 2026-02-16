@@ -1,0 +1,32 @@
+name: Monthly Car Data Crawl
+on:
+  schedule:
+    - cron: '0 2 1 * *'
+  workflow_dispatch:
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - uses: nanasess/setup-chromedriver@v2
+      - run: pip install requests beautifulsoup4 selenium xlwt lxml
+      - run: python test_autohome.py
+        timeout-minutes: 180
+      - run: python crawl_dongchedi.py
+        timeout-minutes: 180
+      - run: python merge_data.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: car-data-${{ github.run_number }}
+          path: |*.xls
+            *.csv
+            *_all.json
+          retention-days: 90
