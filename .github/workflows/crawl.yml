@@ -17,17 +17,28 @@ jobs:
         with:
           chrome-version: stable
       - uses: nanasess/setup-chromedriver@v2
-      - run: pip install requests beautifulsoup4 selenium xlwt lxml
+      - run: pip install requests beautifulsoup4 selenium lxml
       - run: python test_autohome.py
         timeout-minutes: 180
       - run: python crawl_dongchedi.py
         timeout-minutes: 180
       - run: python merge_data.py
+      - name: Set date
+        run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         with:
-          name: car-data-${{ github.run_number }}
+          name: car-data-${{ env.CRAWL_DATE }}
           path: |
-            *.xls
             *.csv
-            *_all.json
+            *.json
           retention-days: 90
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.CRAWL_DATE }}
+          name: 车型数据 ${{ env.CRAWL_DATE }}
+          files: |
+            *_${{ env.CRAWL_DATE }}.csv
+            *_${{ env.CRAWL_DATE }}.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
