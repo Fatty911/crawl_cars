@@ -1,6 +1,6 @@
 """
-懂车帝爬虫 - 爬取3年内上市车型的配置信息
-使用 Selenium 绕过反爬，提取目标配置字段
+懂车帝爬虫 - 爬取3年内上市车型的全部配置信息
+使用 Selenium 绕过反爬
 """
 import os
 import sys
@@ -10,6 +10,7 @@ import time
 import random
 import re
 import csv
+from datetime import date
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -40,32 +41,39 @@ if os.path.exists(progress_file):
 else:
     progress = {}
 
-# 目标配置字段关键词
-TARGET_FIELDS = [
-    '自适应巡航', '全速自适应巡航',
-    'NOA', '城市辅助', '城市领航', '城市智驾', '导航辅助驾驶',
-    '0-100', '百公里加速',
-    '远程控制', '远程启动', '远程操控',
-    'CarPlay', 'CarLife', 'HiCar', '手机互联', '手机映射',
-    '蓝牙钥匙', 'NFC钥匙', 'UWB钥匙', '数字钥匙', '手机钥匙',
-    '最高车速',
-    '后视镜记忆', '外后视镜记忆',
-    '座椅记忆', '主驾驶座椅记忆',
-    '前排座椅.*放倒', '副驾驶座椅.*放倒',
-    '后排座椅.*放倒', '后排座椅放倒',
-    '座椅通风', '前排座椅通风', '后排座椅通风',
-    '纯电续航', 'CLTC纯电续航', 'NEDC纯电续航',
-]
+# 纯电续航相关字段关键词
+EV_RANGE_KEYWORDS = ['纯电续航', 'CLTC纯电续航', 'NEDC纯电续航']
+# 空调热泵相关字段关键词
+HEAT_PUMP_KEYWORDS = ['热泵']
+# 燃油类型字段关键词（用于判断是否纯油车）
+FUEL_TYPE_KEYWORDS = ['燃油类型', '燃料类型', '燃料形式', '能源类型']
 
 CURRENT_YEAR = 2026
 MIN_YEAR = CURRENT_YEAR - 3  # 只要2023年及以后的车型
 
 
-def is_target_field(name):
-    for keyword in TARGET_FIELDS:
-        if re.search(keyword, name):
-            return True
+def is_pure_gas_car(row, all_headers):
+    """判断是否为纯油车（非插混、非纯电、非增程）"""
+    for h in all_headers:
+        if any(kw in h for kw in FUEL_TYPE_KEYWORDS):
+            val = row.get(h, '-')
+            if val and val != '-':
+                if any(k in val for k in ['电', '插', '增程']):
+                    return False
+                if any(k in val for k in ['汽油', '柴油']):
+                    return True
     return False
+
+
+def fill_pure_gas_defaults(row, all_headers):
+    """纯油车：纯电续航赋值999，空调热泵赋值'是'"""
+    if not is_pure_gas_car(row, all_headers):
+        return
+    for h in all_headers:
+        if any(kw in h for kw in EV_RANGE_KEYWORDS):
+            row[h] = '999'
+        if any(kw in h for kw in HEAT_PUMP_KEYWORDS):
+            row[h] = '是'
 
 
 def find_chrome_binary():
@@ -312,7 +320,8 @@ def parse_config_pages(series_list):
             if year_match:
                 year = int(year_match.group(1))
                 if year < MIN_YEAR:
-                    continuerow = {
+                    continue
+            row = {
                 '品牌': brand_name,
                 '车系': series_name,
                 '车系ID': series_id,
@@ -322,65 +331,36 @@ def parse_config_pages(series_list):
             for header in all_headers:
                 vals = car_data.get(header, [])
                 row[header] = vals[i] if i < len(vals) else '-'
+            fill_pure_gas_defaults(row, all_headers)
             all_rows.append(row)
 
     print(f'共解析 {len(all_rows)} 条车型数据')
     return all_rows, all_headers
 
 
-# 第四步：生成Excel和CSV
+# 第四步：生成CSV
 def generate_output(all_rows, all_headers):
-    """生成Excel和CSV输出文件"""
+    """生成CSV输出文件（全部属性）"""
     print('第四步：生成输出文件')
-
-    import xlwt
+    today = date.today().strftime('%Y%m%d')
 
     fixed_headers = ['品牌', '车系', '车系ID', '车型名称', '年款']
-    target_headers = [h for h in all_headers if is_target_field(h)]
+    fieldnames = fixed_headers + [h for h in all_headers if h not in fixed_headers]
 
-    print(f'匹配到的目标字段: {target_headers}')
-
-    # Excel
-    workbook = xlwt.Workbook(encoding='utf-8')
-
-    # 全部数据sheet
-    ws_all = workbook.add_sheet('全部数据')
-    final_all = fixed_headers + [h for h in all_headers if h not in fixed_headers]
-    for col, header in enumerate(final_all):
-        ws_all.write(0, col, header)
-    for row_idx, row in enumerate(all_rows):
-        for col, header in enumerate(final_all):
-            ws_all.write(row_idx + 1, col, row.get(header, '-'))
-
-    # 目标配置sheet
-    ws_target = workbook.add_sheet('目标配置')
-    final_target = fixed_headers + target_headers
-    for col, header in enumerate(final_target):
-        ws_target.write(0, col, header)
-    for row_idx, row in enumerate(all_rows):
-        for col, header in enumerate(final_target):
-            ws_target.write(row_idx + 1, col, row.get(header, '-'))
-
-    xls_path = os.path.join(working_dir, 'dongchedi.xls')
-    workbook.save(xls_path)
-
-    # CSV（目标字段）
-    csv_path = os.path.join(working_dir, 'dongchedi_target.csv')
+    csv_path = os.path.join(working_dir, f'dongchedi_{today}.csv')
     with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=final_target)
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for row in all_rows:
-            writer.writerow({h: row.get(h, '-') for h in final_target})
+            writer.writerow({h: row.get(h, '-') for h in fieldnames})
 
-    # JSON（全部数据备份）
-    json_path = os.path.join(working_dir, 'dongchedi_all.json')
+    json_path = os.path.join(working_dir, f'dongchedi_{today}.json')
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(all_rows, f, ensure_ascii=False, indent=2)
 
     print(f'第四步完成')
-    print(f'  Excel: {xls_path}')
-    print(f'  CSV:   {csv_path}')
-    print(f'  JSON:  {json_path}')
+    print(f'  CSV:  {csv_path}')
+    print(f'  JSON: {json_path}')
     print(f'  共{len(all_rows)} 条车型数据')
 
 

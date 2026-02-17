@@ -1,5 +1,6 @@
 """合并汽车之家和懂车帝数据，统一表头，对比差异"""
-import os, json, re, csv
+import os, json, re, csv, glob
+from datetime import date
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -35,14 +36,6 @@ HEADER_MAP = {
     '纯电续航': '纯电续航(km)',
 }
 
-UNIFIED = [
-    '全速自适应巡航', 'NOA城市领航', '百公里加速(s)',
-    '远程启动', '远程控制','CarPlay', 'CarLife','HiCar', '手机互联',
-    '蓝牙/数字钥匙', '最高车速(km/h)', '外后视镜记忆', '座椅记忆',
-    '前排座椅放倒', '后排座椅放倒',
-    '前排座椅通风', '后排座椅通风', '座椅通风', '纯电续航(km)',
-]
-
 FIXED = ['数据来源', '品牌', '车系', '车系ID', '车型名称', '年款']
 
 
@@ -55,8 +48,16 @@ def norm(header):
     return header
 
 
+def find_latest(pattern):
+    """找到匹配 pattern 的最新文件"""
+    files = glob.glob(os.path.join(DIR, pattern))
+    if not files:
+        return None
+    return max(files, key=os.path.getmtime)
+
+
 def load(path):
-    if not os.path.exists(path):
+    if not path or not os.path.exists(path):
         return []
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
@@ -70,18 +71,19 @@ def norm_rows(rows, source):
             if k in row:
                 nr[k] = row[k]
         for k, v in row.items():
+            if k in FIXED:
+                continue
             u = norm(k)
-            if u in UNIFIED:
-                if u in nr and nr[u] not in ('', '-'):
-                    if v not in ('', '-') and v != nr[u]:
-                        nr[u] = f'{nr[u]}|{v}'
-                else:
-                    nr[u] = v
+            if u in nr and nr[u] not in ('', '-'):
+                if v not in ('', '-') and v != nr[u]:
+                    nr[u] = f'{nr[u]}|{v}'
+            else:
+                nr[u] = v
         out.append(nr)
     return out
 
 
-def diff(ah, dcd):
+def diff(ah, dcd, all_fields):
     idx = {r.get('车型名称', '').replace(' ', ''): r for r in dcd if r.get('车型名称')}
     out = []
     for r in ah:
@@ -91,7 +93,7 @@ def diff(ah, dcd):
         d = idx.get(n.replace(' ', ''))
         if not d:
             continue
-        for f in UNIFIED:
+        for f in all_fields:
             a, b = r.get(f, '-'), d.get(f, '-')
             if a != b and a != '-' and b != '-':
                 out.append({'车型': n, '配置项': f, '汽车之家': a, '懂车帝': b})
@@ -99,21 +101,37 @@ def diff(ah, dcd):
 
 
 def main():
-    ah = norm_rows(load(os.path.join(DIR, 'autoHome_all.json')), '汽车之家')
-    dcd = norm_rows(load(os.path.join(DIR, 'dongchedi_all.json')), '懂车帝')
-    all_rows = ah + dcd
-    print(f'汽车之家:{len(ah)}懂车帝:{len(dcd)} 合计:{len(all_rows)}')
+    today = date.today().strftime('%Y%m%d')
 
-    h = FIXED + UNIFIED
-    with open(os.path.join(DIR, 'merged_data.csv'), 'w', encoding='utf-8-sig', newline='') as f:
+    ah_file = find_latest('autoHome_*.json')
+    dcd_file = find_latest('dongchedi_*.json')
+    print(f'汽车之家数据: {ah_file}')
+    print(f'懂车帝数据: {dcd_file}')
+
+    ah = norm_rows(load(ah_file), '汽车之家')
+    dcd = norm_rows(load(dcd_file), '懂车帝')
+    all_rows = ah + dcd
+    print(f'汽车之家:{len(ah)} 懂车帝:{len(dcd)} 合计:{len(all_rows)}')
+
+    # 收集所有字段
+    all_fields = []
+    for r in all_rows:
+        for k in r:
+            if k not in FIXED and k not in all_fields:
+                all_fields.append(k)
+
+    h = FIXED + all_fields
+    csv_path = os.path.join(DIR, f'merged_{today}.csv')
+    with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
         w = csv.DictWriter(f, fieldnames=h)
         w.writeheader()
         for r in all_rows:
             w.writerow({k: r.get(k, '-') for k in h})
 
-    diffs = diff(ah, dcd)
+    diffs = diff(ah, dcd, all_fields)
+    diff_path = os.path.join(DIR, f'diff_{today}.csv')
     if diffs:
-        with open(os.path.join(DIR, 'diff_report.csv'), 'w', encoding='utf-8-sig', newline='') as f:
+        with open(diff_path, 'w', encoding='utf-8-sig', newline='') as f:
             w = csv.DictWriter(f, fieldnames=['车型', '配置项', '汽车之家', '懂车帝'])
             w.writeheader()
             w.writerows(diffs)
@@ -121,9 +139,11 @@ def main():
     else:
         print('无差异')
 
-    with open(os.path.join(DIR, 'merged_all.json'), 'w', encoding='utf-8') as f:
+    json_path = os.path.join(DIR, f'merged_{today}.json')
+    with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(all_rows, f, ensure_ascii=False, indent=2)
-    print('完成')
+
+    print(f'完成: {csv_path}')
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@ import time
 import random
 import json
 import re
-import xlwt
+from datetime import date
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 from selenium import webdriver
@@ -28,16 +28,6 @@ for dir_path in [html_dir, newhtml_dir, json_dir, content_dir, newjson_dir, exce
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
-TARGET_FIELDS = [
-    '自适应巡航','NOA', '城市辅助', '城市领航', '智驾',
-    '0-100', '百公里加速', '远程控制', '远程启动',
-    'CarPlay', 'CarLife', '手机互联', 'HiCar',
-    '蓝牙钥匙', 'NFC钥匙', 'UWB钥匙', '数字钥匙', '最高车速',
-    '后视镜记忆', '外后视镜记忆', '座椅记忆',
-    '前排座椅.*放倒', '副驾驶座椅.*放倒',
-    '后排座椅.*放倒', '后排座椅放倒', '座椅通风',
-    '纯电续航', 'CLTC纯电续航', 'NEDC纯电续航',
-]
 CURRENT_YEAR = 2026
 MIN_YEAR = CURRENT_YEAR - 3
 
@@ -59,8 +49,38 @@ def find_chromedriver():
     return None
 
 
-def is_target_field(header):
-    return any(re.search(kw, header) for kw in TARGET_FIELDS)
+# 纯电续航相关字段关键词
+EV_RANGE_KEYWORDS = ['纯电续航', 'CLTC纯电续航', 'NEDC纯电续航']
+# 空调热泵相关字段关键词
+HEAT_PUMP_KEYWORDS = ['热泵']
+# 燃油类型字段关键词（用于判断是否纯油车）
+FUEL_TYPE_KEYWORDS = ['燃油类型', '燃料类型', '燃料形式', '能源类型']
+
+
+def is_pure_gas_car(row, all_headers):
+    """判断是否为纯油车（非插混、非纯电、非增程）"""
+    for h in all_headers:
+        if any(kw in h for kw in FUEL_TYPE_KEYWORDS):
+            val = row.get(h, '-')
+            if val and val != '-':
+                # 含有"电"或"插"或"增程"的不是纯油车
+                if any(k in val for k in ['电', '插', '增程']):
+                    return False
+                # 含有"汽油"或"柴油"的是纯油车
+                if any(k in val for k in ['汽油', '柴油']):
+                    return True
+    return False
+
+
+def fill_pure_gas_defaults(row, all_headers):
+    """纯油车：纯电续航赋值999，空调热泵赋值'是'"""
+    if not is_pure_gas_car(row, all_headers):
+        return
+    for h in all_headers:
+        if any(kw in h for kw in EV_RANGE_KEYWORDS):
+            row[h] = '999'
+        if any(kw in h for kw in HEAT_PUMP_KEYWORDS):
+            row[h] = '是'
 
 
 # 设置重试策略
@@ -119,12 +139,12 @@ def download_car_pages():
                     href = h4.a.get('href')
                     if href:
                         car_id = href.split('#')[0][href.index('.cn') + 3:].replace('/', '')
-                        if car_id: #and 7342 < int(car_id) < 7348:
-                          car_url = second_url.format(car_id)
-                          print(f'正在获取{car_id}车型')
-						  
-                          # 增加重试机制
-                          for i in range(5):
+                        if car_id:
+                            car_url = second_url.format(car_id)
+                            print(f'正在获取{car_id}车型')
+
+                            # 增加重试机制
+                            for i in range(5):
                               try:
                                   resp = session.get(car_url)
                                   print(f'车型{car_id}响应码: {resp.status_code}')
@@ -132,15 +152,15 @@ def download_car_pages():
                               except requests.exceptions.RequestException as e:
                                   print(f'请求异常:{e}, 重试次数:{i+1}')
                                   time.sleep(10)
-                          else:
+                            else:
                               print(f'获取{car_id}车型失败,跳过')
                               continue
-                          time.sleep(random.uniform(5.4, 12.3))
-                          resp.encoding = resp.apparent_encoding
-                          content = resp.text
-                          print(f'车型{car_id}内容长度: {len(content)}')
-						  
-                          with open(os.path.join(html_dir, f'{car_id}'), 'w', encoding='utf-8') as f:
+                            time.sleep(random.uniform(5.4, 12.3))
+                            resp.encoding = resp.apparent_encoding
+                            content = resp.text
+                            print(f'车型{car_id}内容长度: {len(content)}')
+
+                            with open(os.path.join(html_dir, f'{car_id}'), 'w', encoding='utf-8') as f:
                               f.write(content)
 
             letters.append(letter)
@@ -351,11 +371,9 @@ def clean_value(value):
     return re.sub(r'<.*?>', '', value)
 
 
-def generate_excel():
-    print('第六步,生成excel')
-    workbook = xlwt.Workbook(encoding='utf-8')
-    ws_all = workbook.add_sheet('全部数据')
-    ws_tgt = workbook.add_sheet('目标配置')
+def generate_csv():
+    print('第六步,生成CSV')
+    today = date.today().strftime('%Y%m%d')
 
     fixed = ['车系ID', '车型名称', '年款']
     all_h, rows = [], []
@@ -409,6 +427,7 @@ def generate_excel():
                 for h in all_h:
                     v = data.get(h, [])
                     row[h] = v[i] if i < len(v) else '-'
+                fill_pure_gas_defaults(row, all_h)
                 rows.append(row)
 
         except Exception as e:
@@ -416,33 +435,21 @@ def generate_excel():
             with open(os.path.join(exception_dir, 'exception.txt'), 'a', encoding='utf-8') as f:
                 f.write(f'{file}: {e}\n')
 
-    tgt_h = [h for h in all_h if is_target_field(h)]
-    print(f'目标字段: {tgt_h}')
-
-    for col, h in enumerate(fixed + all_h):
-        ws_all.write(0, col, h)
-    for ri, rd in enumerate(rows):
-        for col, h in enumerate(fixed + all_h):
-            ws_all.write(ri + 1, col, rd.get(h, '-'))
-
-    for col, h in enumerate(fixed + tgt_h):
-        ws_tgt.write(0, col, h)
-    for ri, rd in enumerate(rows):
-        for col, h in enumerate(fixed + tgt_h):
-            ws_tgt.write(ri + 1, col, rd.get(h, '-'))
-
-    workbook.save(os.path.join(working_dir, 'autoHome.xls'))
-
-    with open(os.path.join(working_dir, 'autoHome_target.csv'), 'w', encoding='utf-8-sig', newline='') as f:
-        w = csv.DictWriter(f, fieldnames=fixed + tgt_h)
+    fieldnames = fixed + all_h
+    csv_path = os.path.join(working_dir, f'autoHome_{today}.csv')
+    with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         for rd in rows:
-            w.writerow({h: rd.get(h, '-') for h in fixed + tgt_h})
+            w.writerow({h: rd.get(h, '-') for h in fieldnames})
 
-    with open(os.path.join(working_dir, 'autoHome_all.json'), 'w', encoding='utf-8') as f:
+    json_path = os.path.join(working_dir, f'autoHome_{today}.json')
+    with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(rows, f, ensure_ascii=False, indent=2)
 
     print(f'第六步完成，共{len(rows)}条')
+    print(f'  CSV: {csv_path}')
+    print(f'  JSON: {json_path}')
 
 def main():
     download_car_pages()
@@ -450,7 +457,7 @@ def main():
     parse_json_data()
     crack_html_files()
     generate_data_files()
-    generate_excel()
+    generate_csv()
 
 if __name__ == '__main__':
     main()
