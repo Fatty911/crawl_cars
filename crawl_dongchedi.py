@@ -137,7 +137,7 @@ def get_series_list(browser):
     processed_brands = progress.get('processed_brands', [])
 
     # 懂车帝选车页面，按品牌浏览
-    url = 'https://www.dongchedi.com/auto/library'
+    url = 'https://www.dongchedi.com/auto/library/x-x-x-x-x-x-x-x-x-x'
     browser.get(url)
     time.sleep(random.uniform(3, 5))
 
@@ -201,7 +201,7 @@ def crawl_series_config(browser, series_list):
         if series_id in crawled:
             continue
 
-        print(f'[{idx+1}/{len(series_list)}] 正在爬取: {series_name} (ID: {series_id})')
+        print(f'[{idx + 1}/{len(series_list)}] 正在爬取: {series_name} (ID: {series_id})')
 
         config_url = f'https://www.dongchedi.com/auto/params-carIds-x-{series_id}'
         try:
@@ -214,7 +214,7 @@ def crawl_series_config(browser, series_list):
                     EC.presence_of_element_located((By.CSS_SELECTOR, 'table, [class*="param"], [class*="config"]'))
                 )
             except TimeoutException:
-                print(f'  配置页面加载超时，跳过')
+                print('  配置页面加载超时，跳过')
                 crawled.append(series_id)
                 progress['crawled_series'] = crawled
                 save_progress()
@@ -266,7 +266,7 @@ def parse_config_pages(series_list):
         soup = BeautifulSoup(html_content, 'html.parser')
 
         # 懂车帝配置页面通常用表格或div列表展示
-        #尝试多种选择器
+        # 尝试多种选择器
         car_names = []
         car_data = {}
 
@@ -303,7 +303,7 @@ def parse_config_pages(series_list):
                             all_headers.append(header)
 
         if not car_data:
-            print(f'  未能解析到配置数据，跳过')
+            print('  未能解析到配置数据，跳过')
             continue
 
         # 获取年款信息用于过滤
@@ -358,7 +358,7 @@ def generate_output(all_rows, all_headers):
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(all_rows, f, ensure_ascii=False, indent=2)
 
-    print(f'第四步完成')
+    print('第四步完成')
     print(f'  CSV:  {csv_path}')
     print(f'  JSON: {json_path}')
     print(f'  共{len(all_rows)} 条车型数据')

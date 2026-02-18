@@ -1,5 +1,8 @@
 """合并汽车之家和懂车帝数据，统一表头，对比差异"""
-import os, json, re, csv, glob
+import os
+import json
+import csv
+import glob
 from datetime import date
 
 DIR = os.path.dirname(os.path.abspath(__file__))

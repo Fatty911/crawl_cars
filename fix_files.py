@@ -14,7 +14,7 @@ def fix_autohome():
     src = src.expandtabs(4)
 
     # Remove car_id filter comment if still present
-    src = re.sub(r'if car_id: #and.*','if car_id:', src)
+    src = re.sub(r'if car_id: #and.*', 'if car_id:', src)
 
     # Fix the26-space indented block inside if car_id to 28spaces
     lines = src.split('\n')

@@ -12,6 +12,8 @@ from datetime import date
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+
 
 # 设置工作目录为当前文件所在目录
 working_dir = os.path.dirname(os.path.abspath(__file__))
@@ -135,9 +137,9 @@ def download_car_pages():
 
             for car in cars:
                 h4 = car.h4
-                if h4:
+                if h4 and h4.a:
                     href = h4.a.get('href')
-                    if href:
+                    if href and isinstance(href, str) and '.cn' in href:
                         car_id = href.split('#')[0][href.index('.cn') + 3:].replace('/', '')
                         if car_id:
                             car_url = second_url.format(car_id)
@@ -145,23 +147,23 @@ def download_car_pages():
 
                             # 增加重试机制
                             for i in range(5):
-                              try:
-                                  resp = session.get(car_url)
-                                  print(f'车型{car_id}响应码: {resp.status_code}')
-                                  break
-                              except requests.exceptions.RequestException as e:
-                                  print(f'请求异常:{e}, 重试次数:{i+1}')
-                                  time.sleep(10)
+                                try:
+                                    resp = session.get(car_url)
+                                    print(f'车型{car_id}响应码: {resp.status_code}')
+                                    break
+                                except requests.exceptions.RequestException:
+                                    print(f'请求异常, 重试次数:{i + 1}')
+                                    time.sleep(10)
                             else:
-                              print(f'获取{car_id}车型失败,跳过')
-                              continue
+                                print(f'获取{car_id}车型失败,跳过')
+                                continue
                             time.sleep(random.uniform(5.4, 12.3))
                             resp.encoding = resp.apparent_encoding
                             content = resp.text
                             print(f'车型{car_id}内容长度: {len(content)}')
 
                             with open(os.path.join(html_dir, f'{car_id}'), 'w', encoding='utf-8') as f:
-                              f.write(content)
+                                f.write(content)
 
             letters.append(letter)
             progress['download_car_pages'] = letters
@@ -217,7 +219,7 @@ def parse_js_to_html():
                 for item in js:
                     print(f'提取的js函数: {item[:100]}...')
                     js_code += item
-            except Exception as e:
+            except Exception:
                 print('解析js函数异常')
 
             new_html = "<html><meta http-equiv='Content-Type' content='text/html; charset=utf-8' /><head></head><body>    <script type='text/javascript'>"
@@ -273,7 +275,6 @@ def parse_json_data():
     print('第三步完成')
 
 # 第四步,浏览器执行第二步生成的html文件,抓取执行结果,保存到本地
-from selenium.webdriver.chrome.service import Service
 
 
 class Crack:
@@ -344,12 +345,17 @@ def generate_data_files():
 
             spans = re.findall(r'<span(.*?)></span>', json_content)
             for span in spans:
-                class_name = re.search(r"'(.*?)'", span).group(1)
+                class_match = re.search(r"'(.*?)'", span)
+                if not class_match:
+                    continue
+                class_name = class_match.group(1)
                 style_regex = rf"{class_name}::before \{{ content:(.*?)\}}"
                 style_value = re.search(style_regex, style_content)
                 if style_value:
-                    value = re.search(r'"(.*?)"', style_value.group(1)).group(1)
-                    json_content = json_content.replace(f"<span class='{class_name}'></span>", value)
+                    value_match = re.search(r'"(.*?)"', style_value.group(1))
+                    if value_match:
+                        value = value_match.group(1)
+                        json_content = json_content.replace(f"<span class='{class_name}'></span>", value)
 
             with open(os.path.join(newjson_dir, json_file), 'w', encoding='utf-8') as f:
                 f.write(json_content)
@@ -384,6 +390,10 @@ def generate_csv():
 
         config = re.search(r'var config = (.*?);', content)
         option = re.search(r'var option = (.*?);var', content)
+
+        if not config or not option:
+            print(f'跳过 {file}: 无法解析config或option')
+            continue
 
         try:
             cd = json.loads(config.group(1))
