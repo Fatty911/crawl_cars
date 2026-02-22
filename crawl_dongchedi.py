@@ -49,7 +49,7 @@ HEAT_PUMP_KEYWORDS = ['热泵']
 FUEL_TYPE_KEYWORDS = ['燃油类型', '燃料类型', '燃料形式', '能源类型']
 
 CURRENT_YEAR = 2026
-MIN_YEAR = CURRENT_YEAR - 3  # 只要2023年及以后的车型
+MIN_YEAR = 0  # 爬取所有车型
 
 
 def is_pure_gas_car(row, all_headers):

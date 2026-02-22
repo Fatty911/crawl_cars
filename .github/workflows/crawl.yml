@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  crawl:
+  crawl-autohome:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -19,26 +19,69 @@ jobs:
       - uses: nanasess/setup-chromedriver@v2
       - run: pip install requests beautifulsoup4 selenium lxml
       - run: python test_autohome.py
-        timeout-minutes: 180
-      - run: python crawl_dongchedi.py
-        timeout-minutes: 180
-      - run: python merge_data.py
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         with:
-          name: car-data-${{ env.CRAWL_DATE }}
+          name: autohome-data-${{ env.CRAWL_DATE }}
           path: |
-            *.csv
-            *.json
+            autoHome_*.json
           retention-days: 90
+
+  crawl-dongchedi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    needs: crawl-autohome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - uses: nanasess/setup-chromedriver@v2
+      - run: pip install requests beautifulsoup4 selenium lxml
+      - run: python crawl_dongchedi.py
+      - name: Set date
+        run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dongchedi-data-${{ env.CRAWL_DATE }}
+          path: |
+            dongchedi_*.json
+          retention-days: 90
+
+  merge-and-filter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    needs: crawl-dongchedi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: autohome-data-*
+          path: .
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dongchedi-data-*
+          path: .
+          merge-multiple: true
+      - run: ls -la
+      - run: python merge_data.py
+      - name: Set date
+        run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.CRAWL_DATE }}
           name: 车型数据 ${{ env.CRAWL_DATE }}
           files: |
-            *_${{ env.CRAWL_DATE }}.csv
-            *_${{ env.CRAWL_DATE }}.json
+            filtered_cars_${{ env.CRAWL_DATE }}.csv
+            filtered_cars_${{ env.CRAWL_DATE }}.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

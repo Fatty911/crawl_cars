@@ -1,11 +1,79 @@
-"""合并汽车之家和懂车帝数据，统一表头，对比差异"""
+"""合并汽车之家和懂车帝数据，统一表头，对比差异，并过滤符合条件的车型"""
 import os
 import json
 import csv
 import glob
+import re
 from datetime import date
 
 DIR = os.path.dirname(os.path.abspath(__file__))
+
+FILTER_CONDITIONS = {
+    'zero_to_hundred': ('百公里加速(s)', 7.0),
+    'ev_range': ('纯电续航(km)', 150),
+    'city_navigation': ['NOA城市领航', '城市领航辅助', '城市NOA', '城市智驾', '城市辅助驾驶', 'NOP城市', '城市NOA', '城市NOP', '城市导航辅助驾驶', '城市自动驾驶'],
+    'remote_start': ['远程启动', '远程启动功能', '发动机远程启动'],
+    'remote_control': ['远程控制', '远程操控', '远程车门', '远程空调', '远程鸣笛闪灯'],
+    'bluetooth_key': ['蓝牙钥匙', '数字钥匙', '手机钥匙', 'UWB钥匙'],
+    'seat_memory': ['座椅记忆', '主驾驶座椅记忆', '副驾驶座椅记忆'],
+    'mirror_memory': ['后视镜记忆', '外后视镜记忆'],
+}
+
+
+def parse_number(value):
+    if not value or value == '-' or value == '':
+        return None
+    try:
+        return float(re.sub(r'[^\d.]', '', str(value)))
+    except:
+        return None
+
+
+def check_condition(row, field_name, threshold):
+    val = parse_number(row.get(field_name, '-'))
+    if val is None:
+        return False
+    return val <= threshold
+
+
+def check_multi_values(row, field_names):
+    for fn in field_names:
+        val = row.get(fn, '-')
+        if val and val != '-' and val != '':
+            return True
+    return False
+
+
+def filter_car(row):
+    try:
+        if not check_condition(row, FILTER_CONDITIONS['zero_to_hundred'][0], FILTER_CONDITIONS['zero_to_hundred'][1]):
+            return False
+        
+        if not check_condition(row, FILTER_CONDITIONS['ev_range'][0], FILTER_CONDITIONS['ev_range'][1]):
+            return False
+        
+        if not check_multi_values(row, FILTER_CONDITIONS['city_navigation']):
+            return False
+        
+        if not check_multi_values(row, FILTER_CONDITIONS['remote_start']):
+            return False
+        
+        if not check_multi_values(row, FILTER_CONDITIONS['remote_control']):
+            return False
+        
+        if not check_multi_values(row, FILTER_CONDITIONS['bluetooth_key']):
+            return False
+        
+        if not check_multi_values(row, FILTER_CONDITIONS['seat_memory']):
+            return False
+        
+        if not check_multi_values(row, FILTER_CONDITIONS['mirror_memory']):
+            return False
+        
+        return True
+    except Exception as e:
+        print(f"过滤检查异常: {e}, row: {row.get('车型名称', 'unknown')}")
+        return False
 
 HEADER_MAP = {
     '全速自适应巡航控制_ACC_': '全速自适应巡航',
@@ -116,9 +184,13 @@ def main():
     all_rows = ah + dcd
     print(f'汽车之家:{len(ah)} 懂车帝:{len(dcd)} 合计:{len(all_rows)}')
 
+    # 过滤符合条件的车型
+    filtered_rows = [r for r in all_rows if filter_car(r)]
+    print(f'过滤后符合条件的车型: {len(filtered_rows)} 辆')
+
     # 收集所有字段
     all_fields = []
-    for r in all_rows:
+    for r in filtered_rows:
         for k in r:
             if k not in FIXED and k not in all_fields:
                 all_fields.append(k)
@@ -128,7 +200,7 @@ def main():
     with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
         w = csv.DictWriter(f, fieldnames=h)
         w.writeheader()
-        for r in all_rows:
+        for r in filtered_rows:
             w.writerow({k: r.get(k, '-') for k in h})
 
     diffs = diff(ah, dcd, all_fields)
@@ -142,11 +214,22 @@ def main():
     else:
         print('无差异')
 
-    json_path = os.path.join(DIR, f'merged_{today}.json')
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(all_rows, f, ensure_ascii=False, indent=2)
+    # 输出符合过滤条件的车型到单独文件
+    filtered_csv_path = os.path.join(DIR, f'filtered_cars_{today}.csv')
+    with open(filtered_csv_path, 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=h)
+        w.writeheader()
+        for r in filtered_rows:
+            w.writerow({k: r.get(k, '-') for k in h})
 
-    print(f'完成: {csv_path}')
+    filtered_json_path = os.path.join(DIR, f'filtered_cars_{today}.json')
+    with open(filtered_json_path, 'w', encoding='utf-8') as f:
+        json.dump(filtered_rows, f, ensure_ascii=False, indent=2)
+
+    print(f'完成')
+    print(f'  全部合并: {csv_path}')
+    print(f'  符合条件车型: {filtered_csv_path}')
+    print(f'  符合条件车型: {filtered_json_path}')
 
 
 if __name__ == '__main__':

@@ -31,7 +31,7 @@ for dir_path in [html_dir, newhtml_dir, json_dir, content_dir, newjson_dir, exce
         os.makedirs(dir_path)
 
 CURRENT_YEAR = 2026
-MIN_YEAR = CURRENT_YEAR - 3
+MIN_YEAR = 0
 
 
 def find_chrome_binary():
