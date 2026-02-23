@@ -22,6 +22,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Random delay to mimic human behavior
+        run: |
+          DELAY=$((RANDOM % 1800 + 600))
+          echo "Waiting $DELAY seconds before starting..."
+          sleep $DELAY
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -53,18 +60,21 @@ jobs:
             
             if [ $EXIT_CODE -eq 10 ]; then
               echo "Step1 incomplete, committing progress..."
+              sleep $((RANDOM % 60 + 30))
               git config --local user.email "github-actions[bot]@users.noreply.github.com"
               git config --local user.name "github-actions[bot]"
               git add -A
               git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
               git push
               echo "Re-running step1..."
+              sleep $((RANDOM % 120 + 60))
               git pull
             else
               break
             fi
           done
           touch step1_done
+          sleep $((RANDOM % 60 + 30))
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add -A
