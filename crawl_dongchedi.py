@@ -10,6 +10,7 @@ import time
 import random
 import re
 import csv
+import argparse
 from datetime import date
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -17,6 +18,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+
+parser = argparse.ArgumentParser(description='懂车帝爬虫')
+parser.add_argument('--step', type=int, choices=[1,2,3,4], help='运行指定步骤')
+parser.add_argument('--time-limit', type=int, default=0, help='每步最大运行时间(秒)，0表示不限制')
+parser.add_argument('--max-series', type=int, default=0, help='第二步最多爬取车系数，0表示不限制')
+parser.add_argument('--auto', action='store_true', help='全自动模式：未完成则exit code 10')
+args = parser.parse_args()
+
+MAX_TIME_PER_STEP = args.time_limit
+MAX_SERIES_PER_RUN = args.max_series
+AUTO_MODE = args.auto
 
 # 工作目录
 working_dir = os.path.dirname(os.path.abspath(__file__))
@@ -124,6 +136,38 @@ def save_progress():
         json.dump(progress, f, ensure_ascii=False)
 
 
+def check_time_limit(start_time):
+    if MAX_TIME_PER_STEP > 0:
+        elapsed = time.time() - start_time
+        if elapsed >= MAX_TIME_PER_STEP:
+            print(f'已达到时间限制 {MAX_TIME_PER_STEP}秒，保存进度并退出')
+            save_progress()
+            if AUTO_MODE:
+                print('未完成，等待下次继续')
+                sys.exit(10)
+            return True
+    return False
+
+
+def check_series_limit(crawled_count):
+    if MAX_SERIES_PER_RUN > 0 and crawled_count >= MAX_SERIES_PER_RUN:
+        print(f'已达到车系数量限制 {MAX_SERIES_PER_RUN}，保存进度并退出')
+        save_progress()
+        if AUTO_MODE:
+            print('未完成，等待下次继续')
+            sys.exit(10)
+        return True
+    return False
+
+
+def is_step2_completed():
+    if 'series_list' not in progress:
+        return False
+    series_list = progress.get('series_list', [])
+    crawled = progress.get('crawled_series', [])
+    return len(crawled) >= len(series_list) if series_list else False
+
+
 # 第一步：获取所有车系ID
 def get_series_list(browser):
     """通过懂车帝选车页面获取所有车系"""
@@ -193,6 +237,7 @@ def crawl_series_config(browser, series_list):
     print('第二步：爬取车系配置页面')
 
     crawled = progress.get('crawled_series', [])
+    start_time = time.time()
 
     for idx, series in enumerate(series_list):
         series_id = series['id']
@@ -200,6 +245,9 @@ def crawl_series_config(browser, series_list):
 
         if series_id in crawled:
             continue
+
+        if check_time_limit(start_time) or check_series_limit(len(crawled)):
+            return
 
         print(f'[{idx + 1}/{len(series_list)}] 正在爬取: {series_name} (ID: {series_id})')
 
@@ -365,23 +413,58 @@ def generate_output(all_rows, all_headers):
 
 
 def main():
-    browser = create_browser()
-    try:
-        # 1. 获取车系列表
-        series_list = get_series_list(browser)
+    step_funcs = {
+        1: get_series_list,
+        2: crawl_series_config,
+        3: parse_config_pages,
+        4: generate_output,
+    }
 
-        # 2. 爬取配置页面
-        crawl_series_config(browser, series_list)
+    if args.step:
+        print(f'运行第 {args.step} 步')
+        print(f'时间限制: {MAX_TIME_PER_STEP}秒 (0=不限制)')
+        print(f'自动模式: {AUTO_MODE}')
+        if args.step == 2:
+            print(f'车系数量限制: {MAX_SERIES_PER_RUN} (0=不限制)')
 
-        # 3. 解析配置数据
-        all_rows, all_headers = parse_config_pages(series_list)
-
-        # 4. 生成输出
-        generate_output(all_rows, all_headers)
-
-    finally:
-        browser.quit()
-        print('浏览器已关闭')
+        if args.step == 1:
+            browser = create_browser()
+            try:
+                result = get_series_list(browser)
+                if AUTO_MODE and not is_step2_completed():
+                    print('第一步完成，但第二步未完成')
+            finally:
+                browser.quit()
+        elif args.step == 2:
+            series_list = progress.get('series_list', [])
+            if not series_list:
+                print('请先运行第一步获取车系列表')
+                sys.exit(1)
+            browser = create_browser()
+            try:
+                crawl_series_config(browser, series_list)
+                if AUTO_MODE and not is_step2_completed():
+                    sys.exit(10)
+            finally:
+                browser.quit()
+        elif args.step == 3:
+            series_list = progress.get('series_list', [])
+            all_rows, all_headers = parse_config_pages(series_list)
+            return all_rows, all_headers
+        elif args.step == 4:
+            series_list = progress.get('series_list', [])
+            all_rows, all_headers = parse_config_pages(series_list)
+            generate_output(all_rows, all_headers)
+    else:
+        browser = create_browser()
+        try:
+            series_list = get_series_list(browser)
+            crawl_series_config(browser, series_list)
+            all_rows, all_headers = parse_config_pages(series_list)
+            generate_output(all_rows, all_headers)
+        finally:
+            browser.quit()
+            print('浏览器已关闭')
 
 
 if __name__ == '__main__':

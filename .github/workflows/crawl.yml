@@ -101,9 +101,18 @@ jobs:
 
   crawl-dongchedi:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 130
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Random delay
+        run: |
+          DELAY=$((RANDOM % 1800 + 600))
+          echo "Waiting $DELAY seconds..."
+          sleep $DELAY
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -113,13 +122,50 @@ jobs:
       - uses: nanasess/setup-chromedriver@v2
       - run: pip install requests beautifulsoup4 selenium lxml
 
-      - name: Random delay
+      - name: Check if step2 already done
+        id: check_done_dcd
         run: |
-          DELAY=$((RANDOM % 1800 + 600))
-          echo "Waiting $DELAY seconds..."
-          sleep $DELAY
+          if [ -f dcd_step2_done ]; then
+            echo "done=true" >> $GITHUB_OUTPUT
+          else
+            echo "done=false" >> $GITHUB_OUTPUT
+          fi
 
-      - run: python crawl_dongchedi.py
+      - name: Run step2 loop
+        if: steps.check_done_dcd.outputs.done != 'true'
+        run: |
+          while true; do
+            python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }}
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 10 ]; then
+              echo "Step2 incomplete, committing progress..."
+              sleep $((RANDOM % 60 + 30))
+              git config --local user.email "github-actions[bot]@users.noreply.github.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
+              git push
+              echo "Re-running step2..."
+              sleep $((RANDOM % 120 + 60))
+              git pull
+            else
+              break
+            fi
+          done
+          touch dcd_step2_done
+          sleep $((RANDOM % 60 + 30))
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
+          git push
+
+      - name: Run step3 and step4
+        run: |
+          python crawl_dongchedi.py --step 3
+          python crawl_dongchedi.py --step 4
+
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
