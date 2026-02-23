@@ -102,7 +102,6 @@ jobs:
   crawl-dongchedi:
     runs-on: ubuntu-latest
     timeout-minutes: 360
-    needs: crawl-autohome
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -113,6 +112,13 @@ jobs:
           chrome-version: stable
       - uses: nanasess/setup-chromedriver@v2
       - run: pip install requests beautifulsoup4 selenium lxml
+
+      - name: Random delay
+        run: |
+          DELAY=$((RANDOM % 1800 + 600))
+          echo "Waiting $DELAY seconds..."
+          sleep $DELAY
+
       - run: python crawl_dongchedi.py
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
@@ -126,7 +132,7 @@ jobs:
   merge-and-filter:
     runs-on: ubuntu-latest
     timeout-minutes: 360
-    needs: crawl-dongchedi
+    needs: [crawl-autohome, crawl-dongchedi]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
