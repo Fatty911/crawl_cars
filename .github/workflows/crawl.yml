@@ -1,7 +1,8 @@
 name: Monthly Car Data Crawl
 on:
   schedule:
-    - cron: '0 2 1 * *'
+    - cron: '0 2 * * 0'
+    - cron: '0 14 * * 3'
   workflow_dispatch:
     inputs:
       force_restart:
@@ -10,8 +11,8 @@ on:
         default: 'false'
 
 env:
-  RUN_TIME: 7200
-  MAX_CARS: 300
+  RUN_TIME: 25200
+  MAX_CARS: 1200
 
 jobs:
   crawl-autohome:
