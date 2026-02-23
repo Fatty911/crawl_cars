@@ -8,11 +8,23 @@ import time
 import random
 import json
 import re
-from datetime import date
+import argparse
+from datetime import date, datetime
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+
+parser = argparse.ArgumentParser(description='汽车之家爬虫')
+parser.add_argument('--step', type=int, choices=[1,2,3,4,5,6], help='运行指定步骤')
+parser.add_argument('--time-limit', type=int, default=0, help='每步最大运行时间(秒)，0表示不限制')
+parser.add_argument('--max-cars', type=int, default=0, help='第一步最多爬取车型数，0表示不限制')
+parser.add_argument('--auto', action='store_true', help='全自动模式：跑完自动进入下一步')
+args = parser.parse_args()
+
+MAX_TIME_PER_STEP = args.time_limit
+MAX_CARS_PER_RUN = args.max_cars
+AUTO_MODE = args.auto
 
 
 # 设置工作目录为当前文件所在目录
@@ -110,6 +122,24 @@ if os.path.exists(progress_file):
 else:
     progress = {}
 
+def check_time_limit(start_time):
+    if MAX_TIME_PER_STEP > 0:
+        elapsed = time.time() - start_time
+        if elapsed >= MAX_TIME_PER_STEP:
+            print(f'已达到时间限制 {MAX_TIME_PER_STEP}秒，保存进度并退出')
+            with open(progress_file, 'w') as f:
+                json.dump(progress, f)
+            return True
+    return False
+
+def check_car_limit(cars_downloaded):
+    if MAX_CARS_PER_RUN > 0 and cars_downloaded >= MAX_CARS_PER_RUN:
+        print(f'已达到车型数量限制 {MAX_CARS_PER_RUN}，保存进度并退出')
+        with open(progress_file, 'w') as f:
+            json.dump(progress, f)
+        return True
+    return False
+
 # 第一步,下载出所有车型的网页
 def download_car_pages():
     print('第一步,下载出所有车型的网页')
@@ -119,6 +149,9 @@ def download_car_pages():
     else:
         letters = []
 
+    start_time = time.time()
+    cars_downloaded = progress.get('cars_downloaded', 0)
+
     for letter in [chr(i) for i in range(ord('A'), ord('Z') + 1)]:
         if letter not in letters:
             first_url = f'https://www.autohome.com.cn/grade/carhtml/{letter}.html'
@@ -126,16 +159,23 @@ def download_car_pages():
             print(f'正在获取{letter}开头的车型')
 
             resp = session.get(first_url)
-            # 增加打印响应状态码
             print(f'第一步下载{letter}品牌响应码: {resp.status_code}')
             time.sleep(random.uniform(5.4, 12.3))
-            # 尝试自动检测编码
             resp.encoding = resp.apparent_encoding
 
             soup = bs4.BeautifulSoup(resp.text, 'html.parser')
             cars = soup.find_all('li')
 
             for car in cars:
+                if check_time_limit(start_time) or check_car_limit(cars_downloaded):
+                    progress['cars_downloaded'] = cars_downloaded
+                    with open(progress_file, 'w') as f:
+                        json.dump(progress, f)
+                    if AUTO_MODE:
+                        print('未完成，等待下次继续')
+                        sys.exit(10)
+                    return
+                    
                 h4 = car.h4
                 if h4 and h4.a:
                     href = h4.a.get('href')
@@ -145,7 +185,6 @@ def download_car_pages():
                             car_url = second_url.format(car_id)
                             print(f'正在获取{car_id}车型')
 
-                            # 增加重试机制
                             for i in range(5):
                                 try:
                                     resp = session.get(car_url)
@@ -164,9 +203,11 @@ def download_car_pages():
 
                             with open(os.path.join(html_dir, f'{car_id}'), 'w', encoding='utf-8') as f:
                                 f.write(content)
+                            cars_downloaded += 1
 
             letters.append(letter)
             progress['download_car_pages'] = letters
+            progress['cars_downloaded'] = cars_downloaded
             with open(progress_file, 'w') as f:
                 json.dump(progress, f)
 
@@ -181,8 +222,11 @@ def parse_js_to_html():
     else:
         parsed_files = []
 
+    start_time = time.time()
     for file in os.listdir(html_dir):
         if file not in parsed_files:
+            if check_time_limit(start_time):
+                return
             print(f'正在解析文件:{file}')
             content = ''
             with open(os.path.join(html_dir, file), 'r', encoding='utf-8') as f:
@@ -244,8 +288,11 @@ def parse_json_data():
     else:
         parsed_files = []
 
+    start_time = time.time()
     for file in os.listdir(html_dir):
         if file not in parsed_files:
+            if check_time_limit(start_time):
+                return
             print(f'正在解析文件:{file}')
             content = ''
             with open(os.path.join(html_dir, file), 'r', encoding='utf-8') as f:
@@ -310,12 +357,14 @@ def crack_html_files():
     else:
         cracked_files = []
 
+    start_time = time.time()
     crack = Crack()
     for file in os.listdir(newhtml_dir):
         if file not in cracked_files:
+            if check_time_limit(start_time):
+                return
             print(f'正在执行文件:{file}')
             crack.crack(file)
-            # time.sleep(random.uniform(5.4, 12.3))
             cracked_files.append(file)
             progress['crack_html_files'] = cracked_files
             with open(progress_file, 'w') as f:
@@ -332,8 +381,11 @@ def generate_data_files():
     else:
         processed_files = []
 
+    start_time = time.time()
     for json_file in os.listdir(json_dir):
         if json_file not in processed_files:
+            if check_time_limit(start_time):
+                return
             print(f'正在处理文件:{json_file}')
             json_content = ''
             with open(os.path.join(json_dir, json_file), 'r', encoding='utf-8') as f:
@@ -461,13 +513,54 @@ def generate_csv():
     print(f'  CSV: {csv_path}')
     print(f'  JSON: {json_path}')
 
+def is_step1_completed():
+    if 'download_car_pages' not in progress:
+        return False
+    letters = progress.get('download_car_pages', [])
+    return len(letters) >= 26
+
+def check_and_continue():
+    if not AUTO_MODE:
+        return False
+    if not is_step1_completed():
+        print('第一步未完成，下次继续')
+        return True
+    return False
+
 def main():
-    download_car_pages()
-    parse_js_to_html()
-    parse_json_data()
-    crack_html_files()
-    generate_data_files()
-    generate_csv()
+    step_funcs = {
+        1: download_car_pages,
+        2: parse_js_to_html,
+        3: parse_json_data,
+        4: crack_html_files,
+        5: generate_data_files,
+        6: generate_csv,
+    }
+    
+    if args.step:
+        print(f'运行第 {args.step} 步')
+        print(f'时间限制: {MAX_TIME_PER_STEP}秒 (0=不限制)')
+        print(f'自动模式: {AUTO_MODE}')
+        if args.step == 1:
+            print(f'车型数量限制: {MAX_CARS_PER_RUN} (0=不限制)')
+        
+        if args.step == 1:
+            step_funcs[1]()
+            if check_and_continue():
+                sys.exit(0)
+            if AUTO_MODE and is_step1_completed():
+                print('第一步完成，继续执行后续步骤')
+        else:
+            step_funcs[args.step]()
+    else:
+        download_car_pages()
+        if check_and_continue():
+            sys.exit(0)
+        parse_js_to_html()
+        parse_json_data()
+        crack_html_files()
+        generate_data_files()
+        generate_csv()
 
 if __name__ == '__main__':
     main()

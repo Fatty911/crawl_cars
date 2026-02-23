@@ -191,6 +191,36 @@ python merge_data.py
 1. 手动触发：在GitHub页面点击 "Run workflow"
 2. 自动触发：每月1日凌晨2点
 
+### 高级参数
+
+**test_autohome.py 支持的参数：**
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `--step N` | 运行指定步骤(1-6) | `--step 1` |
+| `--time-limit N` | 每步最大运行秒数，0=不限制 | `--time-limit 7200` |
+| `--max-cars N` | 第一步最多下载车型数 | `--max-cars 300` |
+| `--auto` | 自动模式：未完成则exit code 10 | `--auto` |
+
+**步骤说明：**
+1. 下载车型页面（最耗时）
+2. 解析JS拼装HTML
+3. 提取JSON数据
+4. 浏览器执行JS
+5. 匹配样式与JSON
+6. 生成CSV/JSON输出
+
+**GitHub Actions 自动运行逻辑：**
+- 每次运行最多2小时（RUN_TIME: 7200秒）
+- 每次最多下载300个车型（MAX_CARS: 300）
+- 未完成时自动commit进度并push
+- 下次自动从进度继续
+- 完成后运行后续步骤2-6
+
+**手动触发：**
+- 正常触发：`workflow_dispatch`（无参数）
+- 强制重头开始：`workflow_dispatch` → `force_restart: true`
+
 ---
 
 ## 数据字段映射 (HEADER_MAP)
