@@ -144,13 +144,19 @@ def check_car_limit(cars_downloaded):
 def download_car_pages():
     print('第一步,下载出所有车型的网页')
     if 'download_car_pages' in progress:
-        print(f'从上次进度继续:{progress["download_car_pages"]}')
+        print(f'从上次进度继续字母:{progress["download_car_pages"]}')
         letters = progress['download_car_pages']
     else:
         letters = []
 
     start_time = time.time()
     cars_downloaded = progress.get('cars_downloaded', 0)
+    
+    current_letter = progress.get('current_letter', None)
+    start_car_idx = progress.get('current_car_idx', 0)
+    if current_letter and current_letter not in letters:
+        letters.append(current_letter)
+        print(f'从字母{current_letter}的第{start_car_idx}个车型继续')
 
     for letter in [chr(i) for i in range(ord('A'), ord('Z') + 1)]:
         if letter not in letters:
@@ -166,13 +172,15 @@ def download_car_pages():
             soup = bs4.BeautifulSoup(resp.text, 'html.parser')
             cars = soup.find_all('li')
 
-            for car in cars:
+            for car_idx, car in enumerate(cars):
                 if check_time_limit(start_time) or check_car_limit(cars_downloaded):
                     progress['cars_downloaded'] = cars_downloaded
+                    progress['current_letter'] = letter
+                    progress['current_car_idx'] = car_idx
                     with open(progress_file, 'w') as f:
                         json.dump(progress, f)
                     if AUTO_MODE:
-                        print('未完成，等待下次继续')
+                        print(f'未完成，字母{letter}第{car_idx}个车型，等待下次继续')
                         sys.exit(10)
                     return
                     
@@ -182,6 +190,11 @@ def download_car_pages():
                     if href and isinstance(href, str) and '.cn' in href:
                         car_id = href.split('#')[0][href.index('.cn') + 3:].replace('/', '')
                         if car_id:
+                            car_file = os.path.join(html_dir, f'{car_id}')
+                            if os.path.exists(car_file):
+                                print(f'车型{car_id}已存在，跳过')
+                                continue
+                                
                             car_url = second_url.format(car_id)
                             print(f'正在获取{car_id}车型')
 
@@ -201,7 +214,7 @@ def download_car_pages():
                             content = resp.text
                             print(f'车型{car_id}内容长度: {len(content)}')
 
-                            with open(os.path.join(html_dir, f'{car_id}'), 'w', encoding='utf-8') as f:
+                            with open(car_file, 'w', encoding='utf-8') as f:
                                 f.write(content)
                             cars_downloaded += 1
 
