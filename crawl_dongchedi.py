@@ -443,8 +443,17 @@ def main():
         elif args.step == 2:
             series_list = progress.get('series_list', [])
             if not series_list:
-                print('请先运行第一步获取车系列表')
+                print('没有车系列表，先运行第一步获取')
+                browser = create_browser()
+                try:
+                    series_list = get_series_list(browser)
+                finally:
+                    browser.quit()
+            
+            if not series_list:
+                print('无法获取车系列表，退出')
                 sys.exit(1)
+                
             browser = create_browser()
             try:
                 crawl_series_config(browser, series_list)
