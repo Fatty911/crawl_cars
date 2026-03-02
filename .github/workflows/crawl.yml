@@ -104,8 +104,6 @@ jobs:
     timeout-minutes: 130
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Random delay
         run: |

@@ -174,7 +174,7 @@ def is_step2_completed():
 
 # 第一步：获取所有车系ID
 def get_series_list(browser):
-    """通过懂车帝API获取所有车系"""
+    """通过懂车帝选车页面获取所有车系"""
     print('第一步：获取所有车系列表')
 
     if 'series_list' in progress and progress['series_list']:
@@ -182,115 +182,138 @@ def get_series_list(browser):
         return progress['series_list']
 
     series_list = []
-    processed_brands = progress.get('processed_brands', [])
 
-    brand_url = 'https://www.dongchedi.com/auto/library_brand_list'
-    print(f'正在获取品牌列表: {brand_url}')
-    browser.get(brand_url)
-    time.sleep(random.uniform(2, 4))
+    # 方法1: 从选车页面获取
+    print('尝试从选车页面获取...')
+    url = 'https://www.dongchedi.com/selectcar'
+    browser.get(url)
+    time.sleep(random.uniform(5, 8))
 
     try:
         page_source = browser.page_source
-        if 'brand_list' in page_source or 'brandList' in page_source:
-            import json as json_mod
-            script_tags = browser.find_elements(By.TAG_NAME, 'script')
-            for script in script_tags:
+
+        # 尝试从 __NEXT_DATA__ 获取数据
+        import json as json_mod
+        next_data_match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', page_source, re.DOTALL)
+        if next_data_match:
+            try:
+                next_data = json_mod.loads(next_data_match.group(1))
+                props = next_data.get('props', {}).get('pageProps', {})
+
+                # 尝试各种可能的数据结构
+                car_list = props.get('carList', {}).get('list', [])
+                if car_list:
+                    print(f'从NEXT_DATA找到 {len(car_list)} 个车型')
+                    for car in car_list:
+                        series_id = car.get('seriesId') or car.get('series_id')
+                        series_name = car.get('seriesName') or car.get('series_name') or car.get('name')
+                        brand_name = car.get('brandName') or car.get('brand_name') or car.get('brand', '')
+                        if series_id and series_name:
+                            series_list.append({
+                                'id': str(series_id),
+                                'name': series_name,
+                                'brand': brand_name,
+                            })
+            except Exception as e:
+                print(f'解析NEXT_DATA异常: {e}')
+
+        # 如果没找到，尝试从页面元素获取
+        if not series_list:
+            series_selectors = [
+                'a[href*="/auto/series/"]',
+                'a[href*="/auto/series-"]',
+                '[class*="series-item"] a',
+                '[class*="car-item"] a',
+            ]
+
+            for sel in series_selectors:
                 try:
-                    content = script.get_attribute('innerHTML')
-                    if content and ('brand_list' in content or 'brandList' in content):
-                        json_match = re.search(r'\{[\s\S]*brand[s]?\s*[:\[][\s\S]*\}', content)
-                        if json_match:
-                            brand_data = json_mod.loads(json_match.group())
-                            brands = brand_data.get('data', brand_data.get('brand_list', brand_data.get('brandList', [])))
-                            if isinstance(brands, dict):
-                                brands = brands.get('list', [])
-                            print(f'从页面数据找到 {len(brands)} 个品牌')
-                            for brand in brands:
-                                brand_name = brand.get('name', brand.get('brand_name', ''))
-                                brand_id = brand.get('id', brand.get('brand_id', ''))
-                                if brand_name and str(brand_id):
+                    elements = browser.find_elements(By.CSS_SELECTOR, sel)
+                    for elem in elements:
+                        href = elem.get_attribute('href')
+                        text = elem.text.strip()
+                        if href and text:
+                            match = re.search(r'/auto/series[s]?/(\d+)', href)
+                            if match:
+                                series_id = match.group(1)
+                                exists = any(s['id'] == series_id for s in series_list)
+                                if not exists:
                                     series_list.append({
-                                        'id': str(brand_id),
-                                        'name': brand_name,
-                                        'brand': brand_name,
-                                        'type': 'brand'
+                                        'id': series_id,
+                                        'name': text.split('\n')[0][:50],
+                                        'brand': '',
                                     })
                 except:
                     pass
+
+        if series_list:
+            print(f'从页面元素找到 {len(series_list)} 个车系')
+
     except Exception as e:
-        print(f'解析品牌列表异常: {e}')
+        print(f'从选车页面获取异常: {e}')
 
+    # 方法2: 从车型库页面获取
     if not series_list:
-        print('尝试从品牌索引页面获取...')
-        url = 'https://www.dongchedi.com/auto/library-x-x-x-x-x-x-x-x-x-x'
-        browser.get(url)
-        time.sleep(random.uniform(3, 5))
-
-        brand_selectors = [
-            'a[href*="/auto/library/brand-"]',
-            'a[href*="/auto/library-brand"]',
-            'a[href*="brand_id"]',
-            '[class*="brand-item"] a',
-            '[class*="brand"] a[href*="/auto/"]'
+        print('尝试从车型库页面获取...')
+        urls_to_try = [
+            'https://www.dongchedi.com/car',
+            'https://www.dongchedi.com/auto',
+            'https://www.dongchedi.com/car/list',
         ]
 
-        brand_urls = {}
-        for selector in brand_selectors:
+        for try_url in urls_to_try:
             try:
-                elements = browser.find_elements(By.CSS_SELECTOR, selector)
+                print(f'尝试: {try_url}')
+                browser.get(try_url)
+                time.sleep(random.uniform(4, 6))
+
+                elements = browser.find_elements(By.CSS_SELECTOR, 'a[href*="series"]')
                 for elem in elements:
                     href = elem.get_attribute('href')
-                    name = elem.text.strip()
-                    if href and name and len(name) < 20:
-                        if name not in brand_urls:
-                            brand_urls[name] = href
-            except:
-                pass
+                    text = elem.text.strip()
+                    if href and text:
+                        match = re.search(r'/auto/series[s]?/(\d+)', href)
+                        if match:
+                            series_id = match.group(1)
+                            exists = any(s['id'] == series_id for s in series_list)
+                            if not exists:
+                                series_list.append({
+                                    'id': series_id,
+                                    'name': text.split('\n')[0][:50],
+                                    'brand': '',
+                                })
 
-        print(f'找到 {len(brand_urls)} 个品牌')
-
-        for brand_name, brand_href in brand_urls.items():
-            if brand_name in processed_brands or not brand_name:
-                continue
-
-            print(f'正在获取品牌: {brand_name}')
-            try:
-                browser.get(brand_href)
-                time.sleep(random.uniform(2, 4))
-
-                series_selectors = [
-                    'a[href*="/auto/series/"]',
-                    'a[href*="/auto/series-"]',
-                    '[class*="series"] a[href*="/auto/"]'
-                ]
-
-                for sel in series_selectors:
-                    try:
-                        series_links = browser.find_elements(By.CSS_SELECTOR, sel)
-                        for link in series_links:
-                            href = link.get_attribute('href')
-                            series_name = link.text.strip()
-                            if href and series_name:
-                                match = re.search(r'/auto/series[s]?/(\d+)', href)
-                                if match:
-                                    series_id = match.group(1)
-                                    exists = any(s['id'] == series_id for s in series_list)
-                                    if not exists:
-                                        series_list.append({
-                                            'id': series_id,
-                                            'name': series_name,
-                                            'brand': brand_name,
-                                        })
-                    except:
-                        pass
+                if series_list:
+                    break
             except Exception as e:
-                print(f'获取品牌 {brand_name} 异常: {e}')
+                print(f'尝试 {try_url} 异常: {e}')
 
-            processed_brands.append(brand_name)
-            progress['processed_brands'] = processed_brands
-            progress['series_list'] = series_list
-            save_progress()
-            time.sleep(random.uniform(1, 3))
+    # 方法3: 使用热门车系ID列表作为基础
+    if not series_list:
+        print('使用预设的热门车系列表...')
+        popular_series = [
+            {'id': '99', 'name': '奥迪A6L', 'brand': '奥迪'},
+            {'id': '145', 'name': '宝马3系', 'brand': '宝马'},
+            {'id': '214', 'name': '奔驰E级', 'brand': '奔驰'},
+            {'id': '398', 'name': '帕萨特', 'brand': '大众'},
+            {'id': '415', 'name': '迈腾', 'brand': '大众'},
+            {'id': '1145', 'name': '轩逸', 'brand': '日产'},
+            {'id': '2916', 'name': '奥迪Q5L', 'brand': '奥迪'},
+            {'id': '216', 'name': '奔驰GLC', 'brand': '奔驰'},
+            {'id': '5820', 'name': '问界M7', 'brand': 'AITO'},
+            {'id': '4857', 'name': '星越L', 'brand': '吉利'},
+            {'id': '291', 'name': '奥德赛', 'brand': '本田'},
+            {'id': '157', 'name': '保时捷911', 'brand': '保时捷'},
+            {'id': '2832', 'name': '传祺M6', 'brand': '传祺'},
+            {'id': '282', 'name': '艾力绅', 'brand': '本田'},
+        ]
+        series_list = popular_series
+        print(f'使用预设车系 {len(series_list)} 个')
+
+    print(f'共获取 {len(series_list)} 个车系')
+    progress['series_list'] = series_list
+    save_progress()
+    return series_list
 
     if not series_list:
         print('尝试使用API获取车系列表...')
