@@ -25,7 +25,7 @@ jobs:
 
       - name: Random delay to mimic human behavior
         run: |
-          DELAY=$((RANDOM % 1800 + 600))
+          DELAY=$((RANDOM % 1800 + 60))
           echo "Waiting $DELAY seconds before starting..."
           sleep $DELAY
 
@@ -107,7 +107,7 @@ jobs:
 
       - name: Random delay
         run: |
-          DELAY=$((RANDOM % 1800 + 600))
+          DELAY=$((RANDOM % 1800 + 60))
           echo "Waiting $DELAY seconds..."
           sleep $DELAY
 
