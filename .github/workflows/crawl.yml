@@ -17,7 +17,7 @@ env:
 jobs:
   crawl-autohome:
     runs-on: ubuntu-latest
-    timeout-minutes: 130
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,7 +25,7 @@ jobs:
 
       - name: Random delay to mimic human behavior
         run: |
-          DELAY=$((RANDOM % 1800 + 60))
+          DELAY=$((RANDOM % 480 + 60))
           echo "Waiting $DELAY seconds before starting..."
           sleep $DELAY
 
@@ -101,13 +101,13 @@ jobs:
 
   crawl-dongchedi:
     runs-on: ubuntu-latest
-    timeout-minutes: 130
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
 
       - name: Random delay
         run: |
-          DELAY=$((RANDOM % 1800 + 60))
+          DELAY=$((RANDOM % 180 + 60))
           echo "Waiting $DELAY seconds..."
           sleep $DELAY
 
@@ -198,7 +198,7 @@ jobs:
 
   merge-and-filter:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 180
     needs: [crawl-autohome, crawl-dongchedi]
     steps:
       - uses: actions/checkout@v4
