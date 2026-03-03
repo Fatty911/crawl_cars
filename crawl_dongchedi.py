@@ -581,42 +581,159 @@ def parse_config_pages(series_list):
 
         soup = BeautifulSoup(html_content, 'html.parser')
 
-        # 懂车帝配置页面通常用表格或div列表展示
-        # 尝试多种选择器
+        # 优先尝试从__NEXT_DATA__提取数据
         car_names = []
         car_data = {}
+        next_data_match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html_content, re.DOTALL)
+        if next_data_match:
+            try:
+                import json as json_mod
+                next_data = json_mod.loads(next_data_match.group(1))
+                print(f'  找到__NEXT_DATA__，尝试解析配置数据...')
+                
+                # 尝试从props.pageProps.rawData提取数据
+                props = next_data.get('props', {})
+                page_props = props.get('pageProps', {})
+                raw_data = page_props.get('rawData', {})
+                
+                if raw_data:
+                    # 提取车型信息
+                    car_info = raw_data.get('car_info', [])
+                    if car_info:
+                        # 车型名称列表
+                        car_names = [info.get('car_name', '') for info in car_info]
+                        
+                        # 提取配置属性映射 (key -> text)
+                        properties = raw_data.get('properties', [])
+                        prop_mapping = {}  # key -> text
+                        prop_type_mapping = {}  # key -> type
+                        
+                        for prop in properties:
+                            prop_key = prop.get('key')
+                            prop_text = prop.get('text')
+                            prop_type = prop.get('type')
+                            
+                            if prop_key and prop_text:
+                                prop_mapping[prop_key] = prop_text
+                                prop_type_mapping[prop_key] = prop_type
+                            
+                            # 处理有sub_list的属性（type=3）
+                            if prop_type == 3:
+                                sub_list = prop.get('sub_list')
+                                if sub_list:
+                                    for sub in sub_list:
+                                        sub_key = sub.get('key')
+                                        sub_text = sub.get('text')
+                                        if sub_key and sub_text:
+                                            # 使用父级text作为前缀
+                                            full_text = f"{prop_text} - {sub_text}"
+                                            prop_mapping[sub_key] = full_text
+                                            prop_type_mapping[sub_key] = prop_type
+                        
+                        # 为每个车型提取配置值
+                        num_cars = len(car_info)
+                        
+                        # 首先添加基本信息
+                        car_data['车型名称'] = car_names
+                        
+                        # 年款信息
+                        year_values = [info.get('car_year', '') for info in car_info]
+                        if any(year_values):
+                            car_data['年款'] = year_values
+                        
+                        # 官方指导价
+                        price_values = [info.get('official_price', '') for info in car_info]
+                        if any(price_values):
+                            car_data['官方指导价'] = price_values
+                        
+                        # 厂商/品牌
+                        brand_values = [info.get('brand_name', '') for info in car_info]
+                        if any(brand_values):
+                            car_data['厂商'] = brand_values
+                        
+                        # 收集所有车型中出现的所有配置项key
+                        all_config_keys = set()
+                        for car in car_info:
+                            info = car.get('info', {})
+                            all_config_keys.update(info.keys())
+                        
+                        # 为每个配置项提取所有车型的值
+                        for config_key in all_config_keys:
+                            if config_key in prop_mapping:
+                                prop_text = prop_mapping[config_key]
+                            else:
+                                # 如果映射中没有，使用key本身
+                                prop_text = config_key
+                            
+                            values = []
+                            for car in car_info:
+                                info = car.get('info', {})
+                                config_value = info.get(config_key, {})
+                                if isinstance(config_value, dict):
+                                    # 提取value字段
+                                    value = config_value.get('value', '')
+                                else:
+                                    value = str(config_value) if config_value else ''
+                                values.append(value)
+                            
+                            if any(values):  # 只有有值的配置项才添加
+                                car_data[prop_text] = values
+                                if prop_text not in all_headers:
+                                    all_headers.append(prop_text)
+                        
+                        print(f'  从__NEXT_DATA__解析到 {len(car_info)} 个车型, {len(car_data)} 个配置属性')
+            except Exception as e:
+                print(f'  解析__NEXT_DATA__异常: {e}')
+        
+        # 如果__NEXT_DATA__解析失败，则尝试原有解析方式
+        if not car_data:
+            # 懂车帝配置页面通常用表格或div列表展示
+            # 尝试多种选择器
+            
+            # 方式1: 查找表格
+            tables = soup.find_all('table')
+            if tables:
+                for table in tables:
+                    rows = table.find_all('tr')
+                    for row in rows:
+                        cells = row.find_all(['th', 'td'])
+                        if len(cells) >= 2:
+                            header = cells[0].get_text(strip=True)
+                            values = [c.get_text(strip=True) for c in cells[1:]]
 
-        # 方式1: 查找表格
-        tables = soup.find_all('table')
-        if tables:
-            for table in tables:
-                rows = table.find_all('tr')
-                for row in rows:
-                    cells = row.find_all(['th', 'td'])
-                    if len(cells) >= 2:
-                        header = cells[0].get_text(strip=True)
-                        values = [c.get_text(strip=True) for c in cells[1:]]
+                            if header == '车型名称' or header == '官方指导价':
+                                if header == '车型名称':
+                                    car_names = values
+                            if header and header not in car_data:
+                                car_data[header] = values
+                                if header not in all_headers:
+                                    all_headers.append(header)
 
-                        if header == '车型名称' or header == '官方指导价':
-                            if header == '车型名称':
-                                car_names = values
+            # 方式2: 查找div结构的配置列表（适配懂车帝新页面结构）
+            if not car_data:
+                # 新的选择器匹配懂车帝2026年页面结构
+                param_rows = soup.select('[class*="table_row"], [class*="row_"], [class*="cell_row"], [class*="param-row"], [class*="config-row"]')
+                for row in param_rows:
+                    # 尝试多种选择器获取标签和值
+                    label_elem = row.select_one('[class*="label"], [class*="cell_label"], .table_is-label__1wIhd label')
+                    if not label_elem:
+                        # 如果没有明确标签，尝试第一列
+                        first_col = row.select_one('.table_col__3Pc3_:first-child, [class*="col"]:first-child')
+                        if first_col:
+                            label_elem = first_col.select_one('[class*="label"], [class*="cell_label"], label')
+                    
+                    # 获取值列
+                    value_cols = row.select('.table_col__3Pc3_:not(:first-child), [class*="col"]:not(:first-child), [class*="cell_normal"]')
+                    if not value_cols:
+                        value_cols = row.select('[class*="cell"], [class*="item"]')
+                    
+                    if label_elem and value_cols:
+                        header = label_elem.get_text(strip=True)
+                        values = [col.get_text(strip=True) for col in value_cols]
                         if header and header not in car_data:
                             car_data[header] = values
                             if header not in all_headers:
                                 all_headers.append(header)
-
-        # 方式2: 查找div结构的配置列表
-        if not car_data:
-            param_rows = soup.select('[class*="cell_row"], [class*="param-row"], [class*="config-row"]')
-            for row in param_rows:
-                items = row.select('[class*="cell"], [class*="item"]')
-                if len(items) >= 2:
-                    header = items[0].get_text(strip=True)
-                    values = [item.get_text(strip=True) for item in items[1:]]
-                    if header and header not in car_data:
-                        car_data[header] = values
-                        if header not in all_headers:
-                            all_headers.append(header)
 
         if not car_data:
             print('  未能解析到配置数据，跳过')

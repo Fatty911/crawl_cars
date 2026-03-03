@@ -1,0 +1,103 @@
+name: 汽车之家爬虫
+on:
+  push:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_restart:
+        description: '强制重新开始'
+        required: false
+        default: 'false'
+
+env:
+  RUN_TIME: 7200
+  MAX_CARS: 500
+
+jobs:
+  crawl-autohome:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Random delay to mimic human behavior
+        run: |
+          DELAY=$((RANDOM % 480 + 60))
+          echo "Waiting $DELAY seconds before starting..."
+          sleep $DELAY
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - uses: nanasess/setup-chromedriver@v2
+      - run: pip install requests beautifulsoup4 selenium lxml
+      
+      - name: Restart if requested
+        if: github.event.inputs.force_restart == 'true'
+        run: rm -f progress.json step1_done
+      
+      - name: Check if step1 already done
+        id: check_done
+        run: |
+          if [ -f step1_done ]; then
+            echo "done=true" >> $GITHUB_OUTPUT
+          else
+            echo "done=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run step1 loop
+        if: steps.check_done.outputs.done != 'true'
+        run: |
+          while true; do
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 10 ]; then
+              echo "Step1 incomplete, committing progress..."
+              sleep $((RANDOM % 60 + 30))
+              git config --local user.email "github-actions[bot]@users.noreply.github.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
+              git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+              echo "Re-running step1..."
+              sleep $((RANDOM % 120 + 60))
+              git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            else
+              break
+            fi
+          done
+          touch step1_done
+          sleep $((RANDOM % 60 + 30))
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          
+      - name: Run remaining steps
+        run: |
+          python test_autohome.py --step 2
+          python test_autohome.py --step 3
+          python test_autohome.py --step 4
+          python test_autohome.py --step 5
+          python test_autohome.py --step 6
+      
+      - name: Set date
+        run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: autohome-data-${{ env.CRAWL_DATE }}
+          path: |
+            autoHome_*.json
+          retention-days: 90

@@ -1,0 +1,95 @@
+name: 合并分析
+on:
+  push:
+    branches: [ main, master ]
+  schedule:
+    - cron: '30 3,15 * * *'  # 每天3:30和15:30运行
+  workflow_dispatch:
+    inputs:
+      force_merge:
+        description: '强制重新合并'
+        required: false
+        default: 'false'
+
+jobs:
+  merge-and-filter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 设置Python环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: 强制重新合并
+        if: github.event.inputs.force_merge == 'true'
+        run: |
+          echo "强制重新合并，清理旧数据文件..."
+          rm -f autoHome_*.json dongchedi_*.json merged_*.csv diff_*.csv filtered_cars_*.csv filtered_cars_*.json
+      
+      - name: 检查数据文件
+        run: |
+          echo "当前目录数据文件:"
+          ls -la *.json *.csv 2>/dev/null || echo "没有找到数据文件"
+          
+          # 检查是否有数据文件
+          if ls autoHome_*.json dongchedi_*.json 2>/dev/null; then
+            echo "找到数据文件，准备合并..."
+          else
+            echo "没有找到数据文件，跳过合并"
+            exit 0
+          fi
+      
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 设置Python环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: 合并数据文件
+        run: |
+          # 合并所有数据文件到当前目录
+          find autohome_data -name "*.json" -exec cp {} . \;
+          find dongchedi_data -name "*.json" -exec cp {} . \;
+          
+          # 检查是否有数据文件
+          if ls autoHome_*.json dongchedi_*.json 2>/dev/null; then
+            echo "找到数据文件，开始合并..."
+            python merge_data.py
+          else
+            echo "没有找到数据文件，跳过合并"
+            exit 0
+          fi
+      
+      - name: 检查合并结果
+        run: |
+          if [ -f "filtered_cars_$(date +%Y%m%d).json" ]; then
+            echo "合并成功，生成文件:"
+            ls -la filtered_cars_*
+          else
+            echo "合并失败，未生成输出文件"
+            exit 1
+          fi
+      
+      - name: 设置日期变量
+        run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+      
+      - name: 创建发布
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.CRAWL_DATE }}
+          name: 车型数据 ${{ env.CRAWL_DATE }}
+          files: |
+            filtered_cars_${{ env.CRAWL_DATE }}.csv
+            filtered_cars_${{ env.CRAWL_DATE }}.json
+          generate_release_notes: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

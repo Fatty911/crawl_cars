@@ -183,12 +183,23 @@ def main():
 
     ah = norm_rows(load(ah_file), '汽车之家')
     dcd = norm_rows(load(dcd_file), '懂车帝')
+    
+    # 检查是否有数据
+    if not ah and not dcd:
+        print('错误: 没有找到任何数据文件')
+        return
+    
     all_rows = ah + dcd
     print(f'汽车之家:{len(ah)} 懂车帝:{len(dcd)} 合计:{len(all_rows)}')
 
     # 过滤符合条件的车型
     filtered_rows = [r for r in all_rows if filter_car(r)]
     print(f'过滤后符合条件的车型: {len(filtered_rows)} 辆')
+    
+    if not filtered_rows:
+        print('警告: 没有符合条件的车型')
+        # 即使没有符合条件的车型，仍然输出空文件以供参考
+        filtered_rows = []
 
     # 收集所有字段
     all_fields = []
@@ -205,16 +216,21 @@ def main():
         for r in filtered_rows:
             w.writerow({k: r.get(k, '-') for k in h})
 
-    diffs = diff(ah, dcd, all_fields)
-    diff_path = os.path.join(DIR, f'diff_{today}.csv')
-    if diffs:
-        with open(diff_path, 'w', encoding='utf-8-sig', newline='') as f:
-            w = csv.DictWriter(f, fieldnames=['车型', '配置项', '汽车之家', '懂车帝'])
-            w.writeheader()
-            w.writerows(diffs)
-        print(f'差异: {len(diffs)} 处')
+    # 只有在两个数据源都有数据时才进行差异比较
+    diffs = []
+    if ah and dcd:
+        diffs = diff(ah, dcd, all_fields)
+        diff_path = os.path.join(DIR, f'diff_{today}.csv')
+        if diffs:
+            with open(diff_path, 'w', encoding='utf-8-sig', newline='') as f:
+                w = csv.DictWriter(f, fieldnames=['车型', '配置项', '汽车之家', '懂车帝'])
+                w.writeheader()
+                w.writerows(diffs)
+            print(f'差异: {len(diffs)} 处')
+        else:
+            print('无差异')
     else:
-        print('无差异')
+        print('跳过差异比较: 只有一个数据源')
 
     # 输出符合过滤条件的车型到单独文件
     filtered_csv_path = os.path.join(DIR, f'filtered_cars_{today}.csv')

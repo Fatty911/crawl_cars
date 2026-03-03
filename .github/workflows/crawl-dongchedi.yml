@@ -1,0 +1,118 @@
+name: 懂车帝爬虫
+on:
+  push:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+    inputs:
+      force_restart:
+        description: '强制重新开始'
+        required: false
+        default: 'false'
+
+env:
+  RUN_TIME: 7200
+  MAX_CARS: 500
+
+jobs:
+  crawl-dongchedi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Random delay
+        run: |
+          DELAY=$((RANDOM % 180 + 60))
+          echo "Waiting $DELAY seconds..."
+          sleep $DELAY
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - uses: nanasess/setup-chromedriver@v2
+      - run: pip install requests beautifulsoup4 selenium lxml
+
+      - name: Check if step2 already done
+        id: check_done_dcd
+        run: |
+          if [ -f dcd_step2_done ]; then
+            echo "done=true" >> $GITHUB_OUTPUT
+          else
+            echo "done=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run step1 to get series list
+        if: steps.check_done_dcd.outputs.done != 'true'
+        run: |
+          python crawl_dongchedi.py --step 1 --auto --time-limit ${{ env.RUN_TIME }}
+          if [ -f dongchedi/progress.json ]; then
+            sleep $((RANDOM % 60 + 30))
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Dongchedi step1 - series list - $(date +%H:%M)"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          fi
+
+      - name: Run step2 loop
+        if: steps.check_done_dcd.outputs.done != 'true'
+        run: |
+          RUN_COUNT=0
+          while true; do
+            RUN_COUNT=$((RUN_COUNT + 1))
+            echo "=== Step2 run #$RUN_COUNT ==="
+            python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }}
+            EXIT_CODE=$?
+            echo "Exit code: $EXIT_CODE"
+            
+            if [ $EXIT_CODE -eq 10 ]; then
+              echo "Step2 incomplete, committing progress..."
+              sleep $((RANDOM % 60 + 30))
+              git config --local user.email "github-actions[bot]@users.noreply.github.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
+              git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+              echo "Re-running step2..."
+              sleep $((RANDOM % 120 + 60))
+              git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            else
+              echo "Step2 finished with exit code $EXIT_CODE"
+              break
+            fi
+            
+            if [ $RUN_COUNT -gt 50 ]; then
+              echo "Too many runs, stopping"
+              break
+            fi
+          done
+          touch dcd_step2_done
+          sleep $((RANDOM % 60 + 30))
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - name: Run step3 and step4
+        run: |
+          python crawl_dongchedi.py --step 3
+          python crawl_dongchedi.py --step 4
+
+      - name: Set date
+        run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dongchedi-data-${{ env.CRAWL_DATE }}
+          path: |
+            dongchedi_*.json
+          retention-days: 90
