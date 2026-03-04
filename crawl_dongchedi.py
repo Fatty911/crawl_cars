@@ -638,9 +638,13 @@ def main():
             print(f'车系数量限制: {MAX_SERIES_PER_RUN} (0=不限制)')
 
         if args.step == 1:
-            result = get_series_list(None)
-            if AUTO_MODE and not is_step2_completed():
-                print('第一步完成，但第二步未完成')
+            browser = create_browser()
+            try:
+                result = get_series_list(browser)
+                if AUTO_MODE and not is_step2_completed():
+                    print('第一步完成，但第二步未完成')
+            finally:
+                browser.quit()
         elif args.step == 2:
             series_list = progress.get('series_list', [])
             if not series_list:
