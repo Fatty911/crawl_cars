@@ -173,324 +173,82 @@ def is_step2_completed():
 
 
 # 第一步：获取所有车系ID
-def get_series_list(browser):
-    """通过懂车帝选车页面获取所有车系"""
+def get_series_list(browser=None):
+    """通过懂车帝API获取所有车系"""
     print('第一步：获取所有车系列表')
 
-    if 'series_list' in progress and progress['series_list']:
+    if 'series_list' in progress and progress['series_list'] and len(progress['series_list']) >= 500:
         print(f'已有{len(progress["series_list"])} 个车系，跳过获取')
         return progress['series_list']
 
     series_list = []
+    import requests
 
-    # 方法1: 从条件选车页面获取 (用户提供的URL)
-    print('尝试从条件选车页面获取...')
-    library_urls = [
-        'https://www.dongchedi.com/auto/library/x-x-x-x-x-x-x-x-x-x-x',
-        'https://www.dongchedi.com/auto/library/x-x-x-x-x-x-x-x-x-x',
-        'https://www.dongchedi.com/auto/library',
-    ]
-
-    for url in library_urls:
-        try:
-            print(f'尝试URL: {url}')
-            browser.get(url)
-            time.sleep(random.uniform(6, 10))
-
-            # 等待页面加载
+    print('通过API获取全部车系...')
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.dongchedi.com/',
+        }
+        
+        brand_api = 'https://www.dongchedi.com/motor/brand/get_brand_list'
+        resp = requests.get(brand_api, headers=headers, timeout=30)
+        brand_data = resp.json()
+        
+        brands = []
+        if brand_data.get('status') == 'ok':
+            data = brand_data.get('data', {})
+            brand_list = data.get('brand_list', [])
+            for b in brand_list:
+                brand_id = b.get('brand_id') or b.get('id')
+                brand_name = b.get('brand_name') or b.get('name')
+                if brand_id and brand_name:
+                    brands.append({'id': brand_id, 'name': brand_name})
+            print(f'获取到 {len(brands)} 个品牌')
+        
+        for idx, brand in enumerate(brands):
+            brand_id = brand['id']
+            brand_name = brand['name']
+            print(f'[{idx+1}/{len(brands)}] 获取 {brand_name} 的车系...')
+            
             try:
-                WebDriverWait(browser, 15).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'a[href*="/auto/series/"], [class*="car-item"], [class*="series-item"]'))
-                )
-            except TimeoutException:
-                print('  页面加载超时，尝试下一个URL')
-                continue
-
-            page_source = browser.page_source
-
-            # 尝试从 __NEXT_DATA__ 获取数据
-            import json as json_mod
-            next_data_match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', page_source, re.DOTALL)
-            if next_data_match:
-                try:
-                    next_data = json_mod.loads(next_data_match.group(1))
-                    print('找到__NEXT_DATA__，尝试解析...')
-                    
-                    # 深度搜索可能的车型数据
-                    def find_car_data(obj, path=""):
-                        if isinstance(obj, dict):
-                            for k, v in obj.items():
-                                if isinstance(v, list) and len(v) > 0:
-                                    first_item = v[0]
-                                    if isinstance(first_item, dict):
-                                        if any(field in first_item for field in ['seriesId', 'series_id', 'id', 'name', 'brand']):
-                                            return v
-                                result = find_car_data(v, f"{path}.{k}")
-                                if result:
-                                    return result
-                        elif isinstance(obj, list) and len(obj) > 0:
-                            if isinstance(obj[0], dict) and any(field in obj[0] for field in ['seriesId', 'series_id', 'id', 'name', 'brand']):
-                                return obj
-                        return None
-
-                    car_data = find_car_data(next_data)
-                    if car_data:
-                        print(f'从NEXT_DATA找到 {len(car_data)} 个车型数据')
-                        for item in car_data:
-                            series_id = item.get('seriesId') or item.get('series_id') or item.get('id')
-                            series_name = item.get('seriesName') or item.get('series_name') or item.get('name') or item.get('title')
-                            brand_name = item.get('brandName') or item.get('brand_name') or item.get('brand')
-                            if series_id and series_name:
-                                exists = any(s['id'] == str(series_id) for s in series_list)
-                                if not exists:
-                                    series_list.append({
-                                        'id': str(series_id),
-                                        'name': str(series_name),
-                                        'brand': str(brand_name) if brand_name else '',
-                                    })
-                except Exception as e:
-                    print(f'解析NEXT_DATA异常: {e}')
-
-            # 尝试滚动加载更多车型
-            print('尝试滚动加载更多车型...')
-            scroll_attempts = 0
-            max_scrolls = 20
-            last_count = len(series_list)
-
-            while scroll_attempts < max_scrolls:
-                # 从页面元素获取
-                series_selectors = [
-                    'a[href*="/auto/series/"]',
-                    'a[href*="/auto/series-"]',
-                    '[class*="series-item"]',
-                    '[class*="car-item"]',
-                    '[class*="vehicle-item"]',
-                    '[data-series-id]',
-                ]
-
-                for sel in series_selectors:
-                    try:
-                        elements = browser.find_elements(By.CSS_SELECTOR, sel)
-                        for elem in elements:
-                            try:
-                                href = elem.get_attribute('href')
-                                if not href:
-                                    href = elem.find_element(By.CSS_SELECTOR, 'a').get_attribute('href')
-                            except:
-                                href = ''
-                            
-                            text = elem.text.strip()
-                            if not text:
-                                try:
-                                    text = elem.find_element(By.CSS_SELECTOR, '[class*="name"], [class*="title"]').text.strip()
-                                except:
-                                    pass
-                            
-                            # 从href提取series_id
-                            if href:
-                                match = re.search(r'/auto/series[s]?/(\d+)', href)
-                                if match:
-                                    series_id = match.group(1)
-                                else:
-                                    # 尝试从data属性获取
-                                    series_id = elem.get_attribute('data-series-id') or elem.get_attribute('data-id')
-                            else:
-                                series_id = elem.get_attribute('data-series-id') or elem.get_attribute('data-id')
-                            
-                            if series_id and text and len(text) > 0:
-                                exists = any(s['id'] == str(series_id) for s in series_list)
-                                if not exists:
-                                    # 尝试获取品牌信息
-                                    brand = ''
-                                    try:
-                                        brand_elem = elem.find_element(By.CSS_SELECTOR, '[class*="brand"], [class*="make"]')
-                                        brand = brand_elem.text.strip()
-                                    except:
-                                        pass
-                                    
-                                    series_list.append({
-                                        'id': str(series_id),
-                                        'name': text.split('\n')[0][:100],
-                                        'brand': brand,
-                                    })
-
-                            # 如果没有href但有data-id，也尝试直接使用
-                            if not href and series_id and not text:
-                                try:
-                                    name_elem = elem.find_element(By.CSS_SELECTOR, '[class*="name"]')
-                                    text = name_elem.text.strip()
-                                    if text:
-                                        exists = any(s['id'] == str(series_id) for s in series_list)
-                                        if not exists:
-                                            series_list.append({
-                                                'id': str(series_id),
-                                                'name': text.split('\n')[0][:100],
-                                                'brand': '',
-                                            })
-                                except:
-                                    pass
-                    except Exception as e:
-                        print(f'选择器 {sel} 异常: {e}')
-                        continue
-
-                # 滚动页面
-                browser.execute_script("window.scrollTo(0, document.body.scrollHeight * 0.8);")
-                time.sleep(random.uniform(2, 4))
+                series_api = f'https://www.dongchedi.com/motor/brand/get_brand_series?brand_id={brand_id}'
+                resp = requests.get(series_api, headers=headers, timeout=30)
+                series_data = resp.json()
                 
-                # 检查是否加载了新的内容
-                current_count = len(series_list)
-                if current_count > last_count:
-                    print(f'滚动后新增 {current_count - last_count} 个车系，当前总数: {current_count}')
-                    last_count = current_count
-                    scroll_attempts = 0  # 重置尝试次数
-                else:
-                    scroll_attempts += 1
-                    if scroll_attempts % 5 == 0:
-                        print(f'连续 {scroll_attempts} 次滚动未发现新车系')
+                if series_data.get('status') == 'ok':
+                    data = series_data.get('data', {})
+                    series_info_list = data.get('series_info_list', [])
+                    
+                    for s in series_info_list:
+                        series_id = str(s.get('series_id') or s.get('id'))
+                        series_name = s.get('series_name') or s.get('name')
+                        if series_id and series_name:
+                            exists = any(x['id'] == series_id for x in series_list)
+                            if not exists:
+                                series_list.append({
+                                    'id': series_id,
+                                    'name': series_name,
+                                    'brand': brand_name,
+                                })
+                    
+                    print(f'  {brand_name}: {len(series_info_list)} 个车系，累计 {len(series_list)} 个')
+                
+                time.sleep(random.uniform(0.3, 0.6))
+                
+            except Exception as e:
+                print(f'  获取 {brand_name} 车系异常: {e}')
+                continue
+        
+        print(f'通过API获取到 {len(series_list)} 个车系')
+        
+    except Exception as e:
+        print(f'API获取异常: {e}')
 
-                # 如果已经有足够多的车系，提前退出
-                if len(series_list) >= 200:
-                    print(f'已获取 {len(series_list)} 个车系，停止滚动')
-                    break
-
-            print(f'从条件选车页面找到 {len(series_list)} 个车系')
-            if len(series_list) >= 100:
-                break  # 如果从这个URL获取到足够多的车系，不再尝试其他URL
-
-        except Exception as e:
-            print(f'访问 {url} 异常: {e}')
-            continue
-
-    # 方法2: 从选车页面获取 (备用)
-    if len(series_list) < 50:
-        print('车系数量不足，尝试从选车页面获取...')
-        try:
-            url = 'https://www.dongchedi.com/selectcar'
-            browser.get(url)
-            time.sleep(random.uniform(5, 8))
-
-            elements = browser.find_elements(By.CSS_SELECTOR, 'a[href*="/auto/series/"]')
-            for elem in elements:
-                href = elem.get_attribute('href')
-                text = elem.text.strip()
-                if href and text:
-                    match = re.search(r'/auto/series[s]?/(\d+)', href)
-                    if match:
-                        series_id = match.group(1)
-                        exists = any(s['id'] == series_id for s in series_list)
-                        if not exists:
-                            series_list.append({
-                                'id': series_id,
-                                'name': text.split('\n')[0][:50],
-                                'brand': '',
-                            })
-
-            print(f'从选车页面新增 {len([s for s in series_list if s["brand"] == ""])} 个车系')
-        except Exception as e:
-            print(f'从选车页面获取异常: {e}')
-
-    # 如果获取的车系太少，补充预设列表
-    if len(series_list) < 50:
-        print(f'获取的车系较少({len(series_list)})，补充预设列表...')
-        preset_series = [
-            {'id': '99', 'name': '奥迪A6L', 'brand': '奥迪'},
-            {'id': '145', 'name': '宝马3系', 'brand': '宝马'},
-            {'id': '214', 'name': '奔驰E级', 'brand': '奔驰'},
-            {'id': '398', 'name': '帕萨特', 'brand': '大众'},
-            {'id': '415', 'name': '迈腾', 'brand': '大众'},
-            {'id': '1145', 'name': '轩逸', 'brand': '日产'},
-            {'id': '2916', 'name': '奥迪Q5L', 'brand': '奥迪'},
-            {'id': '216', 'name': '奔驰GLC', 'brand': '奔驰'},
-            {'id': '5820', 'name': '问界M7', 'brand': 'AITO'},
-            {'id': '4857', 'name': '星越L', 'brand': '吉利'},
-            {'id': '291', 'name': '奥德赛', 'brand': '本田'},
-            {'id': '157', 'name': '保时捷911', 'brand': '保时捷'},
-            {'id': '2832', 'name': '传祺M6', 'brand': '传祺'},
-            {'id': '282', 'name': '艾力绅', 'brand': '本田'},
-            {'id': '20041', 'name': '小米YU7', 'brand': '小米'},
-            {'id': '25559', 'name': '钛7 PHEV', 'brand': '钛'},
-            {'id': '25575', 'name': '星光730', 'brand': '星光'},
-            {'id': '25574', 'name': '星光730 PHEV', 'brand': '星光'},
-            {'id': '5821', 'name': '问界M5', 'brand': 'AITO'},
-            {'id': '5822', 'name': '问界M9', 'brand': 'AITO'},
-            {'id': '4858', 'name': '星瑞', 'brand': '吉利'},
-            {'id': '4859', 'name': '博越L', 'brand': '吉利'},
-            {'id': '4860', 'name': '帝豪', 'brand': '吉利'},
-            {'id': '4861', 'name': '远景X6', 'brand': '吉利'},
-            {'id': '4862', 'name': '缤越', 'brand': '吉利'},
-            {'id': '4863', 'name': '豪越', 'brand': '吉利'},
-            {'id': '4864', 'name': '嘉际', 'brand': '吉利'},
-            {'id': '4865', 'name': '星越S', 'brand': '吉利'},
-            {'id': '4866', 'name': '博瑞', 'brand': '吉利'},
-            {'id': '4867', 'name': '豪情', 'brand': '吉利'},
-            {'id': '4868', 'name': '金刚', 'brand': '吉利'},
-            {'id': '4869', 'name': '自由舰', 'brand': '吉利'},
-            {'id': '4870', 'name': '熊猫', 'brand': '吉利'},
-            {'id': '4871', 'name': '美人豹', 'brand': '吉利'},
-            {'id': '4872', 'name': '中国龙', 'brand': '吉利'},
-            {'id': '4873', 'name': '豪情SUV', 'brand': '吉利'},
-            {'id': '4874', 'name': '远景', 'brand': '吉利'},
-            # 热门新能源车型
-            {'id': '6001', 'name': '特斯拉Model 3', 'brand': '特斯拉'},
-            {'id': '6002', 'name': '特斯拉Model Y', 'brand': '特斯拉'},
-            {'id': '6003', 'name': '比亚迪汉', 'brand': '比亚迪'},
-            {'id': '6004', 'name': '比亚迪秦PLUS', 'brand': '比亚迪'},
-            {'id': '6005', 'name': '比亚迪宋PLUS', 'brand': '比亚迪'},
-            {'id': '6006', 'name': '比亚迪唐', 'brand': '比亚迪'},
-            {'id': '6007', 'name': '比亚迪海豚', 'brand': '比亚迪'},
-            {'id': '6008', 'name': '比亚迪海鸥', 'brand': '比亚迪'},
-            {'id': '6009', 'name': '理想L9', 'brand': '理想'},
-            {'id': '6010', 'name': '理想L8', 'brand': '理想'},
-            {'id': '6011', 'name': '理想L7', 'brand': '理想'},
-            {'id': '6012', 'name': '蔚来ES6', 'brand': '蔚来'},
-            {'id': '6013', 'name': '蔚来ET5', 'brand': '蔚来'},
-            {'id': '6014', 'name': '小鹏G6', 'brand': '小鹏'},
-            {'id': '6015', 'name': '小鹏P7', 'brand': '小鹏'},
-            # 其他热门车型
-            {'id': '6016', 'name': '丰田凯美瑞', 'brand': '丰田'},
-            {'id': '6017', 'name': '丰田卡罗拉', 'brand': '丰田'},
-            {'id': '6018', 'name': '丰田RAV4荣放', 'brand': '丰田'},
-            {'id': '6019', 'name': '本田雅阁', 'brand': '本田'},
-            {'id': '6020', 'name': '本田CR-V', 'brand': '本田'},
-            {'id': '6021', 'name': '本田思域', 'brand': '本田'},
-            {'id': '6022', 'name': '日产天籁', 'brand': '日产'},
-            {'id': '6023', 'name': '日产逍客', 'brand': '日产'},
-            {'id': '6024', 'name': '大众朗逸', 'brand': '大众'},
-            {'id': '6025', 'name': '大众速腾', 'brand': '大众'},
-            {'id': '6026', 'name': '大众途观L', 'brand': '大众'},
-            {'id': '6027', 'name': '别克GL8', 'brand': '别克'},
-            {'id': '6028', 'name': '别克君威', 'brand': '别克'},
-            {'id': '6029', 'name': '哈弗H6', 'brand': '哈弗'},
-            {'id': '6030', 'name': '长安CS75 PLUS', 'brand': '长安'},
-            {'id': '6031', 'name': '吉利博越', 'brand': '吉利'},
-            {'id': '6032', 'name': '吉利帝豪', 'brand': '吉利'},
-            {'id': '6033', 'name': '奇瑞瑞虎8', 'brand': '奇瑞'},
-            {'id': '6034', 'name': '荣威RX5', 'brand': '荣威'},
-            {'id': '6035', 'name': '红旗H5', 'brand': '红旗'},
-            {'id': '6036', 'name': '红旗HS5', 'brand': '红旗'},
-            {'id': '6037', 'name': '马自达3 昂克赛拉', 'brand': '马自达'},
-            {'id': '6038', 'name': '马自达CX-5', 'brand': '马自达'},
-            {'id': '6039', 'name': '斯柯达明锐', 'brand': '斯柯达'},
-            {'id': '6040', 'name': '雪佛兰科鲁泽', 'brand': '雪佛兰'},
-            {'id': '6041', 'name': '福特蒙迪欧', 'brand': '福特'},
-            {'id': '6042', 'name': '福特锐界', 'brand': '福特'},
-            {'id': '6043', 'name': '现代伊兰特', 'brand': '现代'},
-            {'id': '6044', 'name': '现代ix35', 'brand': '现代'},
-            {'id': '6045', 'name': '起亚K5', 'brand': '起亚'},
-            {'id': '6046', 'name': '起亚智跑', 'brand': '起亚'},
-        ]
-        # 去重合并
-        existing_ids = {s['id'] for s in series_list}
-        for preset in preset_series:
-            if preset['id'] not in existing_ids:
-                series_list.append(preset)
-                existing_ids.add(preset['id'])
-        print(f'补充后共 {len(series_list)} 个车系')
-
-    print(f'共获取 {len(series_list)} 个车系')
-    progress['series_list'] = series_list
-    save_progress()
-    return series_list
+    if series_list:
+        progress['series_list'] = series_list
+        save_progress()
+    
     return series_list
 
 
@@ -813,22 +571,14 @@ def main():
             print(f'车系数量限制: {MAX_SERIES_PER_RUN} (0=不限制)')
 
         if args.step == 1:
-            browser = create_browser()
-            try:
-                result = get_series_list(browser)
-                if AUTO_MODE and not is_step2_completed():
-                    print('第一步完成，但第二步未完成')
-            finally:
-                browser.quit()
+            result = get_series_list(None)
+            if AUTO_MODE and not is_step2_completed():
+                print('第一步完成，但第二步未完成')
         elif args.step == 2:
             series_list = progress.get('series_list', [])
             if not series_list:
                 print('没有车系列表，先运行第一步获取')
-                browser = create_browser()
-                try:
-                    series_list = get_series_list(browser)
-                finally:
-                    browser.quit()
+                series_list = get_series_list()
             
             if not series_list:
                 print('无法获取车系列表，退出')
@@ -858,9 +608,9 @@ def main():
                 all_rows, all_headers = parse_config_pages(series_list)
             generate_output(all_rows, all_headers)
     else:
+        series_list = get_series_list()
         browser = create_browser()
         try:
-            series_list = get_series_list(browser)
             crawl_series_config(browser, series_list)
             all_rows, all_headers = parse_config_pages(series_list)
             generate_output(all_rows, all_headers)
