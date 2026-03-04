@@ -174,76 +174,143 @@ def is_step2_completed():
 
 # 第一步：获取所有车系ID
 def get_series_list(browser=None):
-    """通过懂车帝API获取所有车系"""
+    """通过懂车帝library页面获取所有车系"""
     print('第一步：获取所有车系列表')
 
-    if 'series_list' in progress and progress['series_list'] and len(progress['series_list']) >= 500:
+    if 'series_list' in progress and progress['series_list'] and len(progress['series_list']) >= 1000:
         print(f'已有{len(progress["series_list"])} 个车系，跳过获取')
         return progress['series_list']
 
     series_list = []
     import requests
+    import json as json_mod
 
-    print('通过API获取全部车系...')
+    print('从library页面获取全部车系...')
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.dongchedi.com/',
+    }
+    
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://www.dongchedi.com/',
-        }
+        url = 'https://www.dongchedi.com/auto/library/x-x-x-x-x-x-x-x-x-x-x'
+        resp = requests.get(url, headers=headers, timeout=30)
         
-        brand_api = 'https://www.dongchedi.com/motor/brand/get_brand_list'
-        resp = requests.get(brand_api, headers=headers, timeout=30)
-        brand_data = resp.json()
-        
-        brands = []
-        if brand_data.get('status') == 'ok':
-            data = brand_data.get('data', {})
-            brand_list = data.get('brand_list', [])
-            for b in brand_list:
-                brand_id = b.get('brand_id') or b.get('id')
-                brand_name = b.get('brand_name') or b.get('name')
-                if brand_id and brand_name:
-                    brands.append({'id': brand_id, 'name': brand_name})
-            print(f'获取到 {len(brands)} 个品牌')
-        
-        for idx, brand in enumerate(brands):
-            brand_id = brand['id']
-            brand_name = brand['name']
-            print(f'[{idx+1}/{len(brands)}] 获取 {brand_name} 的车系...')
+        match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', resp.text, re.DOTALL)
+        if match:
+            data = json_mod.loads(match.group(1))
             
-            try:
-                series_api = f'https://www.dongchedi.com/motor/brand/get_brand_series?brand_id={brand_id}'
-                resp = requests.get(series_api, headers=headers, timeout=30)
-                series_data = resp.json()
+            all_brands = data.get('props', {}).get('pageProps', {}).get('allBrands', {}).get('brand', [])
+            
+            brands = []
+            for item in all_brands:
+                if item.get('type') == 1001:
+                    info = item.get('info', {})
+                    brand_id = info.get('brand_id')
+                    brand_name = info.get('brand_name')
+                    series_count = info.get('on_sale_series_count', 0)
+                    if brand_id and brand_name and series_count > 0:
+                        brands.append({
+                            'id': brand_id,
+                            'name': brand_name,
+                            'series_count': series_count
+                        })
+            
+            print(f'获取到 {len(brands)} 个品牌，预计 {sum(b["series_count"] for b in brands)} 个车系')
+            
+            if browser is None:
+                print('\n使用静态页面获取（每个品牌仅能获取前30个热门车系）')
+                print('如需获取全部车系，请使用浏览器模式（传入browser参数）')
                 
-                if series_data.get('status') == 'ok':
-                    data = series_data.get('data', {})
-                    series_info_list = data.get('series_info_list', [])
+                for idx, brand in enumerate(brands):
+                    brand_id = brand['id']
+                    brand_name = brand['name']
                     
-                    for s in series_info_list:
-                        series_id = str(s.get('series_id') or s.get('id'))
-                        series_name = s.get('series_name') or s.get('name')
+                    print(f'[{idx+1}/{len(brands)}] {brand_name}...', end=' ')
+                    
+                    try:
+                        brand_url = f'https://www.dongchedi.com/auto/library/{brand_id}-x-x-x-x-x-x-x-x-x-x'
+                        brand_resp = requests.get(brand_url, headers=headers, timeout=30)
+                        
+                        brand_match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', brand_resp.text, re.DOTALL)
+                        if brand_match:
+                            brand_data = json_mod.loads(brand_match.group(1))
+                            series_info = brand_data.get('props', {}).get('pageProps', {}).get('seriesInfo', {})
+                            series = series_info.get('series', [])
+                            
+                            added_count = 0
+                            for s in series:
+                                series_id = str(s.get('id') or s.get('concern_id'))
+                                series_name = s.get('outter_name')
+                                s_brand_name = s.get('brand_name', brand_name)
+                                
+                                if series_id and series_name:
+                                    if not any(x['id'] == series_id for x in series_list):
+                                        series_list.append({
+                                            'id': series_id,
+                                            'name': series_name,
+                                            'brand': s_brand_name,
+                                        })
+                                        added_count += 1
+                            
+                            print(f'新增{added_count}个，累计{len(series_list)}个')
+                        
+                        time.sleep(random.uniform(0.2, 0.4))
+                        
+                    except Exception as e:
+                        print(f'异常: {str(e)[:50]}')
+                        continue
+            else:
+                print('\n使用浏览器滚动加载获取全部车系...')
+                browser.get('https://www.dongchedi.com/auto/library/x-x-x-x-x-x-x-x-x-x-x')
+                time.sleep(5)
+                
+                last_count = 0
+                scroll_count = 0
+                max_scrolls = 100
+                series = []
+                
+                while scroll_count < max_scrolls:
+                    browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(2)
+                    
+                    page_source = browser.page_source
+                    match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', page_source, re.DOTALL)
+                    if match:
+                        data = json_mod.loads(match.group(1))
+                        series_info = data.get('props', {}).get('pageProps', {}).get('seriesInfo', {})
+                        series = series_info.get('series', [])
+                        
+                        if len(series) == last_count:
+                            scroll_count += 1
+                            if scroll_count % 10 == 0:
+                                print(f'已滚动{scroll_count}次，当前{len(series)}个车系')
+                        else:
+                            last_count = len(series)
+                            scroll_count = 0
+                            print(f'加载了 {len(series)} 个车系...')
+                    
+                    if last_count >= 4000:
+                        print('已加载足够多的车系，停止滚动')
+                        break
+                
+                for s in series:
+                        series_id = str(s.get('id') or s.get('concern_id'))
+                        series_name = s.get('outter_name')
+                        brand_name = s.get('brand_name', '')
+                        
                         if series_id and series_name:
-                            exists = any(x['id'] == series_id for x in series_list)
-                            if not exists:
+                            if not any(x['id'] == series_id for x in series_list):
                                 series_list.append({
                                     'id': series_id,
                                     'name': series_name,
                                     'brand': brand_name,
                                 })
-                    
-                    print(f'  {brand_name}: {len(series_info_list)} 个车系，累计 {len(series_list)} 个')
-                
-                time.sleep(random.uniform(0.3, 0.6))
-                
-            except Exception as e:
-                print(f'  获取 {brand_name} 车系异常: {e}')
-                continue
-        
-        print(f'通过API获取到 {len(series_list)} 个车系')
-        
+            
+            print(f'\n总共获取 {len(series_list)} 个车系')
+            
     except Exception as e:
-        print(f'API获取异常: {e}')
+        print(f'获取异常: {e}')
 
     if series_list:
         progress['series_list'] = series_list
