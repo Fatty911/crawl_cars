@@ -844,10 +844,18 @@ def main():
         elif args.step == 3:
             series_list = progress.get('series_list', [])
             all_rows, all_headers = parse_config_pages(series_list)
+            progress['parsed_data'] = {'rows': all_rows, 'headers': all_headers}
+            save_progress()
             return all_rows, all_headers
         elif args.step == 4:
-            series_list = progress.get('series_list', [])
-            all_rows, all_headers = parse_config_pages(series_list)
+            parsed_data = progress.get('parsed_data')
+            if parsed_data:
+                all_rows = parsed_data.get('rows', [])
+                all_headers = parsed_data.get('headers', [])
+                print(f'使用已解析数据: {len(all_rows)} 条')
+            else:
+                series_list = progress.get('series_list', [])
+                all_rows, all_headers = parse_config_pages(series_list)
             generate_output(all_rows, all_headers)
     else:
         browser = create_browser()

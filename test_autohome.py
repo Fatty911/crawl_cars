@@ -143,23 +143,24 @@ def check_car_limit(cars_downloaded):
 # 第一步,下载出所有车型的网页
 def download_car_pages():
     print('第一步,下载出所有车型的网页')
-    if 'download_car_pages' in progress:
-        print(f'从上次进度继续字母:{progress["download_car_pages"]}')
-        letters = progress['download_car_pages']
-    else:
-        letters = []
+    letters = progress.get('download_car_pages', [])
 
     start_time = time.time()
     cars_downloaded = progress.get('cars_downloaded', 0)
     
     current_letter = progress.get('current_letter', None)
     start_car_idx = progress.get('current_car_idx', 0)
-    if current_letter and current_letter not in letters:
-        letters.append(current_letter)
+    skip_until_idx = start_car_idx if current_letter else 0
+    
+    if current_letter:
         print(f'从字母{current_letter}的第{start_car_idx}个车型继续')
 
-    for letter in [chr(i) for i in range(ord('A'), ord('Z') + 1)]:
-        if letter not in letters:
+    all_letters = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
+    
+    for letter in all_letters:
+        should_process = (letter == current_letter) or (letter not in letters and current_letter is None)
+        
+        if should_process:
             first_url = f'https://www.autohome.com.cn/grade/carhtml/{letter}.html'
             second_url = 'https://car.autohome.com.cn/config/series/{}.html'
             print(f'正在获取{letter}开头的车型')
@@ -171,12 +172,19 @@ def download_car_pages():
 
             soup = bs4.BeautifulSoup(resp.text, 'html.parser')
             cars = soup.find_all('li')
+            
+            car_start_idx = skip_until_idx if letter == current_letter else 0
+            skip_until_idx = 0
 
             for car_idx, car in enumerate(cars):
+                if car_idx < car_start_idx:
+                    continue
+                    
                 if check_time_limit(start_time) or check_car_limit(cars_downloaded):
                     progress['cars_downloaded'] = cars_downloaded
                     progress['current_letter'] = letter
                     progress['current_car_idx'] = car_idx
+                    progress['download_car_pages'] = letters
                     with open(progress_file, 'w') as f:
                         json.dump(progress, f)
                     if AUTO_MODE:
@@ -192,7 +200,6 @@ def download_car_pages():
                         if car_id:
                             car_file = os.path.join(html_dir, f'{car_id}')
                             if os.path.exists(car_file):
-                                print(f'车型{car_id}已存在，跳过')
                                 continue
                                 
                             car_url = second_url.format(car_id)
@@ -218,9 +225,14 @@ def download_car_pages():
                                 f.write(content)
                             cars_downloaded += 1
 
-            letters.append(letter)
+            if letter not in letters:
+                letters.append(letter)
             progress['download_car_pages'] = letters
             progress['cars_downloaded'] = cars_downloaded
+            if 'current_letter' in progress:
+                del progress['current_letter']
+            if 'current_car_idx' in progress:
+                del progress['current_car_idx']
             with open(progress_file, 'w') as f:
                 json.dump(progress, f)
 
