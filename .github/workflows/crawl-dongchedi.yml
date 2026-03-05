@@ -60,6 +60,7 @@ jobs:
             git config --local user.name "github-actions[bot]"
             git add -A
             git diff --staged --quiet || git commit -m "Dongchedi step1 - series list - $(date +%H:%M)"
+            git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           fi
 
@@ -80,10 +81,10 @@ jobs:
               git config --local user.name "github-actions[bot]"
               git add -A
               git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
+              git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
               git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
               echo "Re-running step2..."
               sleep $((RANDOM % 30 + 10))
-              git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
             else
               echo "Step2 finished with exit code $EXIT_CODE"
               break
@@ -99,6 +100,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add -A
           git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
+          git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Run step3 and step4
