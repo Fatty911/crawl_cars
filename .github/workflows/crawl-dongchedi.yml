@@ -12,8 +12,8 @@ on:
         default: 'false'
 
 env:
-  RUN_TIME: 7200
-  MAX_CARS: 500
+  RUN_TIME: 7000
+  MAX_CARS: 0
 
 jobs:
   crawl-dongchedi:
@@ -26,11 +26,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Random delay
+      - name: Force restart if requested
+        if: github.event.inputs.force_restart == 'true'
         run: |
-          DELAY=$((RANDOM % 180 + 60))
-          echo "Waiting $DELAY seconds..."
-          sleep $DELAY
+          rm -f dcd_step2_done dongchedi/progress.json
+          rm -f dongchedi/json/*.html
+          echo "已重置所有进度"
 
       - uses: actions/setup-python@v5
         with:
@@ -55,7 +56,6 @@ jobs:
         run: |
           python crawl_dongchedi.py --step 1 --auto --time-limit ${{ env.RUN_TIME }}
           if [ -f dongchedi/progress.json ]; then
-            sleep $((RANDOM % 60 + 30))
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
             git add -A
@@ -76,14 +76,13 @@ jobs:
             
             if [ $EXIT_CODE -eq 10 ]; then
               echo "Step2 incomplete, committing progress..."
-              sleep $((RANDOM % 60 + 30))
               git config --local user.email "github-actions[bot]@users.noreply.github.com"
               git config --local user.name "github-actions[bot]"
               git add -A
               git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
               git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
               echo "Re-running step2..."
-              sleep $((RANDOM % 120 + 60))
+              sleep $((RANDOM % 30 + 10))
               git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
             else
               echo "Step2 finished with exit code $EXIT_CODE"
@@ -96,7 +95,6 @@ jobs:
             fi
           done
           touch dcd_step2_done
-          sleep $((RANDOM % 60 + 30))
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add -A
@@ -104,6 +102,7 @@ jobs:
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Run step3 and step4
+        if: steps.check_done_dcd.outputs.done == 'true' || success()
         run: |
           python crawl_dongchedi.py --step 3
           python crawl_dongchedi.py --step 4
