@@ -1,7 +1,7 @@
 name: 合并分析
 on:
-  push:
-    branches: [ main, master ]
+  # push:
+  #   branches: [ main, master ]
   schedule:
     - cron: '30 3,15 * * *'  # 每天3:30和15:30运行
   workflow_dispatch:

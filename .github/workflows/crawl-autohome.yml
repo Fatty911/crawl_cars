@@ -1,7 +1,7 @@
 name: 汽车之家爬虫
 on:
-  push:
-    branches: [ main, master ]
+  # push:
+  #   branches: [ main, master ]
   schedule:
     - cron: '0 2 * * *'
   workflow_dispatch:
