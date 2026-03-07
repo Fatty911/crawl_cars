@@ -104,6 +104,95 @@ exit
 
 ## 代理配置
 
+### 为什么需要代理
+
+- 避免IP被封
+- 分散请求来源
+- 提高爬取成功率
+
+### 代理管理器 (proxy_manager.py)
+
+**功能**：
+- ✅ 支持多个机场订阅URL
+- ✅ 排除特定关键字节点
+- ✅ 解析 V2Ray/Clash 订阅
+- ✅ 手动添加 HTTP/SOCKS5 代理
+- ✅ 负载均衡策略
+- ✅ 节点统计与筛选
+
+**订阅管理**：
+```bash
+# 添加订阅
+python proxy_manager.py --add-sub "https://订阅1"
+python proxy_manager.py --add-sub "https://订阅2"
+
+# 列出所有订阅
+python proxy_manager.py --list-subs
+
+# 刷新所有订阅
+python proxy_manager.py --refresh
+```
+
+**排除关键字**：
+```bash
+# 添加排除关键字（逗号分隔）
+python proxy_manager.py --exclude "过期,测试,expire,test"
+
+# 列出排除关键字
+python proxy_manager.py --list-exclude
+
+# 移除排除关键字
+python proxy_manager.py --remove-exclude "test"
+```
+
+**手动添加代理**：
+```bash
+# HTTP代理
+python proxy_manager.py --add-http "节点1" "proxy.example.com" "8080" "user:pass"
+
+# SOCKS5代理
+python proxy_manager.py --add-socks5 "节点2" "127.0.0.1" "1080" ""
+```
+
+**查看和测试**：
+```bash
+# 查看统计
+python proxy_manager.py --stats
+
+# 列出代理
+python proxy_manager.py --list
+
+# 测试前5个代理
+python proxy_manager.py --test 5
+
+# 清空所有代理
+python proxy_manager.py --clear
+```
+
+**配置文件** (proxies.json)：
+```json
+{
+  "proxies": [],
+  "stats": {},
+  "exclude_keywords": ["过期", "测试", "expire"],
+  "subscriptions": [
+    "https://订阅1",
+    "https://订阅2"
+  ]
+}
+```
+
+**负载均衡策略**：
+- `random`: 随机选择
+- `round_robin`: 轮询
+- `least_used`: 最少使用
+- `best_performance`: 最佳性能
+
+**注意**：
+- SS/VMess/Trojan 需要本地客户端转为 HTTP
+- 推荐使用 Clash/V2Ray 监听本地端口
+- 或直接购买 HTTP/SOCKS5 代理
+
 ### 方式一：环境变量
 
 编辑 `docker-compose.yaml`：
