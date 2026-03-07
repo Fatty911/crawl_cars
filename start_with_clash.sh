@@ -42,8 +42,9 @@ echo "检测到订阅配置，正在启动代理..."
 # 创建Clash配置目录
 mkdir -p "$CLASH_DIR"
 
-# 生成Clash配置
+# 生成Clash配置（临时禁用代理环境变量，因为此时代理还没启动）
 echo "生成Clash配置..."
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
 python3 /app/generate_clash_config.py \
     --subs $(python3 -c "
 import json

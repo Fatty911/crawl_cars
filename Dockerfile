@@ -17,9 +17,9 @@ RUN apk add --no-cache \
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# 安装 Mihomo (Clash.Meta)
+# 安装 Mihomo (Clash.Meta) - 使用compatible版本以支持更多CPU
 RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then MIHOMO_ARCH="amd64"; \
+    if [ "$ARCH" = "x86_64" ]; then MIHOMO_ARCH="amd64-compatible"; \
     elif [ "$ARCH" = "aarch64" ]; then MIHOMO_ARCH="arm64"; \
     else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
     curl -L -o /tmp/mihomo.gz "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.20/mihomo-linux-${MIHOMO_ARCH}-v1.19.20.gz" && \
@@ -43,12 +43,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 设置Chromium环境变量
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-dev-shm-usage"
-
-# 设置代理相关环境变量
-ENV HTTP_PROXY=http://127.0.0.1:7890
-ENV HTTPS_PROXY=http://127.0.0.1:7890
-ENV ALL_PROXY=socks5://127.0.0.1:7891
-ENV PROXY_ENABLED=false
 
 # 复制代码
 COPY . .

@@ -24,7 +24,10 @@ class ClashConfigGenerator:
             headers = {
                 'User-Agent': 'ClashForWindows/0.20.39'
             }
-            resp = requests.get(url, headers=headers, timeout=30)
+            # 不使用代理获取订阅（因为此时代理还没启动）
+            session = requests.Session()
+            session.trust_env = False  # 忽略环境变量中的代理设置
+            resp = session.get(url, headers=headers, timeout=30)
             if resp.status_code == 200:
                 content = resp.text.strip()
                 if content.startswith('http'):
