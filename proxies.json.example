@@ -1,0 +1,13 @@
+{
+  "proxies": [],
+  "stats": {},
+  "exclude_keywords": [
+    "过期",
+    "到期",
+    "测试",
+    "test",
+    "expire"
+  ],
+  "subscriptions": [],
+  "last_updated": ""
+}

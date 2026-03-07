@@ -1,5 +1,5 @@
 """
-代理管理器 - 支持机场订阅解析和负载均衡
+代理管理器 - 支持多机场订阅、节点过滤、负载均衡
 """
 import os
 import json
@@ -7,8 +7,10 @@ import base64
 import random
 import time
 import requests
-from typing import List, Dict, Optional
-from urllib.parse import urlparse, parse_qs
+import re
+from typing import List, Dict, Optional, Set
+from urllib.parse import urlparse
+from datetime import datetime
 
 
 class ProxyManager:
@@ -16,6 +18,8 @@ class ProxyManager:
         self.config_file = config_file
         self.proxies: List[Dict] = []
         self.proxy_stats: Dict[str, Dict] = {}
+        self.exclude_keywords: Set[str] = set()
+        self.subscriptions: List[str] = []
         self.current_index = 0
         self.load_config()
 
@@ -25,17 +29,74 @@ class ProxyManager:
                 config = json.load(f)
                 self.proxies = config.get('proxies', [])
                 self.proxy_stats = config.get('stats', {})
+                self.exclude_keywords = set(config.get('exclude_keywords', []))
+                self.subscriptions = config.get('subscriptions', [])
 
     def save_config(self):
         config = {
             'proxies': self.proxies,
-            'stats': self.proxy_stats
+            'stats': self.proxy_stats,
+            'exclude_keywords': list(self.exclude_keywords),
+            'subscriptions': self.subscriptions,
+            'last_updated': datetime.now().isoformat()
         }
         with open(self.config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
 
+    def add_exclude_keyword(self, keyword: str):
+        """添加排除关键字"""
+        self.exclude_keywords.add(keyword.lower())
+        self.save_config()
+        print(f"已添加排除关键字: {keyword}")
+
+    def remove_exclude_keyword(self, keyword: str):
+        """移除排除关键字"""
+        self.exclude_keywords.discard(keyword.lower())
+        self.save_config()
+        print(f"已移除排除关键字: {keyword}")
+
+    def set_exclude_keywords(self, keywords: List[str]):
+        """设置排除关键字列表"""
+        self.exclude_keywords = set(k.lower() for k in keywords)
+        self.save_config()
+        print(f"已设置 {len(keywords)} 个排除关键字")
+
+    def should_exclude(self, proxy_name: str) -> bool:
+        """检查节点是否应该被排除"""
+        name_lower = proxy_name.lower()
+        for keyword in self.exclude_keywords:
+            if keyword in name_lower:
+                return True
+        return False
+
+    def add_subscription(self, url: str):
+        """添加订阅URL"""
+        if url not in self.subscriptions:
+            self.subscriptions.append(url)
+            self.save_config()
+            print(f"已添加订阅: {url[:50]}...")
+
+    def remove_subscription(self, url: str):
+        """移除订阅URL"""
+        if url in self.subscriptions:
+            self.subscriptions.remove(url)
+            self.save_config()
+            print(f"已移除订阅: {url[:50]}...")
+
+    def clear_proxies(self):
+        """清空所有代理"""
+        self.proxies = []
+        self.proxy_stats = {}
+        self.save_config()
+        print("已清空所有代理")
+
     def add_http_proxy(self, name: str, host: str, port: int, 
-                       username: str = None, password: str = None):
+                       username: str = "", password: str = ""):
+        """添加HTTP代理"""
+        if self.should_exclude(name):
+            print(f"跳过被排除的节点: {name}")
+            return False
+        
         proxy = {
             'name': name,
             'type': 'http',
@@ -44,12 +105,25 @@ class ProxyManager:
             'username': username,
             'password': password
         }
+        
+        # 检查是否已存在
+        for p in self.proxies:
+            if p['name'] == name:
+                print(f"节点已存在: {name}")
+                return False
+        
         self.proxies.append(proxy)
         self.proxy_stats[name] = {'success': 0, 'fail': 0, 'last_used': 0}
         self.save_config()
+        return True
 
     def add_socks5_proxy(self, name: str, host: str, port: int,
-                         username: str = None, password: str = None):
+                         username: str = "", password: str = ""):
+        """添加SOCKS5代理"""
+        if self.should_exclude(name):
+            print(f"跳过被排除的节点: {name}")
+            return False
+        
         proxy = {
             'name': name,
             'type': 'socks5',
@@ -58,22 +132,154 @@ class ProxyManager:
             'username': username,
             'password': password
         }
+        
+        for p in self.proxies:
+            if p['name'] == name:
+                return False
+        
         self.proxies.append(proxy)
         self.proxy_stats[name] = {'success': 0, 'fail': 0, 'last_used': 0}
         self.save_config()
+        return True
+
+    def parse_v2ray_subscription(self, subscription_url: str) -> List[Dict]:
+        """解析V2Ray订阅链接"""
+        try:
+            print(f"正在获取订阅: {subscription_url[:50]}...")
+            resp = requests.get(subscription_url, timeout=30)
+            if resp.status_code != 200:
+                print(f"获取订阅失败: HTTP {resp.status_code}")
+                return []
+            
+            content = base64.b64decode(resp.text).decode('utf-8')
+            proxies = []
+            added = 0
+            excluded = 0
+            
+            for line in content.strip().split('\n'):
+                line = line.strip()
+                proxy = None
+                
+                if line.startswith('vmess://'):
+                    proxy = self._parse_vmess(line)
+                elif line.startswith('ss://'):
+                    proxy = self._parse_ss(line)
+                elif line.startswith('trojan://'):
+                    proxy = self._parse_trojan(line)
+                elif line.startswith('vless://'):
+                    proxy = self._parse_vless(line)
+                
+                if proxy:
+                    if self.should_exclude(proxy['name']):
+                        excluded += 1
+                        continue
+                    
+                    # 检查重复
+                    if not any(p['name'] == proxy['name'] for p in self.proxies):
+                        proxies.append(proxy)
+                        self.proxy_stats[proxy['name']] = {'success': 0, 'fail': 0, 'last_used': 0}
+                        added += 1
+            
+            self.proxies.extend(proxies)
+            self.save_config()
+            print(f"解析完成: 新增 {added} 个节点, 排除 {excluded} 个节点")
+            return proxies
+            
+        except Exception as e:
+            print(f"解析订阅失败: {e}")
+            return []
+
+    def _parse_vmess(self, line: str) -> Optional[Dict]:
+        """解析VMess链接"""
+        try:
+            vmess_data = json.loads(base64.b64decode(line[8:]).decode('utf-8'))
+            return {
+                'name': vmess_data.get('ps', 'vmess'),
+                'type': 'vmess',
+                'host': vmess_data.get('add'),
+                'port': int(vmess_data.get('port', 443)),
+                'uuid': vmess_data.get('id'),
+                'alterId': int(vmess_data.get('aid', 0)),
+                'cipher': vmess_data.get('scy', 'auto'),
+                'network': vmess_data.get('net', 'tcp'),
+                'tls': vmess_data.get('tls', '') == 'tls',
+            }
+        except Exception as e:
+            print(f"解析VMess失败: {e}")
+            return None
+
+    def _parse_ss(self, line: str) -> Optional[Dict]:
+        """解析SS链接"""
+        try:
+            match = re.match(r'ss://([^@]+)@([^:]+):(\d+)(?:#(.+))?', line)
+            if match:
+                userinfo = base64.b64decode(match.group(1)).decode('utf-8')
+                cipher, password = userinfo.split(':', 1)
+                return {
+                    'name': match.group(4) or 'ss',
+                    'type': 'ss',
+                    'host': match.group(2),
+                    'port': int(match.group(3)),
+                    'cipher': cipher,
+                    'password': password,
+                }
+        except Exception as e:
+            print(f"解析SS失败: {e}")
+        return None
+
+    def _parse_trojan(self, line: str) -> Optional[Dict]:
+        """解析Trojan链接"""
+        try:
+            parsed = urlparse(line)
+            return {
+                'name': parsed.fragment or 'trojan',
+                'type': 'trojan',
+                'host': parsed.hostname,
+                'port': parsed.port,
+                'password': parsed.username,
+            }
+        except Exception as e:
+            print(f"解析Trojan失败: {e}")
+        return None
+
+    def _parse_vless(self, line: str) -> Optional[Dict]:
+        """解析VLESS链接"""
+        try:
+            parsed = urlparse(line)
+            return {
+                'name': parsed.fragment or 'vless',
+                'type': 'vless',
+                'host': parsed.hostname,
+                'port': parsed.port,
+                'uuid': parsed.username,
+            }
+        except Exception as e:
+            print(f"解析VLESS失败: {e}")
+        return None
 
     def parse_clash_config(self, config_text: str) -> List[Dict]:
-        import yaml
+        """解析Clash配置文件"""
         try:
+            import yaml
             config = yaml.safe_load(config_text)
             proxies = []
+            added = 0
+            excluded = 0
+            
             for p in config.get('proxies', []):
+                name = p.get('name', 'unnamed')
+                
+                if self.should_exclude(name):
+                    excluded += 1
+                    continue
+                
                 proxy = {
-                    'name': p.get('name', 'unnamed'),
+                    'name': name,
                     'type': p.get('type'),
                     'host': p.get('server'),
                     'port': p.get('port'),
                 }
+                
                 if p.get('type') == 'ss':
                     proxy.update({
                         'cipher': p.get('cipher'),
@@ -96,105 +302,71 @@ class ProxyManager:
                     })
                 
                 if proxy['host'] and proxy['port']:
-                    proxies.append(proxy)
-                    self.proxy_stats[proxy['name']] = {'success': 0, 'fail': 0, 'last_used': 0}
+                    if not any(pr['name'] == name for pr in self.proxies):
+                        proxies.append(proxy)
+                        self.proxy_stats[name] = {'success': 0, 'fail': 0, 'last_used': 0}
+                        added += 1
             
             self.proxies.extend(proxies)
             self.save_config()
+            print(f"解析完成: 新增 {added} 个节点, 排除 {excluded} 个节点")
             return proxies
+            
         except Exception as e:
             print(f"解析Clash配置失败: {e}")
             return []
 
-    def parse_v2ray_subscription(self, subscription_url: str) -> List[Dict]:
-        try:
-            resp = requests.get(subscription_url, timeout=30)
-            if resp.status_code != 200:
-                print(f"获取订阅失败: {resp.status_code}")
-                return []
-            
-            content = base64.b64decode(resp.text).decode('utf-8')
-            proxies = []
-            
-            for line in content.strip().split('\n'):
-                line = line.strip()
-                if line.startswith('vmess://'):
-                    try:
-                        vmess_data = json.loads(base64.b64decode(line[8:]).decode('utf-8'))
-                        proxy = {
-                            'name': vmess_data.get('ps', 'vmess'),
-                            'type': 'vmess',
-                            'host': vmess_data.get('add'),
-                            'port': int(vmess_data.get('port', 443)),
-                            'uuid': vmess_data.get('id'),
-                            'alterId': int(vmess_data.get('aid', 0)),
-                            'cipher': vmess_data.get('scy', 'auto'),
-                            'network': vmess_data.get('net', 'tcp'),
-                            'tls': vmess_data.get('tls', '') == 'tls',
-                        }
-                        proxies.append(proxy)
-                        self.proxy_stats[proxy['name']] = {'success': 0, 'fail': 0, 'last_used': 0}
-                    except Exception as e:
-                        print(f"解析vmess链接失败: {e}")
-                
-                elif line.startswith('ss://'):
-                    try:
-                        import re
-                        match = re.match(r'ss://([^@]+)@([^:]+):(\d+)(?:#(.+))?', line)
-                        if match:
-                            userinfo = base64.b64decode(match.group(1)).decode('utf-8')
-                            cipher, password = userinfo.split(':', 1)
-                            proxy = {
-                                'name': match.group(4) or 'ss',
-                                'type': 'ss',
-                                'host': match.group(2),
-                                'port': int(match.group(3)),
-                                'cipher': cipher,
-                                'password': password,
-                            }
-                            proxies.append(proxy)
-                            self.proxy_stats[proxy['name']] = {'success': 0, 'fail': 0, 'last_used': 0}
-                    except Exception as e:
-                        print(f"解析ss链接失败: {e}")
-                
-                elif line.startswith('trojan://'):
-                    try:
-                        parsed = urlparse(line)
-                        proxy = {
-                            'name': parsed.fragment or 'trojan',
-                            'type': 'trojan',
-                            'host': parsed.hostname,
-                            'port': parsed.port,
-                            'password': parsed.username,
-                        }
-                        proxies.append(proxy)
-                        self.proxy_stats[proxy['name']] = {'success': 0, 'fail': 0, 'last_used': 0}
-                    except Exception as e:
-                        print(f"解析trojan链接失败: {e}")
-            
-            self.proxies.extend(proxies)
-            self.save_config()
-            return proxies
-        except Exception as e:
-            print(f"解析订阅失败: {e}")
-            return []
+    def parse_all_subscriptions(self):
+        """解析所有订阅"""
+        if not self.subscriptions:
+            print("没有订阅URL")
+            return
+        
+        print(f"开始解析 {len(self.subscriptions)} 个订阅...")
+        total = 0
+        
+        for url in self.subscriptions:
+            proxies = self.parse_v2ray_subscription(url)
+            total += len(proxies)
+        
+        print(f"总共新增 {total} 个节点")
+        print(f"当前可用节点: {len(self.proxies)} 个")
+
+    def refresh_proxies(self):
+        """刷新所有代理（清空后重新解析订阅）"""
+        print("刷新代理...")
+        self.clear_proxies()
+        self.parse_all_subscriptions()
 
     def get_proxy(self, strategy: str = 'round_robin') -> Optional[Dict]:
+        """获取代理"""
         if not self.proxies:
             return None
         
+        # 过滤掉失败次数过多的代理
+        available = []
+        for p in self.proxies:
+            stats = self.proxy_stats.get(p['name'], {})
+            fail_rate = stats.get('fail', 0) / max(stats.get('success', 0) + stats.get('fail', 0), 1)
+            if fail_rate < 0.8:  # 失败率小于80%
+                available.append(p)
+        
+        if not available:
+            print("警告: 所有代理失败率过高，使用全部代理")
+            available = self.proxies
+        
         if strategy == 'random':
-            return random.choice(self.proxies)
+            return random.choice(available)
         
         elif strategy == 'round_robin':
-            proxy = self.proxies[self.current_index]
-            self.current_index = (self.current_index + 1) % len(self.proxies)
+            proxy = available[self.current_index % len(available)]
+            self.current_index += 1
             return proxy
         
         elif strategy == 'least_used':
             min_use = float('inf')
             selected = None
-            for p in self.proxies:
+            for p in available:
                 stats = self.proxy_stats.get(p['name'], {})
                 use_count = stats.get('success', 0) + stats.get('fail', 0)
                 if use_count < min_use:
@@ -205,104 +377,196 @@ class ProxyManager:
         elif strategy == 'best_performance':
             best_score = -1
             selected = None
-            for p in self.proxies:
+            for p in available:
                 stats = self.proxy_stats.get(p['name'], {})
                 success = stats.get('success', 0)
                 fail = stats.get('fail', 0)
                 total = success + fail
-                if total > 0:
-                    score = success / total
-                else:
-                    score = 0.5
+                score = success / total if total > 0 else 0.5
                 if score > best_score:
                     best_score = score
                     selected = p
-            return selected or self.proxies[0]
+            return selected or available[0]
         
-        return self.proxies[0]
+        return available[0]
 
     def report_success(self, proxy_name: str):
+        """报告成功"""
         if proxy_name in self.proxy_stats:
             self.proxy_stats[proxy_name]['success'] += 1
             self.proxy_stats[proxy_name]['last_used'] = time.time()
             self.save_config()
 
     def report_failure(self, proxy_name: str):
+        """报告失败"""
         if proxy_name in self.proxy_stats:
             self.proxy_stats[proxy_name]['fail'] += 1
             self.save_config()
 
     def get_requests_proxies(self, proxy: Dict) -> Dict[str, str]:
+        """转换为requests库可用的代理格式"""
         if not proxy:
             return {}
         
-        if proxy.get('username') and proxy.get('password'):
-            auth = f"{proxy['username']}:{proxy['password']}@{proxy['host']}:{proxy['port']}"
-        else:
-            auth = f"{proxy['host']}:{proxy['port']}"
+        host = proxy.get('host')
+        port = proxy.get('port')
         
-        if proxy['type'] == 'http':
-            return {'http': f'http://{auth}', 'https': f'http://{auth}'}
-        elif proxy['type'] == 'socks5':
-            return {'http': f'socks5://{auth}', 'https': f'socks5://{auth}'}
+        if not host or not port:
+            return {}
+        
+        auth = ""
+        if proxy.get('username') and proxy.get('password'):
+            auth = f"{proxy['username']}:{proxy['password']}@"
+        
+        proxy_url = f"{host}:{port}"
+        if auth:
+            proxy_url = f"{auth}{proxy_url}"
+        
+        proxy_type = proxy.get('type', 'http')
+        
+        if proxy_type == 'http':
+            return {'http': f'http://{proxy_url}', 'https': f'http://{proxy_url}'}
+        elif proxy_type == 'socks5':
+            return {'http': f'socks5://{proxy_url}', 'https': f'socks5://{proxy_url}'}
         else:
-            print(f"注意: {proxy['type']} 类型代理需要本地客户端转换，请确保本地有监听端口")
+            print(f"注意: {proxy_type} 类型代理需要本地客户端转换")
             return {}
 
-    def list_proxies(self) -> str:
+    def list_proxies(self, limit: int = 50) -> str:
+        """列出代理"""
         result = []
-        for p in self.proxies:
+        result.append(f"总共 {len(self.proxies)} 个代理节点\n")
+        result.append(f"排除关键字: {', '.join(self.exclude_keywords) or '无'}\n")
+        result.append(f"订阅数量: {len(self.subscriptions)}\n")
+        result.append("-" * 80)
+        
+        for i, p in enumerate(self.proxies[:limit]):
             stats = self.proxy_stats.get(p['name'], {})
             success = stats.get('success', 0)
             fail = stats.get('fail', 0)
             total = success + fail
             rate = f"{success}/{total}" if total > 0 else "N/A"
-            result.append(f"  {p['name']}: {p['type']} {p['host']}:{p['port']} [{rate}]")
-        return "\n".join(result)
+            
+            result.append(f"\n{i+1}. {p['name']}")
+            result.append(f"   类型: {p['type']} | 地址: {p.get('host', 'N/A')}:{p.get('port', 'N/A')}")
+            result.append(f"   统计: {rate}")
+        
+        if len(self.proxies) > limit:
+            result.append(f"\n... 还有 {len(self.proxies) - limit} 个节点未显示")
+        
+        return '\n'.join(result)
+
+    def get_stats(self) -> str:
+        """获取统计信息"""
+        total = len(self.proxies)
+        if total == 0:
+            return "没有代理节点"
+        
+        total_success = sum(s.get('success', 0) for s in self.proxy_stats.values())
+        total_fail = sum(s.get('fail', 0) for s in self.proxy_stats.values())
+        
+        good_proxies = sum(1 for p in self.proxies 
+                          if self.proxy_stats.get(p['name'], {}).get('success', 0) > 
+                          self.proxy_stats.get(p['name'], {}).get('fail', 0))
+        
+        return f"""代理统计:
+  总节点数: {total}
+  可用节点: {good_proxies}
+  排除关键字: {len(self.exclude_keywords)} 个
+  订阅数量: {len(self.subscriptions)} 个
+  总成功: {total_success}
+  总失败: {total_fail}
+  成功率: {total_success/(total_success+total_fail)*100:.1f}%""" if (total_success+total_fail) > 0 else "暂无使用记录"
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='代理管理工具')
-    parser.add_argument('--add-http', nargs=4, metavar=('NAME', 'HOST', 'PORT', 'USER:PASS'), help='添加HTTP代理')
-    parser.add_argument('--add-socks5', nargs=4, metavar=('NAME', 'HOST', 'PORT', 'USER:PASS'), help='添加SOCKS5代理')
-    parser.add_argument('--sub', type=str, help='解析V2Ray订阅链接')
+    
+    # 添加代理
+    parser.add_argument('--add-http', nargs=4, metavar=('NAME', 'HOST', 'PORT', 'USER:PASS'), 
+                       help='添加HTTP代理')
+    parser.add_argument('--add-socks5', nargs=4, metavar=('NAME', 'HOST', 'PORT', 'USER:PASS'), 
+                       help='添加SOCKS5代理')
+    
+    # 订阅管理
+    parser.add_argument('--add-sub', type=str, help='添加订阅URL')
+    parser.add_argument('--remove-sub', type=str, help='移除订阅URL')
+    parser.add_argument('--list-subs', action='store_true', help='列出所有订阅')
+    parser.add_argument('--refresh', action='store_true', help='刷新所有订阅')
+    
+    # 排除关键字
+    parser.add_argument('--exclude', type=str, help='添加排除关键字（逗号分隔）')
+    parser.add_argument('--remove-exclude', type=str, help='移除排除关键字')
+    parser.add_argument('--list-exclude', action='store_true', help='列出排除关键字')
+    
+    # 解析
+    parser.add_argument('--sub', type=str, help='解析单个订阅URL')
     parser.add_argument('--clash', type=str, help='解析Clash配置文件路径')
+    
+    # 查看
     parser.add_argument('--list', action='store_true', help='列出所有代理')
-    parser.add_argument('--test', action='store_true', help='测试代理可用性')
+    parser.add_argument('--stats', action='store_true', help='显示统计信息')
+    parser.add_argument('--test', type=int, help='测试前N个代理')
+    parser.add_argument('--clear', action='store_true', help='清空所有代理')
+    
     args = parser.parse_args()
-
+    
     pm = ProxyManager()
 
     if args.add_http:
         name, host, port = args.add_http[:3]
-        auth = args.add_http[3].split(':') if len(args.add_http) > 3 else None
-        pm.add_http_proxy(name, host, int(port), auth[0] if auth else None, auth[1] if auth else None)
-        print(f"已添加HTTP代理: {name}")
-
+        auth = args.add_http[3].split(':') if ':' in args.add_http[3] else []
+        pm.add_http_proxy(name, host, int(port), auth[0] if len(auth) > 0 else "", auth[1] if len(auth) > 1 else "")
+    
     elif args.add_socks5:
-        name, host, port = args.add_http[:3]
-        auth = args.add_socks5[3].split(':') if len(args.add_socks5) > 3 else None
-        pm.add_socks5_proxy(name, host, int(port), auth[0] if auth else None, auth[1] if auth else None)
-        print(f"已添加SOCKS5代理: {name}")
-
+        name, host, port = args.add_socks5[:3]
+        auth = args.add_socks5[3].split(':') if ':' in args.add_socks5[3] else []
+        pm.add_socks5_proxy(name, host, int(port), auth[0] if len(auth) > 0 else "", auth[1] if len(auth) > 1 else "")
+    
+    elif args.add_sub:
+        pm.add_subscription(args.add_sub)
+    
+    elif args.remove_sub:
+        pm.remove_subscription(args.remove_sub)
+    
+    elif args.list_subs:
+        print(f"订阅列表 ({len(pm.subscriptions)} 个):")
+        for i, url in enumerate(pm.subscriptions, 1):
+            print(f"  {i}. {url}")
+    
+    elif args.refresh:
+        pm.refresh_proxies()
+    
+    elif args.exclude:
+        for keyword in args.exclude.split(','):
+            pm.add_exclude_keyword(keyword.strip())
+    
+    elif args.remove_exclude:
+        pm.remove_exclude_keyword(args.remove_exclude)
+    
+    elif args.list_exclude:
+        print(f"排除关键字 ({len(pm.exclude_keywords)} 个):")
+        for kw in pm.exclude_keywords:
+            print(f"  - {kw}")
+    
     elif args.sub:
-        proxies = pm.parse_v2ray_subscription(args.sub)
-        print(f"从订阅解析出 {len(proxies)} 个节点")
-
+        pm.parse_v2ray_subscription(args.sub)
+    
     elif args.clash:
         with open(args.clash, 'r', encoding='utf-8') as f:
-            proxies = pm.parse_clash_config(f.read())
-        print(f"从Clash配置解析出 {len(proxies)} 个节点")
-
+            pm.parse_clash_config(f.read())
+    
     elif args.list:
-        print(f"共 {len(pm.proxies)} 个代理:")
         print(pm.list_proxies())
-
+    
+    elif args.stats:
+        print(pm.get_stats())
+    
     elif args.test:
-        print("测试代理可用性...")
-        for p in pm.proxies[:5]:
-            print(f"测试 {p['name']}...")
+        print(f"测试前 {args.test} 个代理...")
+        for p in pm.proxies[:args.test]:
+            print(f"\n测试 {p['name']}...")
             proxies = pm.get_requests_proxies(p)
             if proxies:
                 try:
@@ -311,13 +575,18 @@ if __name__ == '__main__':
                         print(f"  ✓ 成功: {resp.json()}")
                         pm.report_success(p['name'])
                     else:
-                        print(f"  ✗ 失败: {resp.status_code}")
+                        print(f"  ✗ 失败: HTTP {resp.status_code}")
                         pm.report_failure(p['name'])
                 except Exception as e:
                     print(f"  ✗ 异常: {e}")
                     pm.report_failure(p['name'])
             else:
                 print(f"  - 跳过: 需要 {p['type']} 本地客户端")
-
+    
+    elif args.clear:
+        confirm = input("确定要清空所有代理吗? (y/N): ")
+        if confirm.lower() == 'y':
+            pm.clear_proxies()
+    
     else:
         parser.print_help()
