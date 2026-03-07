@@ -1,7 +1,7 @@
 FROM python:3.12-alpine
 
 LABEL maintainer="crawl_cars"
-LABEL description="汽车数据爬虫"
+LABEL description="汽车数据爬虫 - 集成Mihomo代理"
 
 # 安装系统依赖
 RUN apk add --no-cache \
@@ -10,11 +10,27 @@ RUN apk add --no-cache \
     git \
     bash \
     curl \
-    tzdata
+    tzdata \
+    unzip \
+    ca-certificates
 
 # 设置时区
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 安装 Mihomo (Clash.Meta)
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then MIHOMO_ARCH="amd64"; \
+    elif [ "$ARCH" = "aarch64" ]; then MIHOMO_ARCH="arm64"; \
+    else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
+    curl -L -o /tmp/mihomo.zip "https://github.com/MetaCubeX/mihomo/releases/download/v1.18.10/mihomo-linux-${MIHOMO_ARCH}-v1.18.10.zip" && \
+    unzip /tmp/mihomo.zip -d /usr/local/bin && \
+    chmod +x /usr/local/bin/mihomo && \
+    rm /tmp/mihomo.zip && \
+    ln -s /usr/local/bin/mihomo /usr/local/bin/clash
+
+# 创建Clash配置目录
+RUN mkdir -p /root/.config/mihomo
 
 # 设置工作目录
 WORKDIR /app
@@ -28,6 +44,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 设置Chromium环境变量
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-dev-shm-usage"
+
+# 设置代理相关环境变量
+ENV HTTP_PROXY=http://127.0.0.1:7890
+ENV HTTPS_PROXY=http://127.0.0.1:7890
+ENV ALL_PROXY=socks5://127.0.0.1:7891
+ENV PROXY_ENABLED=false
 
 # 复制代码
 COPY . .

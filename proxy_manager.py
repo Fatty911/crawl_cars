@@ -1,5 +1,5 @@
 """
-代理管理器 - 支持多机场订阅、节点过滤、负载均衡
+代理管理器 - 支持多机场订阅、节点过滤、负载均衡、Clash集成
 """
 import os
 import json
@@ -8,6 +8,8 @@ import random
 import time
 import requests
 import re
+import subprocess
+import signal
 from typing import List, Dict, Optional, Set
 from urllib.parse import urlparse
 from datetime import datetime
@@ -21,6 +23,11 @@ class ProxyManager:
         self.exclude_keywords: Set[str] = set()
         self.subscriptions: List[str] = []
         self.current_index = 0
+        self.clash_process = None
+        self.clash_config = "/root/.config/mihomo/config.yaml"
+        self.clash_mixed_port = 7890
+        self.clash_socks_port = 7891
+        self.clash_api = "http://127.0.0.1:9090"
         self.load_config()
 
     def load_config(self):
@@ -431,6 +438,179 @@ class ProxyManager:
         else:
             print(f"注意: {proxy_type} 类型代理需要本地客户端转换")
             return {}
+    
+    def generate_clash_config(self) -> bool:
+        """生成Clash配置文件"""
+        try:
+            from generate_clash_config import ClashConfigGenerator
+            generator = ClashConfigGenerator(self.clash_config)
+            return generator.generate_and_save(
+                subscriptions=self.subscriptions,
+                exclude_keywords=list(self.exclude_keywords),
+                output_path=self.clash_config
+            )
+        except Exception as e:
+            print(f"生成Clash配置失败: {e}")
+            return False
+    
+    def start_clash(self, generate_config: bool = True) -> bool:
+        """启动Clash进程"""
+        if self.check_clash_running():
+            print("Clash已在运行中")
+            return True
+        
+        if not self.subscriptions:
+            print("没有订阅URL，无法启动Clash")
+            return False
+        
+        if generate_config:
+            if not self.generate_clash_config():
+                print("生成配置失败")
+                return False
+        
+        if not os.path.exists(self.clash_config):
+            print(f"Clash配置文件不存在: {self.clash_config}")
+            return False
+        
+        try:
+            self.clash_process = subprocess.Popen(
+                ['mihomo', '-d', os.path.dirname(self.clash_config), '-f', self.clash_config],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                preexec_fn=os.setsid
+            )
+            
+            time.sleep(2)
+            
+            if self.clash_process.poll() is None:
+                print(f"Clash启动成功 (PID: {self.clash_process.pid})")
+                print(f"HTTP代理: http://127.0.0.1:{self.clash_mixed_port}")
+                print(f"SOCKS5代理: socks5://127.0.0.1:{self.clash_socks_port}")
+                return True
+            else:
+                stderr = self.clash_process.stderr.read().decode('utf-8')
+                print(f"Clash启动失败: {stderr}")
+                return False
+                
+        except FileNotFoundError:
+            print("mihomo未安装，请使用Docker或手动安装")
+            return False
+        except Exception as e:
+            print(f"启动Clash失败: {e}")
+            return False
+    
+    def stop_clash(self):
+        """停止Clash进程"""
+        if self.clash_process:
+            try:
+                os.killpg(os.getpgid(self.clash_process.pid), signal.SIGTERM)
+                self.clash_process = None
+                print("Clash已停止")
+            except Exception as e:
+                print(f"停止Clash失败: {e}")
+        else:
+            try:
+                result = subprocess.run(['pgrep', '-f', 'mihomo'], capture_output=True, text=True)
+                if result.stdout.strip():
+                    pids = result.stdout.strip().split('\n')
+                    for pid in pids:
+                        os.kill(int(pid), signal.SIGTERM)
+                    print(f"已停止 {len(pids)} 个mihomo进程")
+            except:
+                pass
+    
+    def check_clash_running(self) -> bool:
+        """检查Clash是否运行"""
+        try:
+            resp = requests.get(f"{self.clash_api}/version", timeout=2)
+            return resp.status_code == 200
+        except:
+            pass
+        
+        if self.clash_process and self.clash_process.poll() is None:
+            return True
+        
+        try:
+            result = subprocess.run(['pgrep', '-f', 'mihomo'], capture_output=True, text=True)
+            return bool(result.stdout.strip())
+        except:
+            return False
+    
+    def get_clash_proxies(self) -> Dict:
+        """通过Clash API获取代理列表"""
+        try:
+            resp = requests.get(f"{self.clash_api}/proxies", timeout=5)
+            if resp.status_code == 200:
+                return resp.json().get('proxies', {})
+        except Exception as e:
+            print(f"获取Clash代理失败: {e}")
+        return {}
+    
+    def select_clash_proxy(self, group: str = "PROXY", proxy_name: str = "AUTO") -> bool:
+        """通过Clash API选择代理"""
+        try:
+            resp = requests.put(
+                f"{self.clash_api}/proxies/{group}",
+                json={"name": proxy_name},
+                timeout=5
+            )
+            return resp.status_code == 204 or resp.status_code == 200
+        except Exception as e:
+            print(f"选择代理失败: {e}")
+            return False
+    
+    def get_clash_delay(self, proxy_name: str, url: str = "http://www.gstatic.com/generate_204") -> int:
+        """测试Clash代理延迟"""
+        try:
+            resp = requests.get(
+                f"{self.clash_api}/proxies/{proxy_name}/delay",
+                params={"url": url, "timeout": 5000},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                return resp.json().get('delay', -1)
+        except:
+            pass
+        return -1
+    
+    def get_clash_local_proxy(self) -> Dict[str, str]:
+        """获取Clash本地代理配置（用于requests）"""
+        if self.check_clash_running():
+            return {
+                'http': f'http://127.0.0.1:{self.clash_mixed_port}',
+                'https': f'http://127.0.0.1:{self.clash_mixed_port}'
+            }
+        return {}
+    
+    def auto_select_best_proxy(self) -> Optional[str]:
+        """自动选择最快代理"""
+        proxies = self.get_clash_proxies()
+        if not proxies:
+            return None
+        
+        auto_group = proxies.get('AUTO', {})
+        if auto_group:
+            now = auto_group.get('now', 'AUTO')
+            if now and now != 'DIRECT':
+                return now
+        
+        best_name = None
+        best_delay = float('inf')
+        
+        for name, info in proxies.items():
+            if name in ['DIRECT', 'REJECT', 'GLOBAL', 'PROXY', 'AUTO']:
+                continue
+            
+            delay = info.get('history', [{}])[-1].get('delay', 0) if info.get('history') else 0
+            if 0 < delay < best_delay:
+                best_delay = delay
+                best_name = name
+        
+        if best_name:
+            self.select_clash_proxy("AUTO", best_name)
+            print(f"已选择最快代理: {best_name} ({best_delay}ms)")
+        
+        return best_name
 
     def list_proxies(self, limit: int = 50) -> str:
         """列出代理"""
@@ -504,6 +684,15 @@ if __name__ == '__main__':
     parser.add_argument('--sub', type=str, help='解析单个订阅URL')
     parser.add_argument('--clash', type=str, help='解析Clash配置文件路径')
     
+    # Clash管理
+    parser.add_argument('--start-clash', action='store_true', help='启动Clash')
+    parser.add_argument('--stop-clash', action='store_true', help='停止Clash')
+    parser.add_argument('--clash-status', action='store_true', help='查看Clash状态')
+    parser.add_argument('--clash-proxies', action='store_true', help='列出Clash代理')
+    parser.add_argument('--select-proxy', type=str, metavar='NAME', help='选择Clash代理')
+    parser.add_argument('--auto-select', action='store_true', help='自动选择最快代理')
+    parser.add_argument('--test-delay', type=str, metavar='NAME', help='测试代理延迟')
+    
     # 查看
     parser.add_argument('--list', action='store_true', help='列出所有代理')
     parser.add_argument('--stats', action='store_true', help='显示统计信息')
@@ -556,6 +745,62 @@ if __name__ == '__main__':
     elif args.clash:
         with open(args.clash, 'r', encoding='utf-8') as f:
             pm.parse_clash_config(f.read())
+    
+    elif args.start_clash:
+        if pm.start_clash():
+            print("\n代理已就绪!")
+            print(f"HTTP代理: http://127.0.0.1:{pm.clash_mixed_port}")
+            print(f"SOCKS5代理: socks5://127.0.0.1:{pm.clash_socks_port}")
+        else:
+            print("启动失败")
+    
+    elif args.stop_clash:
+        pm.stop_clash()
+    
+    elif args.clash_status:
+        if pm.check_clash_running():
+            print("Clash运行中")
+            try:
+                resp = requests.get(f"{pm.clash_api}/version", timeout=2)
+                print(f"版本: {resp.json()}")
+            except:
+                pass
+        else:
+            print("Clash未运行")
+    
+    elif args.clash_proxies:
+        proxies = pm.get_clash_proxies()
+        if proxies:
+            print(f"Clash代理列表 ({len(proxies)} 个):")
+            for name, info in proxies.items():
+                if name in ['DIRECT', 'REJECT', 'GLOBAL']:
+                    continue
+                proxy_type = info.get('type', 'unknown')
+                delay = info.get('history', [{}])[-1].get('delay', 'N/A') if info.get('history') else 'N/A'
+                alive = '✓' if delay != 'N/A' and delay > 0 else '✗'
+                print(f"  {alive} {name} ({proxy_type}) - {delay}ms")
+        else:
+            print("无法获取代理列表，请确保Clash正在运行")
+    
+    elif args.select_proxy:
+        if pm.select_clash_proxy("PROXY", args.select_proxy):
+            print(f"已选择代理: {args.select_proxy}")
+        else:
+            print("选择失败")
+    
+    elif args.auto_select:
+        best = pm.auto_select_best_proxy()
+        if best:
+            print(f"已自动选择: {best}")
+        else:
+            print("自动选择失败")
+    
+    elif args.test_delay:
+        delay = pm.get_clash_delay(args.test_delay)
+        if delay > 0:
+            print(f"延迟: {delay}ms")
+        else:
+            print("测试失败")
     
     elif args.list:
         print(pm.list_proxies())

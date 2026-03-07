@@ -6,6 +6,8 @@
 - ✅ 环境一致，避免依赖冲突
 - ✅ 一键部署，简单快速
 - ✅ 数据持久化，容器重启不丢失
+- ✅ 内置Mihomo代理，支持所有主流协议
+- ✅ 多订阅支持，自动选择最快节点
 
 ## 快速开始
 
@@ -22,14 +24,23 @@ cd crawl_cars
 # 创建数据目录
 mkdir -p data html newhtml json content newjson exception dongchedi output
 
-# 创建代理配置示例
+# 创建代理配置（可选）
 cat > proxies.json << 'EOF'
 {
   "proxies": [],
-  "stats": {}
+  "stats": {},
+  "exclude_keywords": ["过期", "测试", "expire"],
+  "subscriptions": [
+    "https://你的订阅链接"
+  ]
 }
 EOF
 ```
+
+**说明**：
+- 如果不需要代理，可以跳过创建 `proxies.json`
+- 支持多个订阅链接，自动合并节点
+- `exclude_keywords` 用于过滤不需要的节点
 
 ### 3. 构建镜像
 
@@ -110,6 +121,90 @@ exit
 - 分散请求来源
 - 提高爬取成功率
 
+### 内置Clash代理支持 🎉
+
+**Docker容器已内置 Mihomo (Clash.Meta)，支持自动将订阅转为HTTP代理！**
+
+**支持的协议**：
+- ✅ VMess
+- ✅ VLESS
+- ✅ Trojan
+- ✅ Shadowsocks (SS)
+- ✅ ShadowsocksR (SSR)
+- ✅ Hysteria / Hysteria2
+- ✅ TUIC
+- ✅ WireGuard
+
+**自动启动流程**：
+1. 容器启动时检查 `proxies.json` 中的订阅
+2. 自动生成Clash配置
+3. 启动Mihomo进程
+4. 设置 `HTTP_PROXY` 环境变量
+5. 自动选择最快节点
+
+### 快速配置代理
+
+**步骤1：创建代理配置文件**
+
+```bash
+cat > proxies.json << 'EOF'
+{
+  "proxies": [],
+  "stats": {},
+  "exclude_keywords": ["过期", "测试", "expire", "trial"],
+  "subscriptions": [
+    "https://你的订阅链接1",
+    "https://你的订阅链接2"
+  ]
+}
+EOF
+```
+
+**步骤2：启动容器**
+
+```bash
+docker-compose up -d crawl-cron
+```
+
+**步骤3：查看代理状态**
+
+```bash
+# 进入容器
+docker-compose exec crawl-cron bash
+
+# 查看Clash状态
+python proxy_manager.py --clash-status
+
+# 列出所有代理节点
+python proxy_manager.py --clash-proxies
+
+# 自动选择最快节点
+python proxy_manager.py --auto-select
+
+# 手动选择特定节点
+python proxy_manager.py --select-proxy "节点名称"
+```
+
+### 多订阅配置示例
+
+```json
+{
+  "proxies": [],
+  "stats": {},
+  "exclude_keywords": ["过期", "到期", "expire", "test", "测试", "试用"],
+  "subscriptions": [
+    "https://机场1的订阅链接",
+    "https://机场2的订阅链接",
+    "https://机场3的订阅链接"
+  ]
+}
+```
+
+**说明**：
+- 支持添加多个订阅，自动合并节点
+- `exclude_keywords` 用于排除不需要的节点
+- 容器启动时会自动选择延迟最低的节点
+
 ### 代理管理器 (proxy_manager.py)
 
 **功能**：
@@ -119,6 +214,32 @@ exit
 - ✅ 手动添加 HTTP/SOCKS5 代理
 - ✅ 负载均衡策略
 - ✅ 节点统计与筛选
+- ✅ 内置Clash进程管理
+- ✅ 自动选择最快节点
+
+**Clash管理命令**：
+```bash
+# 启动Clash
+python proxy_manager.py --start-clash
+
+# 停止Clash
+python proxy_manager.py --stop-clash
+
+# 查看Clash状态
+python proxy_manager.py --clash-status
+
+# 列出Clash代理节点
+python proxy_manager.py --clash-proxies
+
+# 选择代理节点
+python proxy_manager.py --select-proxy "节点名称"
+
+# 自动选择最快节点
+python proxy_manager.py --auto-select
+
+# 测试节点延迟
+python proxy_manager.py --test-delay "节点名称"
+```
 
 **订阅管理**：
 ```bash
@@ -188,22 +309,35 @@ python proxy_manager.py --clear
 - `least_used`: 最少使用
 - `best_performance`: 最佳性能
 
-**注意**：
-- SS/VMess/Trojan 需要本地客户端转为 HTTP
-- 推荐使用 Clash/V2Ray 监听本地端口
-- 或直接购买 HTTP/SOCKS5 代理
+### 方式一：内置Clash（推荐）
 
-### 方式一：环境变量
+容器内置Mihomo，自动将订阅转为HTTP代理：
 
-编辑 `docker-compose.yaml`：
+```bash
+# 1. 配置订阅
+cat > proxies.json << 'EOF'
+{
+  "subscriptions": ["https://你的订阅链接"]
+}
+EOF
 
-```yaml
-environment:
-  - HTTP_PROXY=http://host.docker.internal:7890
-  - HTTPS_PROXY=http://host.docker.internal:7890
+# 2. 启动容器（自动启动Clash）
+docker-compose up -d crawl-cron
 ```
 
-### 方式二：代理配置文件
+### 方式二：外部代理
+
+如果已有外部代理服务：
+
+```bash
+# 环境变量方式
+docker-compose.yaml:
+  environment:
+    - HTTP_PROXY=http://host.docker.internal:7890
+    - HTTPS_PROXY=http://host.docker.internal:7890
+```
+
+### 方式三：手动添加HTTP/SOCKS5代理
 
 ```bash
 # 添加代理
@@ -314,18 +448,41 @@ cd crawl_cars
 # 创建目录
 mkdir -p data html newhtml json content newjson exception dongchedi output
 
-# 创建代理配置
+# 创建代理配置（可选）
 if [ ! -f "proxies.json" ]; then
-    echo '{"proxies":[],"stats":{}}' > proxies.json
+    echo "是否配置代理？(y/N)"
+    read -r use_proxy
+    if [ "$use_proxy" = "y" ] || [ "$use_proxy" = "Y" ]; then
+        echo "请输入订阅链接（多个用空格分隔）:"
+        read -r subs
+        sub_json=$(echo "$subs" | tr ' ' '\n' | sed 's/^/"/;s/$/",/' | tr -d '\n' | sed 's/,$//')
+        cat > proxies.json << EOF
+{
+  "proxies": [],
+  "stats": {},
+  "exclude_keywords": ["过期", "测试", "expire"],
+  "subscriptions": [$sub_json]
+}
+EOF
+        echo "代理配置已保存到 proxies.json"
+    else
+        echo '{"proxies":[],"stats":{},"subscriptions":[]}' > proxies.json
+    fi
 fi
 
 # 构建并启动
 docker-compose build
 docker-compose up -d crawl-cron
 
+echo ""
 echo "=== 部署完成 ==="
 echo "查看日志: docker-compose logs -f crawl-cron"
 echo "停止服务: docker-compose down"
+echo ""
+echo "代理管理:"
+echo "  进入容器: docker-compose exec crawl-cron bash"
+echo "  查看代理: python proxy_manager.py --clash-proxies"
+echo "  选择节点: python proxy_manager.py --auto-select"
 ```
 
 保存为 `deploy-docker.sh`，运行：

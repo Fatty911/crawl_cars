@@ -11,6 +11,7 @@ services:
       - RUN_TIME=7200
       - MAX_CARS=500
       - PYTHONUNBUFFERED=1
+      - PROXY_ENABLED=false
     volumes:
       - ./data:/app/data
       - ./html:/app/html
@@ -20,13 +21,14 @@ services:
       - ./newjson:/app/newjson
       - ./exception:/app/exception
       - ./dongchedi:/app/dongchedi
-      - ./proxies.json:/app/proxies.json:ro
+      - ./proxies.json:/app/proxies.json
       - ./output:/app/output
     deploy:
       resources:
         limits:
           cpus: '2'
           memory: 2G
+    entrypoint: ["/bin/bash", "/app/start_with_clash.sh"]
     command: bash /app/docker-cron.sh
 
   # 手动运行服务
@@ -37,6 +39,7 @@ services:
       - TZ=Asia/Shanghai
       - RUN_TIME=7200
       - MAX_CARS=500
+      - PROXY_ENABLED=false
     volumes:
       - ./data:/app/data
       - ./html:/app/html
@@ -46,8 +49,9 @@ services:
       - ./newjson:/app/newjson
       - ./exception:/app/exception
       - ./dongchedi:/app/dongchedi
-      - ./proxies.json:/app/proxies.json:ro
+      - ./proxies.json:/app/proxies.json
       - ./output:/app/output
     profiles:
       - manual
+    entrypoint: ["/bin/bash", "/app/start_with_clash.sh"]
     command: tail -f /dev/null
