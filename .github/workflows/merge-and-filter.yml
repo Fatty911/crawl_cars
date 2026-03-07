@@ -3,7 +3,8 @@ on:
   # push:
   #   branches: [ main, master ]
   schedule:
-    - cron: '30 3,15 * * *'  # 每天3:30和15:30运行
+    - cron: '0 3 * * 3'
+    - cron: '0 3 * * 6'
   workflow_dispatch:
     inputs:
       force_merge:

@@ -3,7 +3,8 @@ on:
   # push:
   #   branches: [ main, master ]
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * 1'
+    - cron: '0 14 * * 4'
   workflow_dispatch:
     inputs:
       force_restart:
@@ -28,8 +29,8 @@ jobs:
 
       - name: Random delay to mimic human behavior
         run: |
-          DELAY=$((RANDOM % 480 + 60))
-          echo "Waiting $DELAY seconds before starting..."
+          DELAY=$((RANDOM % 3600 + 3600))
+          echo "Waiting $DELAY seconds ($(($DELAY / 60)) minutes) before starting..."
           sleep $DELAY
 
       - uses: actions/setup-python@v5
