@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # 定时任务服务
+  crawl-cron:
+    build: .
+    container_name: crawl-cron
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      - RUN_TIME=7200
+      - MAX_CARS=500
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./html:/app/html
+      - ./newhtml:/app/newhtml
+      - ./json:/app/json
+      - ./content:/app/content
+      - ./newjson:/app/newjson
+      - ./exception:/app/exception
+      - ./dongchedi:/app/dongchedi
+      - ./proxies.json:/app/proxies.json:ro
+      - ./output:/app/output
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+    command: bash /app/docker-cron.sh
+
+  # 手动运行服务
+  crawl-manual:
+    build: .
+    container_name: crawl-manual
+    environment:
+      - TZ=Asia/Shanghai
+      - RUN_TIME=7200
+      - MAX_CARS=500
+    volumes:
+      - ./data:/app/data
+      - ./html:/app/html
+      - ./newhtml:/app/newhtml
+      - ./json:/app/json
+      - ./content:/app/content
+      - ./newjson:/app/newjson
+      - ./exception:/app/exception
+      - ./dongchedi:/app/dongchedi
+      - ./proxies.json:/app/proxies.json:ro
+      - ./output:/app/output
+    profiles:
+      - manual
+    command: tail -f /dev/null

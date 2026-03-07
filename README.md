@@ -282,6 +282,32 @@ python proxy_manager.py --list
 
 ## 部署方案
 
+### Docker 部署 (推荐)
+
+**优势**：
+- ✅ 完全隔离，不影响主机
+- ✅ 一键部署
+- ✅ 数据持久化
+- ✅ 环境一致
+
+**快速开始**：
+```bash
+# 克隆代码
+git clone https://github.com/Fatty911/crawl_cars.git
+cd crawl_cars
+
+# 创建目录
+mkdir -p data html json output dongchedi
+
+# 构建并启动
+docker-compose up -d crawl-cron
+
+# 查看日志
+docker-compose logs -f crawl-cron
+```
+
+**详细文档**：见 [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md)
+
 ### GitHub Actions (有限使用)
 
 **限制**：免费版每月 2000 分钟
