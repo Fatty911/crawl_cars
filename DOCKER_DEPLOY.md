@@ -45,17 +45,17 @@ EOF
 ### 3. 构建镜像
 
 ```bash
-docker-compose build
+docker compose build
 ```
 
 ### 4. 启动定时任务
 
 ```bash
 # 后台运行定时任务
-docker-compose up -d crawl-cron
+docker compose up -d crawl-cron
 
 # 查看日志
-docker-compose logs -f crawl-cron
+docker compose logs -f crawl-cron
 ```
 
 ## 数据持久化
@@ -80,10 +80,10 @@ docker-compose logs -f crawl-cron
 
 ```bash
 # 启动手动运行容器
-docker-compose --profile manual up -d crawl-manual
+docker compose --profile manual up -d crawl-manual
 
 # 进入容器
-docker-compose exec crawl-manual bash
+docker compose exec crawl-manual bash
 
 # 手动运行爬虫
 python test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
@@ -163,14 +163,14 @@ EOF
 **步骤2：启动容器**
 
 ```bash
-docker-compose up -d crawl-cron
+docker compose up -d crawl-cron
 ```
 
 **步骤3：查看代理状态**
 
 ```bash
 # 进入容器
-docker-compose exec crawl-cron bash
+docker compose exec crawl-cron bash
 
 # 查看Clash状态
 python proxy_manager.py --clash-status
@@ -322,7 +322,7 @@ cat > proxies.json << 'EOF'
 EOF
 
 # 2. 启动容器（自动启动Clash）
-docker-compose up -d crawl-cron
+docker compose up -d crawl-cron
 ```
 
 ### 方式二：外部代理
@@ -331,7 +331,7 @@ docker-compose up -d crawl-cron
 
 ```bash
 # 环境变量方式
-docker-compose.yaml:
+docker compose.yaml:
   environment:
     - HTTP_PROXY=http://host.docker.internal:7890
     - HTTPS_PROXY=http://host.docker.internal:7890
@@ -350,26 +350,26 @@ python proxy_manager.py --add-http "proxy1" "proxy.example.com" "8080" "user:pas
 
 ```bash
 # 查看运行状态
-docker-compose ps
+docker compose ps
 
 # 查看日志
-docker-compose logs -f crawl-cron
+docker compose logs -f crawl-cron
 
 # 重启服务
-docker-compose restart crawl-cron
+docker compose restart crawl-cron
 
 # 停止服务
-docker-compose down
+docker compose down
 
 # 清理数据重新开始
-docker-compose down
+docker compose down
 rm -rf data html newhtml json content newjson exception dongchedi output
 mkdir -p data html newhtml json content newjson exception dongchedi output
 
 # 更新代码后重建
 git pull
-docker-compose build
-docker-compose up -d crawl-cron
+docker compose build
+docker compose up -d crawl-cron
 ```
 
 ## 资源限制
@@ -378,7 +378,7 @@ docker-compose up -d crawl-cron
 - CPU: 最大2核
 - 内存: 最大2GB
 
-修改 `docker-compose.yaml`：
+修改 `docker compose.yaml`：
 
 ```yaml
 deploy:
@@ -394,7 +394,7 @@ deploy:
 
 ```bash
 # 查看详细日志
-docker-compose logs crawl-cron
+docker compose logs crawl-cron
 
 # 检查镜像
 docker images | grep crawl
@@ -417,8 +417,8 @@ sudo chown -R $USER:$USER data html json output
 docker stats crawl-cron
 
 # 增加内存限制
-# 编辑 docker-compose.yaml 中的 memory
-docker-compose up -d crawl-cron
+# 编辑 docker compose.yaml 中的 memory
+docker compose up -d crawl-cron
 ```
 
 ## Docker vs VPS
@@ -471,16 +471,16 @@ EOF
 fi
 
 # 构建并启动
-docker-compose build
-docker-compose up -d crawl-cron
+docker compose build
+docker compose up -d crawl-cron
 
 echo ""
 echo "=== 部署完成 ==="
-echo "查看日志: docker-compose logs -f crawl-cron"
-echo "停止服务: docker-compose down"
+echo "查看日志: docker compose logs -f crawl-cron"
+echo "停止服务: docker compose down"
 echo ""
 echo "代理管理:"
-echo "  进入容器: docker-compose exec crawl-cron bash"
+echo "  进入容器: docker compose exec crawl-cron bash"
 echo "  查看代理: python proxy_manager.py --clash-proxies"
 echo "  选择节点: python proxy_manager.py --auto-select"
 ```

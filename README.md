@@ -359,10 +359,10 @@ cd crawl_cars
 mkdir -p data html json output dongchedi
 
 # 构建并启动
-docker-compose up -d crawl-cron
+docker compose up -d crawl-cron
 
 # 查看日志
-docker-compose logs -f crawl-cron
+docker compose logs -f crawl-cron
 ```
 
 **详细文档**：见 [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md)
