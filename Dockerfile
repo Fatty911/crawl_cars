@@ -11,7 +11,6 @@ RUN apk add --no-cache \
     bash \
     curl \
     tzdata \
-    unzip \
     ca-certificates
 
 # 设置时区
@@ -23,10 +22,10 @@ RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then MIHOMO_ARCH="amd64"; \
     elif [ "$ARCH" = "aarch64" ]; then MIHOMO_ARCH="arm64"; \
     else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
-    curl -L -o /tmp/mihomo.zip "https://github.com/MetaCubeX/mihomo/releases/download/v1.18.10/mihomo-linux-${MIHOMO_ARCH}-v1.18.10.zip" && \
-    unzip /tmp/mihomo.zip -d /usr/local/bin && \
+    curl -L -o /tmp/mihomo.gz "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.20/mihomo-linux-${MIHOMO_ARCH}-v1.19.20.gz" && \
+    gunzip /tmp/mihomo.gz && \
+    mv /tmp/mihomo /usr/local/bin/mihomo && \
     chmod +x /usr/local/bin/mihomo && \
-    rm /tmp/mihomo.zip && \
     ln -s /usr/local/bin/mihomo /usr/local/bin/clash
 
 # 创建Clash配置目录
