@@ -81,16 +81,13 @@ if curl -s "http://127.0.0.1:9090/version" > /dev/null 2>&1; then
     echo "  HTTP代理: http://127.0.0.1:7890"
     echo "  SOCKS5代理: socks5://127.0.0.1:7891"
     echo "  API地址: http://127.0.0.1:9090"
+    echo "  代理模式: 负载均衡 (round-robin)"
     
     # 设置环境变量
     export HTTP_PROXY=http://127.0.0.1:7890
     export HTTPS_PROXY=http://127.0.0.1:7890
     export ALL_PROXY=socks5://127.0.0.1:7891
     export PROXY_ENABLED=true
-    
-    # 自动选择最快代理
-    echo "自动选择最快代理..."
-    python3 /app/proxy_manager.py --auto-select 2>/dev/null || true
 else
     echo "✗ Clash启动失败"
     export PROXY_ENABLED=false

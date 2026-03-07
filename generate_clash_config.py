@@ -483,16 +483,21 @@ proxy-groups:
   - name: "PROXY"
     type: select
     proxies:
-      - AUTO
+      - BALANCE
       - DIRECT
 {self._format_proxy_list(proxy_names, 6)}
 
-  - name: "AUTO"
-    type: url-test
+  - name: "BALANCE"
+    type: load-balance
     proxies:
 {self._format_proxy_list(auto_proxies, 6)}
     url: 'http://www.gstatic.com/generate_204'
     interval: 300
+    strategy: round-robin
+    health-check:
+      enable: true
+      url: 'http://www.gstatic.com/generate_204'
+      interval: 300
 
 rules:
   - GEOIP,LAN,DIRECT
