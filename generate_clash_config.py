@@ -393,10 +393,12 @@ class ClashConfigGenerator:
             all_proxies.extend(proxies)
         
         if not all_proxies:
-            print("警告: 没有可用代理节点")
-            all_proxies = [{'name': 'DIRECT', 'type': 'direct'}]
+            print("警告: 没有可用代理节点，将直连")
         
-        proxy_names = [p['name'] for p in all_proxies if p['type'] != 'direct']
+        proxy_names = [p['name'] for p in all_proxies]
+        
+        # AUTO组的代理列表，如果没有节点则使用DIRECT
+        auto_proxies = proxy_names if proxy_names else ['DIRECT']
         
         config = f"""# Clash配置 - 自动生成
 # 生成时间: {time.strftime('%Y-%m-%d %H:%M:%S')}
@@ -454,7 +456,7 @@ proxy-groups:
   - name: "AUTO"
     type: url-test
     proxies:
-{self._format_proxy_list(proxy_names, 6)}
+{self._format_proxy_list(auto_proxies, 6)}
     url: 'http://www.gstatic.com/generate_204'
     interval: 300
 
