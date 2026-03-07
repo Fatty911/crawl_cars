@@ -318,7 +318,11 @@ curl -fsSL https://raw.githubusercontent.com/Fatty911/test_crawl/main/deploy_vps
 
 ### Railway 部署
 
-**费用**：$5/月额度，可能够用
+**费用**：
+- Free: 30天试用，$5一次性额度（之后$1/月）
+- Hobby: $5/月最低消费（包含$5额度）
+
+**估算**：每月16次×2小时 ≈ $1.28（额度够用）
 
 **部署**：
 ```bash

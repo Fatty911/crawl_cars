@@ -2,13 +2,13 @@
 
 ## 方案对比
 
-| 平台 | 免费额度 | 超时限制 | 适合爬虫 | 推荐 |
-|------|----------|----------|----------|------|
-| GitHub Actions | 2000分钟/月 | 6小时 | ❌ 不够 | - |
-| VPS (搬瓦工/Vultr) | $3-5/月 | 无限制 | ✅ 最佳 | ⭐⭐⭐⭐⭐ |
-| Railway | $5/月额度 | 无限制 | ✅ 可行 | ⭐⭐⭐⭐ |
-| Vercel | 6000秒/月 | 10-60秒 | ❌ 不适合 | - |
-| Zeabur | 有时间限制 | 有 | ⚠️ 勉强 | ⭐⭐ |
+| Platform | Free/Cost | Timeout | For Crawling | Recommend |
+|----------|-----------|---------|--------------|-----------|
+| GitHub Actions | 2000 min/month | 6 hours | ❌ Not enough | - |
+| VPS (Bandwagon/Vultr) | $3-5/month | Unlimited | ✅ Best | ⭐⭐⭐⭐⭐ |
+| Railway | $5 one-time trial, then $1/month or $5/month | Reasonable | ✅ Works | ⭐⭐⭐⭐ |
+| Vercel | 6000 sec/month | 10-60 sec | ❌ Not suitable | - |
+| Zeabur | Has limits | Yes | ⚠️ Barely | ⭐⭐ |
 
 ## 快速部署（VPS）
 
@@ -167,8 +167,19 @@ git push
 
 ## Railway 部署
 
-如果选择 Railway：
+**定价**：
+- Free: 30天试用，$5一次性额度（之后$1/月订阅费）
+- Hobby: $5/月最低消费（包含$5每月额度）
 
+**费用估算**：
+- CPU: $0.00000772/vCPU/sec
+- 内存: $0.00000386/GB/sec
+- 每小时约: $0.04
+- 每月16次×2小时 = $1.28
+
+**结论**: $5额度足够，但需注意Free Plan只有30天试用期
+
+**部署**：
 ```bash
 # 1. 安装 Railway CLI
 npm install -g @railway/cli
@@ -182,8 +193,8 @@ railway init
 # 4. 部署
 railway up
 
-# 5. 设置定时任务
-railway run cron "0 2,14 * * *" python test_autohome.py --auto
+# 5. 设置定时任务（需要Hobby Plan）
+railway run cron "0 2 * * 1,4" python test_autohome.py --auto
 ```
 
 ## 费用估算
@@ -192,5 +203,6 @@ railway run cron "0 2,14 * * *" python test_autohome.py --auto
 |------|--------|------|
 | VPS (搬瓦工) | $3-5 | 最便宜，推荐 |
 | VPS (Vultr) | $2.5-5 | 按小时计费 |
-| Railway | $0-5 | 有免费额度，可能够用 |
+| Railway Free | $0 (30天), then $1 | $5试用额度够用1-2个月 |
+| Railway Hobby | $5 | 包含$5额度，适合长期使用 |
 | 自有服务器 | $0 | 已有 VPS 的话免费 |
