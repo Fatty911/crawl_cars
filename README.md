@@ -11,8 +11,12 @@ test_crawl/
 ├── test_autohome.py      # 汽车之家爬虫脚本
 ├── crawl_dongchedi.py    # 懂车帝爬虫脚本
 ├── merge_data.py         # 数据合并与过滤脚本
+├── proxy_manager.py      # 代理管理器
+├── run_with_proxy.py     # 带代理的启动脚本
+├── deploy_vps.sh         # VPS 一键部署脚本
 ├── fix_files.py          # 代码修复工具脚本
-├── CHANGELOG.md          # 对话历史记录
+├── VPS_DEPLOY.md         # VPS 部署指南
+├── HISTORY_*.md          # 对话历史记录
 ├── .github/workflows/
 │   └── crawl.yml         # GitHub Actions工作流配置
 └── README.md             # 本文件
@@ -227,6 +231,40 @@ test_crawl/
 
 ---
 
+## 代理配置
+
+### 为什么需要代理
+
+- 避免IP被封
+- 分散请求来源
+- 提高爬取成功率
+
+### 代理管理器 (proxy_manager.py)
+
+**功能**：
+- 解析 V2Ray/Clash 订阅
+- 手动添加 HTTP/SOCKS5 代理
+- 负载均衡策略
+
+**使用方法**：
+```bash
+# 解析订阅
+python proxy_manager.py --sub "https://订阅链接"
+
+# 测试代理
+python proxy_manager.py --test
+
+# 查看列表
+python proxy_manager.py --list
+```
+
+**注意**：
+- SS/VMess/Trojan 需要本地客户端转为 HTTP
+- 推荐使用 Clash/V2Ray 监听本地端口
+- 或直接购买 HTTP/SOCKS5 代理
+
+---
+
 ## 数据字段映射 (HEADER_MAP)
 
 汽车之家和懂车帝同一配置项的字段名不同，已在merge_data.py中统一：
@@ -239,6 +277,43 @@ test_crawl/
 | 远程启动功能 | 远程启动 | 远程启动 |
 | 蓝牙钥匙/NFC钥匙/UWB钥匙 | 数字钥匙 | 蓝牙/数字钥匙 |
 | CLTC纯电续航/NEDC纯电续航 | 纯电续航 | 纯电续航(km) |
+
+---
+
+## 部署方案
+
+### GitHub Actions (不推荐)
+
+**限制**：免费版每月 2000 分钟，本项目每月需要 7200 分钟
+
+**结论**：❌ 不够用，建议改用 VPS
+
+### VPS 部署 (推荐)
+
+**优势**：
+- 无时长限制
+- 完全可控
+- 支持代理
+- 性价比高 ($3-5/月)
+
+**一键部署**：
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fatty911/test_crawl/main/deploy_vps.sh | bash
+```
+
+**详细文档**：见 [VPS_DEPLOY.md](VPS_DEPLOY.md)
+
+### Railway 部署
+
+**费用**：$5/月额度，可能够用
+
+**部署**：
+```bash
+npm install -g @railway/cli
+railway login
+railway init
+railway up
+```
 
 ---
 
