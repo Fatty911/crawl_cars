@@ -30,13 +30,17 @@ class ClashConfigGenerator:
             resp = session.get(url, headers=headers, timeout=30)
             if resp.status_code == 200:
                 content = resp.text.strip()
+                print(f"获取订阅成功: {url[:50]}... 状态码: {resp.status_code} 内容长度: {len(content)}")
                 if content.startswith('http'):
                     return self.fetch_subscription(content)
                 try:
                     decoded = base64.b64decode(content).decode('utf-8')
+                    print(f"Base64解码成功，解码后长度: {len(decoded)}")
                     return decoded
                 except:
+                    print(f"非Base64格式，直接返回 (前100字符): {content[:100]}")
                     return content
+            print(f"获取订阅失败: HTTP {resp.status_code}")
             return ""
         except Exception as e:
             print(f"获取订阅失败: {e}")
@@ -372,6 +376,27 @@ class ClashConfigGenerator:
         proxies = []
         exclude_keywords = exclude_keywords or []
         
+        # 检测是否为Clash YAML格式
+        if content.strip().startswith(('proxies:', 'port:', 'socks-port:', 'mixed-port:')):
+            print("检测到Clash YAML格式配置，尝试解析...")
+            try:
+                import yaml
+                config = yaml.safe_load(content)
+                if config and 'proxies' in config:
+                    for p in config['proxies']:
+                        name = p.get('name', 'unnamed')
+                        if self.should_exclude_name(name, exclude_keywords):
+                            continue
+                        proxies.append(p)
+                    print(f"从Clash配置解析到 {len(proxies)} 个节点")
+                    return proxies
+            except Exception as e:
+                print(f"解析Clash YAML失败: {e}")
+        
+        # 解析链接格式 (vmess://, vless://, trojan://, ss:// 等)
+        lines_count = len(content.strip().split('\n'))
+        print(f"尝试解析链接格式，共 {lines_count} 行")
+        
         for line in content.strip().split('\n'):
             proxy = self.parse_link(line)
             if proxy:
@@ -380,7 +405,16 @@ class ClashConfigGenerator:
                 if not should_exclude:
                     proxies.append(proxy)
         
+        print(f"解析完成，获取 {len(proxies)} 个节点")
         return proxies
+    
+    def should_exclude_name(self, name: str, exclude_keywords: List[str]) -> bool:
+        """检查节点名是否应该被排除"""
+        name_lower = name.lower()
+        for kw in exclude_keywords:
+            if kw.lower() in name_lower:
+                return True
+        return False
     
     def generate_config(self, subscriptions: List[str], exclude_keywords: List[str] = None,
                        mixed_port: int = 7890, socks_port: int = 7891,
