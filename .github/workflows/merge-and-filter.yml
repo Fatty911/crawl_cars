@@ -33,32 +33,10 @@ jobs:
           echo "强制重新合并，清理旧数据文件..."
           rm -f autoHome_*.json dongchedi_*.json merged_*.csv diff_*.csv filtered_cars_*.csv filtered_cars_*.json
       
-      - name: 检查数据文件
+      - name: 合并数据文件
         run: |
           echo "当前目录数据文件:"
           ls -la *.json *.csv 2>/dev/null || echo "没有找到数据文件"
-          
-          # 检查是否有数据文件
-          if ls autoHome_*.json dongchedi_*.json 2>/dev/null; then
-            echo "找到数据文件，准备合并..."
-          else
-            echo "没有找到数据文件，跳过合并"
-            exit 0
-          fi
-      
-      - name: 检出代码
-        uses: actions/checkout@v4
-      
-      - name: 设置Python环境
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      
-      - name: 合并数据文件
-        run: |
-          # 合并所有数据文件到当前目录
-          find autohome_data -name "*.json" -exec cp {} . \;
-          find dongchedi_data -name "*.json" -exec cp {} . \;
           
           # 检查是否有数据文件
           if ls autoHome_*.json dongchedi_*.json 2>/dev/null; then

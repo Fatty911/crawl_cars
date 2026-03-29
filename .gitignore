@@ -1,3 +1,41 @@
+# Aider
 .aider*
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+venv/
+.venv/
+
+# 敏感配置（会泄露订阅token）
+proxies.json
+
+# 爬取的临时数据文件
+html/
+newhtml/
+content/
+exception/
+output/
+data/
+
+# 懂车帝数据目录（保留进度文件）
+dongchedi/json/
+
+# 生成的数据文件
+autoHome_*.json
+dongchedi_*.json
+merged_*.csv
+diff_*.csv
+filtered_cars_*.csv
+filtered_cars_*.json
+
+# 日志
+*.log
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/

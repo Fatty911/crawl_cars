@@ -40,7 +40,14 @@ jobs:
         with:
           chrome-version: stable
       - uses: nanasess/setup-chromedriver@v2
-      - run: pip install requests beautifulsoup4 selenium lxml
+      - run: pip install requests beautifulsoup4 selenium lxml PyYAML
+      
+      - name: Setup proxy if configured
+        if: ${{ secrets.PROXY_SUBSCRIPTIONS != '' }}
+        run: |
+          echo "配置代理..."
+          echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' > proxies.json
+          cat proxies.json
       
       - name: Restart if requested
         if: github.event.inputs.force_restart == 'true'
@@ -59,7 +66,11 @@ jobs:
         if: steps.check_done.outputs.done != 'true'
         run: |
           while true; do
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
+            if [ -f proxies.json ]; then
+              python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy random
+            else
+              python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
+            fi
             EXIT_CODE=$?
             
             if [ $EXIT_CODE -eq 10 ]; then
@@ -87,11 +98,15 @@ jobs:
           
       - name: Run remaining steps
         run: |
-          python test_autohome.py --step 2
-          python test_autohome.py --step 3
-          python test_autohome.py --step 4
-          python test_autohome.py --step 5
-          python test_autohome.py --step 6
+          if [ -f proxies.json ]; then
+            python run_with_proxy.py --skip-dongchedi --proxy random
+          else
+            python test_autohome.py --step 2
+            python test_autohome.py --step 3
+            python test_autohome.py --step 4
+            python test_autohome.py --step 5
+            python test_autohome.py --step 6
+          fi
       
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV

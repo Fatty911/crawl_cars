@@ -47,7 +47,14 @@ jobs:
         with:
           chrome-version: stable
       - uses: nanasess/setup-chromedriver@v2
-      - run: pip install requests beautifulsoup4 selenium lxml
+      - run: pip install requests beautifulsoup4 selenium lxml PyYAML
+
+      - name: Setup proxy if configured
+        if: ${{ secrets.PROXY_SUBSCRIPTIONS != '' }}
+        run: |
+          echo "配置代理..."
+          echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' > proxies.json
+          cat proxies.json
 
       - name: Check if step2 already done
         id: check_done_dcd
@@ -61,6 +68,10 @@ jobs:
       - name: Run step1 to get series list
         if: steps.check_done_dcd.outputs.done != 'true'
         run: |
+          if [ -f proxies.json ]; then
+            export http_proxy=http://127.0.0.1:7890
+            export https_proxy=http://127.0.0.1:7890
+          fi
           python crawl_dongchedi.py --step 1 --auto --time-limit ${{ env.RUN_TIME }}
           if [ -f dongchedi/progress.json ]; then
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -74,6 +85,10 @@ jobs:
       - name: Run step2 loop
         if: steps.check_done_dcd.outputs.done != 'true'
         run: |
+          if [ -f proxies.json ]; then
+            export http_proxy=http://127.0.0.1:7890
+            export https_proxy=http://127.0.0.1:7890
+          fi
           RUN_COUNT=0
           while true; do
             RUN_COUNT=$((RUN_COUNT + 1))
