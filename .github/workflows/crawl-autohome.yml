@@ -42,6 +42,13 @@ jobs:
       - uses: nanasess/setup-chromedriver@v2
       - run: pip install requests beautifulsoup4 selenium lxml PyYAML
       
+      - name: Setup environment
+        run: |
+          echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
+          echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
+          echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
+          echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
+      
       - name: Setup proxy if configured
         if: ${{ secrets.PROXY_SUBSCRIPTIONS != '' }}
         run: |
@@ -63,13 +70,14 @@ jobs:
           fi
       
       - name: Run step1 loop
+        id: step1
         if: steps.check_done.outputs.done != 'true'
         run: |
           while true; do
             if [ -f proxies.json ]; then
-              python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy random
+              python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy random 2>&1 | tee step1_error.log
             else
-              python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
+              python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
             fi
             EXIT_CODE=$?
             
@@ -84,6 +92,10 @@ jobs:
               echo "Re-running step1..."
               sleep $((RANDOM % 120 + 60))
               git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            elif [ $EXIT_CODE -ne 0 ]; then
+              echo "Step1 failed with exit code $EXIT_CODE"
+              echo "STEP1_FAILED=true" >> $GITHUB_ENV
+              break
             else
               break
             fi
@@ -95,9 +107,50 @@ jobs:
           git add -A
           git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+      
+      - name: Auto-fix step1 error
+        if: env.STEP1_FAILED == 'true' && (secrets.MINIMAX_API_KEY != '' || secrets.ZEN_API_KEY != '' || secrets.XAI_API_KEY != '')
+        run: |
+          echo "尝试自动修复 step1 错误..."
+          python auto_fix_workflow.py step1_error.log test_autohome.py || echo "自动修复失败，继续运行"
+      
+      - name: Retry step1 after fix
+        if: env.STEP1_FAILED == 'true'
+        run: |
+          echo "修复后重试 step1..."
+          rm -f step1_error.log
+          if [ -f proxies.json ]; then
+            python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy random
+          else
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
+          fi
           
       - name: Run remaining steps
+        id: remaining
         run: |
+          if [ -f proxies.json ]; then
+            python run_with_proxy.py --skip-dongchedi --proxy random 2>&1 | tee remaining_error.log
+          else
+            python test_autohome.py --step 2 2>&1 | tee -a remaining_error.log
+            python test_autohome.py --step 3 2>&1 | tee -a remaining_error.log
+            python test_autohome.py --step 4 2>&1 | tee -a remaining_error.log
+            python test_autohome.py --step 5 2>&1 | tee -a remaining_error.log
+            python test_autohome.py --step 6 2>&1 | tee -a remaining_error.log
+          fi
+          if [ $? -ne 0 ]; then
+            echo "REMAINING_FAILED=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Auto-fix remaining error
+        if: env.REMAINING_FAILED == 'true' && (secrets.MINIMAX_API_KEY != '' || secrets.ZEN_API_KEY != '' || secrets.XAI_API_KEY != '')
+        run: |
+          echo "尝试自动修复 remaining steps 错误..."
+          python auto_fix_workflow.py remaining_error.log test_autohome.py || echo "自动修复失败，继续运行"
+      
+      - name: Retry remaining after fix
+        if: env.REMAINING_FAILED == 'true'
+        run: |
+          echo "修复后重试 remaining steps..."
           if [ -f proxies.json ]; then
             python run_with_proxy.py --skip-dongchedi --proxy random
           else
