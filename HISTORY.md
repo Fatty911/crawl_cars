@@ -1,8 +1,43 @@
 # 对话历史总结
 
-> 最后更新：2026-03-29
+> 最后更新：2026-03-29 15:30
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-03-29 15:30：公开仓库安全检查与代理支持
+
+### 用户需求
+将仓库从私有转为公开，检查敏感数据泄露风险，并添加代理支持和大模型自动修复功能。
+
+### 完成修改
+
+| 文件 | 修改内容 |
+|------|----------|
+| `.gitignore` | 添加敏感文件、临时数据忽略；保留进度文件追踪 |
+| `crawl-autohome.yml` | 添加代理配置步骤；支持 `run_with_proxy.py --proxy random` |
+| `crawl-dongchedi.yml` | 添加代理配置步骤；设置 http_proxy/https_proxy |
+| `merge-and-filter.yml` | 删除重复的 checkout 和 setup-python |
+| `auto_fix_workflow.py` | **新增** 大模型自动修复工作流错误脚本 |
+| `HISTORY.md` | **新增** 合并所有历史文件为单一总结 |
+
+### 代理使用说明
+GitHub Secrets 中添加 `PROXY_SUBSCRIPTIONS`，格式：
+```json
+{
+  "subscriptions": ["https://订阅链接1", "https://订阅链接2"],
+  "exclude_keywords": ["过期", "测试"]
+}
+```
+
+### 大模型自动修复功能
+新增 `auto_fix_workflow.py`，支持：
+- 捕获工作流错误
+- 依次尝试三个模型：Minimax m2.7 → Zen MiMo v2 pro free → Grok 4.2 beta reasoning
+- 自动生成修复代码并提交推送
+
+所需 Secrets：`MINIMAX_API_KEY`, `ZEN_API_KEY`, `XAI_API_KEY`, `ACTION_PAT`
 
 ---
 
