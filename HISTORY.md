@@ -1,8 +1,31 @@
 # 对话历史总结
 
-> 最后更新：2026-03-29 15:30
+> 最后更新：2026-03-29 15:40
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-03-29 15:40：集成大模型自动修复功能
+
+### 用户需求
+在 workflow 中集成 auto_fix_workflow.py，实现错误自动修复。
+
+### 完成修改
+
+| 文件 | 修改内容 |
+|------|----------|
+| `crawl-autohome.yml` | 集成错误自动修复，step1 和 remaining steps 失败时自动调用大模型 |
+| `crawl-dongchedi.yml` | 集成错误自动修复，step2 失败时自动调用大模型 |
+| `README.md` | 更新目录结构、添加 auto_fix_workflow.py 说明 |
+
+### 工作流错误处理流程
+1. 步骤执行失败，错误日志保存到 `*_error.log`
+2. 检查是否有 API Key 配置
+3. 调用 `auto_fix_workflow.py` 分析错误
+4. 依次尝试三个模型：Minimax m2.7 → Zen MiMo v2 pro free → Grok 4.2 beta reasoning
+5. 置信度 ≥ 0.7 时自动应用修复并提交推送
+6. 重新运行失败的步骤
 
 ---
 

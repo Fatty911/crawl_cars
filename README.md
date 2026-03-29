@@ -7,19 +7,23 @@
 ## 目录结构
 
 ```
-test_crawl/
-├── test_autohome.py      # 汽车之家爬虫脚本
-├── crawl_dongchedi.py    # 懂车帝爬虫脚本
-├── merge_data.py         # 数据合并与过滤脚本
-├── proxy_manager.py      # 代理管理器
-├── run_with_proxy.py     # 带代理的启动脚本
-├── deploy_vps.sh         # VPS 一键部署脚本
-├── fix_files.py          # 代码修复工具脚本
-├── VPS_DEPLOY.md         # VPS 部署指南
-├── HISTORY_*.md          # 对话历史记录
+crawl_cars/
+├── test_autohome.py          # 汽车之家爬虫脚本
+├── crawl_dongchedi.py        # 懂车帝爬虫脚本
+├── merge_data.py             # 数据合并与过滤脚本
+├── proxy_manager.py          # 代理管理器
+├── run_with_proxy.py         # 带代理的启动脚本
+├── auto_fix_workflow.py      # 大模型自动修复工作流错误
+├── deploy_vps.sh             # VPS 一键部署脚本
+├── VPS_DEPLOY.md             # VPS 部署指南
+├── DOCKER_DEPLOY.md          # Docker 部署指南
+├── HISTORY.md                # 对话历史总结
+├── .gitignore                # Git 忽略配置
 ├── .github/workflows/
-│   └── crawl.yml         # GitHub Actions工作流配置
-└── README.md             # 本文件
+│   ├── crawl-autohome.yml    # 汽车之家工作流
+│   ├── crawl-dongchedi.yml   # 懂车帝工作流
+│   └── merge-and-filter.yml  # 合并过滤工作流
+└── README.md                 # 本文件
 ```
 
 ---
@@ -195,6 +199,51 @@ test_crawl/
 ### 4. fix_files.py
 
 **功能**：代码修复工具，用于修复test_autohome.py中的缩进问题
+
+---
+
+### 5. auto_fix_workflow.py
+
+**功能**：大模型自动修复工作流错误，支持三个模型 fallback
+
+**核心特性**：
+- 捕获工作流错误日志
+- 依次尝试三个大模型分析和修复
+- 自动生成修复代码并提交推送
+
+**支持的模型**（按优先级）：
+
+| 优先级 | 模型 | API Key | 说明 |
+|--------|------|---------|------|
+| 1 | Minimax m2.7 | `MINIMAX_API_KEY` | 首选，Coding Plan |
+| 2 | Zen MiMo v2 pro free | `ZEN_API_KEY` | 备选，免费 |
+| 3 | Grok 4.2 beta reasoning | `XAI_API_KEY` | 最后备选 |
+
+**使用方式**：
+
+```bash
+# 手动运行
+python auto_fix_workflow.py error.log test_autohome.py
+
+# 在 workflow 中自动调用（已集成）
+# 工作流出错时会自动尝试修复
+```
+
+**所需 Secrets**：
+
+| Secret | 说明 |
+|--------|------|
+| `MINIMAX_API_KEY` | Minimax API Key |
+| `ZEN_API_KEY` | OpenCode Zen API Key |
+| `XAI_API_KEY` | xAI Grok API Key |
+| `ACTION_PAT` | 有写入权限的 Personal Access Token |
+
+**工作原理**：
+1. 脚本执行失败，错误日志保存到文件
+2. 调用 auto_fix_workflow.py 分析错误
+3. 依次尝试三个模型，生成修复方案
+4. 应用修复并提交推送
+5. 重新运行失败的步骤
 
 ---
 
@@ -466,8 +515,15 @@ python crawl_dongchedi.py --step 2 --time-limit 7200 --max-series 500 --auto
 
 ## 对话历史记录
 
-| 文件 | 日期 | 主要内容 |
-|------|------|----------|
-| [HISTORY_20260304_045635.md](HISTORY_20260304_045635.md) | 2026-03-04 | 修复汽车之家断点续传bug和懂车帝重复解析问题 |
-| [HISTORY_20260226_154636.md](HISTORY_20260226_154636.md) | 2026-02-26 | 历史记录 |
-| [CHAT_HISTORY_2026-02-22_220000.md](CHAT_HISTORY_2026-02-22_220000.md) | 2026-02-22 | 历史记录 |
+所有对话历史已合并为单一文件：
+
+| 文件 | 说明 |
+|------|------|
+| [HISTORY.md](HISTORY.md) | 从 2026-02-22 到最新的完整对话历史总结 |
+
+**HISTORY.md 包含内容**：
+- 2026-02-22：项目初始化、爬虫逻辑、Action拆分
+- 2026-02-26：断点续传、自动爬取、频率调整
+- 2026-03-04：断点续传逻辑深度修复
+- 2026-03-07：部署方案探索（VPS/Docker/Railway）、代理管理器
+- 2026-03-29：公开仓库安全检查、代理支持、大模型自动修复功能
