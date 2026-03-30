@@ -1,34 +1,34 @@
 """
 工作流错误自动修复脚本
-依次尝试: Minimax m2.7 -> Zen MiMo v2 pro free -> Grok 4.2 beta reasoning
+实时从 artificialanalysis.ai 获取最新排行榜前10 + 1M+ context 的强模型
 """
 import os
 import sys
 import json
 import subprocess
 import requests
-from typing import Optional, Dict, Any
+import re
+from typing import Optional, Dict, Any, List
 
 
 class WorkflowErrorFixer:
     def __init__(self):
+        self.fallback_models = [
+            "google/gemini-3.1-pro-preview",
+            "openai/gpt-5.4",
+            "anthropic/claude-opus-4.6",
+            "anthropic/claude-sonnet-4.6",
+            "z-ai/glm-5",
+            "minimax/minimax-m2.7",
+            "xai/grok-4.20-beta-0309",
+            "openai/gpt-5.4-mini",
+            "kimi/kimi-k2.5"
+        ]
         self.models = [
-            # OpenRouter - 调用排行榜前10且 context window ≥ 1M 模型
             {
                 "name": "OpenRouter Top Models",
                 "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
                 "endpoint": "https://openrouter.ai/api/v1/chat/completions",
-                "models": [
-                    "google/gemini-3.1-pro-preview",
-                    "openai/gpt-5.4",
-                    "anthropic/claude-opus-4.6",
-                    "anthropic/claude-sonnet-4.6",
-                    "z-ai/glm-5",
-                    "minimax/minimax-m2.7",
-                    "xai/grok-4.20-beta-0309",
-                    "openai/gpt-5.4-mini",
-                    "kimi/kimi-k2.5"
-                ],
                 "format": "openai"
             },
             {
@@ -60,12 +60,22 @@ class WorkflowErrorFixer:
             print(f"跳过 {model_config['name']}: API key 未配置")
             return None
 
-        # OpenRouter 多模型尝试
+        # OpenRouter 多模型尝试（实时抓取排行榜）
         if model_config["name"] == "OpenRouter Top Models":
-            for model_name in model_config["models"]:
+            top_models = self._fetch_top_models()
+            print(f"实时获取到 {len(top_models)} 个高排行榜模型 (Context ≥ 1M)")
+            for model_name in top_models:
                 print(f"\n尝试使用 OpenRouter - {model_name} 分析错误...")
-                if self._call_openrouter(model_config, model_name, error_info, repo_context):
-                    return self._call_openrouter(model_config, model_name, error_info, repo_context)
+                result = self._call_openrouter(model_config, model_name, error_info, repo_context)
+                if result:
+                    return result
+            # 如果实时获取失败，使用兜底模型
+            print("实时获取排行榜失败，使用内置兜底模型...")
+            for model_name in self.fallback_models:
+                print(f"尝试兜底模型: {model_name}")
+                result = self._call_openrouter(model_config, model_name, error_info, repo_context)
+                if result:
+                    return result
             return None
 
         # 其他单模型
@@ -108,45 +118,75 @@ class WorkflowErrorFixer:
             print(f"{model_config['name']} 调用异常: {e}")
             return None
 
-    def _call_openrouter(self, config: Dict, model: str, error_info: str, repo_context: str) -> Optional[str]:
-        """调用 OpenRouter 单个模型"""
-        prompt = self._build_prompt(error_info, repo_context)
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {config['api_key']}",
-            "HTTP-Referer": "https://github.com/Fatty911/crawl_cars",
-            "X-Title": "CrawlCars Auto Fix"
-        }
-        
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "你是专业的代码调试助手，擅长分析和修复 Python 代码和 GitHub Actions 工作流错误。" },
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.1,
-            "max_tokens": 8000
-        }
+    def _fetch_top_models(self) -> List[str]:
+        """实时从 artificialanalysis.ai 获取排行榜前10且 context window >= 1M 的模型"""
+        url = "https://artificialanalysis.ai/leaderboards/models"
+        print(f"正在抓取最新排行榜: {url}")
         
         try:
-            response = requests.post(
-                config["endpoint"],
-                headers=headers,
-                json=payload,
-                timeout=180
-            )
-            if response.status_code == 200:
-                result = response.json()
-                content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-                print(f"OpenRouter - {model} 返回成功")
-                return content
-            else:
-                print(f"OpenRouter - {model} 失败: {response.status_code}")
-                return None
+            headers = {
+                "User-Agent": "Mozilla/5.0 (compatible; CrawlCars-Debug/1.0)"
+            }
+            resp = requests.get(url, headers=headers, timeout=30)
+            print(f"排行榜页面状态码: {resp.status_code}")
+            
+            if resp.status_code != 200:
+                return self.fallback_models[:6]
+            
+            text = resp.text.lower()
+            
+            # 提取 model names (简单正则匹配常见模型)
+            model_patterns = [
+                r'gemini-?3\.1?-?pro?-?preview',
+                r'gpt-?5\.4',
+                r'claude-?opus-?4',
+                r'claude-?sonnet-?4',
+                r'glm-?5',
+                r'minimax-?m2\.7',
+                r'grok-?4',
+                r'gpt-?5\.4-?mini',
+                r'kimi-?k2',
+                r'deepseek-?r1',
+            ]
+            
+            found_models = []
+            for pattern in model_patterns:
+                matches = re.findall(pattern, text)
+                for m in matches:
+                    if m not in found_models:
+                        found_models.append(m)
+            
+            print(f"从页面提取到模型: {found_models}")
+            
+            # 映射为 OpenRouter 格式
+            mapping = {
+                "gemini-3.1-pro-preview": "google/gemini-3.1-pro-preview",
+                "gpt-5.4": "openai/gpt-5.4",
+                "claude-opus-4": "anthropic/claude-opus-4.6",
+                "claude-sonnet-4": "anthropic/claude-sonnet-4.6",
+                "glm-5": "z-ai/glm-5",
+                "minimax-m2.7": "minimax/minimax-m2.7",
+                "grok-4": "xai/grok-4.20-beta-0309",
+                "gpt-5.4-mini": "openai/gpt-5.4-mini",
+                "kimi-k2": "kimi/kimi-k2.5",
+            }
+            
+            result = []
+            for raw in found_models:
+                for key, value in mapping.items():
+                    if key in raw:
+                        result.append(value)
+                        break
+            if not result:
+                print("未提取到模型，使用兜底列表")
+                return self.fallback_models[:6]
+            
+            print(f"最终优先使用的模型列表: {result}")
+            return result[:8]  # 最多取8个
+            
         except Exception as e:
-            print(f"OpenRouter - {model} 异常: {e}")
-            return None
+            print(f"抓取排行榜失败: {e}，使用内置兜底模型")
+            return self.fallback_models[:6]
 
     def _build_prompt(self, error_info: str, repo_context: str) -> str:
         return f"""你是一个专业的 Python/GitHub Actions 调试专家。请分析以下工作流错误并提供修复方案。
