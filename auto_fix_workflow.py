@@ -121,72 +121,94 @@ class WorkflowErrorFixer:
     def _fetch_top_models(self) -> List[str]:
         """实时从 artificialanalysis.ai 获取排行榜前10且 context window >= 1M 的模型"""
         url = "https://artificialanalysis.ai/leaderboards/models"
-        print(f"正在抓取最新排行榜: {url}")
+        print(f"\n=== 开始抓取最新排行榜 ===")
+        print(f"目标URL: {url}")
         
         try:
             headers = {
-                "User-Agent": "Mozilla/5.0 (compatible; CrawlCars-Debug/1.0)"
+                "User-Agent": "Mozilla/5.0 (compatible; CrawlCars-AutoFix/1.0; +https://github.com/Fatty911/crawl_cars)",
+                "Accept": "text/html,application/xhtml+xml"
             }
-            resp = requests.get(url, headers=headers, timeout=30)
-            print(f"排行榜页面状态码: {resp.status_code}")
+            resp = requests.get(url, headers=headers, timeout=45)
+            print(f"HTTP状态码: {resp.status_code} | 响应长度: {len(resp.text)} 字符")
             
             if resp.status_code != 200:
-                return self.fallback_models[:6]
+                print("页面请求失败，使用内置兜底模型")
+                return self.fallback_models[:8]
             
             text = resp.text.lower()
+            print("已获取页面内容，开始解析...")
             
-            # 提取 model names (简单正则匹配常见模型)
+            # 更强的模型名称正则匹配模式
             model_patterns = [
-                r'gemini-?3\.1?-?pro?-?preview',
+                r'(?:gemini|gpt|claude|glm|minimax|mimo|grok|kimi|deepseek|qwen|lamma|mistral).*?(?:3\.1|5\.4|4\.6|2\.0|opus|sonnet|m2\.7|r1|k2)',
+                r'gemini-?3\.1?-?pro',
                 r'gpt-?5\.4',
-                r'claude-?opus-?4',
-                r'claude-?sonnet-?4',
+                r'claude-?(?:opus|sonnet)-?4',
                 r'glm-?5',
                 r'minimax-?m2\.7',
                 r'grok-?4',
-                r'gpt-?5\.4-?mini',
                 r'kimi-?k2',
-                r'deepseek-?r1',
             ]
             
-            found_models = []
+            found = set()
             for pattern in model_patterns:
-                matches = re.findall(pattern, text)
+                matches = re.findall(pattern, text, re.IGNORECASE)
                 for m in matches:
-                    if m not in found_models:
-                        found_models.append(m)
+                    cleaned = re.sub(r'[^a-z0-9\.\-]', '', m.lower().strip())
+                    if len(cleaned) > 3:
+                        found.add(cleaned)
             
-            print(f"从页面提取到模型: {found_models}")
+            print(f"原始提取到的潜在模型名称: {sorted(list(found))}")
             
-            # 映射为 OpenRouter 格式
+            # 标准化映射
             mapping = {
-                "gemini-3.1-pro-preview": "google/gemini-3.1-pro-preview",
-                "gpt-5.4": "openai/gpt-5.4",
-                "claude-opus-4": "anthropic/claude-opus-4.6",
-                "claude-sonnet-4": "anthropic/claude-sonnet-4.6",
-                "glm-5": "z-ai/glm-5",
-                "minimax-m2.7": "minimax/minimax-m2.7",
-                "grok-4": "xai/grok-4.20-beta-0309",
-                "gpt-5.4-mini": "openai/gpt-5.4-mini",
-                "kimi-k2": "kimi/kimi-k2.5",
+                "gemini31pro": "google/gemini-3.1-pro-preview",
+                "gemini3.1pro": "google/gemini-3.1-pro-preview",
+                "gpt54": "openai/gpt-5.4",
+                "gpt5.4": "openai/gpt-5.4",
+                "claudeopus4": "anthropic/claude-opus-4.6",
+                "claudesonnet4": "anthropic/claude-sonnet-4.6",
+                "glm5": "z-ai/glm-5",
+                "minimaxm27": "minimax/minimax-m2.7",
+                "m2.7": "minimax/minimax-m2.7",
+                "grok4": "xai/grok-4.20-beta-0309",
+                "kimi k2": "kimi/kimi-k2.5",
+                "kimik2": "kimi/kimi-k2.5",
             }
             
             result = []
-            for raw in found_models:
-                for key, value in mapping.items():
-                    if key in raw:
-                        result.append(value)
+            for raw_name in sorted(list(found)):
+                for key, mapped in mapping.items():
+                    if key in raw_name:
+                        if mapped not in result:
+                            result.append(mapped)
                         break
-            if not result:
-                print("未提取到模型，使用兜底列表")
-                return self.fallback_models[:6]
+                else:
+                    # 尝试通用映射
+                    if "gemini" in raw_name:
+                        result.append("google/gemini-3.1-pro-preview")
+                    elif "gpt5" in raw_name or "gpt-5" in raw_name:
+                        result.append("openai/gpt-5.4")
+                    elif "claude" in raw_name and "opus" in raw_name:
+                        result.append("anthropic/claude-opus-4.6")
+                    elif "claude" in raw_name:
+                        result.append("anthropic/claude-sonnet-4.6")
             
-            print(f"最终优先使用的模型列表: {result}")
-            return result[:8]  # 最多取8个
+            if not result:
+                print("未能解析到有效模型，使用内置兜底列表")
+                return self.fallback_models[:8]
+            
+            print(f"最终优先使用的模型列表（{len(result)}个）:")
+            for i, m in enumerate(result[:10], 1):
+                print(f"  {i:2d}. {m}")
+            
+            return result[:10]  # 最多取10个最新模型
             
         except Exception as e:
-            print(f"抓取排行榜失败: {e}，使用内置兜底模型")
-            return self.fallback_models[:6]
+            print(f"抓取排行榜失败: {e}")
+            print("使用预置兜底模型列表")
+            return self.fallback_models[:8]
 
     def _build_prompt(self, error_info: str, repo_context: str) -> str:
         return f"""你是一个专业的 Python/GitHub Actions 调试专家。请分析以下工作流错误并提供修复方案。
