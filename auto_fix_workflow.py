@@ -19,15 +19,15 @@ class WorkflowErrorFixer:
                 "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
                 "endpoint": "https://openrouter.ai/api/v1/chat/completions",
                 "models": [
-                    "anthropic/claude-opus-4",
-                    "google/gemini-2.0-pro-exp-02-05",
-                    "openai/o3",
-                    "anthropic/claude-sonnet-4",
-                    "xai/grok-4",
-                    "deepseek/deepseek-r1",
-                    "qwen/qwen3-235b-a22b",
-                    "meta/llama-4-maverick-400b",
-                    "mistral/large3"
+                    "google/gemini-3.1-pro-preview",
+                    "openai/gpt-5.4",
+                    "anthropic/claude-opus-4.6",
+                    "anthropic/claude-sonnet-4.6",
+                    "z-ai/glm-5",
+                    "minimax/minimax-m2.7",
+                    "xai/grok-4.20-beta-0309",
+                    "openai/gpt-5.4-mini",
+                    "kimi/kimi-k2.5"
                 ],
                 "format": "openai"
             },
