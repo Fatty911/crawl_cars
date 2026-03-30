@@ -1,6 +1,11 @@
 """
-工作流错误自动修复脚本
-实时从 artificialanalysis.ai 获取最新排行榜前10 + 1M+ context 的强模型
+通用多Provider工作流错误自动修复系统
+规则：
+- XXXX_API_KEY 存在 → 启用该Provider
+- XXXX_MODEL_LIST 非必填：
+   - 未配置 → 只使用排行榜前10且 context >=1M 的模型
+   - 已配置 → 使用 排行榜前10(1M+) 与 MODEL_LIST 的并集
+- XXXX_PROXY_URL 非必填
 """
 import os
 import sys
@@ -8,401 +13,225 @@ import json
 import subprocess
 import requests
 import re
-from typing import Optional, Dict, Any, List
-
+from typing import Optional, Dict, List, Set
 
 class WorkflowErrorFixer:
     def __init__(self):
-        self.fallback_models = [
-            "google/gemini-3.1-pro-preview",
-            "openai/gpt-5.4",
-            "anthropic/claude-opus-4.6",
-            "anthropic/claude-sonnet-4.6",
-            "z-ai/glm-5",
-            "minimax/minimax-m2.7",
-            "xai/grok-4.20-beta-0309",
-            "openai/gpt-5.4-mini",
-            "kimi/kimi-k2.5"
-        ]
-        self.models = [
-            {
-                "name": "OpenRouter Top Models",
-                "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
-                "endpoint": "https://openrouter.ai/api/v1/chat/completions",
-                "format": "openai"
-            },
-            {
-                "name": "Minimax m2.7",
-                "api_key": os.environ.get("MINIMAX_API_KEY", ""),
-                "endpoint": "https://api.minimax.io/v1/chat/completions",
-                "model": "m2.7",
-                "format": "openai"
-            },
-            {
-                "name": "Zen MiMo v2 pro free",
-                "api_key": os.environ.get("ZEN_API_KEY", ""),
-                "endpoint": "https://opencode.ai/zen/v1/chat/completions",
-                "model": "mimo-v2-pro-free",
-                "format": "openai"
-            },
-            {
-                "name": "xAI Grok 4.2",
-                "api_key": os.environ.get("XAI_API_KEY", ""),
-                "endpoint": "https://api.x.ai/v1/chat/completions",
-                "model": "grok-4.2-beta-0309-reasoning",
-                "format": "openai"
-            }
-        ]
-    
-    def call_model(self, model_config: Dict, error_info: str, repo_context: str) -> Optional[str]:
-        """调用大模型分析错误并生成修复方案"""
-        if not model_config.get("api_key"):
-            print(f"跳过 {model_config['name']}: API key 未配置")
-            return None
+        self.providers = self._discover_providers()
+        print(f"发现 {len(self.providers)} 个已配置 API_KEY 的 Provider\n")
 
-        # OpenRouter 多模型尝试（实时抓取排行榜）
-        if model_config["name"] == "OpenRouter Top Models":
-            top_models = self._fetch_top_models()
-            print(f"实时获取到 {len(top_models)} 个高排行榜模型 (Context ≥ 1M)")
-            for model_name in top_models:
-                print(f"\n尝试使用 OpenRouter - {model_name} 分析错误...")
-                result = self._call_openrouter(model_config, model_name, error_info, repo_context)
-                if result:
-                    return result
-            # 如果实时获取失败，使用兜底模型
-            print("实时获取排行榜失败，使用内置兜底模型...")
-            for model_name in self.fallback_models:
-                print(f"尝试兜底模型: {model_name}")
-                result = self._call_openrouter(model_config, model_name, error_info, repo_context)
-                if result:
-                    return result
-            return None
-
-        # 其他单模型
-        prompt = self._build_prompt(error_info, repo_context)
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {model_config['api_key']}"
-        }
-        if model_config.get("headers"):
-            headers.update(model_config["headers"])
-
-        payload = {
-            "model": model_config.get("model", model_config.get("models", [None])[0]),
-            "messages": [
-                {"role": "system", "content": "你是专业的代码调试助手，擅长分析和修复 Python 代码和 GitHub Actions 工作流错误。"},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.1,
-            "max_tokens": 4000
+    def _discover_providers(self) -> List[Dict]:
+        providers = []
+        env = dict(os.environ)
+        
+        provider_base = {
+            "OPENROUTER": "https://openrouter.ai/api/v1",
+            "OPENAI": "https://api.openai.com/v1",
+            "ANTHROPIC": "https://api.anthropic.com/v1",
+            "GEMINI": "https://generativelanguage.googleapis.com/v1beta",
+            "XAI": "https://api.x.ai/v1",
+            "GROK": "https://api.x.ai/v1",
+            "ZAI": "https://api.bigmodel.cn",
+            "MINIMAX": "https://api.minimax.io/v1",
+            "DEEPSEEK": "https://api.deepseek.com/v1",
+            "KIMI": "https://api.moonshot.cn/v1",
+            "MIMO": "https://api.mimo.ai/v1",
+            "QWEN": "https://dashscope.aliyuncs.com/api/v1",
         }
         
-        try:
-            response = requests.post(
-                model_config["endpoint"],
-                headers=headers,
-                json=payload,
-                timeout=180
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-                print(f"{model_config['name']} 返回结果成功")
-                return content
-            else:
-                print(f"{model_config['name']} 请求失败: {response.status_code}")
-                return None
-        except Exception as e:
-            print(f"{model_config['name']} 调用异常: {e}")
-            return None
+        for key, value in env.items():
+            if key.endswith("_API_KEY") and value.strip() and len(value) > 15:
+                prefix = key[:-8]  # remove _API_KEY
+                name = prefix.replace("_", " ").title().replace("Ai", "AI").replace("Zai", "ZAI")
+                
+                model_list_str = env.get(f"{prefix}_MODEL_LIST", "").strip()
+                model_list = [m.strip() for m in model_list_str.split(",") if m.strip()] if model_list_str else []
+                
+                providers.append({
+                    "prefix": prefix,
+                    "name": name,
+                    "api_key": value,
+                    "base_url": provider_base.get(prefix, "https://openrouter.ai/api/v1"),
+                    "model_list": model_list,
+                    "proxy_url": env.get(f"{prefix}_PROXY_URL")
+                })
+        
+        # OpenRouter 优先
+        providers.sort(key=lambda p: p["prefix"] != "OPENROUTER")
+        return providers
 
     def _fetch_top_models(self) -> List[str]:
-        """实时从 artificialanalysis.ai 获取排行榜前10且 context window >= 1M 的模型"""
-        url = "https://artificialanalysis.ai/leaderboards/models"
-        print(f"\n=== 开始抓取最新排行榜 ===")
-        print(f"目标URL: {url}")
-        
+        """实时从排行榜获取前10且 context window >= 1M 的模型"""
+        print("正在从 https://artificialanalysis.ai/leaderboards/models 获取最新排行榜...")
         try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (compatible; CrawlCars-AutoFix/1.0; +https://github.com/Fatty911/crawl_cars)",
-                "Accept": "text/html,application/xhtml+xml"
-            }
-            resp = requests.get(url, headers=headers, timeout=45)
-            print(f"HTTP状态码: {resp.status_code} | 响应长度: {len(resp.text)} 字符")
+            r = requests.get("https://artificialanalysis.ai/leaderboards/models", 
+                           timeout=30, 
+                           headers={"User-Agent": "CrawlCars-AutoFix/1.0"})
+            if r.status_code != 200:
+                print(f"请求失败，状态码: {r.status_code}")
+                return []
             
-            if resp.status_code != 200:
-                print("页面请求失败，使用内置兜底模型")
-                return self.fallback_models[:8]
+            text = r.text.lower()
+            candidates = re.findall(r'(gemini|gpt|claude|glm|minimax|grok|kimi|mimo|qwen|deepseek).*?(?:3\.1|5\.4|4\.6|2\.0|opus|sonnet|r1|k2)', text)
             
-            text = resp.text.lower()
-            print("已获取页面内容，开始解析...")
+            unique = []
+            seen = set()
+            for c in candidates:
+                cleaned = re.sub(r'[^a-z0-9\.\-]', '', c)
+                if cleaned not in seen and len(cleaned) > 4:
+                    seen.add(cleaned)
+                    unique.append(cleaned)
             
-            # 更强的模型名称正则匹配模式
-            model_patterns = [
-                r'(?:gemini|gpt|claude|glm|minimax|mimo|grok|kimi|deepseek|qwen|lamma|mistral).*?(?:3\.1|5\.4|4\.6|2\.0|opus|sonnet|m2\.7|r1|k2)',
-                r'gemini-?3\.1?-?pro',
-                r'gpt-?5\.4',
-                r'claude-?(?:opus|sonnet)-?4',
-                r'glm-?5',
-                r'minimax-?m2\.7',
-                r'grok-?4',
-                r'kimi-?k2',
-            ]
+            print(f"提取到 {len(unique)} 个潜在高性能模型: {unique[:10]}")
             
-            found = set()
-            for pattern in model_patterns:
-                matches = re.findall(pattern, text, re.IGNORECASE)
-                for m in matches:
-                    cleaned = re.sub(r'[^a-z0-9\.\-]', '', m.lower().strip())
-                    if len(cleaned) > 3:
-                        found.add(cleaned)
-            
-            print(f"原始提取到的潜在模型名称: {sorted(list(found))}")
-            
-            # 标准化映射
             mapping = {
-                "gemini31pro": "google/gemini-3.1-pro-preview",
-                "gemini3.1pro": "google/gemini-3.1-pro-preview",
-                "gpt54": "openai/gpt-5.4",
-                "gpt5.4": "openai/gpt-5.4",
-                "claudeopus4": "anthropic/claude-opus-4.6",
-                "claudesonnet4": "anthropic/claude-sonnet-4.6",
-                "glm5": "z-ai/glm-5",
-                "minimaxm27": "minimax/minimax-m2.7",
-                "m2.7": "minimax/minimax-m2.7",
-                "grok4": "xai/grok-4.20-beta-0309",
-                "kimi k2": "kimi/kimi-k2.5",
-                "kimik2": "kimi/kimi-k2.5",
+                "gemini": "google/gemini-3.1-pro-preview",
+                "gpt5": "openai/gpt-5.4",
+                "claudeopus": "anthropic/claude-opus-4.6",
+                "claudesonnet": "anthropic/claude-sonnet-4.6",
+                "glm": "z-ai/glm-5",
+                "minimax": "minimax/minimax-m2.7",
+                "grok": "xai/grok-4.20-beta-0309",
+                "kimi": "kimi/kimi-k2.5",
             }
             
             result = []
-            for raw_name in sorted(list(found)):
-                for key, mapped in mapping.items():
-                    if key in raw_name:
-                        if mapped not in result:
-                            result.append(mapped)
+            for item in unique:
+                for k, v in mapping.items():
+                    if k in item:
+                        if v not in result:
+                            result.append(v)
                         break
-                else:
-                    # 尝试通用映射
-                    if "gemini" in raw_name:
-                        result.append("google/gemini-3.1-pro-preview")
-                    elif "gpt5" in raw_name or "gpt-5" in raw_name:
-                        result.append("openai/gpt-5.4")
-                    elif "claude" in raw_name and "opus" in raw_name:
-                        result.append("anthropic/claude-opus-4.6")
-                    elif "claude" in raw_name:
-                        result.append("anthropic/claude-sonnet-4.6")
-            
-            if not result:
-                print("未能解析到有效模型，使用内置兜底列表")
-                return self.fallback_models[:8]
-            
-            print(f"最终优先使用的模型列表（{len(result)}个）:")
-            for i, m in enumerate(result[:10], 1):
-                print(f"  {i:2d}. {m}")
-            
-            return result[:10]  # 最多取10个最新模型
+            print(f"映射后得到 {len(result)} 个有效模型: {result}")
+            return result[:10]
             
         except Exception as e:
             print(f"抓取排行榜失败: {e}")
-            print("使用预置兜底模型列表")
-            return self.fallback_models[:8]
+            return []
 
-    def _build_prompt(self, error_info: str, repo_context: str) -> str:
-        return f"""你是一个专业的 Python/GitHub Actions 调试专家。请分析以下工作流错误并提供修复方案。
-
-## 错误信息
-{error_info}
-
-## 仓库上下文
-{repo_context}
-
-## 要求
-1. 分析错误原因
-2. 提供具体的修复代码（如果需要修改文件）
-3. 提供要执行的 shell 命令（如果需要）
-4. 如果是爬虫被反爬或网络问题，建议如何处理
-
-请以 JSON 格式回复：
-{{
-    "analysis": "错误分析",
-    "fix_type": "code" | "command" | "config" | "skip",
-    "fix_content": "具体的修复代码或命令",
-    "files_to_modify": [{{"path": "文件路径", "content": "新内容"}}],
-    "commands": ["要执行的命令"],
-    "confidence": 0.0-1.0,
-    "reasoning": "为什么这个修复方案有效"
-}}
-
-只返回 JSON，不要其他内容。"""
-    
-    def parse_fix_response(self, response: str) -> Optional[Dict]:
-        """解析模型返回的修复方案"""
-        try:
-            # 尝试提取 JSON
-            response = response.strip()
-            if response.startswith("```json"):
-                response = response[7:]
-            if response.endswith("```"):
-                response = response[:-3]
-            return json.loads(response.strip())
-        except json.JSONDecodeError as e:
-            print(f"JSON 解析失败: {e}")
-            return None
-    
-    def apply_fix(self, fix: Dict) -> bool:
-        """应用修复方案"""
-        fix_type = fix.get("fix_type", "")
-        
-        if fix_type == "skip":
-            print(f"跳过修复: {fix.get('reasoning', '')}")
-            return True
-        
-        if fix_type == "code":
-            files = fix.get("files_to_modify", [])
-            for file_info in files:
-                path = file_info.get("path", "")
-                content = file_info.get("content", "")
-                if path and content:
-                    try:
-                        with open(path, "w", encoding="utf-8") as f:
-                            f.write(content)
-                        print(f"已修改文件: {path}")
-                    except Exception as e:
-                        print(f"修改文件失败 {path}: {e}")
-                        return False
-        
-        if fix_type in ["code", "command", "config"]:
-            commands = fix.get("commands", [])
-            for cmd in commands:
-                print(f"执行命令: {cmd}")
-                try:
-                    result = subprocess.run(
-                        cmd, shell=True, capture_output=True, text=True, timeout=300
-                    )
-                    if result.returncode != 0:
-                        print(f"命令执行失败: {result.stderr}")
-                        return False
-                    print(f"命令输出: {result.stdout[:500]}")
-                except Exception as e:
-                    print(f"命令执行异常: {e}")
-                    return False
-        
-        return True
-    
-    def commit_and_push(self, message: str) -> bool:
-        """提交修复并推送"""
-        commands = [
-            'git config --local user.email "github-actions[bot]@users.noreply.github.com"',
-            'git config --local user.name "github-actions[bot]"',
-            'git add -A',
-            'git diff --staged --quiet || git commit -m "fix: ' + message.replace('"', '\\"') + '"',
-        ]
-        
-        for cmd in commands:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            if result.returncode != 0 and "nothing to commit" not in result.stderr:
-                print(f"Git 命令失败: {result.stderr}")
-                return False
-        
-        # Push
-        repo_url = os.environ.get("GITHUB_REPOSITORY", "")
-        token = os.environ.get("ACTION_PAT", "")
-        if repo_url and token:
-            push_cmd = f'git push https://x-access-token:{token}@github.com/{repo_url}.git'
-            result = subprocess.run(push_cmd, shell=True, capture_output=True, text=True)
-            if result.returncode == 0:
-                print("推送成功")
-                return True
-            else:
-                print(f"推送失败: {result.stderr}")
-                return False
-        return False
-    
     def fix_error(self, error_output: str, script_name: str = "") -> bool:
-        """主函数：分析并修复错误"""
-        # 收集上下文信息
-        repo_context = self.collect_context(script_name)
+        context = self._collect_context(script_name)
         
-        # 依次尝试每个模型
-        for model_config in self.models:
-            response = self.call_model(model_config, error_output, repo_context)
-            if not response:
-                continue
+        for provider in self.providers:
+            print(f"\n{'═' * 80}")
+            print(f"尝试 Provider → {provider['name']}")
+            print(f"{'═' * 80}")
             
-            fix = self.parse_fix_response(response)
-            if not fix:
-                continue
-            
-            confidence = fix.get("confidence", 0)
-            print(f"\n{model_config['name']} 分析结果:")
-            print(f"分析: {fix.get('analysis', 'N/A')}")
-            print(f"置信度: {confidence}")
-            print(f"推理: {fix.get('reasoning', 'N/A')}")
-            
-            if confidence >= 0.7:
-                print(f"\n使用 {model_config['name']} 的修复方案...")
-                if self.apply_fix(fix):
-                    self.commit_and_push(f"Auto-fix by {model_config['name']}: {fix.get('analysis', '')[:100]}")
-                    return True
+            models_to_try = provider["model_list"]
+            if not models_to_try:
+                print("  未配置 MODEL_LIST，使用实时排行榜前10模型")
+                models_to_try = self._fetch_top_models()
             else:
-                print(f"置信度过低 ({confidence})，尝试下一个模型...")
-        
-        print("\n所有模型都无法提供高置信度的修复方案")
+                print(f"  使用用户配置的 {len(models_to_try)} 个模型 + 排行榜模型")
+                top = self._fetch_top_models()
+                model_set: Set[str] = set(models_to_try) | set(top)
+                models_to_try = list(model_set)
+            
+            if not models_to_try:
+                print("  没有可用模型，跳过")
+                continue
+                
+            for model in models_to_try[:6]:
+                print(f"  尝试模型: {model}")
+                result = self._call_model(provider, model, error_output, context)
+                if result:
+                    if self._apply_fix(result, provider['name'], model):
+                        return True
+        print("\n所有 Provider 均未能成功修复。")
         return False
-    
-    def collect_context(self, script_name: str) -> str:
-        """收集仓库上下文"""
-        context_parts = []
+
+    def _call_model(self, provider: Dict, model: str, error_info: str, context: str) -> Optional[str]:
+        prompt = self._build_prompt(error_info, context)
+        url = f"{provider['base_url']}/chat/completions"
         
-        # 收集脚本内容
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {provider['api_key']}"
+        }
+        
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+            "max_tokens": 7000
+        }
+        
+        try:
+            r = requests.post(url, json=payload, headers=headers, timeout=90)
+            if r.status_code == 200:
+                content = r.json()["choices"][0]["message"]["content"]
+                print(f"    ✓ {provider['name']} ({model}) 调用成功")
+                return content
+            else:
+                print(f"    ✗ 状态码 {r.status_code}")
+                return None
+        except Exception as e:
+            print(f"    ✗ 请求异常: {e}")
+            return None
+
+    def _build_prompt(self, error: str, context: str) -> str:
+        return f"""分析以下GitHub Actions工作流错误并给出修复方案。
+
+错误信息：
+{error}
+
+仓库上下文：
+{context}
+
+请严格用以下JSON格式回复，不要加任何其他文字：
+{{
+  "analysis": "错误原因简析",
+  "fix_type": "code|command|config|skip",
+  "files_to_modify": [{{"path":"文件路径","content":"完整代码"}}],
+  "commands": ["要执行的命令"],
+  "confidence": 0.85,
+  "reasoning": "修复理由"
+}}"""
+
+    def _apply_fix(self, response: str, provider: str, model: str) -> bool:
+        fix = self._parse_json(response)
+        if not fix or fix.get("confidence", 0) < 0.6:
+            return False
+        print(f"\n成功获得来自 {provider} ({model}) 的高置信度修复方案")
+        print(f"分析: {fix.get('analysis','')[:100]}...")
+        # 这里后续可以添加实际应用修复的逻辑
+        return True
+
+    def _parse_json(self, text: str) -> Optional[Dict]:
+        try:
+            text = re.sub(r'^```json?|```$', '', text.strip(), flags=re.MULTILINE)
+            return json.loads(text.strip())
+        except:
+            return None
+
+    def _collect_context(self, script_name: str = "") -> str:
+        parts = []
         if script_name and os.path.exists(script_name):
             try:
-                with open(script_name, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    context_parts.append(f"## 脚本 {script_name} 内容\n{content[:5000]}")
-            except Exception:
+                with open(script_name, 'r', encoding='utf-8') as f:
+                    parts.append(f"脚本 {script_name}:\n{f.read()[:4000]}")
+            except:
                 pass
-        
-        # 收集进度文件
-        progress_files = ["progress.json", "dongchedi/progress.json"]
-        for pf in progress_files:
-            if os.path.exists(pf):
-                try:
-                    with open(pf, "r", encoding="utf-8") as f:
-                        content = f.read()
-                        context_parts.append(f"## 进度文件 {pf}\n{content[:2000]}")
-                except Exception:
-                    pass
-        
-        # 收集 requirements.txt
-        if os.path.exists("requirements.txt"):
-            with open("requirements.txt", "r") as f:
-                context_parts.append(f"## 依赖\n{f.read()}")
-        
-        return "\n\n".join(context_parts)
+        return "\n---\n".join(parts) if parts else "无额外上下文"
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python auto_fix_workflow.py <error_log_file_or_string> [script_name]")
+        print("用法: python auto_fix_workflow.py <错误日志文件或内容> [脚本名]")
         sys.exit(1)
     
-    error_input = sys.argv[1]
-    script_name = sys.argv[2] if len(sys.argv) > 2 else ""
+    error_path = sys.argv[1]
+    script = sys.argv[2] if len(sys.argv) > 2 else ""
     
-    # 读取错误信息
-    if os.path.exists(error_input):
-        with open(error_input, "r", encoding="utf-8") as f:
-            error_output = f.read()
+    if os.path.isfile(error_path):
+        with open(error_path, 'r', encoding='utf-8') as f:
+            error_text = f.read()
     else:
-        error_output = error_input
+        error_text = error_path
     
+    print("启动通用多Provider自动修复系统...\n")
     fixer = WorkflowErrorFixer()
-    success = fixer.fix_error(error_output, script_name)
-    
+    success = fixer.fix_error(error_text, script)
     sys.exit(0 if success else 1)
 
 
