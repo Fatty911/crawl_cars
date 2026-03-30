@@ -13,6 +13,24 @@ from typing import Optional, Dict, Any
 class WorkflowErrorFixer:
     def __init__(self):
         self.models = [
+            # OpenRouter - 调用排行榜前10且 context window ≥ 1M 模型
+            {
+                "name": "OpenRouter Top Models",
+                "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
+                "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+                "models": [
+                    "anthropic/claude-opus-4",
+                    "google/gemini-2.0-pro-exp-02-05",
+                    "openai/o3",
+                    "anthropic/claude-sonnet-4",
+                    "xai/grok-4",
+                    "deepseek/deepseek-r1",
+                    "qwen/qwen3-235b-a22b",
+                    "meta/llama-4-maverick-400b",
+                    "mistral/large3"
+                ],
+                "format": "openai"
+            },
             {
                 "name": "Minimax m2.7",
                 "api_key": os.environ.get("MINIMAX_API_KEY", ""),
@@ -38,11 +56,100 @@ class WorkflowErrorFixer:
     
     def call_model(self, model_config: Dict, error_info: str, repo_context: str) -> Optional[str]:
         """调用大模型分析错误并生成修复方案"""
-        if not model_config["api_key"]:
+        if not model_config.get("api_key"):
             print(f"跳过 {model_config['name']}: API key 未配置")
             return None
+
+        # OpenRouter 多模型尝试
+        if model_config["name"] == "OpenRouter Top Models":
+            for model_name in model_config["models"]:
+                print(f"\n尝试使用 OpenRouter - {model_name} 分析错误...")
+                if self._call_openrouter(model_config, model_name, error_info, repo_context):
+                    return self._call_openrouter(model_config, model_name, error_info, repo_context)
+            return None
+
+        # 其他单模型
+        prompt = self._build_prompt(error_info, repo_context)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {model_config['api_key']}"
+        }
+        if model_config.get("headers"):
+            headers.update(model_config["headers"])
+
+        payload = {
+            "model": model_config.get("model", model_config.get("models", [None])[0]),
+            "messages": [
+                {"role": "system", "content": "你是专业的代码调试助手，擅长分析和修复 Python 代码和 GitHub Actions 工作流错误。"},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.1,
+            "max_tokens": 4000
+        }
         
-        prompt = f"""你是一个专业的 Python/GitHub Actions 调试专家。请分析以下工作流错误并提供修复方案。
+        try:
+            response = requests.post(
+                model_config["endpoint"],
+                headers=headers,
+                json=payload,
+                timeout=180
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                print(f"{model_config['name']} 返回结果成功")
+                return content
+            else:
+                print(f"{model_config['name']} 请求失败: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"{model_config['name']} 调用异常: {e}")
+            return None
+
+    def _call_openrouter(self, config: Dict, model: str, error_info: str, repo_context: str) -> Optional[str]:
+        """调用 OpenRouter 单个模型"""
+        prompt = self._build_prompt(error_info, repo_context)
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {config['api_key']}",
+            "HTTP-Referer": "https://github.com/Fatty911/crawl_cars",
+            "X-Title": "CrawlCars Auto Fix"
+        }
+        
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "你是专业的代码调试助手，擅长分析和修复 Python 代码和 GitHub Actions 工作流错误。" },
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.1,
+            "max_tokens": 8000
+        }
+        
+        try:
+            response = requests.post(
+                config["endpoint"],
+                headers=headers,
+                json=payload,
+                timeout=180
+            )
+            if response.status_code == 200:
+                result = response.json()
+                content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                print(f"OpenRouter - {model} 返回成功")
+                return content
+            else:
+                print(f"OpenRouter - {model} 失败: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"OpenRouter - {model} 异常: {e}")
+            return None
+
+    def _build_prompt(self, error_info: str, repo_context: str) -> str:
+        return f"""你是一个专业的 Python/GitHub Actions 调试专家。请分析以下工作流错误并提供修复方案。
 
 ## 错误信息
 {error_info}
@@ -68,43 +175,6 @@ class WorkflowErrorFixer:
 }}
 
 只返回 JSON，不要其他内容。"""
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {model_config['api_key']}"
-        }
-        
-        payload = {
-            "model": model_config["model"],
-            "messages": [
-                {"role": "system", "content": "你是专业的代码调试助手，擅长分析和修复 Python 代码和 GitHub Actions 工作流错误。"},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.1,
-            "max_tokens": 4000
-        }
-        
-        try:
-            print(f"\n尝试使用 {model_config['name']} 分析错误...")
-            response = requests.post(
-                model_config["endpoint"],
-                headers=headers,
-                json=payload,
-                timeout=120
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-                print(f"{model_config['name']} 返回结果成功")
-                return content
-            else:
-                print(f"{model_config['name']} 请求失败: {response.status_code}")
-                print(response.text[:500])
-                return None
-        except Exception as e:
-            print(f"{model_config['name']} 调用异常: {e}")
-            return None
     
     def parse_fix_response(self, response: str) -> Optional[Dict]:
         """解析模型返回的修复方案"""
