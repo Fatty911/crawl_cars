@@ -139,9 +139,9 @@ jobs:
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
       
       - name: Auto-fix step2 error
-        if: env.STEP2_FAILED == 'true' && (secrets.MINIMAX_API_KEY != '' || secrets.ZEN_API_KEY != '' || secrets.XAI_API_KEY != '')
+        if: env.STEP2_FAILED == 'true'
         run: |
-          echo "尝试自动修复 step2 错误..."
+          echo "尝试自动修复 step2 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step2_error.log crawl_dongchedi.py || echo "自动修复失败，继续运行"
       
       - name: Retry step2 after fix

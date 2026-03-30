@@ -109,9 +109,9 @@ jobs:
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
       
       - name: Auto-fix step1 error
-        if: env.STEP1_FAILED == 'true' && (secrets.MINIMAX_API_KEY != '' || secrets.ZEN_API_KEY != '' || secrets.XAI_API_KEY != '')
+        if: env.STEP1_FAILED == 'true'
         run: |
-          echo "尝试自动修复 step1 错误..."
+          echo "尝试自动修复 step1 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step1_error.log test_autohome.py || echo "自动修复失败，继续运行"
       
       - name: Retry step1 after fix
@@ -142,9 +142,9 @@ jobs:
           fi
       
       - name: Auto-fix remaining error
-        if: env.REMAINING_FAILED == 'true' && (secrets.MINIMAX_API_KEY != '' || secrets.ZEN_API_KEY != '' || secrets.XAI_API_KEY != '')
+        if: env.REMAINING_FAILED == 'true'
         run: |
-          echo "尝试自动修复 remaining steps 错误..."
+          echo "尝试自动修复 remaining steps 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py remaining_error.log test_autohome.py || echo "自动修复失败，继续运行"
       
       - name: Retry remaining after fix
