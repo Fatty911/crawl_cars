@@ -47,14 +47,21 @@ jobs:
           echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
           echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
           echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
+          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
+          echo "PROXY_SUBSCRIPTIONS=${{ secrets.PROXY_SUBSCRIPTIONS }}" >> $GITHUB_ENV
       
       - name: Setup proxy if configured
-        if: ${{ secrets.PROXY_SUBSCRIPTIONS != '' }}
         run: |
-          echo "配置代理..."
-          echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' > proxies.json
-          cat proxies.json
+          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
+            echo "检测到 PROXY_SUBSCRIPTIONS，开始配置代理..."
+            echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' > proxies.json
+            echo "已创建 proxies.json，包含订阅链接"
+            cat proxies.json
+          else
+            echo "未配置 PROXY_SUBSCRIPTIONS，将直接爬取（不使用代理）"
+            rm -f proxies.json
+          fi
       
       - name: Restart if requested
         if: github.event.inputs.force_restart == 'true'
@@ -75,8 +82,10 @@ jobs:
         run: |
           while true; do
             if [ -f proxies.json ]; then
-              python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy random 2>&1 | tee step1_error.log
+              echo "使用代理模式运行 step1 (负载均衡)"
+              python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy round_robin 2>&1 | tee step1_error.log
             else
+              echo "无代理，直接运行 step1"
               python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
             fi
             EXIT_CODE=$?
@@ -129,8 +138,10 @@ jobs:
         id: remaining
         run: |
           if [ -f proxies.json ]; then
-            python run_with_proxy.py --skip-dongchedi --proxy random 2>&1 | tee remaining_error.log
+            echo "使用代理模式运行剩余步骤"
+            python run_with_proxy.py --skip-dongchedi --proxy round_robin 2>&1 | tee remaining_error.log
           else
+            echo "无代理，直接运行 remaining steps"
             python test_autohome.py --step 2 2>&1 | tee -a remaining_error.log
             python test_autohome.py --step 3 2>&1 | tee -a remaining_error.log
             python test_autohome.py --step 4 2>&1 | tee -a remaining_error.log
