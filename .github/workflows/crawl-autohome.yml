@@ -1,7 +1,6 @@
+# 多 job：step1 与 step2–6 分离，失败可单独重跑对应 job。
 name: 汽车之家爬虫
 on:
-  # push:
-  #   branches: [ main, master ]
   schedule:
     - cron: '0 2 * * 1'
     - cron: '0 14 * * 4'
@@ -17,9 +16,9 @@ env:
   MAX_CARS: 500
 
 jobs:
-  crawl-autohome:
+  autohome-step1:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 240
     permissions:
       contents: write
     steps:
@@ -41,7 +40,7 @@ jobs:
           chrome-version: stable
       - uses: nanasess/setup-chromedriver@v2
       - run: pip install requests beautifulsoup4 selenium lxml PyYAML
-      
+
       - name: Setup environment
         run: |
           echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
@@ -50,7 +49,7 @@ jobs:
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
           echo "PROXY_SUBSCRIPTIONS=${{ secrets.PROXY_SUBSCRIPTIONS }}" >> $GITHUB_ENV
-      
+
       - name: Setup proxy if configured
         run: |
           if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
@@ -62,11 +61,11 @@ jobs:
             echo "未配置 PROXY_SUBSCRIPTIONS，将直接爬取（不使用代理）"
             rm -f proxies.json
           fi
-      
+
       - name: Restart if requested
         if: github.event.inputs.force_restart == 'true'
         run: rm -f progress.json step1_done
-      
+
       - name: Check if step1 already done
         id: check_done
         run: |
@@ -75,7 +74,7 @@ jobs:
           else
             echo "done=false" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Run step1 loop
         id: step1
         if: steps.check_done.outputs.done != 'true'
@@ -89,7 +88,7 @@ jobs:
               python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
             fi
             EXIT_CODE=$?
-            
+
             if [ $EXIT_CODE -eq 10 ]; then
               echo "Step1 incomplete, committing progress..."
               sleep $((RANDOM % 60 + 30))
@@ -116,13 +115,13 @@ jobs:
           git add -A
           git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-      
+
       - name: Auto-fix step1 error
         if: env.STEP1_FAILED == 'true'
         run: |
           echo "尝试自动修复 step1 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step1_error.log test_autohome.py || echo "自动修复失败，继续运行"
-      
+
       - name: Retry step1 after fix
         if: env.STEP1_FAILED == 'true'
         run: |
@@ -133,7 +132,47 @@ jobs:
           else
             python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
           fi
-          
+
+  autohome-step2-6:
+    needs: [autohome-step1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull latest
+        run: git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - uses: nanasess/setup-chromedriver@v2
+      - run: pip install requests beautifulsoup4 selenium lxml PyYAML
+
+      - name: Setup environment
+        run: |
+          echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
+          echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
+          echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
+          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
+          echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
+          echo "PROXY_SUBSCRIPTIONS=${{ secrets.PROXY_SUBSCRIPTIONS }}" >> $GITHUB_ENV
+
+      - name: Setup proxy if configured
+        run: |
+          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
+            echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' > proxies.json
+          else
+            rm -f proxies.json
+          fi
+
       - name: Run remaining steps
         id: remaining
         run: |
@@ -151,13 +190,13 @@ jobs:
           if [ $? -ne 0 ]; then
             echo "REMAINING_FAILED=true" >> $GITHUB_ENV
           fi
-      
+
       - name: Auto-fix remaining error
         if: env.REMAINING_FAILED == 'true'
         run: |
           echo "尝试自动修复 remaining steps 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py remaining_error.log test_autohome.py || echo "自动修复失败，继续运行"
-      
+
       - name: Retry remaining after fix
         if: env.REMAINING_FAILED == 'true'
         run: |
@@ -171,10 +210,10 @@ jobs:
             python test_autohome.py --step 5
             python test_autohome.py --step 6
           fi
-      
+
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
-      
+
       - uses: actions/upload-artifact@v4
         with:
           name: autohome-data-${{ env.CRAWL_DATE }}

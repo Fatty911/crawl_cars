@@ -1,7 +1,6 @@
+# 多 job：step1 / step2 / step3–4 分离，失败可单独重跑；进度在仓库内 dcd_step2_done 等。
 name: 懂车帝爬虫
 on:
-  # push:
-  #   branches: [ main, master ]
   schedule:
     - cron: '0 2 * * 2'
     - cron: '0 14 * * 5'
@@ -17,9 +16,9 @@ env:
   MAX_CARS: 500
 
 jobs:
-  crawl-dongchedi:
+  dongchedi-step1:
     runs-on: ubuntu-latest
-    timeout-minutes: 130
+    timeout-minutes: 90
     permissions:
       contents: write
     steps:
@@ -98,6 +97,55 @@ jobs:
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           fi
 
+  dongchedi-step2:
+    needs: [dongchedi-step1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull latest
+        run: git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - uses: nanasess/setup-chromedriver@v2
+      - run: pip install requests beautifulsoup4 selenium lxml PyYAML
+
+      - name: Setup environment
+        run: |
+          echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
+          echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
+          echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
+          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
+          echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
+          echo "PROXY_SUBSCRIPTIONS=${{ secrets.PROXY_SUBSCRIPTIONS }}" >> $GITHUB_ENV
+
+      - name: Setup proxy if configured
+        run: |
+          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
+            echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' > proxies.json
+          else
+            rm -f proxies.json
+          fi
+
+      - name: Check if step2 already done
+        id: check_done_dcd
+        run: |
+          if [ -f dcd_step2_done ]; then
+            echo "done=true" >> $GITHUB_OUTPUT
+          else
+            echo "done=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run step2 loop
         id: step2
         if: steps.check_done_dcd.outputs.done != 'true'
@@ -116,7 +164,7 @@ jobs:
             fi
             EXIT_CODE=$?
             echo "Exit code: $EXIT_CODE"
-            
+
             if [ $EXIT_CODE -eq 10 ]; then
               echo "Step2 incomplete, committing progress..."
               git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -135,7 +183,7 @@ jobs:
               echo "Step2 finished successfully"
               break
             fi
-            
+
             if [ $RUN_COUNT -gt 50 ]; then
               echo "Too many runs, stopping"
               break
@@ -148,13 +196,13 @@ jobs:
           git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
           git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-      
+
       - name: Auto-fix step2 error
         if: env.STEP2_FAILED == 'true'
         run: |
           echo "尝试自动修复 step2 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step2_error.log crawl_dongchedi.py || echo "自动修复失败，继续运行"
-      
+
       - name: Retry step2 after fix
         if: env.STEP2_FAILED == 'true'
         run: |
@@ -166,14 +214,45 @@ jobs:
           fi
           python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }}
 
+  dongchedi-step3-4:
+    needs: [dongchedi-step2]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull latest
+        run: git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - uses: nanasess/setup-chromedriver@v2
+      - run: pip install requests beautifulsoup4 selenium lxml PyYAML
+
+      - name: Setup environment
+        run: |
+          echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
+          echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
+          echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
+          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
+          echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
+
       - name: Run step3 and step4
-        if: steps.check_done_dcd.outputs.done == 'true' || success()
         run: |
           python crawl_dongchedi.py --step 3
           python crawl_dongchedi.py --step 4
 
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+
       - uses: actions/upload-artifact@v4
         with:
           name: dongchedi-data-${{ env.CRAWL_DATE }}
