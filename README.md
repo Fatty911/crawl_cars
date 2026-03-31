@@ -508,8 +508,40 @@ python crawl_dongchedi.py --step 2 --time-limit 7200 --max-series 500 --auto
 
 ### GitHub Actions运行
 
-1. 手动触发：在GitHub页面点击 "Run workflow"
-2. 自动触发：每天02:00和14:00
+**当前调度**（UTC时间）：
+- 汽车之家：每周一 02:00、周四 14:00
+- 懂车帝：每周二 02:00、周五 14:00
+- 数据合并：每周三 03:00、周六 03:00
+
+**代理配置（强烈推荐）**
+
+在 **Repository Settings → Secrets and variables → Actions** 中添加以下变量：
+
+| Secret 名称              | 说明                              | 示例格式 |
+|-------------------------|-----------------------------------|----------|
+| `PROXY_SUBSCRIPTIONS`   | 机场订阅地址（支持多条）           | JSON数组 |
+| `OPENROUTER_API_KEY`    | 用于错误自动修复                   | sk-or-... |
+| `MINIMAX_API_KEY`       | 用于错误自动修复                   | mm-... |
+| `XAI_API_KEY`           | 用于错误自动修复                   | xai-... |
+
+**`PROXY_SUBSCRIPTIONS` 格式示例**（支持VMess、VLESS、Trojan、Hysteria2等）：
+
+```json
+{
+  "subscriptions": [
+    "https://你的机场订阅地址1",
+    "https://你的机场订阅地址2",
+    "https://你的机场订阅地址3"
+  ],
+  "exclude_keywords": ["过期", "测试", "香港", "台湾", "到期"]
+}
+```
+
+**代理工作原理**：
+- 工作流启动时检测 `PROXY_SUBSCRIPTIONS`
+- 有配置则自动生成 Clash 配置并启动
+- 使用 `round_robin` 负载均衡模式，让各节点尽量平均使用
+- 无配置则直接爬取，不影响流程
 
 ---
 
