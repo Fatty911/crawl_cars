@@ -204,20 +204,32 @@ crawl_cars/
 
 ### 5. auto_fix_workflow.py
 
-**功能**：大模型自动修复工作流错误，支持三个模型 fallback
+**功能**：通用多Provider工作流错误自动修复系统（Lobe-Chat 风格配置）
 
-**核心特性**：
-- 捕获工作流错误日志
-- 依次尝试三个大模型分析和修复
-- 自动生成修复代码并提交推送
+**核心规则**：
+- `XXXX_API_KEY` 存在 → 启用该 Provider
+- `XXXX_MODEL_LIST` **非必填**：
+  - 未配置 → 只使用排行榜前10且 context ≥ 1M 的模型
+  - 已配置 → 使用排行榜前10(1M+) 与 MODEL_LIST 的**并集**
+- `XXXX_PROXY_URL` **非必填**
+- 未读取到 `XXXX_MODEL_LIST` 时**不报错**
 
-**支持的模型**（按优先级）：
+**支持的 Provider**（按环境变量自动发现）：
 
-| 优先级 | 模型 | API Key | 说明 |
-|--------|------|---------|------|
-| 1 | Minimax m2.7 | `MINIMAX_API_KEY` | 首选，Coding Plan |
-| 2 | Zen MiMo v2 pro free | `ZEN_API_KEY` | 备选，免费 |
-| 3 | Grok 4.2 beta reasoning | `XAI_API_KEY` | 最后备选 |
+| 环境变量前缀 | Provider | base_url |
+|-------------|----------|----------|
+| `OPENROUTER` | OpenRouter | openrouter.ai |
+| `OPENAI` | OpenAI | api.openai.com |
+| `ANTHROPIC` | Anthropic | api.anthropic.com |
+| `XAI` | xAI | api.x.ai |
+| `ATOMGIT` | AtomGit | api-ai.gitcode.com |
+| `MINIMAX` | MiniMax | api.minimax.io |
+| `ZEN` | OpenCode Zen | opencode.ai/zen |
+| `NVIDIA_NIM` | NVIDIA NIM | integrate.api.nvidia.com |
+| `MOONSHOT` | Moonshot/Kimi | api.moonshot.cn |
+| `DEEPSEEK` | DeepSeek | api.deepseek.com |
+| `MODELSCOPE` | ModelScope | dashscope.aliyuncs.com |
+| `MODAL` | Modal | modal.labs |
 
 **使用方式**：
 
@@ -226,24 +238,17 @@ crawl_cars/
 python auto_fix_workflow.py error.log test_autohome.py
 
 # 在 workflow 中自动调用（已集成）
-# 工作流出错时会自动尝试修复
 ```
 
-**所需 Secrets**：
+**当前已配置的 GitHub Secrets**：
 
-| Secret | 说明 |
-|--------|------|
-| `MINIMAX_API_KEY` | Minimax API Key |
-| `ZEN_API_KEY` | OpenCode Zen API Key |
-| `XAI_API_KEY` | xAI Grok API Key |
-| `ACTION_PAT` | 有写入权限的 Personal Access Token |
+`ACTION_PAT`、`ATOMGIT_API_KEY`、`MINIMAX_API_KEY`、`MINIMAX_CODING_PLAN_API_KEY`、`MODAL_API_KEY`、`MODELSCOPE_API_KEY`、`MOONSHOT_API_KEY`、`NVIDIA_NIM_API_KEY`、`OPENROUTER_API_KEY`、`PROXY_SUBSCRIPTIONS`、`XAI_API_KEY`、`ZEN_API_KEY`
 
 **工作原理**：
-1. 脚本执行失败，错误日志保存到文件
-2. 调用 auto_fix_workflow.py 分析错误
-3. 依次尝试三个模型，生成修复方案
-4. 应用修复并提交推送
-5. 重新运行失败的步骤
+1. 自动发现所有 `_API_KEY` 环境变量
+2. 有 `MODEL_LIST` → 与排行榜并集；无 → 使用排行榜模型
+3. 依次尝试各 Provider 的模型，生成修复方案
+4. 置信度 ≥ 0.6 时自动应用修复并提交推送
 
 ---
 

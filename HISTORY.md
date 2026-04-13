@@ -1,8 +1,38 @@
 # 对话历史总结
 
-> 最后更新：2026-03-29 16:00
+> 最后更新：2026-03-29 17:00
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-03-29 17:00：全局规则 + 通用多Provider自动修复系统重构
+
+### 用户需求
+1. 将全局规则写入 `AGENTS.md`
+2. 重构 `auto_fix_workflow.py` 支持 Lobe-Chat 风格的动态 Provider 发现
+3. `XXXX_MODEL_LIST` 和 `XXXX_PROXY_URL` 非必填，未配置不报错
+4. 未配置 `MODEL_LIST` 则使用排行榜前10(1M+)模型，已配置则取并集
+5. 更新 README.md 和 HISTORY.md
+
+### 完成修改
+
+| 文件 | 修改内容 |
+|------|----------|
+| `AGENTS.md` | **新增** 全局规则文件（语言、提交、模型选择、opencode 配置等） |
+| `auto_fix_workflow.py` | 重构为通用多Provider系统，动态发现 `_API_KEY`，支持12+ Provider |
+| `README.md` | 更新 auto_fix_workflow.py 文档、Provider 列表、Secrets 列表 |
+
+### 新增 AGENTS.md 关键规则
+- 所有回复使用中文
+- 临时文件验证后删除
+- 每次修改代码后必须语法校验
+- 优先选择排行榜前25且有免费资源的模型
+- `XXXX_MODEL_LIST` 未配置不报错
+- 旧模型必须隐藏（Haiku、4.5前代、mini/low/medium 等）
+
+### 当前已配置的 GitHub Secrets
+ACTION_PAT、ATOMGIT_API_KEY、MINIMAX_API_KEY、MINIMAX_CODING_PLAN_API_KEY、MODAL_API_KEY、MODELSCOPE_API_KEY、MOONSHOT_API_KEY、NVIDIA_NIM_API_KEY、OPENROUTER_API_KEY、PROXY_SUBSCRIPTIONS、XAI_API_KEY、ZEN_API_KEY
 
 ---
 
