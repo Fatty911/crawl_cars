@@ -18,7 +18,7 @@ env:
 jobs:
   autohome-step1:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 200
     permissions:
       contents: write
     steps:
@@ -26,10 +26,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Random delay to mimic human behavior
+      - name: Random delay (5-20min for free tier)
         run: |
-          DELAY=$((RANDOM % 3600 + 3600))
-          echo "Waiting $DELAY seconds ($(($DELAY / 60)) minutes) before starting..."
+          DELAY=$((RANDOM % 900 + 300))
+          echo "Waiting $DELAY seconds ($(($DELAY / 60)) minutes)..."
           sleep $DELAY
 
       - uses: actions/setup-python@v5
@@ -91,14 +91,14 @@ jobs:
 
             if [ $EXIT_CODE -eq 10 ]; then
               echo "Step1 incomplete, committing progress..."
-              sleep $((RANDOM % 60 + 30))
+              sleep $((RANDOM % 30 + 15))
               git config --local user.email "github-actions[bot]@users.noreply.github.com"
               git config --local user.name "github-actions[bot]"
               git add -A
               git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
               git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
               echo "Re-running step1..."
-              sleep $((RANDOM % 120 + 60))
+              sleep $((RANDOM % 60 + 30))
               git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
             elif [ $EXIT_CODE -ne 0 ]; then
               echo "Step1 failed with exit code $EXIT_CODE"
@@ -109,7 +109,6 @@ jobs:
             fi
           done
           touch step1_done
-          sleep $((RANDOM % 60 + 30))
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add -A
@@ -136,7 +135,7 @@ jobs:
   autohome-step2-6:
     needs: [autohome-step1]
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:

@@ -14,7 +14,7 @@ on:
 jobs:
   merge-data:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 10
     outputs:
       crawl_date: ${{ steps.date.outputs.date }}
     steps:

@@ -18,7 +18,7 @@ env:
 jobs:
   dongchedi-step1:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -26,10 +26,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Random delay to mimic human behavior
+      - name: Random delay (5-20min for free tier)
         run: |
-          DELAY=$((RANDOM % 3600 + 3600))
-          echo "Waiting $DELAY seconds ($(($DELAY / 60)) minutes) before starting..."
+          DELAY=$((RANDOM % 900 + 300))
+          echo "Waiting $DELAY seconds ($(($DELAY / 60)) minutes)..."
           sleep $DELAY
 
       - name: Force restart if requested
@@ -100,7 +100,7 @@ jobs:
   dongchedi-step2:
     needs: [dongchedi-step1]
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
     permissions:
       contents: write
     steps:
@@ -174,7 +174,7 @@ jobs:
               git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
               git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
               echo "Re-running step2..."
-              sleep $((RANDOM % 30 + 10))
+              sleep $((RANDOM % 15 + 5))
             elif [ $EXIT_CODE -ne 0 ]; then
               echo "Step2 failed with exit code $EXIT_CODE"
               echo "STEP2_FAILED=true" >> $GITHUB_ENV
@@ -217,7 +217,7 @@ jobs:
   dongchedi-step3-4:
     needs: [dongchedi-step2]
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
