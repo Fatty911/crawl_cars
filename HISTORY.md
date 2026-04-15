@@ -1,8 +1,28 @@
 # 对话历史总结
 
-> 最后更新：2026-03-29 17:30
+> 最后更新：2026-03-29 18:00
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-03-29 18:00：修复 workflow 报错 + actions 版本升级 + AI 监控
+
+### 问题1：PROXY_SUBSCRIPTIONS 多行 JSON 写入 $GITHUB_ENV 格式损坏
+- **原因**：`echo "KEY=value" >> $GITHUB_ENV` 不支持多行值
+- **修复**：使用 GitHub 官方 heredoc 语法 `echo "KEY<<EOF" >> $GITHUB_ENV` ... `echo "EOF" >> $GITHUB_ENV`
+- **安全加固**：proxies.json 改写入 `/tmp/proxies.json`（不在仓库目录内，公开仓库也不会泄露）
+
+### 问题2：Actions 版本 @v* 写死 → Node 20 弃用警告
+- `actions/checkout`, `actions/setup-python`, `actions/upload-artifact`, `actions/download-artifact` → `@main`
+- `browser-actions/setup-chrome`, `nanasess/setup-chromedriver`, `softprops/action-gh-release` → `@master`
+- 已确认各仓库默认分支
+
+### 问题3：新增 AI_Auto_Fix_Monitor.yml
+- 参考AutobiaoMi_R4项目，为爬虫项目创建独立监控修复 workflow
+- 当爬虫 workflow 失败时自动触发
+- 支持所有已配置的 Provider（AtomGit/Minimax/Modal/ModelScope/NVIDIA/OpenRouter/XAI/ZEN）
+- 修复成功后自动重触发失败的工作流
 
 ---
 

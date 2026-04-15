@@ -1,0 +1,90 @@
+name: AI Auto Fix Monitor
+
+on:
+  workflow_run:
+    workflows: ["汽车之家爬虫", "懂车帝爬虫"]
+    types: [completed]
+
+jobs:
+  ai_fix:
+    name: "AI Fix → ${{ github.event.workflow_run.name }}"
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Setup Python
+        uses: actions/setup-python@main
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 pyyaml
+
+      - name: Download error log artifact
+        continue-on-error: true
+        uses: actions/download-artifact@main
+        with:
+          name: error-log
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Run AI Auto Fix
+        id: ai_fix
+        continue-on-error: true
+        env:
+          FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
+          ATOMGIT_API_KEY: ${{ secrets.ATOMGIT_API_KEY }}
+          ATOMGIT_MODEL_LIST: ${{ secrets.ATOMGIT_MODEL_LIST }}
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+          MINIMAX_CODING_PLAN_API_KEY: ${{ secrets.MINIMAX_CODING_PLAN_API_KEY }}
+          MODAL_API_KEY: ${{ secrets.MODAL_API_KEY }}
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
+          ACTION_PAT: ${{ secrets.ACTION_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "=== 工作流 [${{ github.event.workflow_run.name }}] 运行失败 ==="
+          echo "Run ID: ${{ github.event.workflow_run.id }}"
+
+          # 查找错误日志
+          ERROR_LOG=""
+          if [ -f "step1_error.log" ]; then
+            ERROR_LOG="step1_error.log"
+          elif [ -f "step2_error.log" ]; then
+            ERROR_LOG="step2_error.log"
+          elif [ -f "remaining_error.log" ]; then
+            ERROR_LOG="remaining_error.log"
+          elif [ -f "last_error.log" ]; then
+            ERROR_LOG="last_error.log"
+          fi
+
+          if [ -n "$ERROR_LOG" ]; then
+            echo "找到错误日志: $ERROR_LOG"
+            python auto_fix_workflow.py "$ERROR_LOG" || echo "AI 修复失败"
+          else
+            echo "未找到错误日志文件，尝试从 gh CLI 获取..."
+            gh run view ${{ github.event.workflow_run.id }} --log-failed > /tmp/workflow_error.log 2>/dev/null || echo "gh CLI 日志获取失败"
+            if [ -f "/tmp/workflow_error.log" ] && [ -s "/tmp/workflow_error.log" ]; then
+              python auto_fix_workflow.py /tmp/workflow_error.log || echo "AI 修复失败"
+            else
+              echo "无法获取错误日志，跳过 AI 修复"
+            fi
+          fi
+
+      - name: Re-run failed workflow
+        if: steps.ai_fix.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "AI 修复成功，重新触发失败的工作流..."
+          gh run rerun ${{ github.event.workflow_run.id }} || echo "重触发失败，可手动触发"

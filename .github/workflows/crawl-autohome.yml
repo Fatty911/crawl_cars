@@ -22,7 +22,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -32,13 +32,13 @@ jobs:
           echo "Waiting $DELAY seconds ($(($DELAY / 60)) minutes)..."
           sleep $DELAY
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@main
         with:
           python-version: '3.12'
-      - uses: browser-actions/setup-chrome@v1
+      - uses: browser-actions/setup-chrome@master
         with:
           chrome-version: stable
-      - uses: nanasess/setup-chromedriver@v2
+      - uses: nanasess/setup-chromedriver@master
       - run: pip install requests beautifulsoup4 selenium lxml PyYAML
 
       - name: Setup environment
@@ -48,18 +48,20 @@ jobs:
           echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
-          echo "PROXY_SUBSCRIPTIONS=${{ secrets.PROXY_SUBSCRIPTIONS }}" >> $GITHUB_ENV
+          # 多行 secret 用 heredoc 写入 $GITHUB_ENV（GitHub 官方写法）
+          echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
+          echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Setup proxy if configured
         run: |
-          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
+          if [ -n "$PROXY_SUBSCRIPTIONS" ]; then
             echo "检测到 PROXY_SUBSCRIPTIONS，开始配置代理..."
-            echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' > proxies.json
-            echo "已创建 proxies.json，包含订阅链接"
-            cat proxies.json
+            echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
+            echo "已写入临时文件 /tmp/proxies.json（不进仓库）"
           else
             echo "未配置 PROXY_SUBSCRIPTIONS，将直接爬取（不使用代理）"
-            rm -f proxies.json
+            rm -f /tmp/proxies.json
           fi
 
       - name: Restart if requested
@@ -139,20 +141,20 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull latest
         run: git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@main
         with:
           python-version: '3.12'
-      - uses: browser-actions/setup-chrome@v1
+      - uses: browser-actions/setup-chrome@master
         with:
           chrome-version: stable
-      - uses: nanasess/setup-chromedriver@v2
+      - uses: nanasess/setup-chromedriver@master
       - run: pip install requests beautifulsoup4 selenium lxml PyYAML
 
       - name: Setup environment
@@ -162,14 +164,16 @@ jobs:
           echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
-          echo "PROXY_SUBSCRIPTIONS=${{ secrets.PROXY_SUBSCRIPTIONS }}" >> $GITHUB_ENV
+          echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
+          echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Setup proxy if configured
         run: |
-          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
-            echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' > proxies.json
+          if [ -n "$PROXY_SUBSCRIPTIONS" ]; then
+            echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
           else
-            rm -f proxies.json
+            rm -f /tmp/proxies.json
           fi
 
       - name: Run remaining steps
@@ -213,7 +217,7 @@ jobs:
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@main
         with:
           name: autohome-data-${{ env.CRAWL_DATE }}
           path: |

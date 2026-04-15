@@ -19,10 +19,10 @@ jobs:
       crawl_date: ${{ steps.date.outputs.date }}
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
 
       - name: 设置Python环境
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@main
         with:
           python-version: '3.12'
 
@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: 上传合并产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: filtered-cars-${{ steps.date.outputs.date }}
           path: |
@@ -76,16 +76,16 @@ jobs:
       contents: write
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
 
       - name: 下载合并产物
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@main
         with:
           name: filtered-cars-${{ needs.merge-data.outputs.crawl_date }}
           path: release-files
 
       - name: 创建发布
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@master
         with:
           tag_name: v${{ needs.merge-data.outputs.crawl_date }}
           name: 车型数据 ${{ needs.merge-data.outputs.crawl_date }}
