@@ -63,7 +63,22 @@ class WorkflowErrorFixer:
                 "model_list": model_list
             })
 
-        providers.sort(key=lambda p: {"OPENROUTER": 0, "XAI": 1, "DEEPSEEK": 2}.get(p["prefix"], 99))
+        # 排序：免费模型优先（AtomGit、ZEN、NVIDIA NIM、Modal），然后 OpenRouter
+        def sort_key(p):
+            prefix = p["prefix"]
+            # 免费 Provider 优先
+            if prefix in ["ATOMGIT", "ZEN", "NVIDIA_NIM", "MODAL"]:
+                return (0, 0 if prefix == "ATOMGIT" else 1)
+            # OpenRouter 排在免费之后
+            if prefix == "OPENROUTER":
+                return (1, 0)
+            # 有 model_list 的排中间
+            if p["model_list"]:
+                return (2, 0)
+            # 其他排最后
+            return (3, 0)
+
+        providers.sort(key=sort_key)
         return providers
 
     def _fetch_top_models(self) -> List[str]:

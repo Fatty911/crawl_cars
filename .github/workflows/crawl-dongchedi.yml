@@ -10,6 +10,16 @@ on:
         description: '强制重新开始'
         required: false
         default: 'false'
+      trigger_source:
+        description: '触发来源'
+        required: false
+        default: 'manual'
+      trigger_time:
+        description: '触发时间戳'
+        required: false
+        default: ''
+  repository_dispatch:
+    types: [trigger-dongchedi]
 
 env:
   RUN_TIME: 7200
@@ -26,11 +36,36 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Random delay (5-20min for free tier)
+      - name: Calculate delay from trigger time
+        id: delay
         run: |
-          DELAY=$((RANDOM % 900 + 300))
-          echo "Waiting $DELAY seconds ($(($DELAY / 60)) minutes)..."
-          sleep $DELAY
+          TRIGGER_TIME="${{ inputs.trigger_time }}"
+          if [ -n "$TRIGGER_TIME" ] && [ "$TRIGGER_TIME" != "" ]; then
+            CURRENT_TIME=$(date +%s)
+            WAITED=$((CURRENT_TIME - TRIGGER_TIME))
+            echo "触发器已等待 $WAITED 秒"
+            if [ $WAITED -lt 1800 ]; then
+              REMAIN=$((1800 - WAITED))
+              echo "剩余延迟: $REMAIN 秒"
+              echo "delay=$REMAIN" >> $GITHUB_OUTPUT
+            else
+              echo "无需额外延迟"
+              echo "delay=0" >> $GITHUB_OUTPUT
+            fi
+          else
+            DELAY=$((RANDOM % 900 + 300))
+            echo "delay=$DELAY" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Random delay
+        run: |
+          DELAY="${{ steps.delay.outputs.delay }}"
+          if [ "$DELAY" != "0" ] && [ -n "$DELAY" ]; then
+            echo "Waiting $DELAY seconds ($(($DELAY / 60)) minutes)..."
+            sleep $DELAY
+          else
+            echo "跳过延迟"
+          fi
 
       - name: Force restart if requested
         if: github.event.inputs.force_restart == 'true'
@@ -55,16 +90,27 @@ jobs:
           echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
-          echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
-          echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # PROXY_SUBSCRIPTIONS 使用 heredoc，不加引号避免 JSON 格式损坏
+          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
+            echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
+            cat <<'INNER_EOF' >> $GITHUB_ENV
+          ${{ secrets.PROXY_SUBSCRIPTIONS }}
+          INNER_EOF
+            echo "EOF" >> $GITHUB_ENV
+          fi
 
       - name: Setup proxy if configured
         run: |
-          if [ -n "$PROXY_SUBSCRIPTIONS" ]; then
+          if [ -n "$PROXY_SUBSCRIPTIONS" ] && [ "$PROXY_SUBSCRIPTIONS" != "null" ]; then
             echo "检测到 PROXY_SUBSCRIPTIONS，开始配置代理..."
-            echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
-            echo "已写入临时文件 /tmp/proxies.json（不进仓库）"
+            # 验证 JSON 格式
+            if echo "$PROXY_SUBSCRIPTIONS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+              echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
+              echo "已写入临时文件 /tmp/proxies.json（不进仓库）"
+            else
+              echo "PROXY_SUBSCRIPTIONS JSON 格式无效，跳过代理配置"
+              rm -f /tmp/proxies.json
+            fi
           else
             echo "未配置 PROXY_SUBSCRIPTIONS，将直接爬取（不使用代理）"
             rm -f /tmp/proxies.json
@@ -128,15 +174,29 @@ jobs:
           echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
-          echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
-          echo '${{ secrets.PROXY_SUBSCRIPTIONS }}' >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # PROXY_SUBSCRIPTIONS 使用 heredoc，不加引号避免 JSON 格式损坏
+          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
+            echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
+            cat <<'INNER_EOF' >> $GITHUB_ENV
+          ${{ secrets.PROXY_SUBSCRIPTIONS }}
+          INNER_EOF
+            echo "EOF" >> $GITHUB_ENV
+          fi
 
       - name: Setup proxy if configured
         run: |
-          if [ -n "$PROXY_SUBSCRIPTIONS" ]; then
-            echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
+          if [ -n "$PROXY_SUBSCRIPTIONS" ] && [ "$PROXY_SUBSCRIPTIONS" != "null" ]; then
+            echo "检测到 PROXY_SUBSCRIPTIONS，开始配置代理..."
+            # 验证 JSON 格式
+            if echo "$PROXY_SUBSCRIPTIONS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+              echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
+              echo "已写入临时文件 /tmp/proxies.json（不进仓库）"
+            else
+              echo "PROXY_SUBSCRIPTIONS JSON 格式无效，跳过代理配置"
+              rm -f /tmp/proxies.json
+            fi
           else
+            echo "未配置 PROXY_SUBSCRIPTIONS，将直接爬取（不使用代理）"
             rm -f /tmp/proxies.json
           fi
 

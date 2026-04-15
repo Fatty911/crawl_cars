@@ -1,8 +1,48 @@
 # 对话历史总结
 
-> 最后更新：2026-03-29 18:00
+> 最后更新：2026-04-15 12:00
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-04-15 12:00：修复 workflow + 随机触发器 + opencode 配置
+
+### 问题1：PROXY_SUBSCRIPTIONS JSON 格式损坏
+- **原因**：`echo '${{ secrets.PROXY_SUBSCRIPTIONS }}'` 单引号包裹导致 JSON 内容被额外引号包围
+- **修复**：使用 `cat <<'INNER_EOF'` 直接写入 secret 内容，不加额外引号
+- **验证**：添加 JSON 格式验证步骤 `python3 -c "import sys,json; json.load(sys.stdin)"`
+
+### 问题2：爬虫随机延迟占用工作流时间
+- **需求**：东八区 8~22 点之间每周几随机触发，不占用工作流时间
+- **方案**：创建 `crawl-trigger.yml` wrapper workflow
+  - 支持 `repository_dispatch` 触发（可由 cron-job.org 调用）
+  - 随机选择 autohome 或 dongchedi
+  - 计算触发时间戳，实现延迟不占用工作流分钟
+
+### 问题3：免费模型优先逻辑
+- **修改**：`auto_fix_workflow.py` 排序算法改为免费 Provider 优先
+- **顺序**：AtomGit → ZEN → NVIDIA NIM → Modal → OpenRouter → 其他
+
+### 问题4：TUI 显示旧模型
+- **方案**：创建 `opencode.json` 配置文件
+- **使用**：`provider`（单数）和 `whitelist` 控制显示的模型
+- **隐藏**：Haiku、4.5 前代、mini/low/medium 等弱模型
+
+### 问题5：追加全局规则
+- **新增**：AGENTS.md 添加"执行风格"章节
+- **规则**：一次性完成全部任务、不等待确认、全面覆盖、禁止拖延
+
+### 完成修改
+
+| 文件 | 修改内容 |
+|------|----------|
+| `crawl-autohome.yml` | 修复 PROXY_SUBSCRIPTIONS、添加 repository_dispatch 支持、延迟计算 |
+| `crawl-dongchedi.yml` | 修复 PROXY_SUBSCRIPTIONS、添加 repository_dispatch 支持、延迟计算 |
+| `crawl-trigger.yml` | **新增** 随机触发 wrapper workflow |
+| `auto_fix_workflow.py` | 免费模型优先排序算法 |
+| `opencode.json` | **新增** TUI 模型 whitelist 配置 |
+| `AGENTS.md` | 添加"执行风格"全局规则 |
 
 ---
 
@@ -342,13 +382,19 @@ crawl_cars/
 ├── merge_data.py         # 数据合并过滤
 ├── proxy_manager.py      # 代理管理器
 ├── run_with_proxy.py     # 带代理启动脚本
+├── auto_fix_workflow.py  # 大模型自动修复工作流错误
 ├── generate_clash_config.py  # Clash配置生成器
 ├── deploy_vps.sh         # VPS一键部署
 ├── docker compose.yaml   # Docker配置
+├── opencode.json         # TUI 模型配置
+├── AGENTS.md             # 全局规则
+├── HISTORY.md            # 对话历史
 └── .github/workflows/
     ├── crawl-autohome.yml    # 汽车之家工作流
     ├── crawl-dongchedi.yml   # 懂车帝工作流
-    └── merge-and-filter.yml  # 合并工作流
+    ├── crawl-trigger.yml     # 随机触发器
+    ├── merge-and-filter.yml  # 合并工作流
+    └── AI_Auto_Fix_Monitor.yml  # AI 自动修复监控
 ```
 
 ### 工作流调度（UTC时间）
