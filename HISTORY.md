@@ -365,3 +365,9 @@ crawl_cars/
 - 手机蓝牙/UWB钥匙
 - 座椅记忆
 - 后视镜记忆
+
+---
+
+## 2026-04-20：修复 Actions 工作流执行环境
+- 修复了因为 `browser-actions/setup-chrome@master` 引发的 "File not found: index.js" 构建失败问题，将所有的版本引用由 `@master` 替换为稳定的 `@v2` 版本。
+- 同样为了防止上游不兼容更新，将 `nanasess/setup-chromedriver` 从 `@master` 修改为了 `@v2`。
