@@ -35,10 +35,10 @@ jobs:
       - uses: actions/setup-python@main
         with:
           python-version: '3.12'
-      - uses: browser-actions/setup-chrome@master
+      - uses: browser-actions/setup-chrome@v2
         with:
           chrome-version: stable
-      - uses: nanasess/setup-chromedriver@master
+      - uses: nanasess/setup-chromedriver@v2
       - run: pip install requests beautifulsoup4 selenium lxml PyYAML
 
       - name: Setup environment
@@ -151,10 +151,10 @@ jobs:
       - uses: actions/setup-python@main
         with:
           python-version: '3.12'
-      - uses: browser-actions/setup-chrome@master
+      - uses: browser-actions/setup-chrome@v2
         with:
           chrome-version: stable
-      - uses: nanasess/setup-chromedriver@master
+      - uses: nanasess/setup-chromedriver@v2
       - run: pip install requests beautifulsoup4 selenium lxml PyYAML
 
       - name: Setup environment
