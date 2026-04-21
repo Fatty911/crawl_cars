@@ -166,6 +166,20 @@ class WorkflowErrorFixer:
         token = os.environ.get("ACTION_PAT", "")
         if repo and token:
             subprocess.run('git config --local user.email "bot@users.noreply.github.com" && git config --local user.name "bot" && git add -A', shell=True)
+            
+            # === 推送前语法校验 ===
+            print("    🔍 执行语法校验...")
+            validate_result = subprocess.run(
+                ["python", "custom_scripts/validate_syntax.py"],
+                capture_output=True, text=True, timeout=60
+            )
+            if validate_result.returncode != 0:
+                print(f"    ✗ 语法校验失败:\n{validate_result.stdout}\n{validate_result.stderr}")
+                print("    ⚠️ 回滚修改，拒绝推送")
+                subprocess.run("git checkout -- .", shell=True)
+                return False
+            print("    ✓ 语法校验通过")
+            
             msg = f"Auto-fix by {provider}/{model}"
             subprocess.run(f'git diff --staged --quiet || git commit -m "{msg}"', shell=True)
             subprocess.run(f"git push https://x-access-token:{token}@github.com/{repo}.git", shell=True)
