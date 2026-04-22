@@ -109,17 +109,31 @@ class WorkflowErrorFixer:
 
         for provider in self.providers:
             print(f"\n尝试 Provider: {provider['name']}")
-            models = self._resolve_models(provider)
+            
+            import json
+            try:
+                with open(".ai_model_scores.json", "r") as f:
+                    scores = json.load(f)
+            except Exception:
+                scores = {}
+            
+            models = sorted(self._resolve_models(provider), key=lambda m: scores.get(m, 0), reverse=True)
             
             for model in models[:5]:
                 print(f"  → 使用模型: {model}")
                 result = self._call_model(provider, model, error_output, context)
-                if result and self._apply_fix(result, provider["name"], model):
-                    return True
+                if result:
+                    if self._apply_fix(result, provider["name"], model):
+                        return True
+                    else:
+                        scores[model] = scores.get(model, 0) - 2
+                        with open(".ai_model_scores.json", "w") as f:
+                            json.dump(scores, f, indent=2)
+                        print(f"    [Penalty] 模型 {model} 修复失败或产生幻觉，扣分")
         return False
 
     def _call_model(self, provider: Dict, model: str, error_info: str, context: str) -> Optional[str]:
-        prompt = f"分析以下GitHub Actions错误:\n{error_info}\n\n仓库上下文:\n{context}\n\n用JSON回复(包含 files_to_modify, commands, reasoning, confidence)。格式严格。"
+        prompt = f"分析以下GitHub Actions错误:\n{error_info}\n\n仓库上下文:\n{context}\n\n【AI防幻觉与打分机制】请在修复前确保逻辑正确，不可凭空假设API和类库，务必联网检索确定。若产生幻觉将在下次被扣分。\n用JSON回复(包含 files_to_modify, commands, reasoning, confidence)。格式严格。"
         url = f"{provider['base_url']}/chat/completions"
         headers = { "Content-Type": "application/json", "Authorization": f"Bearer {provider['api_key']}" }
         if provider["prefix"] == "OPENROUTER":
@@ -180,6 +194,20 @@ class WorkflowErrorFixer:
                 return False
             print("    ✓ 语法校验通过")
             
+            try:
+                import json
+                scores = {}
+                try:
+                    with open(".ai_model_scores.json", "r") as f:
+                        scores = json.load(f)
+                except Exception:
+                    pass
+                scores[model] = scores.get(model, 0) + 1
+                with open(".ai_model_scores.json", "w") as f:
+                    json.dump(scores, f, indent=2)
+            except Exception:
+                pass
+
             msg = f"Auto-fix by {provider}/{model}"
             subprocess.run(f'git diff --staged --quiet || git commit -m "{msg}"', shell=True)
             subprocess.run(f"git push https://x-access-token:{token}@github.com/{repo}.git", shell=True)
