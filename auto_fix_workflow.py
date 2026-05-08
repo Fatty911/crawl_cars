@@ -233,7 +233,7 @@ class WorkflowErrorFixer:
         try:
             text = re.sub(r"^```json?|```$", "", text.strip(), flags=re.MULTILINE)
             return json.loads(text.strip())
-        except:
+        except (json.JSONDecodeError, ValueError):
             return None
 
     def _collect_context(self, script_name: str) -> str:

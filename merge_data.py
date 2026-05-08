@@ -25,7 +25,7 @@ def parse_number(value):
         return None
     try:
         return float(re.sub(r'[^\d.]', '', str(value)))
-    except:
+    except (ValueError, TypeError):
         return None
 
 

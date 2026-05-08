@@ -516,7 +516,7 @@ class ProxyManager:
                     for pid in pids:
                         os.kill(int(pid), signal.SIGTERM)
                     print(f"已停止 {len(pids)} 个mihomo进程")
-            except:
+            except (OSError, ProcessLookupError):
                 pass
     
     def check_clash_running(self) -> bool:
@@ -524,7 +524,7 @@ class ProxyManager:
         try:
             resp = requests.get(f"{self.clash_api}/version", timeout=2)
             return resp.status_code == 200
-        except:
+        except (requests.RequestException, OSError):
             pass
         
         if self.clash_process and self.clash_process.poll() is None:
@@ -533,7 +533,7 @@ class ProxyManager:
         try:
             result = subprocess.run(['pgrep', '-f', 'mihomo'], capture_output=True, text=True)
             return bool(result.stdout.strip())
-        except:
+        except (OSError, subprocess.SubprocessError):
             return False
     
     def get_clash_proxies(self) -> Dict:
@@ -569,7 +569,7 @@ class ProxyManager:
             )
             if resp.status_code == 200:
                 return resp.json().get('delay', -1)
-        except:
+        except (requests.RequestException, OSError):
             pass
         return -1
     
@@ -763,7 +763,7 @@ if __name__ == '__main__':
             try:
                 resp = requests.get(f"{pm.clash_api}/version", timeout=2)
                 print(f"版本: {resp.json()}")
-            except:
+            except (requests.RequestException, OSError):
                 pass
         else:
             print("Clash未运行")

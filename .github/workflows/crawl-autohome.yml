@@ -28,7 +28,7 @@ env:
 jobs:
   autohome-step1:
     runs-on: ubuntu-latest
-    timeout-minutes: 200
+    timeout-minutes: 130
     permissions:
       contents: write
     steps:
@@ -148,7 +148,7 @@ jobs:
               git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
               echo "Re-running step1..."
               sleep $((RANDOM % 60 + 30))
-              git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+              git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
             elif [ $EXIT_CODE -ne 0 ]; then
               echo "Step1 failed with exit code $EXIT_CODE"
               echo "STEP1_FAILED=true" >> $GITHUB_ENV
@@ -193,7 +193,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull latest
-        run: git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+        run: git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - uses: actions/setup-python@main
         with:

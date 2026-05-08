@@ -85,8 +85,8 @@ python3 proxy_manager.py --add-socks5 "proxy2" "127.0.0.1" "1080" ""
       "type": "socks5",
       "host": "127.0.0.1",
       "port": 1080,
-      "username": "user",
-      "password": "pass"
+      "username": "YOUR_USERNAME",
+      "password": "YOUR_PASSWORD"
     }
   ],
   "stats": {}

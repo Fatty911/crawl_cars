@@ -37,7 +37,7 @@ class ClashConfigGenerator:
                     decoded = base64.b64decode(content).decode('utf-8')
                     print(f"Base64解码成功，解码后长度: {len(decoded)}")
                     return decoded
-                except:
+                except (base64.binascii.Error, UnicodeDecodeError):
                     print(f"非Base64格式，直接返回 (前100字符): {content[:100]}")
                     return content
             print(f"获取订阅失败: HTTP {resp.status_code}")

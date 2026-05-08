@@ -147,7 +147,7 @@ jobs:
   dongchedi-step2:
     needs: [dongchedi-step1]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -281,8 +281,6 @@ jobs:
     needs: [dongchedi-step2]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@main
         with:
