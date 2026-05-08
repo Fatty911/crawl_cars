@@ -32,11 +32,41 @@ jobs:
           echo "强制重新合并，清理旧数据文件..."
           rm -f autoHome_*.json dongchedi_*.json merged_*.csv diff_*.csv filtered_cars_*.csv filtered_cars_*.json
 
+      - name: 下载最新爬虫数据
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "尝试下载最新的爬虫数据 artifact..."
+
+          # 获取最近的汽车之家爬虫 artifact
+          AUTORUN=$(gh run list --repo ${{ github.repository }} --workflow crawl-autohome.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+          if [ -n "$AUTORUN" ]; then
+            echo "找到汽车之家成功运行: $AUTORUN"
+            gh run download "$AUTORUN" --repo ${{ github.repository }} --pattern "autohome-data-*" --dir . 2>/dev/null || echo "下载汽车之家 artifact 失败"
+            # 移动文件到当前目录
+            mv autohome-data-*/*.json . 2>/dev/null || true
+            rm -rf autohome-data-* 2>/dev/null || true
+          else
+            echo "未找到成功的汽车之家爬虫运行"
+          fi
+
+          # 获取最近的懂车帝爬虫 artifact
+          DCDRUN=$(gh run list --repo ${{ github.repository }} --workflow crawl-dongchedi.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+          if [ -n "$DCDRUN" ]; then
+            echo "找到懂车帝成功运行: $DCDRUN"
+            gh run download "$DCDRUN" --repo ${{ github.repository }} --pattern "dongchedi-data-*" --dir . 2>/dev/null || echo "下载懂车帝 artifact 失败"
+            # 移动文件到当前目录
+            mv dongchedi-data-*/*.json . 2>/dev/null || true
+            rm -rf dongchedi-data-* 2>/dev/null || true
+          else
+            echo "未找到成功的懂车帝爬虫运行"
+          fi
+
+          echo "当前目录数据文件:"
+          ls -la *.json 2>/dev/null || echo "没有找到数据文件"
+
       - name: 合并数据文件
         run: |
-          echo "当前目录数据文件:"
-          ls -la *.json *.csv 2>/dev/null || echo "没有找到数据文件"
-
           if ls autoHome_*.json dongchedi_*.json 2>/dev/null; then
             echo "找到数据文件，开始合并..."
             python merge_data.py
