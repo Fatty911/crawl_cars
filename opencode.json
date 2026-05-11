@@ -5,13 +5,13 @@
   "small_model": "qianfan-coding-plan/kimi-k2.5",
   "snapshot": false,
   "disabled_providers": [
-    "bltcy",
     "alibaba",
     "alibaba-cn",
+    "amazon-bedrock",
     "anthropic",
     "atomgit_glm5",
     "bedrock",
-    "amazon-bedrock",
+    "bltcy",
     "google",
     "groq",
     "minimax",
@@ -501,25 +501,6 @@
         "hy3-preview"
       ]
     },
-    "mimo-tokenplan": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Xiaomi MiMo TokenPlan",
-      "options": {
-        "baseURL": "https://token-plan-cn.xiaomimimo.com/v1"
-      },
-      "models": {
-        "mimo-v2.5-pro": {
-          "id": "mimo-v2.5-pro",
-          "limit": {
-            "context": 1048576,
-            "output": 131072
-          }
-        }
-      },
-      "whitelist": [
-        "mimo-v2.5-pro"
-      ]
-    },
     "kimi-coding-plan": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "Kimi Coding Plan",
@@ -616,6 +597,25 @@
       "models": {},
       "whitelist": [
         "nvidia/nemotron-3-super-120b-a12b"
+      ]
+    },
+    "mimo": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Xiaomi MiMo",
+      "options": {
+        "baseURL": "https://api.xiaomimimo.com/v1"
+      },
+      "models": {
+        "mimo-v2.5-pro": {
+          "id": "mimo-v2.5-pro",
+          "limit": {
+            "context": 1048576,
+            "output": 131072
+          }
+        }
+      },
+      "whitelist": [
+        "mimo-v2.5-pro"
       ]
     }
   },
