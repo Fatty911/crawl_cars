@@ -450,7 +450,7 @@ docker compose logs -f crawl-cron
 
 **一键部署**：
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Fatty911/test_crawl/main/deploy_vps.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Fatty911/crawl_cars/main/deploy_vps.sh | bash
 ```
 
 **详细文档**：见 [VPS_DEPLOY.md](VPS_DEPLOY.md)
@@ -525,7 +525,7 @@ python crawl_dongchedi.py --step 2 --time-limit 7200 --max-series 500 --auto
 | Secret 名称              | 说明                              | 示例格式 |
 |-------------------------|-----------------------------------|----------|
 | `PROXY_SUBSCRIPTIONS`   | 机场订阅地址（支持多条）           | JSON数组 |
-| `OPENROUTER_API_KEY`    | 用于错误自动修复                   | sk-or-... |
+| `OPENROUTER_API_KEY`    | 用于错误自动修复                   | sk-... |
 | `MINIMAX_API_KEY`       | 用于错误自动修复                   | mm-... |
 | `XAI_API_KEY`           | 用于错误自动修复                   | xai-... |
 

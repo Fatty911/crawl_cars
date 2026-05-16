@@ -16,7 +16,7 @@
 
 ```bash
 # 下载并运行部署脚本
-curl -fsSL https://raw.githubusercontent.com/Fatty911/test_crawl/main/deploy_vps.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Fatty911/crawl_cars/main/deploy_vps.sh | bash
 ```
 
 ### 方式二：手动部署
@@ -30,7 +30,7 @@ sudo apt install -y python3 python3-pip git chromium-browser chromium-chromedriv
 pip3 install --user requests beautifulsoup4 selenium lxml pyyaml
 
 # 3. 克隆代码
-git clone https://github.com/Fatty911/test_crawl.git ~/crawl_cars
+git clone https://github.com/Fatty911/crawl_cars.git ~/crawl_cars
 cd ~/crawl_cars
 
 # 4. 手动运行

@@ -181,6 +181,16 @@ jobs:
             python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
           fi
 
+      - name: Upload intermediate data
+        uses: actions/upload-artifact@main
+        with:
+          name: autohome-intermediate
+          path: |
+            html/
+            newhtml/
+            content/
+          retention-days: 7
+
   autohome-step2-6:
     needs: [autohome-step1]
     runs-on: ubuntu-latest
@@ -194,6 +204,12 @@ jobs:
 
       - name: Pull latest
         run: git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - name: Download intermediate data
+        uses: actions/download-artifact@main
+        with:
+          name: autohome-intermediate
+          path: .
 
       - uses: actions/setup-python@main
         with:
