@@ -22,6 +22,10 @@ data/
 # 懂车帝数据目录（保留进度文件）
 dongchedi/json/
 
+# 运行标记文件（不应入仓，避免下次运行跳过步骤）
+step1_done
+dcd_step2_done
+
 # 生成的数据文件
 autoHome_*.json
 dongchedi_*.json

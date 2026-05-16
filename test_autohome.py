@@ -393,6 +393,7 @@ class Crack:
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--user-data-dir=/tmp/chrome-user-data-" + str(os.getpid()))
         cb = find_chrome_binary()
         if cb:
             chrome_options.binary_location = cb
