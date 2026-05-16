@@ -171,6 +171,7 @@ def download_car_pages():
 
     start_time = time.time()
     cars_downloaded = progress.get("cars_downloaded", 0)
+    initial_cars_downloaded = cars_downloaded
 
     current_letter = progress.get("current_letter", None)
     start_car_idx = progress.get("current_car_idx", 0)
@@ -206,7 +207,7 @@ def download_car_pages():
                 if car_idx < car_start_idx:
                     continue
 
-                if check_time_limit(start_time) or check_car_limit(cars_downloaded):
+                if check_time_limit(start_time) or check_car_limit(cars_downloaded - initial_cars_downloaded):
                     progress["cars_downloaded"] = cars_downloaded
                     progress["current_letter"] = letter
                     progress["current_car_idx"] = car_idx

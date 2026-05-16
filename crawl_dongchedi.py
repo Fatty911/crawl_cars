@@ -286,6 +286,7 @@ def crawl_series_config(browser, series_list):
     print("第二步：爬取车系配置页面")
 
     crawled = progress.get("crawled_series", [])
+    initial_crawled_count = len(crawled)
     start_time = time.time()
 
     for idx, series in enumerate(series_list):
@@ -295,7 +296,7 @@ def crawl_series_config(browser, series_list):
         if series_id in crawled:
             continue
 
-        if check_time_limit(start_time) or check_series_limit(len(crawled)):
+        if check_time_limit(start_time) or check_series_limit(len(crawled) - initial_crawled_count):
             return
 
         print(
