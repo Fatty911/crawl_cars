@@ -193,7 +193,7 @@ def download_car_pages():
 
             resp = session.get(first_url, timeout=15)
             print(f"第一步下载{letter}品牌响应码: {resp.status_code}")
-            time.sleep(random.uniform(1.5, 3.5))
+            time.sleep(random.uniform(4.0, 8.0))
             resp.encoding = resp.apparent_encoding
 
             soup = bs4.BeautifulSoup(resp.text, "html.parser")
@@ -244,7 +244,7 @@ def download_car_pages():
                             else:
                                 print(f"获取{car_id}车型失败,跳过")
                                 continue
-                            time.sleep(random.uniform(1.5, 3.5))
+                            time.sleep(random.uniform(4.0, 8.0))
                             resp.encoding = resp.apparent_encoding
                             content = resp.text
                             print(f"车型{car_id}内容长度: {len(content)}")

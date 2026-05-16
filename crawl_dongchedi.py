@@ -261,7 +261,7 @@ def get_series_list(browser=None):
                 break
 
             page += 1
-            time.sleep(random.uniform(0.3, 0.6))
+            time.sleep(random.uniform(2.0, 4.0))
 
         except Exception as e:
             print(f"page {page} 异常: {e}，重试...")
@@ -305,7 +305,7 @@ def crawl_series_config(browser, series_list):
         config_url = f"https://www.dongchedi.com/auto/params-carIds-x-{series_id}"
         try:
             browser.get(config_url)
-            time.sleep(random.uniform(0.5, 1.5))
+            time.sleep(random.uniform(3.0, 5.0))
 
             # 等待配置表格加载
             try:
@@ -340,7 +340,7 @@ def crawl_series_config(browser, series_list):
             crawled.append(series_id)
         progress["crawled_series"] = crawled
         save_progress()
-        time.sleep(random.uniform(1.0, 2.0))
+        time.sleep(random.uniform(3.0, 6.0))
 
     print("第二步完成")
 

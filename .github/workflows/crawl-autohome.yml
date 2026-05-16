@@ -23,7 +23,7 @@ on:
 
 env:
   RUN_TIME: 21600
-  MAX_CARS: 500
+  MAX_CARS: 400
 
 jobs:
   autohome-crawl:
