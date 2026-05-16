@@ -2,8 +2,7 @@
 name: 合并分析
 on:
   schedule:
-    - cron: '0 3 * * 3'
-    - cron: '0 3 * * 6'
+    - cron: '30 8 * * *'
   workflow_dispatch:
     inputs:
       force_merge:

@@ -22,13 +22,13 @@ on:
     types: [trigger-autohome]
 
 env:
-  RUN_TIME: 7200
+  RUN_TIME: 21600
   MAX_CARS: 500
 
 jobs:
-  autohome-step1:
+  autohome-crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 130
+    timeout-minutes: 360
     permissions:
       contents: write
     steps:
@@ -39,7 +39,6 @@ jobs:
       - name: Calculate delay from trigger time
         id: delay
         run: |
-          # 如果由随机触发器触发，计算已等待时间
           TRIGGER_TIME="${{ inputs.trigger_time }}"
           if [ -n "$TRIGGER_TIME" ] && [ "$TRIGGER_TIME" != "" ]; then
             CURRENT_TIME=$(date +%s)
@@ -54,7 +53,6 @@ jobs:
               echo "delay=0" >> $GITHUB_OUTPUT
             fi
           else
-            # 默认随机延迟 5~20 分钟 (300~1200 秒)
             DELAY=$((RANDOM % 900 + 300))
             echo "delay=$DELAY" >> $GITHUB_OUTPUT
           fi
@@ -85,7 +83,6 @@ jobs:
           echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
-          # PROXY_SUBSCRIPTIONS 使用 heredoc，不加引号避免 JSON 格式损坏
           if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
             echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
             cat <<'INNER_EOF' >> $GITHUB_ENV
@@ -98,7 +95,6 @@ jobs:
         run: |
           if [ -n "$PROXY_SUBSCRIPTIONS" ] && [ "$PROXY_SUBSCRIPTIONS" != "null" ]; then
             echo "检测到 PROXY_SUBSCRIPTIONS，开始配置代理..."
-            # 验证 JSON 格式
             if echo "$PROXY_SUBSCRIPTIONS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
               echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
               echo "已写入临时文件 /tmp/proxies.json（不进仓库）"
@@ -179,78 +175,6 @@ jobs:
             python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy random
           else
             python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
-          fi
-
-      - name: Upload intermediate data
-        uses: actions/upload-artifact@main
-        with:
-          name: autohome-intermediate
-          path: |
-            html/
-            newhtml/
-            content/
-          retention-days: 7
-
-  autohome-step2-6:
-    needs: [autohome-step1]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@main
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull latest
-        run: git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-
-      - name: Download intermediate data
-        uses: actions/download-artifact@main
-        with:
-          name: autohome-intermediate
-          path: .
-
-      - uses: actions/setup-python@main
-        with:
-          python-version: '3.12'
-      - uses: browser-actions/setup-chrome@v2
-        with:
-          chrome-version: stable
-      - uses: nanasess/setup-chromedriver@v2
-      - run: pip install requests beautifulsoup4 selenium lxml PyYAML
-
-      - name: Setup environment
-        run: |
-          echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
-          echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
-          echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
-          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
-          echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
-          # PROXY_SUBSCRIPTIONS 使用 heredoc，不加引号避免 JSON 格式损坏
-          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
-            echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
-            cat <<'INNER_EOF' >> $GITHUB_ENV
-          ${{ secrets.PROXY_SUBSCRIPTIONS }}
-          INNER_EOF
-            echo "EOF" >> $GITHUB_ENV
-          fi
-
-      - name: Setup proxy if configured
-        run: |
-          if [ -n "$PROXY_SUBSCRIPTIONS" ] && [ "$PROXY_SUBSCRIPTIONS" != "null" ]; then
-            echo "检测到 PROXY_SUBSCRIPTIONS，开始配置代理..."
-            # 验证 JSON 格式
-            if echo "$PROXY_SUBSCRIPTIONS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
-              echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
-              echo "已写入临时文件 /tmp/proxies.json（不进仓库）"
-            else
-              echo "PROXY_SUBSCRIPTIONS JSON 格式无效，跳过代理配置"
-              rm -f /tmp/proxies.json
-            fi
-          else
-            echo "未配置 PROXY_SUBSCRIPTIONS，将直接爬取（不使用代理）"
-            rm -f /tmp/proxies.json
           fi
 
       - name: Run remaining steps
