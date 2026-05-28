@@ -194,8 +194,16 @@ class WorkflowErrorFixer:
         repo = os.environ.get("GITHUB_REPOSITORY", "")
         token = os.environ.get("ACTION_PAT", "")
         if repo and token:
-            subprocess.run('git config --local user.email "bot@users.noreply.github.com" && git config --local user.name "bot" && git add -A', shell=True)
-            
+            subprocess.run('git config --local user.email "bot@users.noreply.github.com" && git config --local user.name "bot"', shell=True)
+
+            status_result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                capture_output=True, text=True
+            )
+            if not status_result.stdout.strip():
+                print("    ⚠️ AI 未产生任何文件改动，拒绝触发后续流程")
+                return False
+
             # === 推送前语法校验 ===
             print("    🔍 执行语法校验...")
             validate_result = subprocess.run(
@@ -223,9 +231,21 @@ class WorkflowErrorFixer:
             except Exception:
                 pass
 
+            subprocess.run("git add -A", shell=True)
+            if subprocess.run("git diff --staged --quiet", shell=True).returncode == 0:
+                print("    ⚠️ 未产生可提交的修复改动，拒绝触发后续流程")
+                return False
+
             msg = f"Auto-fix by {provider}/{model}"
-            subprocess.run(f'git diff --staged --quiet || git commit -m "{msg}"', shell=True)
-            subprocess.run(f"git push https://x-access-token:{token}@github.com/{repo}.git", shell=True)
+            commit_result = subprocess.run(f'git commit -m "{msg}"', shell=True)
+            if commit_result.returncode != 0:
+                print("    ✗ 提交失败")
+                return False
+
+            push_result = subprocess.run(f"git push https://x-access-token:{token}@github.com/{repo}.git", shell=True)
+            if push_result.returncode != 0:
+                print("    ✗ 推送失败")
+                return False
             print("    ✓ 推送成功")
         return True
 
@@ -246,4 +266,5 @@ if __name__ == "__main__":
     error_text = sys.argv[1] if len(sys.argv) > 1 else ""
     if os.path.isfile(error_text):
         with open(error_text, "r", encoding="utf-8") as f: error_text = f.read()
-    WorkflowErrorFixer().fix_error(error_text, sys.argv[2] if len(sys.argv) > 2 else "")
+    fixed = WorkflowErrorFixer().fix_error(error_text, sys.argv[2] if len(sys.argv) > 2 else "")
+    sys.exit(0 if fixed else 1)

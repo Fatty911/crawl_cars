@@ -5,6 +5,10 @@ on:
     workflows: ["汽车之家爬虫", "懂车帝爬虫"]
     types: [completed]
 
+concurrency:
+  group: ai-auto-fix-${{ github.event.workflow_run.name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
 jobs:
   ai_fix:
     name: "AI Fix → ${{ github.event.workflow_run.name }}"
@@ -36,7 +40,6 @@ jobs:
 
       - name: Run AI Auto Fix
         id: ai_fix
-        continue-on-error: true
         env:
           FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
           ATOMGIT_API_KEY: ${{ secrets.ATOMGIT_API_KEY }}
@@ -70,21 +73,20 @@ jobs:
 
           if [ -n "$ERROR_LOG" ]; then
             echo "找到错误日志: $ERROR_LOG"
-            python auto_fix_workflow.py "$ERROR_LOG" || echo "AI 修复失败"
+            python auto_fix_workflow.py "$ERROR_LOG"
           else
             echo "未找到错误日志文件，尝试从 gh CLI 获取..."
             gh run view ${{ github.event.workflow_run.id }} --log-failed > /tmp/workflow_error.log 2>/dev/null || echo "gh CLI 日志获取失败"
             if [ -f "/tmp/workflow_error.log" ] && [ -s "/tmp/workflow_error.log" ]; then
-              python auto_fix_workflow.py /tmp/workflow_error.log || echo "AI 修复失败"
+              python auto_fix_workflow.py /tmp/workflow_error.log
             else
               echo "无法获取错误日志，跳过 AI 修复"
+              exit 1
             fi
           fi
 
-      - name: Re-run failed workflow
-        if: steps.ai_fix.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
+      - name: Skip automatic rerun
+        if: success()
         run: |
-          echo "AI 修复成功，重新触发失败的工作流..."
-          gh run rerun ${{ github.event.workflow_run.id }} || echo "重触发失败，可手动触发"
+          echo "AI 修复已提交。为避免循环，不自动 rerun 原始失败工作流。"
+          echo "原始 run 使用旧 commit，直接 rerun 可能再次失败并触发监控循环。"
