@@ -13,12 +13,6 @@ import re
 import csv
 import argparse
 from datetime import date
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
 
 parser = argparse.ArgumentParser(description="懂车帝爬虫")
 parser.add_argument("--step", type=int, choices=[1, 2, 3, 4], help="运行指定步骤")
@@ -117,6 +111,9 @@ def find_chromedriver():
 
 
 def create_browser():
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
@@ -174,16 +171,63 @@ def check_series_limit(crawled_count):
     return False
 
 
+def get_existing_html_ids():
+    """返回当前工作区真实存在的车系 HTML 缓存 ID。"""
+    if not os.path.isdir(dcd_json_dir):
+        return set()
+    return {
+        os.path.splitext(name)[0]
+        for name in os.listdir(dcd_json_dir)
+        if name.endswith(".html")
+        and os.path.getsize(os.path.join(dcd_json_dir, name)) > 0
+    }
+
+
+def reconcile_step2_progress(series_list=None):
+    """确保 step2 进度只包含当前工作区有 HTML 文件的车系。"""
+    crawled = [str(sid) for sid in progress.get("crawled_series", [])]
+    if not crawled:
+        return crawled
+
+    html_ids = get_existing_html_ids()
+    valid_series_ids = None
+    if series_list:
+        valid_series_ids = {str(series["id"]) for series in series_list}
+
+    valid_crawled = []
+    for sid in crawled:
+        if sid not in html_ids:
+            continue
+        if valid_series_ids is not None and sid not in valid_series_ids:
+            continue
+        valid_crawled.append(sid)
+
+    if len(valid_crawled) != len(crawled):
+        missing = len(crawled) - len(valid_crawled)
+        print(f"发现 {missing} 条 step2 进度缺少对应 HTML，已重置为未爬取")
+        progress["crawled_series"] = valid_crawled
+        progress.pop("parsed_data", None)
+        save_progress()
+
+    return valid_crawled
+
+
 def is_step2_completed():
     if "series_list" not in progress:
         return False
     series_list = progress.get("series_list", [])
-    crawled = progress.get("crawled_series", [])
     if not series_list:
         return False
+    crawled = set(reconcile_step2_progress(series_list))
     if not crawled:
         return False
-    return len(crawled) >= len(series_list)
+    series_ids = {str(series["id"]) for series in series_list}
+    return series_ids.issubset(crawled)
+
+
+def require_non_empty_rows(all_rows, stage):
+    if not all_rows:
+        raise SystemExit(f"{stage} 未解析到任何车型数据，拒绝生成空结果")
 
 
 # 第一步：获取所有车系ID
@@ -283,9 +327,14 @@ def get_series_list(browser=None):
 # 第二步：爬取每个车系的配置页面
 def crawl_series_config(browser, series_list):
     """爬取每个车系的配置参数页面"""
+    from selenium.common.exceptions import TimeoutException
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support.ui import WebDriverWait
+
     print("第二步：爬取车系配置页面")
 
-    crawled = progress.get("crawled_series", [])
+    crawled = reconcile_step2_progress(series_list)
     initial_crawled_count = len(crawled)
     start_time = time.time()
 
@@ -651,6 +700,7 @@ def main():
         elif args.step == 3:
             series_list = progress.get("series_list", [])
             all_rows, all_headers = parse_config_pages(series_list)
+            require_non_empty_rows(all_rows, "第三步")
             progress["parsed_data"] = {"rows": all_rows, "headers": all_headers}
             save_progress()
             return all_rows, all_headers
@@ -663,6 +713,7 @@ def main():
             else:
                 series_list = progress.get("series_list", [])
                 all_rows, all_headers = parse_config_pages(series_list)
+            require_non_empty_rows(all_rows, "第四步")
             generate_output(all_rows, all_headers)
     else:
         series_list = get_series_list()
@@ -670,6 +721,7 @@ def main():
         try:
             crawl_series_config(browser, series_list)
             all_rows, all_headers = parse_config_pages(series_list)
+            require_non_empty_rows(all_rows, "全流程")
             generate_output(all_rows, all_headers)
         finally:
             browser.quit()
