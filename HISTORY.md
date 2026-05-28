@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-05-28：修复 Release CSV 过小
+
+### 问题
+- 最新 Release 的 `filtered_cars_20260527.csv` 只有表头，`filtered_cars_20260527.json` 是空数组。
+- `merge_data.py` 里的 `merged_*.csv` 实际写入的是过滤结果，不是全部合并数据；当过滤结果为空时，Release 没有可查看的 CSV。
+
+### 修改
+- `merged_*.csv` 改为写入全部归一化后的汽车之家 + 懂车帝数据。
+- 新增 `merged_*.json`，与完整 CSV 一起上传到合并产物和 GitHub Release。
+- `filtered_cars_*` 保持过滤结果语义；即使过滤为空，Release 仍会提供有数据行的 `merged_*.csv`。
+- 发布前增加 `merged_*.csv` 数据行检查，避免继续发布只有表头的小文件。
+
+---
+
 ## 2026-05-28：添加 CI 与 PR 自动合并
 
 ### 问题

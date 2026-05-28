@@ -69,6 +69,8 @@ jobs:
 
           python merge_data.py
 
+          test -s "merged_$(date +%Y%m%d).json"
+          test -s "merged_$(date +%Y%m%d).csv"
           test -s "filtered_cars_$(date +%Y%m%d).json"
           test -s "filtered_cars_$(date +%Y%m%d).csv"
 
@@ -76,10 +78,14 @@ jobs:
           import json
           from datetime import date
 
-          path = f"filtered_cars_{date.today():%Y%m%d}.json"
-          with open(path, "r", encoding="utf-8") as f:
+          today = f"{date.today():%Y%m%d}"
+          with open(f"merged_{today}.json", "r", encoding="utf-8") as f:
+              merged_rows = json.load(f)
+          with open(f"filtered_cars_{today}.json", "r", encoding="utf-8") as f:
               rows = json.load(f)
 
+          if len(merged_rows) != 2:
+              raise SystemExit(f"expected 2 merged rows, got {len(merged_rows)}")
           if len(rows) != 2:
               raise SystemExit(f"expected 2 filtered rows, got {len(rows)}")
           PY

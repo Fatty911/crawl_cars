@@ -80,9 +80,13 @@ jobs:
 
       - name: 检查合并结果
         run: |
-          if [ -f "filtered_cars_${{ steps.date.outputs.date }}.json" ]; then
+          if [ -s "merged_${{ steps.date.outputs.date }}.csv" ] && [ -s "merged_${{ steps.date.outputs.date }}.json" ] && [ -f "filtered_cars_${{ steps.date.outputs.date }}.json" ]; then
             echo "合并成功，生成文件:"
-            ls -la filtered_cars_*
+            ls -la merged_* filtered_cars_*
+            if [ "$(wc -l < "merged_${{ steps.date.outputs.date }}.csv")" -lt 2 ]; then
+              echo "合并 CSV 没有数据行，拒绝发布空文件"
+              exit 1
+            fi
           else
             echo "合并失败，未生成输出文件"
             exit 1
@@ -91,8 +95,10 @@ jobs:
       - name: 上传合并产物
         uses: actions/upload-artifact@main
         with:
-          name: filtered-cars-${{ steps.date.outputs.date }}
+          name: car-data-${{ steps.date.outputs.date }}
           path: |
+            merged_${{ steps.date.outputs.date }}.csv
+            merged_${{ steps.date.outputs.date }}.json
             filtered_cars_${{ steps.date.outputs.date }}.csv
             filtered_cars_${{ steps.date.outputs.date }}.json
           retention-days: 90
@@ -110,7 +116,7 @@ jobs:
       - name: 下载合并产物
         uses: actions/download-artifact@main
         with:
-          name: filtered-cars-${{ needs.merge-data.outputs.crawl_date }}
+          name: car-data-${{ needs.merge-data.outputs.crawl_date }}
           path: release-files
 
       - name: 创建发布
@@ -119,8 +125,11 @@ jobs:
           tag_name: v${{ needs.merge-data.outputs.crawl_date }}
           name: 车型数据 ${{ needs.merge-data.outputs.crawl_date }}
           files: |
+            release-files/merged_${{ needs.merge-data.outputs.crawl_date }}.csv
+            release-files/merged_${{ needs.merge-data.outputs.crawl_date }}.json
             release-files/filtered_cars_${{ needs.merge-data.outputs.crawl_date }}.csv
             release-files/filtered_cars_${{ needs.merge-data.outputs.crawl_date }}.json
+          fail_on_unmatched_files: true
           generate_release_notes: true
           prerelease: false
         env:

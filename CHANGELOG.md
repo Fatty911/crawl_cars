@@ -2,6 +2,11 @@
 
 ## 2026-05-28
 
+### 修改11: 修复 Release CSV 过小
+- `merged_日期.csv` 改为输出全部合并后的车型数据，不再误写过滤后的空结果。
+- 新增 `merged_日期.json`，Release 同时上传完整合并数据和过滤结果。
+- 发布前检查 `merged_日期.csv` 至少包含一行数据，避免继续发布只有表头的小文件。
+
 ### 修改10: 添加CI测试和PR自动合并工作流
 - 新增 `.github/workflows/ci.yml`，在 push、pull_request 和手动触发时运行 Python 语法检查与 `merge_data.py` 冒烟测试。
 - 新增 `.github/workflows/auto-merge.yml`，给非草稿 PR 添加 `automerge` 标签后启用 GitHub 原生自动合并。

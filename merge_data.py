@@ -173,6 +173,14 @@ def diff(ah, dcd, all_fields):
     return out
 
 
+def write_csv(path, rows, fieldnames):
+    with open(path, 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k, '-') for k in fieldnames})
+
+
 def main():
     today = date.today().strftime('%Y%m%d')
 
@@ -198,23 +206,23 @@ def main():
     
     if not filtered_rows:
         print('警告: 没有符合条件的车型')
-        # 即使没有符合条件的车型，仍然输出空文件以供参考
-        filtered_rows = []
 
-    # 收集所有字段
+    # 收集全部数据字段，保证 filtered 为空时也能输出完整表头。
     all_fields = []
-    for r in filtered_rows:
+    for r in all_rows:
         for k in r:
             if k not in FIXED and k not in all_fields:
                 all_fields.append(k)
 
     h = FIXED + all_fields
+
+    # 输出完整合并数据，供 Release 直接下载查看。
     csv_path = os.path.join(DIR, f'merged_{today}.csv')
-    with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
-        w = csv.DictWriter(f, fieldnames=h)
-        w.writeheader()
-        for r in filtered_rows:
-            w.writerow({k: r.get(k, '-') for k in h})
+    write_csv(csv_path, all_rows, h)
+
+    json_path = os.path.join(DIR, f'merged_{today}.json')
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(all_rows, f, ensure_ascii=False, indent=2)
 
     # 只有在两个数据源都有数据时才进行差异比较
     diffs = []
@@ -234,11 +242,7 @@ def main():
 
     # 输出符合过滤条件的车型到单独文件
     filtered_csv_path = os.path.join(DIR, f'filtered_cars_{today}.csv')
-    with open(filtered_csv_path, 'w', encoding='utf-8-sig', newline='') as f:
-        w = csv.DictWriter(f, fieldnames=h)
-        w.writeheader()
-        for r in filtered_rows:
-            w.writerow({k: r.get(k, '-') for k in h})
+    write_csv(filtered_csv_path, filtered_rows, h)
 
     filtered_json_path = os.path.join(DIR, f'filtered_cars_{today}.json')
     with open(filtered_json_path, 'w', encoding='utf-8') as f:
@@ -246,6 +250,7 @@ def main():
 
     print(f'完成')
     print(f'  全部合并: {csv_path}')
+    print(f'  全部合并: {json_path}')
     print(f'  符合条件车型: {filtered_csv_path}')
     print(f'  符合条件车型: {filtered_json_path}')
 
