@@ -304,6 +304,7 @@ def crawl_series_config(browser, series_list):
         )
 
         config_url = f"https://www.dongchedi.com/auto/params-carIds-x-{series_id}"
+        saved_html = False
         try:
             browser.get(config_url)
             time.sleep(random.uniform(3.0, 5.0))
@@ -317,8 +318,10 @@ def crawl_series_config(browser, series_list):
                 )
             except TimeoutException:
                 print("  配置页面加载超时，跳过")
-                crawled.append(series_id)
-                progress["crawled_series"] = crawled
+                with open(
+                    os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
+                ) as f:
+                    f.write(f"{series_id} {series_name}: 配置页面加载超时\n")
                 save_progress()
                 continue
 
@@ -326,10 +329,12 @@ def crawl_series_config(browser, series_list):
             html_file = os.path.join(dcd_json_dir, f"{series_id}.html")
             if os.path.exists(html_file):
                 print(f"  车型{series_id}已存在，跳过")
+                saved_html = True
             else:
                 page_source = browser.page_source
                 with open(html_file, "w", encoding="utf-8") as f:
                     f.write(page_source)
+                saved_html = True
         except Exception as e:
             print(f"  爬取异常: {e}")
             with open(
@@ -337,7 +342,7 @@ def crawl_series_config(browser, series_list):
             ) as f:
                 f.write(f"{series_id} {series_name}: {e}\n")
 
-        if series_id not in crawled:
+        if saved_html and series_id not in crawled:
             crawled.append(series_id)
         progress["crawled_series"] = crawled
         save_progress()
