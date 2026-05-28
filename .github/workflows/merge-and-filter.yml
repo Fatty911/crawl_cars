@@ -83,8 +83,15 @@ jobs:
           if [ -s "merged_${{ steps.date.outputs.date }}.csv" ] && [ -s "merged_${{ steps.date.outputs.date }}.json" ] && [ -f "filtered_cars_${{ steps.date.outputs.date }}.json" ]; then
             echo "合并成功，生成文件:"
             ls -la merged_* filtered_cars_*
-            if [ "$(wc -l < "merged_${{ steps.date.outputs.date }}.csv")" -lt 2 ]; then
-              echo "合并 CSV 没有数据行，拒绝发布空文件"
+            ROWS=$(python - <<'PY'
+            import json
+            with open("merged_${{ steps.date.outputs.date }}.json", "r", encoding="utf-8") as f:
+                print(len(json.load(f)))
+            PY
+            )
+            echo "合并数据行数: $ROWS"
+            if [ "$ROWS" -lt 50 ]; then
+              echo "合并数据少于 50 行，疑似爬虫数据不完整，拒绝发布"
               exit 1
             fi
           else

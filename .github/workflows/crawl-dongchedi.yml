@@ -125,6 +125,7 @@ jobs:
       - name: Run step1 to get series list
         if: steps.check_done_dcd.outputs.done != 'true'
         run: |
+          set -o pipefail
           if [ -f proxies.json ]; then
             echo "使用代理模式运行 step1"
             python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} 2>&1 | tee step1_error.log
@@ -145,8 +146,10 @@ jobs:
         id: step2
         if: steps.check_done_dcd.outputs.done != 'true'
         run: |
+          set -o pipefail
           RUN_COUNT=0
           STEP2_FAILED=false
+          STEP2_COMPLETE=false
           while true; do
             RUN_COUNT=$((RUN_COUNT + 1))
             echo "=== Step2 run #$RUN_COUNT ==="
@@ -176,6 +179,7 @@ jobs:
               break
             else
               echo "Step2 finished successfully"
+              STEP2_COMPLETE=true
               break
             fi
 
@@ -184,6 +188,12 @@ jobs:
               break
             fi
           done
+
+          if [ "$STEP2_COMPLETE" != "true" ]; then
+            echo "Step2 未完成或失败，不写入 dcd_step2_done，不继续生成不完整数据"
+            exit 1
+          fi
+
           touch dcd_step2_done
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -216,6 +226,25 @@ jobs:
 
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+
+      - name: Verify Dongchedi output
+        run: |
+          python - <<'PY'
+          import glob
+          import json
+
+          files = glob.glob("dongchedi_*.json")
+          if not files:
+              raise SystemExit("未生成 dongchedi_*.json，拒绝上传空 artifact")
+
+          path = max(files)
+          with open(path, "r", encoding="utf-8") as f:
+              rows = json.load(f)
+
+          print(f"{path}: {len(rows)} rows")
+          if len(rows) < 50:
+              raise SystemExit(f"懂车帝数据只有 {len(rows)} 行，疑似未完整爬取，拒绝上传")
+          PY
 
       - uses: actions/upload-artifact@main
         with:

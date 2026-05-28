@@ -37,34 +37,35 @@ jobs:
         run: python -m py_compile crawl_dongchedi.py merge_data.py proxy_manager.py run_with_proxy.py test_autohome.py
 
       - name: Validate changed workflow files
-        run: python custom_scripts/validate_syntax.py "$PWD/.github/workflows/ci.yml" "$PWD/.github/workflows/auto-merge.yml" "$PWD/merge_data.py"
+        run: python custom_scripts/validate_syntax.py "$PWD/.github/workflows/ci.yml" "$PWD/.github/workflows/auto-merge.yml" "$PWD/.github/workflows/crawl-autohome.yml" "$PWD/.github/workflows/crawl-dongchedi.yml" "$PWD/.github/workflows/merge-and-filter.yml" "$PWD/merge_data.py"
 
       - name: Smoke test merge_data.py
         run: |
           python - <<'PY'
           import json
 
-          row = {
+          match_row = {
               "品牌": "测试品牌",
               "车系": "测试车系",
               "车系ID": "ci",
               "车型名称": "CI测试车型",
               "年款": "2026",
-              "百公里加速(s)": "6.8",
-              "纯电续航(km)": "150",
-              "NOA城市领航": "有",
-              "远程启动": "有",
-              "远程控制": "有",
-              "蓝牙钥匙": "有",
-              "座椅记忆": "有",
-              "外后视镜记忆": "有"
+              "官方0-100km_h加速_s_": "6.8",
+              "CLTC纯电续航里程_km_": "200",
+              "城市领航辅助": "●",
+              "远程启动功能": "●",
+              "手机APP远程功能": "车门控制|空调控制|车辆启动",
+              "钥匙类型": "遥控钥匙|蓝牙钥匙",
+              "电动座椅记忆功能": "驾驶位",
+              "外后视镜功能": "电动调节|记忆|加热"
           }
+          low_range_row = dict(match_row, 车型名称="CI低续航车型", CLTC纯电续航里程_km_="100")
 
           with open("autoHome_ci_smoke.json", "w", encoding="utf-8") as f:
-              json.dump([row], f, ensure_ascii=False)
+              json.dump([match_row, low_range_row], f, ensure_ascii=False)
 
           with open("dongchedi_ci_smoke.json", "w", encoding="utf-8") as f:
-              json.dump([row], f, ensure_ascii=False)
+              json.dump([match_row, low_range_row], f, ensure_ascii=False)
           PY
 
           python merge_data.py
@@ -84,8 +85,8 @@ jobs:
           with open(f"filtered_cars_{today}.json", "r", encoding="utf-8") as f:
               rows = json.load(f)
 
-          if len(merged_rows) != 2:
-              raise SystemExit(f"expected 2 merged rows, got {len(merged_rows)}")
+          if len(merged_rows) != 4:
+              raise SystemExit(f"expected 4 merged rows, got {len(merged_rows)}")
           if len(rows) != 2:
               raise SystemExit(f"expected 2 filtered rows, got {len(rows)}")
           PY

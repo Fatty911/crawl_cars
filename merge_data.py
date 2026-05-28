@@ -20,54 +20,87 @@ FILTER_CONDITIONS = {
 }
 
 
-def parse_number(value):
+def parse_numbers(value):
     if not value or value == '-' or value == '':
-        return None
-    try:
-        return float(re.sub(r'[^\d.]', '', str(value)))
-    except (ValueError, TypeError):
-        return None
+        return []
+    return [float(n) for n in re.findall(r'\d+(?:\.\d+)?', str(value))]
 
 
-def check_condition(row, field_name, threshold):
-    val = parse_number(row.get(field_name, '-'))
-    if val is None:
+def parse_number(value):
+    numbers = parse_numbers(value)
+    return numbers[0] if numbers else None
+
+
+def check_numeric_condition(row, field_name, threshold, op):
+    numbers = parse_numbers(row.get(field_name, '-'))
+    if not numbers:
         return False
-    return val <= threshold
+    if op == '<=':
+        return any(val <= threshold for val in numbers)
+    if op == '>=':
+        return any(val >= threshold for val in numbers)
+    raise ValueError(f'不支持的比较操作: {op}')
 
 
-def check_multi_values(row, field_names):
+def has_positive_value(value):
+    if value is None:
+        return False
+    text = str(value).strip()
+    if not text or text == '-':
+        return False
+    negative_values = {'无', '不支持', '否', '没有', '未配备', '不提供', '0', '0.0'}
+    return text not in negative_values
+
+
+def check_feature(row, field_names, value_keywords=None, require_keyword=False):
     for fn in field_names:
         val = row.get(fn, '-')
-        if val and val != '-' and val != '':
+        if has_positive_value(val):
+            if not require_keyword or any(keyword in str(val) for keyword in value_keywords):
+                return True
+
+    for key, val in row.items():
+        if not has_positive_value(val):
+            continue
+        key_text = str(key)
+        val_text = str(val)
+        key_matches = any(fn in key_text or key_text in fn for fn in field_names)
+        value_matches = value_keywords and any(keyword in val_text for keyword in value_keywords)
+        if key_matches and not require_keyword:
+            return True
+        if value_matches:
             return True
     return False
 
 
+def check_multi_values(row, field_names):
+    return check_feature(row, field_names)
+
+
 def filter_car(row):
     try:
-        if not check_condition(row, FILTER_CONDITIONS['zero_to_hundred'][0], FILTER_CONDITIONS['zero_to_hundred'][1]):
+        if not check_numeric_condition(row, FILTER_CONDITIONS['zero_to_hundred'][0], FILTER_CONDITIONS['zero_to_hundred'][1], '<='):
             return False
         
-        if not check_condition(row, FILTER_CONDITIONS['ev_range'][0], FILTER_CONDITIONS['ev_range'][1]):
+        if not check_numeric_condition(row, FILTER_CONDITIONS['ev_range'][0], FILTER_CONDITIONS['ev_range'][1], '>='):
             return False
         
-        if not check_multi_values(row, FILTER_CONDITIONS['city_navigation']):
+        if not check_feature(row, FILTER_CONDITIONS['city_navigation'], ['NOA', 'NOP', '城市', '领航', '导航辅助']):
             return False
         
-        if not check_multi_values(row, FILTER_CONDITIONS['remote_start']):
+        if not check_feature(row, FILTER_CONDITIONS['remote_start'], ['远程启动', '车辆启动', '发动机启动', '启动']):
             return False
         
-        if not check_multi_values(row, FILTER_CONDITIONS['remote_control']):
+        if not check_feature(row, FILTER_CONDITIONS['remote_control'], ['远程控制', '手机APP', '车门控制', '空调控制', '车辆启动']):
             return False
         
-        if not check_multi_values(row, FILTER_CONDITIONS['bluetooth_key']):
+        if not check_feature(row, FILTER_CONDITIONS['bluetooth_key'], ['蓝牙钥匙', '数字钥匙', '手机钥匙', 'UWB钥匙', 'NFC钥匙'], require_keyword=True):
             return False
         
-        if not check_multi_values(row, FILTER_CONDITIONS['seat_memory']):
+        if not check_feature(row, FILTER_CONDITIONS['seat_memory'], ['座椅记忆', '电动座椅记忆', '主驾驶位', '驾驶位']):
             return False
         
-        if not check_multi_values(row, FILTER_CONDITIONS['mirror_memory']):
+        if not check_feature(row, FILTER_CONDITIONS['mirror_memory'], ['后视镜记忆', '外后视镜记忆', '记忆']):
             return False
         
         return True
@@ -89,7 +122,9 @@ HEADER_MAP = {
     '0-100km_h加速时间_s_': '百公里加速(s)',
     '百公里加速时间': '百公里加速(s)',
     '远程启动功能': '远程启动',
+    '发动机远程启动': '远程启动',
     '远程操控': '远程控制',
+    '手机APP远程功能': '远程控制',
     'Apple CarPlay': 'CarPlay',
     '手机互联_映射': '手机互联',
     '手机映射': '手机互联',
@@ -98,9 +133,12 @@ HEADER_MAP = {
     'UWB钥匙': '蓝牙/数字钥匙',
     '数字钥匙': '蓝牙/数字钥匙',
     '手机钥匙': '蓝牙/数字钥匙',
+    '钥匙类型': '蓝牙/数字钥匙',
     '最高车速_km_h_': '最高车速(km/h)',
     '后视镜记忆': '外后视镜记忆',
+    '外后视镜功能': '外后视镜记忆',
     '主驾驶座椅记忆': '座椅记忆',
+    '电动座椅记忆功能': '座椅记忆',
     '副驾驶座椅放倒': '前排座椅放倒',
     '后排座椅放倒形式': '后排座椅放倒',
     'CLTC纯电续航里程_km_': '纯电续航(km)',

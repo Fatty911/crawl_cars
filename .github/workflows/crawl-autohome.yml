@@ -124,6 +124,8 @@ jobs:
         id: step1
         if: steps.check_done.outputs.done != 'true'
         run: |
+          set -o pipefail
+          STEP1_COMPLETE=false
           while true; do
             if [ -f proxies.json ]; then
               echo "使用代理模式运行 step1 (负载均衡)"
@@ -150,9 +152,16 @@ jobs:
               echo "STEP1_FAILED=true" >> $GITHUB_ENV
               break
             else
+              STEP1_COMPLETE=true
               break
             fi
           done
+
+          if [ "$STEP1_COMPLETE" != "true" ]; then
+            echo "Step1 未完成或失败，不写入 step1_done，不继续生成不完整数据"
+            exit 1
+          fi
+
           touch step1_done
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -180,18 +189,20 @@ jobs:
       - name: Run remaining steps
         id: remaining
         run: |
+          set -o pipefail
+          FAILED=0
           if [ -f proxies.json ]; then
             echo "使用代理模式运行剩余步骤"
-            python run_with_proxy.py --skip-dongchedi --proxy round_robin 2>&1 | tee remaining_error.log
+            python run_with_proxy.py --skip-dongchedi --proxy round_robin 2>&1 | tee remaining_error.log || FAILED=1
           else
             echo "无代理，直接运行 remaining steps"
-            python test_autohome.py --step 2 2>&1 | tee -a remaining_error.log
-            python test_autohome.py --step 3 2>&1 | tee -a remaining_error.log
-            python test_autohome.py --step 4 2>&1 | tee -a remaining_error.log
-            python test_autohome.py --step 5 2>&1 | tee -a remaining_error.log
-            python test_autohome.py --step 6 2>&1 | tee -a remaining_error.log
+            python test_autohome.py --step 2 2>&1 | tee -a remaining_error.log || FAILED=1
+            python test_autohome.py --step 3 2>&1 | tee -a remaining_error.log || FAILED=1
+            python test_autohome.py --step 4 2>&1 | tee -a remaining_error.log || FAILED=1
+            python test_autohome.py --step 5 2>&1 | tee -a remaining_error.log || FAILED=1
+            python test_autohome.py --step 6 2>&1 | tee -a remaining_error.log || FAILED=1
           fi
-          if [ $? -ne 0 ]; then
+          if [ "$FAILED" -ne 0 ]; then
             echo "REMAINING_FAILED=true" >> $GITHUB_ENV
           fi
 
@@ -217,6 +228,26 @@ jobs:
 
       - name: Set date
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+
+      - name: Verify Autohome output
+        run: |
+          python - <<'PY'
+          import glob
+          import json
+          import sys
+
+          files = glob.glob("autoHome_*.json")
+          if not files:
+              raise SystemExit("未生成 autoHome_*.json，拒绝上传空 artifact")
+
+          path = max(files)
+          with open(path, "r", encoding="utf-8") as f:
+              rows = json.load(f)
+
+          print(f"{path}: {len(rows)} rows")
+          if len(rows) < 50:
+              raise SystemExit(f"汽车之家数据只有 {len(rows)} 行，疑似未完整爬取，拒绝上传")
+          PY
 
       - uses: actions/upload-artifact@main
         with:
