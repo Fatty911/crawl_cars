@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-05-28：添加 CI 与 PR 自动合并
+
+### 问题
+- 本地环境之前没有 GitHub remote，导致 CI/自动合并工作流只提交在临时工作区，未真正推送到 GitHub。
+- PR 缺少基础自动测试和自动合并入口。
+
+### 修改
+- 新增 `ci.yml`，在 `push`、`pull_request` 和手动触发时安装依赖、编译 Python 文件、调用 `custom_scripts/validate_syntax.py` 校验变更文件，并对 `merge_data.py` 做样本冒烟测试。
+- 新增 `auto-merge.yml`，当非草稿 PR 带有 `automerge` 标签时启用 GitHub 原生 squash auto-merge。
+- 修复 `merge_data.py` 过滤条件未识别归一化后的 `蓝牙/数字钥匙` 字段，避免符合条件车型被误过滤。
+
+---
+
 ## 2026-04-15 12:00：修复 workflow + 随机触发器 + opencode 配置
 
 ### 问题1：PROXY_SUBSCRIPTIONS JSON 格式损坏

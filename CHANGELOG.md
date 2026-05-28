@@ -1,5 +1,13 @@
 # 对话历史
 
+## 2026-05-28
+
+### 修改10: 添加CI测试和PR自动合并工作流
+- 新增 `.github/workflows/ci.yml`，在 push、pull_request 和手动触发时运行 Python 语法检查与 `merge_data.py` 冒烟测试。
+- 新增 `.github/workflows/auto-merge.yml`，给非草稿 PR 添加 `automerge` 标签后启用 GitHub 原生自动合并。
+- 自动合并使用 squash merge，并在合并后删除源分支。
+- 修复 `merge_data.py` 过滤逻辑未识别归一化后的 `蓝牙/数字钥匙` 字段，避免符合条件车型被误过滤。
+
 ## 2026-02-23
 
 ### 修改4: 优化为更人性化的间隔运行

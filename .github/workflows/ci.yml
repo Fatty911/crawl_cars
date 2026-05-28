@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONIOENCODING: utf-8
+
+jobs:
+  test:
+    name: Python checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile Python files
+        run: python -m py_compile crawl_dongchedi.py merge_data.py proxy_manager.py run_with_proxy.py test_autohome.py
+
+      - name: Validate changed workflow files
+        run: python custom_scripts/validate_syntax.py "$PWD/.github/workflows/ci.yml" "$PWD/.github/workflows/auto-merge.yml" "$PWD/merge_data.py"
+
+      - name: Smoke test merge_data.py
+        run: |
+          python - <<'PY'
+          import json
+
+          row = {
+              "品牌": "测试品牌",
+              "车系": "测试车系",
+              "车系ID": "ci",
+              "车型名称": "CI测试车型",
+              "年款": "2026",
+              "百公里加速(s)": "6.8",
+              "纯电续航(km)": "150",
+              "NOA城市领航": "有",
+              "远程启动": "有",
+              "远程控制": "有",
+              "蓝牙钥匙": "有",
+              "座椅记忆": "有",
+              "外后视镜记忆": "有"
+          }
+
+          with open("autoHome_ci_smoke.json", "w", encoding="utf-8") as f:
+              json.dump([row], f, ensure_ascii=False)
+
+          with open("dongchedi_ci_smoke.json", "w", encoding="utf-8") as f:
+              json.dump([row], f, ensure_ascii=False)
+          PY
+
+          python merge_data.py
+
+          test -s "filtered_cars_$(date +%Y%m%d).json"
+          test -s "filtered_cars_$(date +%Y%m%d).csv"
+
+          python - <<'PY'
+          import json
+          from datetime import date
+
+          path = f"filtered_cars_{date.today():%Y%m%d}.json"
+          with open(path, "r", encoding="utf-8") as f:
+              rows = json.load(f)
+
+          if len(rows) != 2:
+              raise SystemExit(f"expected 2 filtered rows, got {len(rows)}")
+          PY
