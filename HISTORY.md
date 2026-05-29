@@ -18,6 +18,8 @@
 - 新增 `deploy-pages.yml` 独立发布网页工作流：即使当前合并因爬虫数据不足被保护规则拦截，也可以先部署网页，并使用最近一份带 `merged_*.json` 的 Release 数据。
 - 生成 `data/manifest.json`，让网页能显示数据日期、行数和原始文件下载入口。
 - 新增 `docs/CNAME`，将 GitHub Pages 自定义域名固定为 `cars.jiucai.eu.org`。
+- 网页默认打开“符合条件”数据集，并将合并的长宽高/车身尺寸字段拆成 `长度(mm)`、`宽度(mm)`、`高度(mm)` 三列展示。
+- 删除未跟踪的 `.github/workflows/pr-auto-merge.yml`，保留已有 `auto-merge.yml`，避免重复自动合并工作流和 `pull_request_target` 权限面。
 - 修复本地遗留的 `merge_data.py` 与 `.github/workflows/ci.yml` 合并冲突标记，恢复语法校验和 CI 冒烟测试可运行状态。
 - 更新 `README.md`，补充网页查看器目录、功能、发布方式和本地预览方法。
 

@@ -7,6 +7,9 @@
     "车系",
     "年款",
     "数据来源",
+    "长度(mm)",
+    "宽度(mm)",
+    "高度(mm)",
     "百公里加速(s)",
     "纯电续航(km)",
     "NOA城市领航",
@@ -24,6 +27,7 @@
       "车系": "示例车系",
       "车型名称": "等待 GitHub Pages 发布最新数据",
       "年款": "2026",
+      "长*宽*高(mm)": "4890*1920*1685",
       "百公里加速(s)": "6.8",
       "纯电续航(km)": "200",
       "NOA城市领航": "支持",
@@ -37,7 +41,7 @@
 
   var state = {
     manifest: null,
-    dataset: "latest",
+    dataset: "filtered",
     latestRows: [],
     filteredRows: [],
     rows: [],
@@ -112,6 +116,52 @@
     });
   }
 
+  function isDimensionColumn(column) {
+    var text = String(column || "").replace(/\s/g, "");
+    return (
+      text.indexOf("长宽高") !== -1 ||
+      text.indexOf("长*宽*高") !== -1 ||
+      text.indexOf("长×宽×高") !== -1 ||
+      text.indexOf("长x宽x高") !== -1 ||
+      text.indexOf("车身尺寸") !== -1 ||
+      (text.indexOf("长度") !== -1 && text.indexOf("宽度") !== -1 && text.indexOf("高度") !== -1)
+    );
+  }
+
+  function parseDimensionValue(value) {
+    var text = String(value == null ? "" : value).trim();
+    if (!text || text === "-") {
+      return null;
+    }
+    var numbers = text.match(/\d+(?:\.\d+)?/g);
+    if (!numbers || numbers.length < 3) {
+      return null;
+    }
+    return numbers.slice(0, 3);
+  }
+
+  function withDerivedDimensions(rows) {
+    return rows.map(function (row) {
+      var next = Object.assign({}, row);
+      var dimensionColumn = Object.keys(row).find(isDimensionColumn);
+      var dimensions = dimensionColumn ? parseDimensionValue(row[dimensionColumn]) : null;
+
+      if (dimensions) {
+        if (!next["长度(mm)"]) {
+          next["长度(mm)"] = dimensions[0];
+        }
+        if (!next["宽度(mm)"]) {
+          next["宽度(mm)"] = dimensions[1];
+        }
+        if (!next["高度(mm)"]) {
+          next["高度(mm)"] = dimensions[2];
+        }
+      }
+
+      return next;
+    });
+  }
+
   function buildColumns(rows) {
     var seen = new Set();
     var columns = [];
@@ -125,6 +175,9 @@
 
     rows.forEach(function (row) {
       Object.keys(row).forEach(function (column) {
+        if (isDimensionColumn(column)) {
+          return;
+        }
         if (!seen.has(column)) {
           seen.add(column);
           columns.push(column);
@@ -586,21 +639,21 @@
         ]);
       })
       .then(function (datasets) {
-        state.latestRows = Array.isArray(datasets[0]) ? datasets[0] : [];
-        state.filteredRows = Array.isArray(datasets[1]) ? datasets[1] : [];
+        state.latestRows = withDerivedDimensions(Array.isArray(datasets[0]) ? datasets[0] : []);
+        state.filteredRows = withDerivedDimensions(Array.isArray(datasets[1]) ? datasets[1] : []);
         var dateText = state.manifest && state.manifest.date ? "数据日期 " + state.manifest.date : "最新数据";
         els.dataMeta.textContent = dateText + " · 完整 " + state.latestRows.length + " 行 · 筛选 " + state.filteredRows.length + " 行";
       })
       .catch(function () {
         state.manifest = null;
-        state.latestRows = SAMPLE_ROWS;
-        state.filteredRows = SAMPLE_ROWS;
+        state.latestRows = withDerivedDimensions(SAMPLE_ROWS);
+        state.filteredRows = withDerivedDimensions(SAMPLE_ROWS);
         els.dataMeta.textContent = "本地预览示例 · GitHub Pages 部署后自动加载最新 Release 数据";
       });
   }
 
   bindEvents();
   loadData().then(function () {
-    setDataset("latest");
+    setDataset("filtered");
   });
 }());
