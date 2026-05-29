@@ -11,6 +11,7 @@ crawl_cars/
 ├── test_autohome.py          # 汽车之家爬虫脚本
 ├── crawl_dongchedi.py        # 懂车帝爬虫脚本
 ├── merge_data.py             # 数据合并与过滤脚本
+├── docs/                     # GitHub Pages 静态网页表格查看器
 ├── proxy_manager.py          # 代理管理器
 ├── run_with_proxy.py         # 带代理的启动脚本
 ├── auto_fix_workflow.py      # 大模型自动修复工作流错误
@@ -22,7 +23,7 @@ crawl_cars/
 ├── .github/workflows/
 │   ├── crawl-autohome.yml    # 汽车之家工作流
 │   ├── crawl-dongchedi.yml   # 懂车帝工作流
-│   └── merge-and-filter.yml  # 合并过滤工作流
+│   └── merge-and-filter.yml  # 合并过滤、Release、GitHub Pages 发布工作流
 └── README.md                 # 本文件
 ```
 
@@ -196,13 +197,40 @@ crawl_cars/
 
 ---
 
-### 4. fix_files.py
+### 4. docs/
+
+**功能**：GitHub Pages 静态网页表格查看器，用浏览器像 Excel 一样查看车型配置。
+
+**文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `docs/index.html` | 页面结构 |
+| `docs/styles.css` | 表格工作台样式 |
+| `docs/app.js` | 数据加载、搜索、筛选、排序、分页、导出逻辑 |
+
+**数据来源**：
+- 合并工作流成功后，会把 `merged_YYYYMMDD.json` 复制为 `data/latest.json`。
+- 会把 `filtered_cars_YYYYMMDD.json` 复制为 `data/filtered.json`。
+- 同时生成 `data/manifest.json`，记录数据日期、行数和 CSV/JSON 下载链接。
+
+**主要功能**：
+- 全局搜索品牌、车系、车型名称和任意配置值。
+- 点击表头按列升序/降序排序。
+- 表头第二行支持每列关键字筛选。
+- 支持按数据来源、品牌、车系快速筛选。
+- 支持切换“全部车型”和“符合条件”数据集。
+- 支持选择显示列、分页查看、导出当前筛选结果为 CSV/JSON。
+
+---
+
+### 5. fix_files.py
 
 **功能**：代码修复工具，用于修复test_autohome.py中的缩进问题
 
 ---
 
-### 5. auto_fix_workflow.py
+### 6. auto_fix_workflow.py
 
 **功能**：通用多Provider工作流错误自动修复系统（Lobe-Chat 风格配置）
 
@@ -269,7 +297,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 |-------|------|------|------|
 | `crawl-autohome` | 爬取汽车之家 | 130分钟 | 无 |
 | `crawl-dongchedi` | 爬取懂车帝 | 130分钟 | 无 |
-| `merge-and-filter` | 合并过滤并Release | 360分钟 | 前两者 |
+| `merge-and-filter` | 合并过滤、Release、发布 GitHub Pages | 360分钟 | 前两者 |
 
 **触发条件**：
 - 每天02:00和14:00自动执行（cron: `0 2 * * *` 和 `0 14 * * *`）
@@ -439,6 +467,28 @@ docker compose logs -f crawl-cron
 **手动触发**：在 Actions 页面点击 "Run workflow"
 
 **结论**：⚠️ 勉强够用，推荐 VPS
+
+### GitHub Pages 网页查看器
+
+**用途**：免费托管静态网页，直接在浏览器中筛选、排序、分页查看车型配置，不再只依赖下载 Release 表格文件。
+
+**发布方式**：
+1. `merge-and-filter.yml` 合并数据并生成 Release 文件。
+2. 同一个工作流把 `docs/` 静态页面和最新 JSON/CSV 打包为 Pages artifact。
+3. 使用 GitHub 官方 `actions/upload-pages-artifact` 与 `actions/deploy-pages` 发布。
+
+**首次启用**：
+- 在仓库 **Settings → Pages → Build and deployment** 中选择 **GitHub Actions**。
+- 之后每次“合并分析”工作流成功，网页会自动更新到最新数据。
+- 自定义域名已预置为 `cars.jiucai.eu.org`，发布产物会包含 `docs/CNAME`。
+
+**本地预览**：
+
+```bash
+python -m http.server 8000 -d docs
+```
+
+然后访问 `http://localhost:8000`。本地没有 `docs/data/manifest.json` 时会显示内置示例数据；GitHub Pages 发布后会自动加载最新合并数据。
 
 ### VPS 部署 (推荐)
 

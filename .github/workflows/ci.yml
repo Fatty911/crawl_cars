@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - master
+      - work
   workflow_dispatch:
 
 permissions:
@@ -16,7 +17,7 @@ env:
 
 jobs:
   test:
-    name: Python checks
+    name: Python and static site checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -27,8 +28,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
           cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -36,8 +42,18 @@ jobs:
       - name: Compile Python files
         run: python -m py_compile crawl_dongchedi.py merge_data.py proxy_manager.py run_with_proxy.py test_autohome.py
 
-      - name: Validate changed workflow files
-        run: python custom_scripts/validate_syntax.py "$PWD/.github/workflows/ci.yml" "$PWD/.github/workflows/auto-merge.yml" "$PWD/.github/workflows/crawl-autohome.yml" "$PWD/.github/workflows/crawl-dongchedi.yml" "$PWD/.github/workflows/merge-and-filter.yml" "$PWD/merge_data.py"
+      - name: Validate changed workflow and site files
+        run: >
+          python custom_scripts/validate_syntax.py
+          "$PWD/.github/workflows/ci.yml"
+          "$PWD/.github/workflows/auto-merge.yml"
+          "$PWD/.github/workflows/crawl-autohome.yml"
+          "$PWD/.github/workflows/crawl-dongchedi.yml"
+          "$PWD/.github/workflows/merge-and-filter.yml"
+          "$PWD/merge_data.py"
+          "$PWD/docs/index.html"
+          "$PWD/docs/styles.css"
+          "$PWD/docs/app.js"
 
       - name: Smoke test merge_data.py
         run: |
@@ -83,10 +99,10 @@ jobs:
           with open(f"merged_{today}.json", "r", encoding="utf-8") as f:
               merged_rows = json.load(f)
           with open(f"filtered_cars_{today}.json", "r", encoding="utf-8") as f:
-              rows = json.load(f)
+              filtered_rows = json.load(f)
 
           if len(merged_rows) != 4:
               raise SystemExit(f"expected 4 merged rows, got {len(merged_rows)}")
-          if len(rows) != 2:
-              raise SystemExit(f"expected 2 filtered rows, got {len(rows)}")
+          if len(filtered_rows) != 2:
+              raise SystemExit(f"expected 2 filtered rows, got {len(filtered_rows)}")
           PY

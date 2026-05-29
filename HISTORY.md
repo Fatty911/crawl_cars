@@ -1,8 +1,28 @@
 # 对话历史总结
 
-> 最后更新：2026-04-15 12:00
+> 最后更新：2026-05-29 10:00
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-05-29：新增 GitHub Pages 车型配置网页查看器
+
+### 用户诉求
+- 除了 Release 表格文件，希望有一个免费的网页，可以访问网站后像操作 Excel 一样筛选、排序、查看车型配置。
+
+### 修改
+- 新增 `docs/index.html`、`docs/styles.css`、`docs/app.js`，实现纯静态表格工作台。
+- 网页支持“全部车型/符合条件”数据集切换、全局搜索、表头排序、每列筛选、按数据来源/品牌/车系快速筛选、列显示控制、分页和当前结果 CSV/JSON 导出。
+- 在 `merge-and-filter.yml` 新增 `deploy-pages` job：合并产物生成后，把 `docs/` 与最新 `merged_YYYYMMDD.json`、`filtered_cars_YYYYMMDD.json`、CSV 文件打包并部署到 GitHub Pages。
+- 生成 `data/manifest.json`，让网页能显示数据日期、行数和原始文件下载入口。
+- 新增 `docs/CNAME`，将 GitHub Pages 自定义域名固定为 `cars.jiucai.eu.org`。
+- 修复本地遗留的 `merge_data.py` 与 `.github/workflows/ci.yml` 合并冲突标记，恢复语法校验和 CI 冒烟测试可运行状态。
+- 更新 `README.md`，补充网页查看器目录、功能、发布方式和本地预览方法。
+
+### 结果
+- 仓库启用 GitHub Pages 的 GitHub Actions 发布源后，每次“合并分析”工作流成功都会自动更新网页。
+- 静态网页不需要服务器和数据库，适合 GitHub Pages 免费托管。
 
 ---
 
@@ -460,3 +480,86 @@ crawl_cars/
 ## 2026-04-20：修复 Actions 工作流执行环境
 - 修复了因为 `browser-actions/setup-chrome@master` 引发的 "File not found: index.js" 构建失败问题，将所有的版本引用由 `@master` 替换为稳定的 `@v2` 版本。
 - 同样为了防止上游不兼容更新，将 `nanasess/setup-chromedriver` 从 `@master` 修改为了 `@v2`。
+
+## 2026-05-28：修复 Release CSV 体积过小与过滤逻辑错误
+
+### 问题现象
+- Release 产出的 `merged_YYYYMMDD.csv` 文件异常偏小，基本只有表头或极少数据，无法反映完整车型数据。
+
+### 根因定位
+1. `merge_data.py` 中 `merged_YYYYMMDD.csv` 实际写入的是 `filtered_rows`，而不是 `all_rows`，导致文件只包含“满足高配筛选条件”的车型。
+2. 过滤条件里 `纯电续航(km)` 使用了 `<= 150`，与需求“150km 以上”相反，进一步导致可入选车型数量异常减少。
+
+### 修复内容
+- 新增 `check_condition_gte()` 用于“数值 >= 阈值”判断。
+- 将纯电续航条件改为使用 `>= 150`。
+- 将 `merged_YYYYMMDD.csv` 改为输出全部合并数据（`all_rows`），并按全部数据动态收集字段。
+- 保持 `filtered_cars_YYYYMMDD.csv/json` 继续输出筛选结果，不影响下游使用。
+
+### 结果
+- `merged_YYYYMMDD.csv` 恢复为“全量合并数据”，文件体积与记录数将显著增加并符合预期。
+- 筛选逻辑与文档条件（纯电续航 150km 以上）一致。
+
+## 2026-05-28：新增 CI 与 PR 自动合并工作流
+
+### 用户诉求
+- 希望不是“草稿PR”，而是有可执行的 CI 校验和可自动合并的 PR 流程。
+
+### 本次新增
+- 新增 `.github/workflows/ci.yml`
+  - 在 `pull_request` 与 `push` 触发；
+  - 执行依赖安装、`custom_scripts/validate_syntax.py` 语法校验、`merge_data.py` 冒烟运行。
+- 新增 `.github/workflows/pr-auto-merge.yml`
+  - 当 PR 打上 `automerge` 标签后，自动启用 GitHub 原生 Auto-merge（squash）。
+  - 只有在必需检查（如 CI）通过后才会真正合并。
+
+## 2026-05-28：监测 GitHub Actions 工作流运行状态
+
+### 检查结果
+- GitHub 远端 `Fatty911/crawl_cars` 与 `gh` 鉴权正常。
+- 远端共有 7 个 active 工作流：`AI Auto Fix Monitor`、`PR 自动合并`、`CI`、`汽车之家爬虫`、`懂车帝爬虫`、`爬虫随机触发器`、`合并分析`。
+- 最新 `CI` 运行成功，最新 `AI Auto Fix Monitor` 运行成功。
+- `汽车之家爬虫` 与 `懂车帝爬虫` 仍在运行中；前者已进入 `Run step1 loop`，后者仍在 `Random delay`。
+- 最新 `合并分析` 手动运行失败，原因是 `merged_20260528.json` 仅 13 行，低于工作流设置的 50 行发布阈值，触发“疑似爬虫数据不完整，拒绝发布”的保护。
+
+### 本地状态提醒
+- 本地工作区已有未提交改动，且 `.github/workflows/ci.yml` 当前包含合并冲突标记；这不是远端当前运行结果，但直接推送会导致 CI YAML 无效。
+
+## 2026-05-28：修复 AI Auto Fix Monitor 频繁循环触发
+
+### 问题现象
+- `AI Auto Fix Monitor` 在几分钟内连续产生大量运行，异常消耗 GitHub Actions 资源。
+
+### 根因定位
+- 监控工作流在无法下载 `error-log`、也无法通过 `gh run view --log-failed` 获取失败日志时，仍因 `|| echo "AI 修复失败"` 返回成功。
+- 后续 `Re-run failed workflow` 只判断步骤成功，于是把旧失败 run 重新执行；旧 run 使用原始 commit，即使后来有修复提交也不会生效，容易形成“失败 -> AI Monitor -> rerun -> 再失败”的循环。
+- `auto_fix_workflow.py` 主程序没有根据修复结果设置退出码，导致“未修复”也可能被工作流误判为成功。
+
+### 修复内容
+- 为 `AI_Auto_Fix_Monitor.yml` 增加 `concurrency`，同一爬虫/分支的 AI 修复任务只保留一个活跃运行。
+- 移除 AI 修复步骤的 `continue-on-error` 和吞错写法，拿不到日志或修复失败时直接失败退出。
+- 移除自动 `gh run rerun`，避免重新运行旧 commit 上的失败 workflow。
+- `auto_fix_workflow.py` 根据是否真正修复返回进程退出码。
+- AI 修复脚本只有在产生实际文件改动、语法校验通过、提交和推送成功后才返回成功。
+- 已取消当时仍在运行中的两个异常链路爬虫 run，停止继续触发循环。
+
+## 2026-05-28：复查 GitHub Actions 运行状态
+
+### 检查结果
+- 7 个远端工作流均为 active。
+- 当前没有正在运行的 workflow。
+- `Stop AI auto-fix rerun loop` 推送触发的 `CI` 已成功。
+- 最新 `懂车帝爬虫` 由 schedule 触发后失败，失败点为 `Verify Dongchedi output`：`dongchedi_20260528.json` 只有 0 行，触发“拒绝上传空/不完整 artifact”的保护。
+- 最新 `AI Auto Fix Monitor` 被该爬虫失败触发了一次，但因拿不到 `error-log` 且 `gh run view --log-failed` 失败，按新逻辑直接 failure 退出；没有再自动 rerun 原失败工作流，循环已停止。
+
+## 2026-05-28：修复懂车帝爬虫 0 行输出
+
+### 根因
+- `dongchedi/progress.json` 中 `crawled_series` 已记录 4632 个车系完成，但 `dongchedi/json/*.html` 是被 `.gitignore` 忽略的临时缓存，新的 GitHub Actions runner checkout 后没有这些 HTML 文件。
+- step2 只根据 `progress.json` 判断完成，导致没有重新下载 HTML；step3 无页面可解析，最终生成 0 行 `dongchedi_YYYYMMDD.json`。
+
+### 修复
+- `crawl_dongchedi.py` 新增 HTML 缓存一致性检查：只有当前工作区真实存在且非空的 `dongchedi/json/{series_id}.html` 才算已爬取。
+- step2 启动时会自动丢弃缺少 HTML 的旧 `crawled_series` 记录，避免被仓库里持久化的旧进度误导。
+- step3/step4 若解析结果为 0 行，直接失败退出，拒绝生成空结果。
+- Selenium 改为在 step2 需要浏览器时懒加载，使 step3/step4 可在无 Selenium 环境下独立运行解析校验。
