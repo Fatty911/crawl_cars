@@ -12,6 +12,8 @@ crawl_cars/
 ├── crawl_dongchedi.py        # 懂车帝爬虫脚本
 ├── merge_data.py             # 数据合并与过滤脚本
 ├── docs/                     # GitHub Pages 静态网页表格查看器
+├── crawl_state/              # 半月爬取完成标记目录
+├── CRAWL_SCOPE.md            # 爬取车型范围与排除类型记录
 ├── proxy_manager.py          # 代理管理器
 ├── run_with_proxy.py         # 带代理的启动脚本
 ├── auto_fix_workflow.py      # 大模型自动修复工作流错误
@@ -53,6 +55,7 @@ crawl_cars/
 | `EV_RANGE_KEYWORDS` | 纯电续航字段关键词 | ['纯电续航', 'CLTC纯电续航', 'NEDC纯电续航'] |
 | `HEAT_PUMP_KEYWORDS` | 热泵空调字段关键词 | ['热泵'] |
 | `FUEL_TYPE_KEYWORDS` | 燃油类型字段关键词 | ['燃油类型', '燃料类型', '燃料形式', '能源类型'] |
+| `LEVEL_FIELD_KEYWORDS` | 车型级别/车身结构字段关键词 | ['级别', '车身结构', ...] |
 | `MAX_TIME_PER_STEP` | 每步最大运行秒数 | 命令行参数 |
 | `MAX_CARS_PER_RUN` | 每轮最多下载车型数 | 命令行参数 |
 | `AUTO_MODE` | 自动模式，未完成返回exit code 10 | 命令行参数 |
@@ -78,7 +81,7 @@ crawl_cars/
 | 5 | `generate_data_files()` | 匹配样式与JSON | 短 |
 | 6 | `generate_csv()` | 生成CSV/JSON输出 | 短 |
 
-**输出文件**：`autoHome_YYYYMMDD.json` (包含全部车型配置)
+**输出文件**：`autoHome_YYYYMMDD.json` (只保留轿车、跑车、SUV，排除 MPV、房车和各类货车/商用车)
 
 **进度记录** (progress.json)：
 
@@ -142,6 +145,7 @@ crawl_cars/
 | 字段 | 说明 |
 |------|------|
 | `series_list` | 车系列表 [{id, name, brand}, ...] |
+| `excluded_series` | 列表阶段可明确识别并跳过的非目标车系 |
 | `processed_brands` | 已处理品牌列表 |
 | `crawled_series` | 已爬取的车系ID列表 |
 
@@ -304,9 +308,9 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `merge-and-filter` | 合并过滤、Release、发布 GitHub Pages | 360分钟 | 前两者 |
 
 **触发条件**：
-- 汽车之家：每周一、周四 UTC 02:00（北京时间 10:00）自动执行
-- 懂车帝：每天 UTC 05:30（北京时间 13:30）自动执行
-- 随机触发器只在北京时间 09:00-17:00 之间触发爬虫
+- 汽车之家：UTC 02:00（北京时间 10:00），按北京时间日期奇数日每隔一天执行
+- 懂车帝：UTC 05:30（北京时间 13:30），按北京时间日期奇数日每隔一天执行
+- 随机触发器只在北京时间 09:00-17:00 且奇数日触发爬虫
 - 手动触发 (workflow_dispatch)
 
 **自动运行逻辑**：
@@ -314,8 +318,11 @@ python auto_fix_workflow.py error.log test_autohome.py
 2. 爬取循环：
    - 运行指定时间或达到数量上限
    - 未完成：commit进度 → push → 随机等待 → 重新运行
-   - 完成：标记完成，运行后续步骤
-3. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
+   - 完成：生成数据并写入当前半月的 `crawl_state/*_YYYYMM_H1.done` 或 `crawl_state/*_YYYYMM_H2.done` 标记
+3. 同一个半月周期内如果已完成全量爬取，后续自动触发会直接跳过；进入新半月周期时自动重置对应爬虫进度
+4. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
+
+**车型范围**：当前只保留轿车、跑车、SUV；MPV、房车、皮卡、微面、轻客、货车、卡车等会被排除。详见 `CRAWL_SCOPE.md`。
 
 ---
 
@@ -463,9 +470,11 @@ docker compose logs -f crawl-cron
 
 | 爬虫 | 定时 | 次数/月 | 分钟数 |
 |------|------|---------|--------|
-| 汽车之家 | 周一、周四 UTC 02:00（北京时间 10:00） | 8 | ≤2880 |
-| 懂车帝 | 每天 UTC 05:30（北京时间 13:30） | 30 | ≤10800 |
+| 汽车之家 | 奇数日 UTC 02:00（北京时间 10:00） | 约15 | ≤5400 |
+| 懂车帝 | 奇数日 UTC 05:30（北京时间 13:30） | 约15 | ≤5400 |
 | 合并 | 每天 UTC 08:30（北京时间 16:30） | 30 | <300 |
+
+**半月跳过**：每个爬虫在当月 1-15 日、16-月底两个周期内全量完成后，会写入 `crawl_state/` 完成标记；同一周期后续自动触发直接跳过，不再重复爬。
 
 **随机延迟**：开始前随机等待 5-15 分钟；两次网络访问之间默认等待 3-8 秒，可通过 `CRAWL_MIN_DELAY_SECONDS` / `CRAWL_MAX_DELAY_SECONDS` 调整。
 
@@ -567,10 +576,10 @@ python crawl_dongchedi.py --step 2 --time-limit 21600 --max-series 400 --auto
 ### GitHub Actions运行
 
 **当前调度**（UTC时间）：
-- 汽车之家：每周一、周四 02:00（北京时间 10:00）
-- 懂车帝：每天 05:30（北京时间 13:30）
+- 汽车之家：奇数日 02:00（北京时间 10:00）
+- 懂车帝：奇数日 05:30（北京时间 13:30）
 - 数据合并：每天 08:30（北京时间 16:30）
-- 随机触发器：仅北京时间 09:00-17:00 触发目标爬虫
+- 随机触发器：仅北京时间 09:00-17:00 且奇数日触发目标爬虫
 
 **代理配置（强烈推荐）**
 

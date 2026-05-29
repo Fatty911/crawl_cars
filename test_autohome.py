@@ -90,6 +90,35 @@ EV_RANGE_KEYWORDS = ["纯电续航", "CLTC纯电续航", "NEDC纯电续航"]
 HEAT_PUMP_KEYWORDS = ["热泵"]
 # 燃油类型字段关键词（用于判断是否纯油车）
 FUEL_TYPE_KEYWORDS = ["燃油类型", "燃料类型", "燃料形式", "能源类型"]
+LEVEL_FIELD_KEYWORDS = ["级别", "车身结构", "车型级别", "车辆类型"]
+ALLOWED_VEHICLE_LEVEL_KEYWORDS = [
+    "轿车",
+    "微型车",
+    "小型车",
+    "紧凑型车",
+    "中型车",
+    "中大型车",
+    "大型车",
+    "跑车",
+    "SUV",
+]
+EXCLUDED_VEHICLE_LEVEL_KEYWORDS = [
+    "MPV",
+    "房车",
+    "货车",
+    "卡车",
+    "皮卡",
+    "微卡",
+    "轻卡",
+    "轻客",
+    "微面",
+    "客车",
+    "面包车",
+    "厢式",
+    "载货",
+    "牵引",
+    "自卸",
+]
 
 
 def is_pure_gas_car(row, all_headers):
@@ -116,6 +145,28 @@ def fill_pure_gas_defaults(row, all_headers):
             row[h] = "999"
         if any(kw in h for kw in HEAT_PUMP_KEYWORDS):
             row[h] = "是"
+
+
+def get_vehicle_level(row, all_headers):
+    for h in all_headers:
+        if any(kw in h for kw in LEVEL_FIELD_KEYWORDS):
+            val = row.get(h, "")
+            if val and val != "-":
+                return str(val)
+    return ""
+
+
+def is_supported_vehicle_level(level):
+    if not level:
+        return True
+    normalized = re.sub(r"\s+", "", str(level).upper())
+    if any(kw.upper() in normalized for kw in EXCLUDED_VEHICLE_LEVEL_KEYWORDS):
+        return False
+    return any(kw.upper() in normalized for kw in ALLOWED_VEHICLE_LEVEL_KEYWORDS)
+
+
+def is_supported_vehicle_row(row, all_headers):
+    return is_supported_vehicle_level(get_vehicle_level(row, all_headers))
 
 
 # 设置重试策略
@@ -570,6 +621,8 @@ def generate_csv():
                 for h in all_h:
                     v = data.get(h, [])
                     row[h] = v[i] if i < len(v) else "-"
+                if not is_supported_vehicle_row(row, all_h):
+                    continue
                 fill_pure_gas_defaults(row, all_h)
                 rows.append(row)
 

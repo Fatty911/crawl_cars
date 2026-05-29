@@ -2,8 +2,8 @@
 name: 懂车帝爬虫
 on:
   schedule:
-    # UTC 05:30 = 北京时间 13:30，固定在白天运行
-    - cron: '30 5 * * *'
+    # UTC 05:30 = 北京时间 13:30；按日期奇数日每隔一天运行一次
+    - cron: '30 5 1-31/2 * *'
   workflow_dispatch:
     inputs:
       force_restart:
@@ -38,8 +38,54 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Prepare crawl period
+        id: period
+        run: |
+          mkdir -p crawl_state
+          CN_DAY=$(TZ=Asia/Shanghai date +%d)
+          CN_MONTH=$(TZ=Asia/Shanghai date +%Y%m)
+          if [ $((10#$CN_DAY)) -le 15 ]; then
+            CRAWL_PERIOD="${CN_MONTH}_H1"
+          else
+            CRAWL_PERIOD="${CN_MONTH}_H2"
+          fi
+          DONE_MARKER="crawl_state/dongchedi_${CRAWL_PERIOD}.done"
+          CURRENT_PERIOD_FILE="crawl_state/dongchedi_current_period"
+          echo "CRAWL_PERIOD=$CRAWL_PERIOD" >> $GITHUB_ENV
+          echo "DONGCHEDI_DONE_MARKER=$DONE_MARKER" >> $GITHUB_ENV
+
+          EVENT_NAME="${{ github.event_name }}"
+          FORCE_RESTART="${{ github.event.inputs.force_restart }}"
+          if [ "$EVENT_NAME" != "workflow_dispatch" ] && [ $((10#$CN_DAY % 2)) -eq 0 ]; then
+            echo "北京时间日期 $CN_DAY 为偶数日，本爬虫按奇数日每隔一天运行，本次跳过"
+            echo "SKIP_CRAWL=true" >> $GITHUB_ENV
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "$FORCE_RESTART" = "true" ]; then
+            rm -f "$DONE_MARKER"
+          fi
+
+          if [ -f "$DONE_MARKER" ]; then
+            echo "$CRAWL_PERIOD 已完成全量懂车帝爬取，本半月不再爬取"
+            echo "SKIP_CRAWL=true" >> $GITHUB_ENV
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "$FORCE_RESTART" = "true" ] || [ ! -f "$CURRENT_PERIOD_FILE" ] || [ "$(cat "$CURRENT_PERIOD_FILE")" != "$CRAWL_PERIOD" ]; then
+            echo "进入新的半月周期 $CRAWL_PERIOD，重置懂车帝进度"
+            rm -f dcd_step2_done dongchedi/progress.json
+            rm -f dongchedi/json/*.html
+          fi
+          echo "$CRAWL_PERIOD" > "$CURRENT_PERIOD_FILE"
+          echo "SKIP_CRAWL=false" >> $GITHUB_ENV
+          echo "skip=false" >> $GITHUB_OUTPUT
+
       - name: Calculate delay from trigger time
         id: delay
+        if: steps.period.outputs.skip != 'true'
         run: |
           TRIGGER_TIME="${{ inputs.trigger_time }}"
           if [ -n "$TRIGGER_TIME" ] && [ "$TRIGGER_TIME" != "" ]; then
@@ -60,6 +106,7 @@ jobs:
           fi
 
       - name: Random delay
+        if: steps.period.outputs.skip != 'true'
         run: |
           DELAY="${{ steps.delay.outputs.delay }}"
           if [ "$DELAY" != "0" ] && [ -n "$DELAY" ]; then
@@ -70,22 +117,27 @@ jobs:
           fi
 
       - name: Force restart if requested
-        if: github.event.inputs.force_restart == 'true'
+        if: steps.period.outputs.skip != 'true' && github.event.inputs.force_restart == 'true'
         run: |
-          rm -f dcd_step2_done dongchedi/progress.json
+          rm -f dcd_step2_done dongchedi/progress.json "$DONGCHEDI_DONE_MARKER"
           rm -f dongchedi/json/*.html
           echo "已重置所有进度"
 
       - uses: actions/setup-python@main
+        if: steps.period.outputs.skip != 'true'
         with:
           python-version: '3.12'
       - uses: browser-actions/setup-chrome@v2
+        if: steps.period.outputs.skip != 'true'
         with:
           chrome-version: stable
       - uses: nanasess/setup-chromedriver@v2
-      - run: pip install requests beautifulsoup4 selenium lxml PyYAML
+        if: steps.period.outputs.skip != 'true'
+      - if: steps.period.outputs.skip != 'true'
+        run: pip install requests beautifulsoup4 selenium lxml PyYAML
 
       - name: Setup environment
+        if: steps.period.outputs.skip != 'true'
         run: |
           echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
           echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
@@ -101,6 +153,7 @@ jobs:
           fi
 
       - name: Setup proxy if configured
+        if: steps.period.outputs.skip != 'true'
         run: |
           if [ -n "$PROXY_SUBSCRIPTIONS" ] && [ "$PROXY_SUBSCRIPTIONS" != "null" ]; then
             echo "检测到 PROXY_SUBSCRIPTIONS，开始配置代理..."
@@ -118,15 +171,16 @@ jobs:
 
       - name: Check if step2 already done
         id: check_done_dcd
+        if: steps.period.outputs.skip != 'true'
         run: |
-          if [ -f dcd_step2_done ]; then
+          if [ -f "$DONGCHEDI_DONE_MARKER" ]; then
             echo "done=true" >> $GITHUB_OUTPUT
           else
             echo "done=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Run step1 to get series list
-        if: steps.check_done_dcd.outputs.done != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.check_done_dcd.outputs.done != 'true'
         run: |
           set -o pipefail
           if [ -f proxies.json ]; then
@@ -147,7 +201,7 @@ jobs:
 
       - name: Run step2 loop
         id: step2
-        if: steps.check_done_dcd.outputs.done != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.check_done_dcd.outputs.done != 'true'
         run: |
           set -o pipefail
           RUN_COUNT=0
@@ -206,13 +260,13 @@ jobs:
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Auto-fix step2 error
-        if: env.STEP2_FAILED == 'true'
+        if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true'
         run: |
           echo "尝试自动修复 step2 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step2_error.log crawl_dongchedi.py || echo "自动修复失败，继续运行"
 
       - name: Retry step2 after fix
-        if: env.STEP2_FAILED == 'true'
+        if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true'
         run: |
           echo "修复后重试 step2..."
           rm -f step2_error.log
@@ -223,14 +277,17 @@ jobs:
           python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }}
 
       - name: Run step3 and step4
+        if: steps.period.outputs.skip != 'true'
         run: |
           python crawl_dongchedi.py --step 3
           python crawl_dongchedi.py --step 4
 
       - name: Set date
+        if: steps.period.outputs.skip != 'true'
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Dongchedi output
+        if: steps.period.outputs.skip != 'true'
         run: |
           python - <<'PY'
           import glob
@@ -249,7 +306,21 @@ jobs:
               raise SystemExit(f"懂车帝数据只有 {len(rows)} 行，疑似未完整爬取，拒绝上传")
           PY
 
+      - name: Mark Dongchedi period complete
+        if: steps.period.outputs.skip != 'true'
+        run: |
+          mkdir -p crawl_state
+          touch "$DONGCHEDI_DONE_MARKER"
+          echo "$CRAWL_PERIOD" > crawl_state/dongchedi_current_period
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add crawl_state
+          git diff --staged --quiet || git commit -m "Dongchedi complete for $CRAWL_PERIOD"
+          git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
       - uses: actions/upload-artifact@main
+        if: steps.period.outputs.skip != 'true'
         with:
           name: dongchedi-data-${{ env.CRAWL_DATE }}
           path: |

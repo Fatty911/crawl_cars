@@ -64,6 +64,44 @@ EV_RANGE_KEYWORDS = ["纯电续航", "CLTC纯电续航", "NEDC纯电续航"]
 HEAT_PUMP_KEYWORDS = ["热泵"]
 # 燃油类型字段关键词（用于判断是否纯油车）
 FUEL_TYPE_KEYWORDS = ["燃油类型", "燃料类型", "燃料形式", "能源类型"]
+LEVEL_FIELD_KEYWORDS = ["级别", "车身结构", "车型级别", "车辆类型"]
+ALLOWED_VEHICLE_LEVEL_KEYWORDS = [
+    "轿车",
+    "微型车",
+    "小型车",
+    "紧凑型车",
+    "中型车",
+    "中大型车",
+    "大型车",
+    "跑车",
+    "SUV",
+]
+EXCLUDED_VEHICLE_LEVEL_KEYWORDS = [
+    "MPV",
+    "房车",
+    "货车",
+    "卡车",
+    "皮卡",
+    "微卡",
+    "轻卡",
+    "轻客",
+    "微面",
+    "客车",
+    "面包车",
+    "厢式",
+    "载货",
+    "牵引",
+    "自卸",
+]
+DCD_CATEGORY_KEYS = [
+    "level_name",
+    "series_level_name",
+    "car_level_name",
+    "type_name",
+    "sub_type_name",
+    "category_name",
+    "rank_name",
+]
 
 CURRENT_YEAR = 2026
 MIN_YEAR = 0  # 爬取所有车型
@@ -91,6 +129,47 @@ def fill_pure_gas_defaults(row, all_headers):
             row[h] = "999"
         if any(kw in h for kw in HEAT_PUMP_KEYWORDS):
             row[h] = "是"
+
+
+def get_vehicle_level(row, all_headers):
+    for h in all_headers:
+        if any(kw in h for kw in LEVEL_FIELD_KEYWORDS):
+            val = row.get(h, "")
+            if val and val != "-":
+                return str(val)
+    return ""
+
+
+def is_supported_vehicle_level(level):
+    if not level:
+        return True
+    normalized = re.sub(r"\s+", "", str(level).upper())
+    if any(kw.upper() in normalized for kw in EXCLUDED_VEHICLE_LEVEL_KEYWORDS):
+        return False
+    return any(kw.upper() in normalized for kw in ALLOWED_VEHICLE_LEVEL_KEYWORDS)
+
+
+def is_excluded_vehicle_level(level):
+    if not level:
+        return False
+    normalized = re.sub(r"\s+", "", str(level).upper())
+    return any(kw.upper() in normalized for kw in EXCLUDED_VEHICLE_LEVEL_KEYWORDS)
+
+
+def is_supported_vehicle_row(row, all_headers):
+    return is_supported_vehicle_level(get_vehicle_level(row, all_headers))
+
+
+def get_dcd_series_category(series):
+    for key in DCD_CATEGORY_KEYS:
+        val = series.get(key)
+        if val:
+            return str(val)
+    for key, val in series.items():
+        if any(token in key.lower() for token in ["level", "type", "category", "rank"]):
+            if isinstance(val, str) and val:
+                return val
+    return ""
 
 
 def find_chrome_binary():
@@ -268,6 +347,7 @@ def get_series_list(browser=None):
     page = 1
     total_count = None
     consecutive_empty = 0
+    excluded_series = []
 
     while True:
         try:
@@ -302,9 +382,23 @@ def get_series_list(browser=None):
                 sid = str(s.get("id") or s.get("concern_id") or "")
                 sname = s.get("outter_name", "")
                 sbrand = s.get("brand_name", "")
+                category = get_dcd_series_category(s)
+                if category and is_excluded_vehicle_level(category):
+                    excluded_series.append(
+                        {
+                            "id": sid,
+                            "name": sname,
+                            "brand": sbrand,
+                            "category": category,
+                        }
+                    )
+                    continue
                 if sid and sname and sid not in seen_ids:
                     seen_ids.add(sid)
-                    series_list.append({"id": sid, "name": sname, "brand": sbrand})
+                    item = {"id": sid, "name": sname, "brand": sbrand}
+                    if category:
+                        item["category"] = category
+                    series_list.append(item)
                     new_count += 1
 
             print(
@@ -326,10 +420,14 @@ def get_series_list(browser=None):
                 break
             continue
 
-    print(f"\n共获取 {len(series_list)} 个车系")
+    print(f"\n共获取 {len(series_list)} 个目标车系")
+    if excluded_series:
+        print(f"已按明确级别跳过 {len(excluded_series)} 个非目标车系")
 
     if series_list:
         progress["series_list"] = series_list
+        if excluded_series:
+            progress["excluded_series"] = excluded_series
         save_progress()
 
     return series_list
@@ -639,6 +737,8 @@ def parse_config_pages(series_list):
             for header in all_headers:
                 vals = car_data.get(header, [])
                 row[header] = vals[i] if i < len(vals) else "-"
+            if not is_supported_vehicle_row(row, all_headers):
+                continue
             fill_pure_gas_defaults(row, all_headers)
             all_rows.append(row)
 
