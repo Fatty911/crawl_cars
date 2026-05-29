@@ -224,14 +224,20 @@ jobs:
           git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
-      - name: Auto-fix step1 error
+      - name: Classify step1 failure
+        id: classify_step1
         if: steps.period.outputs.skip != 'true' && env.STEP1_FAILED == 'true'
+        run: |
+          python custom_scripts/classify_crawl_failure.py step1_error.log --github-output "$GITHUB_OUTPUT"
+
+      - name: Auto-fix step1 error
+        if: steps.period.outputs.skip != 'true' && env.STEP1_FAILED == 'true' && steps.classify_step1.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 step1 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step1_error.log test_autohome.py || echo "自动修复失败，继续运行"
 
       - name: Retry step1 after fix
-        if: steps.period.outputs.skip != 'true' && env.STEP1_FAILED == 'true'
+        if: steps.period.outputs.skip != 'true' && env.STEP1_FAILED == 'true' && steps.classify_step1.outputs.should_fix == 'true'
         run: |
           echo "修复后重试 step1..."
           rm -f step1_error.log
@@ -262,14 +268,20 @@ jobs:
             echo "REMAINING_FAILED=true" >> $GITHUB_ENV
           fi
 
-      - name: Auto-fix remaining error
+      - name: Classify remaining failure
+        id: classify_remaining
         if: steps.period.outputs.skip != 'true' && env.REMAINING_FAILED == 'true'
+        run: |
+          python custom_scripts/classify_crawl_failure.py remaining_error.log --github-output "$GITHUB_OUTPUT"
+
+      - name: Auto-fix remaining error
+        if: steps.period.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 remaining steps 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py remaining_error.log test_autohome.py || echo "自动修复失败，继续运行"
 
       - name: Retry remaining after fix
-        if: steps.period.outputs.skip != 'true' && env.REMAINING_FAILED == 'true'
+        if: steps.period.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
         run: |
           echo "修复后重试 remaining steps..."
           if [ -f proxies.json ]; then
@@ -281,6 +293,17 @@ jobs:
             python test_autohome.py --step 5
             python test_autohome.py --step 6
           fi
+
+      - name: Upload error log
+        if: failure()
+        uses: actions/upload-artifact@main
+        with:
+          name: error-log
+          path: |
+            step1_error.log
+            remaining_error.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Set date
         if: steps.period.outputs.skip != 'true'

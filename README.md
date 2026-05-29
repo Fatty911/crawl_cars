@@ -274,6 +274,11 @@ python auto_fix_workflow.py error.log test_autohome.py
 # 在 workflow 中自动调用（已集成）
 ```
 
+**触发前分类**：
+- 爬虫日志出现 `exit code 10`、达到时间/数量上限、保存进度继续下次、已处理数百条等主动分段退出特征时，跳过大模型修复。
+- 日志显示未生成数据、解析不到配置、配置页/接口异常、输出行数明显过少等站点结构或链接异常时，才调用大模型修复。
+- 分类逻辑位于 `custom_scripts/classify_crawl_failure.py`，两个爬虫 workflow 和 `AI_Auto_Fix_Monitor.yml` 都会调用。
+
 **当前已配置的 GitHub Secrets**：
 
 `ACTION_PAT`、`ATOMGIT_API_KEY`、`MINIMAX_API_KEY`、`MINIMAX_CODING_PLAN_API_KEY`、`MODAL_API_KEY`、`MODELSCOPE_API_KEY`、`MOONSHOT_API_KEY`、`NVIDIA_NIM_API_KEY`、`OPENROUTER_API_KEY`、`PROXY_SUBSCRIPTIONS`、`XAI_API_KEY`、`ZEN_API_KEY`

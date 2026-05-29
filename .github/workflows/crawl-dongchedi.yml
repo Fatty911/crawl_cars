@@ -259,14 +259,20 @@ jobs:
           git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
-      - name: Auto-fix step2 error
+      - name: Classify step2 failure
+        id: classify_step2
         if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true'
+        run: |
+          python custom_scripts/classify_crawl_failure.py step2_error.log --github-output "$GITHUB_OUTPUT"
+
+      - name: Auto-fix step2 error
+        if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true' && steps.classify_step2.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 step2 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step2_error.log crawl_dongchedi.py || echo "自动修复失败，继续运行"
 
       - name: Retry step2 after fix
-        if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true'
+        if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true' && steps.classify_step2.outputs.should_fix == 'true'
         run: |
           echo "修复后重试 step2..."
           rm -f step2_error.log
@@ -275,6 +281,17 @@ jobs:
             export https_proxy=http://127.0.0.1:7890
           fi
           python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }}
+
+      - name: Upload error log
+        if: failure()
+        uses: actions/upload-artifact@main
+        with:
+          name: error-log
+          path: |
+            step1_error.log
+            step2_error.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Run step3 and step4
         if: steps.period.outputs.skip != 'true'

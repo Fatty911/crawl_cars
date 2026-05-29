@@ -73,12 +73,26 @@ jobs:
 
           if [ -n "$ERROR_LOG" ]; then
             echo "找到错误日志: $ERROR_LOG"
+            python custom_scripts/classify_crawl_failure.py "$ERROR_LOG" --github-output "$GITHUB_OUTPUT"
+            if grep -q '^should_fix=false$' "$GITHUB_OUTPUT"; then
+              echo "日志判定为主动分段退出或进度保护退出，跳过 AI 修复"
+              echo "fixed=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
             python auto_fix_workflow.py "$ERROR_LOG"
+            echo "fixed=true" >> $GITHUB_OUTPUT
           else
             echo "未找到错误日志文件，尝试从 gh CLI 获取..."
             gh run view ${{ github.event.workflow_run.id }} --log-failed > /tmp/workflow_error.log 2>/dev/null || echo "gh CLI 日志获取失败"
             if [ -f "/tmp/workflow_error.log" ] && [ -s "/tmp/workflow_error.log" ]; then
+              python custom_scripts/classify_crawl_failure.py /tmp/workflow_error.log --github-output "$GITHUB_OUTPUT"
+              if grep -q '^should_fix=false$' "$GITHUB_OUTPUT"; then
+                echo "日志判定为主动分段退出或进度保护退出，跳过 AI 修复"
+                echo "fixed=false" >> $GITHUB_OUTPUT
+                exit 0
+              fi
               python auto_fix_workflow.py /tmp/workflow_error.log
+              echo "fixed=true" >> $GITHUB_OUTPUT
             else
               echo "无法获取错误日志，跳过 AI 修复"
               exit 1
@@ -86,7 +100,12 @@ jobs:
           fi
 
       - name: Skip automatic rerun
-        if: success()
+        if: success() && steps.ai_fix.outputs.fixed == 'true'
         run: |
           echo "AI 修复已提交。为避免循环，不自动 rerun 原始失败工作流。"
           echo "原始 run 使用旧 commit，直接 rerun 可能再次失败并触发监控循环。"
+
+      - name: Report skipped AI fix
+        if: success() && steps.ai_fix.outputs.fixed != 'true'
+        run: |
+          echo "本次失败被判定为爬虫主动分段退出/进度保护退出，未调用大模型修复。"
