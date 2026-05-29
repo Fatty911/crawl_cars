@@ -15,7 +15,7 @@
 - 新增 `docs/index.html`、`docs/styles.css`、`docs/app.js`，实现纯静态表格工作台。
 - 网页支持“全部车型/符合条件”数据集切换、全局搜索、表头排序、每列筛选、按数据来源/品牌/车系快速筛选、列显示控制、分页和当前结果 CSV/JSON 导出。
 - 在 `merge-and-filter.yml` 新增 `deploy-pages` job：合并产物生成后，把 `docs/` 与最新 `merged_YYYYMMDD.json`、`filtered_cars_YYYYMMDD.json`、CSV 文件打包并部署到 GitHub Pages。
-- 新增 `deploy-pages.yml` 独立发布网页工作流：即使当前合并因爬虫数据不足被保护规则拦截，也可以先部署网页外壳，并从最近 Release 中挑选第一份行数 ≥ 50 的完整数据。
+- 新增 `deploy-pages.yml` 独立发布网页工作流：即使当前合并因爬虫数据不足被保护规则拦截，也可以先部署网页，并使用最近一份带 `merged_*.json` 的 Release 数据。
 - 生成 `data/manifest.json`，让网页能显示数据日期、行数和原始文件下载入口。
 - 新增 `docs/CNAME`，将 GitHub Pages 自定义域名固定为 `cars.jiucai.eu.org`。
 - 修复本地遗留的 `merge_data.py` 与 `.github/workflows/ci.yml` 合并冲突标记，恢复语法校验和 CI 冒烟测试可运行状态。

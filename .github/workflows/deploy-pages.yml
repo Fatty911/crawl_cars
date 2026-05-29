@@ -71,8 +71,7 @@ jobs:
           )
 
             if [ "$ROWS" -lt 50 ]; then
-              echo "跳过 $TAG：merged 数据只有 $ROWS 行"
-              continue
+              echo "警告：$TAG 的 merged 数据只有 $ROWS 行，网页仍使用这份最近 Release 数据"
             fi
 
             DATE=$(basename "$MERGED_JSON" | sed -E 's/merged_([0-9]+)\.json/\1/')
@@ -114,7 +113,7 @@ jobs:
           done
 
           if [ "$FOUND_DATA" != "true" ]; then
-            echo "未找到超过 50 行的 Release 数据，仅发布网页外壳"
+            echo "未找到可用 Release 数据，仅发布网页外壳"
           fi
 
           touch site/.nojekyll

@@ -474,8 +474,8 @@ docker compose logs -f crawl-cron
 **用途**：免费托管静态网页，直接在浏览器中筛选、排序、分页查看车型配置，不再只依赖下载 Release 表格文件。
 
 **发布方式**：
-1. `deploy-pages.yml` 可独立发布 `docs/` 网页，并自动从最近 Release 中挑选第一份行数 ≥ 50 的完整数据。
-2. `merge-and-filter.yml` 在合并数据通过完整性检查后，也会把 `docs/` 静态页面和最新 JSON/CSV 打包为 Pages artifact。
+1. `deploy-pages.yml` 可独立发布 `docs/` 网页，并自动使用最近一份带 `merged_*.json` 的 Release 数据。
+2. `merge-and-filter.yml` 在合并数据通过完整性检查后，也会把 `docs/` 静态页面和最新 JSON/CSV 打包为 Pages artifact；这条链路仍会拒绝发布明显不完整的数据。
 3. 两个工作流都使用 GitHub 官方 `actions/upload-pages-artifact` 与 `actions/deploy-pages` 发布。
 
 **首次启用**：
