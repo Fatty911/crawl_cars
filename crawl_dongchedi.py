@@ -30,6 +30,10 @@ args = parser.parse_args()
 MAX_TIME_PER_STEP = args.time_limit
 MAX_SERIES_PER_RUN = args.max_series
 AUTO_MODE = args.auto
+CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "3"))
+CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "8"))
+if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
+    CRAWL_MAX_DELAY_SECONDS = CRAWL_MIN_DELAY_SECONDS
 
 # 工作目录
 working_dir = os.path.dirname(os.path.abspath(__file__))
@@ -171,6 +175,12 @@ def check_series_limit(crawled_count):
     return False
 
 
+def human_delay(label):
+    delay = random.uniform(CRAWL_MIN_DELAY_SECONDS, CRAWL_MAX_DELAY_SECONDS)
+    print(f"{label}后等待 {delay:.1f} 秒，模拟人工浏览节奏")
+    time.sleep(delay)
+
+
 def get_existing_html_ids():
     """返回当前工作区真实存在的车系 HTML 缓存 ID。"""
     if not os.path.isdir(dcd_json_dir):
@@ -282,6 +292,7 @@ def get_series_list(browser=None):
                 if consecutive_empty >= 3:
                     print(f"连续{consecutive_empty}页为空，停止")
                     break
+                human_delay(f"page {page} 空结果")
                 page += 1
                 continue
 
@@ -305,11 +316,11 @@ def get_series_list(browser=None):
                 break
 
             page += 1
-            time.sleep(random.uniform(2.0, 4.0))
+            human_delay(f"page {page - 1} API访问")
 
         except Exception as e:
             print(f"page {page} 异常: {e}，重试...")
-            time.sleep(2)
+            human_delay(f"page {page} API异常")
             consecutive_empty += 1
             if consecutive_empty >= 5:
                 break
@@ -356,7 +367,7 @@ def crawl_series_config(browser, series_list):
         saved_html = False
         try:
             browser.get(config_url)
-            time.sleep(random.uniform(3.0, 5.0))
+            human_delay(f"打开{series_name}配置页")
 
             # 等待配置表格加载
             try:
@@ -395,7 +406,7 @@ def crawl_series_config(browser, series_list):
             crawled.append(series_id)
         progress["crawled_series"] = crawled
         save_progress()
-        time.sleep(random.uniform(3.0, 6.0))
+        human_delay(f"保存{series_name}页面")
 
     print("第二步完成")
 

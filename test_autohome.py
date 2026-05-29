@@ -31,6 +31,10 @@ args = parser.parse_args()
 MAX_TIME_PER_STEP = args.time_limit
 MAX_CARS_PER_RUN = args.max_cars
 AUTO_MODE = args.auto
+CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "3"))
+CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "8"))
+if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
+    CRAWL_MAX_DELAY_SECONDS = CRAWL_MIN_DELAY_SECONDS
 
 
 # 设置工作目录为当前文件所在目录
@@ -164,6 +168,12 @@ def check_car_limit(cars_downloaded):
     return False
 
 
+def human_delay(label):
+    delay = random.uniform(CRAWL_MIN_DELAY_SECONDS, CRAWL_MAX_DELAY_SECONDS)
+    print(f"{label}后等待 {delay:.1f} 秒，模拟人工浏览节奏")
+    time.sleep(delay)
+
+
 # 第一步,下载出所有车型的网页
 def download_car_pages():
     print("第一步,下载出所有车型的网页")
@@ -194,7 +204,7 @@ def download_car_pages():
 
             resp = session.get(first_url, timeout=15)
             print(f"第一步下载{letter}品牌响应码: {resp.status_code}")
-            time.sleep(random.uniform(4.0, 8.0))
+            human_delay(f"获取{letter}品牌列表")
             resp.encoding = resp.apparent_encoding
 
             soup = bs4.BeautifulSoup(resp.text, "html.parser")
@@ -241,11 +251,11 @@ def download_car_pages():
                                     break
                                 except requests.exceptions.RequestException:
                                     print(f"请求异常, 重试次数:{i + 1}")
-                                    time.sleep(3)
+                                    human_delay(f"车型{car_id}请求异常")
                             else:
                                 print(f"获取{car_id}车型失败,跳过")
                                 continue
-                            time.sleep(random.uniform(4.0, 8.0))
+                            human_delay(f"获取{car_id}车型配置")
                             resp.encoding = resp.apparent_encoding
                             content = resp.text
                             print(f"车型{car_id}内容长度: {len(content)}")

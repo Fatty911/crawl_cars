@@ -2,8 +2,9 @@
 name: 汽车之家爬虫
 on:
   schedule:
+    # UTC 02:00 = 北京时间 10:00，固定在白天运行
     - cron: '0 2 * * 1'
-    - cron: '0 14 * * 4'
+    - cron: '0 2 * * 4'
   workflow_dispatch:
     inputs:
       force_restart:
@@ -24,6 +25,8 @@ on:
 env:
   RUN_TIME: 21600
   MAX_CARS: 400
+  CRAWL_MIN_DELAY_SECONDS: 3
+  CRAWL_MAX_DELAY_SECONDS: 8
 
 jobs:
   autohome-crawl:

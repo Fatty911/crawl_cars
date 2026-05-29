@@ -1,6 +1,6 @@
 # 爬虫随机触发器 - 通过 repository_dispatch 触发实际爬虫
 # 使用 cron-job.org 或外部定时服务调用此 workflow
-# 随机选择爬虫类型，东八区 8~22 点之间触发
+# 随机选择爬虫类型，东八区 9~17 点之间触发
 name: 爬虫随机触发器
 
 on:
@@ -45,9 +45,9 @@ jobs:
           
           echo "当前东八区时间: $CN_HOUR 点 (UTC: $UTC_HOUR)"
           
-          # 判断是否在允许的时间范围 (8~22 点)
-          if [ $CN_HOUR -lt 8 ] || [ $CN_HOUR -ge 22 ]; then
-            echo "当前不在东八区 8~22 点范围内，跳过触发"
+          # 判断是否在允许的时间范围 (9~17 点)
+          if [ $CN_HOUR -lt 9 ] || [ $CN_HOUR -ge 17 ]; then
+            echo "当前不在东八区 9~17 点范围内，跳过触发"
             echo "crawler=skip" >> $GITHUB_OUTPUT
             echo "delay=0" >> $GITHUB_OUTPUT
             exit 0
