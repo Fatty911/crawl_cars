@@ -2,7 +2,8 @@
 name: 合并分析
 on:
   schedule:
-    - cron: '30 8 * * *'
+    # UTC 12:30 = 北京时间 20:30，等待下午爬虫窗口结束后再合并
+    - cron: '30 12 * * *'
   workflow_dispatch:
     inputs:
       force_merge:
@@ -63,6 +64,41 @@ jobs:
 
           echo "当前目录数据文件:"
           ls -la *.json 2>/dev/null || echo "没有找到数据文件"
+
+      - name: 校验爬虫数据完整性
+        run: |
+          python - <<'PY'
+          import glob
+          import json
+          import sys
+
+          checks = [
+              ("汽车之家", "autoHome_*.json"),
+              ("懂车帝", "dongchedi_*.json"),
+          ]
+          ok = True
+          for label, pattern in checks:
+              files = sorted(glob.glob(pattern))
+              if not files:
+                  print(f"{label} 未找到 {pattern} 数据文件")
+                  ok = False
+                  continue
+              path = files[-1]
+              try:
+                  with open(path, "r", encoding="utf-8") as f:
+                      rows = json.load(f)
+              except Exception as exc:
+                  print(f"{label} 数据文件 {path} 读取失败: {exc}")
+                  ok = False
+                  continue
+              count = len(rows) if isinstance(rows, list) else 0
+              print(f"{label} 数据文件: {path}, 行数: {count}")
+              if count < 50:
+                  print(f"{label} 数据少于 50 行，疑似爬虫数据不完整，拒绝合并")
+                  ok = False
+          if not ok:
+              sys.exit(1)
+          PY
 
       - name: 合并数据文件
         run: |

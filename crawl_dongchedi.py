@@ -324,13 +324,11 @@ def get_series_list(browser=None):
     """通过懂车帝分页API获取全部车系（无需浏览器）"""
     print("第一步：获取所有车系列表")
 
-    if (
-        "series_list" in progress
-        and progress["series_list"]
-        and len(progress["series_list"]) >= 1000
-    ):
-        print(f"已有{len(progress['series_list'])} 个车系，跳过获取")
-        return progress["series_list"]
+    cached_series_list = progress.get("series_list", [])
+    if cached_series_list:
+        print(
+            f"已有缓存车系列表 {len(cached_series_list)} 个，本次会优先刷新；刷新失败则回退使用缓存"
+        )
 
     series_list = []
     seen_ids = set()
@@ -339,9 +337,14 @@ def get_series_list(browser=None):
     api = "https://www.dongchedi.com/motor/pc/car/brand/select_series_v2"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Origin": "https://www.dongchedi.com",
         "Referer": "https://www.dongchedi.com/auto/library/x-x-x-x-x-x-x-x-x-x-x",
         "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "XMLHttpRequest",
     }
+    session = requests.Session()
 
     print("通过分页API获取全部车系...")
     page = 1
@@ -352,8 +355,15 @@ def get_series_list(browser=None):
     while True:
         try:
             body = {"limit": 30, "page": page, "city_name": ""}
-            r = requests.post(api, headers=headers, data=body, timeout=15)
-            d = r.json()
+            r = session.post(api, headers=headers, data=body, timeout=20)
+            try:
+                d = r.json()
+            except ValueError as exc:
+                snippet = r.text[:200].replace("\n", " ")
+                raise ValueError(
+                    f"非JSON响应 status={r.status_code}, "
+                    f"content-type={r.headers.get('content-type')}, body={snippet!r}"
+                ) from exc
 
             if d.get("status") != 0:
                 print(f"page {page}: API异常: {d.get('message')}")
@@ -429,6 +439,11 @@ def get_series_list(browser=None):
         if excluded_series:
             progress["excluded_series"] = excluded_series
         save_progress()
+        return series_list
+
+    if cached_series_list:
+        print(f"本次未获取到新车系列表，回退使用缓存 {len(cached_series_list)} 个车系")
+        return cached_series_list
 
     return series_list
 

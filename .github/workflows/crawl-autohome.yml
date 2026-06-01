@@ -2,8 +2,10 @@
 name: 汽车之家爬虫
 on:
   schedule:
-    # UTC 02:00 = 北京时间 10:00；按日期奇数日每隔一天运行一次
-    - cron: '0 2 1-31/2 * *'
+    # UTC 01:00 = 北京时间每天 09:00 左右，运行约 3 小时
+    - cron: '0 1 * * *'
+    # UTC 05:00 = 北京时间每天 13:00-13:30 之间，运行约 5 小时 50 分钟，避开 6 小时超时边界
+    - cron: '0 5 * * *'
   workflow_dispatch:
     inputs:
       force_restart:
@@ -18,19 +20,25 @@ on:
         description: '触发时间戳'
         required: false
         default: ''
+      run_profile:
+        description: '运行时长配置：auto/morning/afternoon'
+        required: false
+        default: 'auto'
   repository_dispatch:
     types: [trigger-autohome]
 
 env:
-  RUN_TIME: 21600
-  MAX_CARS: 400
+  RUN_TIME: 10800
+  MORNING_RUN_TIME: 10800
+  AFTERNOON_RUN_TIME: 21000
+  MAX_CARS: 0
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
 
 jobs:
   autohome-crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 390
     permissions:
       contents: write
     steps:
@@ -56,12 +64,6 @@ jobs:
 
           EVENT_NAME="${{ github.event_name }}"
           FORCE_RESTART="${{ github.event.inputs.force_restart }}"
-          if [ "$EVENT_NAME" != "workflow_dispatch" ] && [ $((10#$CN_DAY % 2)) -eq 0 ]; then
-            echo "北京时间日期 $CN_DAY 为偶数日，本爬虫按奇数日每隔一天运行，本次跳过"
-            echo "SKIP_CRAWL=true" >> $GITHUB_ENV
-            echo "skip=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
 
           if [ "$FORCE_RESTART" = "true" ]; then
             rm -f "$DONE_MARKER"
@@ -82,6 +84,40 @@ jobs:
           echo "SKIP_CRAWL=false" >> $GITHUB_ENV
           echo "skip=false" >> $GITHUB_OUTPUT
 
+      - name: Configure crawl window
+        if: steps.period.outputs.skip != 'true'
+        run: |
+          PROFILE="${{ inputs.run_profile }}"
+          if [ -z "$PROFILE" ] || [ "$PROFILE" = "auto" ]; then
+            CN_HOUR=$(TZ=Asia/Shanghai date +%H)
+            CN_MINUTE=$(TZ=Asia/Shanghai date +%M)
+            if [ $((10#$CN_HOUR)) -ge 9 ] && [ $((10#$CN_HOUR)) -lt 12 ]; then
+              PROFILE="morning"
+            elif [ $((10#$CN_HOUR)) -eq 13 ] && [ $((10#$CN_MINUTE)) -le 30 ]; then
+              PROFILE="afternoon"
+            else
+              PROFILE="afternoon"
+            fi
+          fi
+
+          case "$PROFILE" in
+            morning)
+              RUN_SECONDS="$MORNING_RUN_TIME"
+              ;;
+            afternoon)
+              RUN_SECONDS="$AFTERNOON_RUN_TIME"
+              ;;
+            *)
+              echo "未知 run_profile=$PROFILE，仅支持 auto/morning/afternoon"
+              exit 1
+              ;;
+          esac
+
+          echo "RUN_PROFILE=$PROFILE" >> "$GITHUB_ENV"
+          echo "RUN_TIME=$RUN_SECONDS" >> "$GITHUB_ENV"
+          echo "MAX_CARS=0" >> "$GITHUB_ENV"
+          echo "运行配置: $PROFILE, RUN_TIME=$RUN_SECONDS 秒, MAX_CARS=0"
+
       - name: Calculate delay from trigger time
         id: delay
         if: steps.period.outputs.skip != 'true'
@@ -91,8 +127,28 @@ jobs:
             CURRENT_TIME=$(date +%s)
             WAITED=$((CURRENT_TIME - TRIGGER_TIME))
             echo "触发器已等待 $WAITED 秒"
-            if [ $WAITED -lt 1800 ]; then
-              REMAIN=$((1800 - WAITED))
+            TARGET_DELAY=1800
+            if [ "$RUN_PROFILE" = "morning" ]; then
+              WINDOW_END_MINUTES=$((12 * 60))
+            elif [ "$RUN_PROFILE" = "afternoon" ]; then
+              WINDOW_END_MINUTES=$((13 * 60 + 30))
+            else
+              WINDOW_END_MINUTES=0
+            fi
+            if [ "$WINDOW_END_MINUTES" -gt 0 ]; then
+              CN_HOUR=$(TZ=Asia/Shanghai date +%H)
+              CN_MINUTE=$(TZ=Asia/Shanghai date +%M)
+              CURRENT_MINUTES=$((10#$CN_HOUR * 60 + 10#$CN_MINUTE))
+              WINDOW_REMAIN=$(((WINDOW_END_MINUTES - CURRENT_MINUTES) * 60))
+              if [ "$WINDOW_REMAIN" -lt 0 ]; then
+                WINDOW_REMAIN=0
+              fi
+              if [ "$TARGET_DELAY" -gt "$WINDOW_REMAIN" ]; then
+                TARGET_DELAY="$WINDOW_REMAIN"
+              fi
+            fi
+            if [ $WAITED -lt $TARGET_DELAY ]; then
+              REMAIN=$((TARGET_DELAY - WAITED))
               echo "剩余延迟: $REMAIN 秒"
               echo "delay=$REMAIN" >> $GITHUB_OUTPUT
             else
@@ -182,6 +238,7 @@ jobs:
           set -o pipefail
           STEP1_COMPLETE=false
           while true; do
+            set +e
             if [ -f proxies.json ]; then
               echo "使用代理模式运行 step1 (负载均衡)"
               python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy round_robin 2>&1 | tee step1_error.log
@@ -190,6 +247,8 @@ jobs:
               python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
             fi
             EXIT_CODE=$?
+            set -e
+            echo "Step1 exit code: $EXIT_CODE"
 
             if [ $EXIT_CODE -eq 10 ]; then
               echo "Step1 incomplete, committing progress..."
