@@ -2,10 +2,10 @@
 name: 汽车之家爬虫
 on:
   schedule:
-    # UTC 01:00 = 北京时间每天 09:00 左右，运行约 3 小时
-    - cron: '0 1 * * *'
-    # UTC 05:00 = 北京时间每天 13:00-13:30 之间，运行约 5 小时 50 分钟，避开 6 小时超时边界
-    - cron: '0 5 * * *'
+    # UTC 01:07 = 北京时间每天 09:07 左右，避开 GitHub Actions 整点调度高峰
+    - cron: '7 1 * * *'
+    # UTC 05:07 = 北京时间每天 13:07 左右，避开整点调度高峰
+    - cron: '7 5 * * *'
   workflow_dispatch:
     inputs:
       force_restart:
@@ -64,6 +64,22 @@ jobs:
 
           EVENT_NAME="${{ github.event_name }}"
           FORCE_RESTART="${{ github.event.inputs.force_restart }}"
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            CN_HOUR_NOW=$(TZ=Asia/Shanghai date +%H)
+            CN_MINUTE_NOW=$(TZ=Asia/Shanghai date +%M)
+            IN_WINDOW=false
+            if [ $((10#$CN_HOUR_NOW)) -ge 9 ] && [ $((10#$CN_HOUR_NOW)) -lt 12 ]; then
+              IN_WINDOW=true
+            elif [ $((10#$CN_HOUR_NOW)) -eq 13 ] && [ $((10#$CN_MINUTE_NOW)) -le 30 ]; then
+              IN_WINDOW=true
+            fi
+            if [ "$IN_WINDOW" != "true" ]; then
+              echo "当前北京时间 ${CN_HOUR_NOW}:${CN_MINUTE_NOW} 已错过允许爬取窗口，跳过本次延迟 schedule"
+              echo "SKIP_CRAWL=true" >> $GITHUB_ENV
+              echo "skip=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
 
           if [ "$FORCE_RESTART" = "true" ]; then
             rm -f "$DONE_MARKER"
@@ -156,7 +172,7 @@ jobs:
               echo "delay=0" >> $GITHUB_OUTPUT
             fi
           else
-            DELAY=$((RANDOM % 900 + 300))
+            DELAY=$((RANDOM % 600))
             echo "delay=$DELAY" >> $GITHUB_OUTPUT
           fi
 

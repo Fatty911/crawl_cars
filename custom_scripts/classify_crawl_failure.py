@@ -47,6 +47,15 @@ SITE_BREAKAGE_PATTERNS = [
     r"TimeoutException",
 ]
 
+TRANSIENT_INFRA_PATTERNS = [
+    r"HTTPConnectionPool\(host='localhost'.*Read timed out",
+    r"ReadTimeoutError:.*localhost",
+    r"浏览器初始化失败",
+    r"SessionNotCreatedException",
+    r"Chrome failed to start",
+    r"DevToolsActivePort file doesn't exist",
+]
+
 
 def read_log(paths: list[str]) -> str:
     chunks = []
@@ -78,8 +87,12 @@ def classify(text: str, progress_threshold: int) -> tuple[str, str]:
         return "unknown", "日志为空，无法判断是否为主动分段退出"
 
     has_progress = matches_any(PROGRESS_PATTERNS, text)
+    has_transient_infra = matches_any(TRANSIENT_INFRA_PATTERNS, text)
     has_site_breakage = matches_any(SITE_BREAKAGE_PATTERNS, text)
     progress_amount = max_progress_amount(text)
+
+    if has_transient_infra:
+        return "transient_infra", "日志显示浏览器或 GitHub runner 临时异常，跳过 AI 修复"
 
     if has_progress and not has_site_breakage:
         return "progress_exit", "日志显示爬虫主动保存进度或达到分段限制"

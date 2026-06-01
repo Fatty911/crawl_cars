@@ -1,8 +1,34 @@
 # 对话历史总结
 
-> 最后更新：2026-06-01 10:23
+> 最后更新：2026-06-01 18:45
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-01：避免 GitHub 延迟 schedule 傍晚补跑
+
+### 用户诉求
+- 检查为什么下午爬虫实际到傍晚六点多才开始。
+- 继续排查其它工作流问题并一并修复。
+
+### 排查
+- 远端 `汽车之家爬虫` run `26748553224` 与 `懂车帝爬虫` run `26748749321` 都是 `schedule` 事件，但创建时间分别为 UTC 10:09/10:13，即北京时间 18:09/18:13。
+- 当前 workflow 配置是 UTC 05:00（北京时间 13:00），说明不是时区写错，而是 GitHub Actions schedule 被延迟执行。
+- 已取消仍在傍晚运行的汽车之家 run，避免继续在错误时间段爬取。
+- 懂车帝本次失败发生在 Selenium/Chrome 初始化阶段，`execute_cdp_cmd` 对本地 chromedriver 读超时，属于 runner/浏览器临时异常。
+
+### 修改
+- `crawl-autohome.yml` 与 `crawl-dongchedi.yml` 的定时从 UTC 01:00/05:00 调整为 UTC 01:07/05:07，避开 GitHub Actions 整点调度高峰。
+- 两个主爬虫 workflow 增加 schedule 时间窗守卫：如果实际启动时已不在北京时间 09:00-12:00 或 13:00-13:30 内，直接跳过，不再傍晚补跑。
+- 直接 schedule 的随机启动延迟从 5-20 分钟缩短为 0-10 分钟，下午窗口更稳定落在 13 点多。
+- `crawl_dongchedi.py` 的浏览器初始化增加最多 3 次重试、失败后清理浏览器实例，并补充 headless/remote debugging 参数，降低 GitHub runner 抖动导致的失败。
+- `custom_scripts/classify_crawl_failure.py` 新增 `transient_infra` 分类，遇到 localhost chromedriver 读超时、Chrome 启动类临时异常时跳过 AI 自动修复，避免无意义的大模型修复运行。
+- 更新 `README.md` 中的调度、延迟和延迟 schedule 跳过说明。
+
+### 结果
+- 后续即使 GitHub 把 13 点的 schedule 拖到傍晚，也只会跳过，不会在错误时间段实际爬取。
+- 懂车帝浏览器启动超时会先自动重试；若仍失败，会被分类为临时基础设施问题，不再触发 AI 修复循环。
 
 ---
 

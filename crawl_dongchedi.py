@@ -193,36 +193,54 @@ def find_chromedriver():
     return None
 
 
-def create_browser():
+def create_browser(max_attempts=3):
     from selenium import webdriver
     from selenium.webdriver.chrome.service import Service
 
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    )
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    cb = find_chrome_binary()
-    if cb:
-        chrome_options.binary_location = cb
-    cd = find_chromedriver()
-    if cd:
-        browser = webdriver.Chrome(service=Service(cd), options=chrome_options)
-    else:
-        browser = webdriver.Chrome(options=chrome_options)
-    browser.execute_cdp_cmd(
-        "Page.addScriptToEvaluateOnNewDocument",
-        {
-            "source": 'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
-        },
-    )
-    return browser
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        browser = None
+        try:
+            chrome_options = webdriver.ChromeOptions()
+            chrome_options.add_argument("--headless=new")
+            chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+            chrome_options.add_argument("--remote-debugging-port=0")
+            chrome_options.add_argument("--window-size=1365,900")
+            chrome_options.add_argument(
+                "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            cb = find_chrome_binary()
+            if cb:
+                chrome_options.binary_location = cb
+            cd = find_chromedriver()
+            if cd:
+                browser = webdriver.Chrome(service=Service(cd), options=chrome_options)
+            else:
+                browser = webdriver.Chrome(options=chrome_options)
+            browser.execute_cdp_cmd(
+                "Page.addScriptToEvaluateOnNewDocument",
+                {
+                    "source": 'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+                },
+            )
+            return browser
+        except Exception as exc:
+            last_error = exc
+            print(f"浏览器初始化失败，第 {attempt}/{max_attempts} 次: {exc}")
+            if browser is not None:
+                try:
+                    browser.quit()
+                except Exception:
+                    pass
+            if attempt < max_attempts:
+                time.sleep(10 * attempt)
+
+    raise RuntimeError(f"浏览器初始化连续失败 {max_attempts} 次") from last_error
 
 
 def save_progress():

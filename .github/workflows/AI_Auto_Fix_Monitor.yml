@@ -75,7 +75,7 @@ jobs:
             echo "找到错误日志: $ERROR_LOG"
             python custom_scripts/classify_crawl_failure.py "$ERROR_LOG" --github-output "$GITHUB_OUTPUT"
             if grep -q '^should_fix=false$' "$GITHUB_OUTPUT"; then
-              echo "日志判定为主动分段退出或进度保护退出，跳过 AI 修复"
+              echo "日志判定为主动分段退出、进度保护退出或临时基础设施异常，跳过 AI 修复"
               echo "fixed=false" >> $GITHUB_OUTPUT
               exit 0
             fi
@@ -87,7 +87,7 @@ jobs:
             if [ -f "/tmp/workflow_error.log" ] && [ -s "/tmp/workflow_error.log" ]; then
               python custom_scripts/classify_crawl_failure.py /tmp/workflow_error.log --github-output "$GITHUB_OUTPUT"
               if grep -q '^should_fix=false$' "$GITHUB_OUTPUT"; then
-                echo "日志判定为主动分段退出或进度保护退出，跳过 AI 修复"
+                echo "日志判定为主动分段退出、进度保护退出或临时基础设施异常，跳过 AI 修复"
                 echo "fixed=false" >> $GITHUB_OUTPUT
                 exit 0
               fi
