@@ -255,14 +255,14 @@ def download_car_pages():
 
             # SSL/Connection 错误重试（代理节点不稳定时需要）
             resp = None
-            max_retries = 3
+            max_retries = 5
             for attempt in range(max_retries):
                 try:
-                    resp = session.get(first_url, timeout=15)
+                    resp = session.get(first_url, timeout=20)
                     break
                 except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
                     if attempt < max_retries - 1:
-                        wait_time = 2 ** (attempt + 1)  # 指数退避：2/4/8秒
+                        wait_time = min(2 ** (attempt + 2), 20)  # 指数退避：4/8/16/20/20秒
                         print(f"连接错误，{wait_time}秒后重试 ({attempt+1}/{max_retries}): {e}")
                         time.sleep(wait_time)
                     else:

@@ -2,6 +2,13 @@
 
 ## 2026-06-02
 
+### 修改19: 增加汽车之家爬虫 SSL 重试次数和超时
+- `test_autohome.py` 的 SSL 错误重试逻辑改进：
+  - 重试次数从 3 增加到 5
+  - 请求超时从 15 秒增加到 20 秒
+  - 退避策略改为 `min(2^(attempt+2), 20)` 秒（4/8/16/20/20）
+  - 最差耗时约 148 秒，比原方案 210 秒减少 30%
+
 ### 修改18: 修复汽车之家爬虫 SSL 错误
 - `test_autohome.py` 的 `download_car_pages()` 函数中，字母列表页请求 `session.get()` 添加 SSL/Connection 错误重试
 - 捕获 `requests.exceptions.SSLError` 和 `requests.exceptions.ConnectionError`
