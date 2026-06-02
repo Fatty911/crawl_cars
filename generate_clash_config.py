@@ -11,6 +11,12 @@ from urllib.parse import urlparse, parse_qs
 import re
 
 
+SUBSCRIPTION_USER_AGENT = os.getenv(
+    "PROXY_SUBSCRIPTION_USER_AGENT",
+    "clash-verge/v2.4.2",
+)
+
+
 def redact_url(url: str) -> str:
     parsed = urlparse(url)
     if not parsed.netloc:
@@ -35,7 +41,8 @@ class ClashConfigGenerator:
         """获取订阅内容"""
         try:
             headers = {
-                'User-Agent': 'ClashForWindows/0.20.39'
+                'User-Agent': SUBSCRIPTION_USER_AGENT,
+                'Accept': 'text/plain,application/yaml,application/json,*/*',
             }
             # 不使用代理获取订阅（因为此时代理还没启动）
             session = requests.Session()
