@@ -55,49 +55,45 @@ jobs:
           ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
           ACTION_PAT: ${{ secrets.ACTION_PAT }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "=== 工作流 [${{ github.event.workflow_run.name }}] 运行失败 ==="
           echo "Run ID: ${{ github.event.workflow_run.id }}"
 
-          # 查找错误日志
-          ERROR_LOG=""
-          if [ -f "step1_error.log" ]; then
-            ERROR_LOG="step1_error.log"
-          elif [ -f "step2_error.log" ]; then
-            ERROR_LOG="step2_error.log"
-          elif [ -f "remaining_error.log" ]; then
-            ERROR_LOG="remaining_error.log"
-          elif [ -f "last_error.log" ]; then
-            ERROR_LOG="last_error.log"
+          gh run view ${{ github.event.workflow_run.id }} --log-failed > /tmp/workflow_error.log 2>/dev/null || echo "gh CLI 日志获取失败"
+
+          LOGS=()
+          PRIMARY_LOG=""
+          if [ -s "/tmp/workflow_error.log" ]; then
+            LOGS+=("/tmp/workflow_error.log")
+            PRIMARY_LOG="/tmp/workflow_error.log"
           fi
 
-          if [ -n "$ERROR_LOG" ]; then
-            echo "找到错误日志: $ERROR_LOG"
-            python custom_scripts/classify_crawl_failure.py "$ERROR_LOG" --github-output "$GITHUB_OUTPUT"
-            if grep -q '^should_fix=false$' "$GITHUB_OUTPUT"; then
-              echo "日志判定为主动分段退出、进度保护退出或临时基础设施异常，跳过 AI 修复"
-              echo "fixed=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-            python auto_fix_workflow.py "$ERROR_LOG"
-            echo "fixed=true" >> $GITHUB_OUTPUT
-          else
-            echo "未找到错误日志文件，尝试从 gh CLI 获取..."
-            gh run view ${{ github.event.workflow_run.id }} --log-failed > /tmp/workflow_error.log 2>/dev/null || echo "gh CLI 日志获取失败"
-            if [ -f "/tmp/workflow_error.log" ] && [ -s "/tmp/workflow_error.log" ]; then
-              python custom_scripts/classify_crawl_failure.py /tmp/workflow_error.log --github-output "$GITHUB_OUTPUT"
-              if grep -q '^should_fix=false$' "$GITHUB_OUTPUT"; then
-                echo "日志判定为主动分段退出、进度保护退出或临时基础设施异常，跳过 AI 修复"
-                echo "fixed=false" >> $GITHUB_OUTPUT
-                exit 0
+          for candidate in step1_error.log step2_error.log remaining_error.log last_error.log; do
+            if [ -f "$candidate" ]; then
+              echo "找到错误日志: $candidate"
+              LOGS+=("$candidate")
+              if [ -z "$PRIMARY_LOG" ]; then
+                PRIMARY_LOG="$candidate"
               fi
-              python auto_fix_workflow.py /tmp/workflow_error.log
-              echo "fixed=true" >> $GITHUB_OUTPUT
-            else
-              echo "无法获取错误日志，跳过 AI 修复"
-              exit 1
             fi
+          done
+
+          if [ "${#LOGS[@]}" -eq 0 ]; then
+            echo "无法获取错误日志，跳过 AI 修复"
+            echo "fixed=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
+
+          python custom_scripts/classify_crawl_failure.py "${LOGS[@]}" --github-output "$GITHUB_OUTPUT"
+          if grep -q '^should_fix=false$' "$GITHUB_OUTPUT"; then
+            echo "日志判定为主动分段退出、进度保护退出或临时基础设施异常，跳过 AI 修复"
+            echo "fixed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          python auto_fix_workflow.py "$PRIMARY_LOG"
+          echo "fixed=true" >> $GITHUB_OUTPUT
 
       - name: Skip automatic rerun
         if: success() && steps.ai_fix.outputs.fixed == 'true'

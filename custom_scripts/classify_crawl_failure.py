@@ -54,6 +54,14 @@ TRANSIENT_INFRA_PATTERNS = [
     r"SessionNotCreatedException",
     r"Chrome failed to start",
     r"DevToolsActivePort file doesn't exist",
+    r"\[rejected\].*fetch first",
+    r"failed to push some refs",
+    r"Updates were rejected",
+    r"non-fast-forward",
+    r"cannot pull with rebase",
+    r"CONFLICT \(",
+    r"Resource not accessible by integration",
+    r"Permission denied",
 ]
 
 
