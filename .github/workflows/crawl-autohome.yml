@@ -36,7 +36,7 @@ env:
   CRAWL_MAX_DELAY_SECONDS: 8
 
 concurrency:
-  group: autohome-crawl-${{ github.ref }}
+  group: autohome-crawl-${{ github.ref }}-${{ github.event.schedule || github.event.inputs.run_profile || github.event.client_payload.run_profile || 'manual' }}
   cancel-in-progress: false
 
 jobs:
@@ -154,15 +154,15 @@ jobs:
           # 上午动态缩短：启动得晚就少跑，12:30 前必须结束（留午饭时间）
           if [ "$PROFILE" = "morning" ]; then
             NOW_UTC_SECONDS=$(( $(date -u +%s) % 86400 ))
-            REMAIN=$(( (4 * 3600 + 30 * 60) - NOW_UTC_SECONDS ))
+            REMAIN=$(( (4 * 3600 + 30 * 60) - NOW_UTC_SECONDS - 900 ))
             if [ "$REMAIN" -lt 300 ]; then
-              echo "距 12:30 不足 5 分钟，跳过本次上午爬虫"
+              echo "距 12:30 扣除 15 分钟缓冲后不足 5 分钟，跳过本次上午爬虫"
               echo "SKIP_CRAWL=true" >> $GITHUB_ENV
               echo "skip=true" >> $GITHUB_OUTPUT
               exit 0
             fi
             if [ "$REMAIN" -lt "$RUN_SECONDS" ]; then
-              echo "距 12:30 仅剩 ${REMAIN}s，上午 RUN_TIME 从 ${RUN_SECONDS}s 缩短到 ${REMAIN}s"
+              echo "距 12:30 扣除 15 分钟缓冲后剩 ${REMAIN}s，上午 RUN_TIME 从 ${RUN_SECONDS}s 缩短到 ${REMAIN}s"
               echo "RUN_TIME=$REMAIN" >> "$GITHUB_ENV"
             fi
           fi
@@ -206,6 +206,20 @@ jobs:
             fi
           else
             DELAY=$((RANDOM % 600))
+            if [ "$RUN_PROFILE" = "morning" ]; then
+              DELAY=0
+            elif [ "$RUN_PROFILE" = "afternoon" ]; then
+              CN_HOUR=$(TZ=Asia/Shanghai date +%H)
+              CN_MINUTE=$(TZ=Asia/Shanghai date +%M)
+              CURRENT_MINUTES=$((10#$CN_HOUR * 60 + 10#$CN_MINUTE))
+              WINDOW_REMAIN=$(((13 * 60 + 30 - CURRENT_MINUTES) * 60))
+              if [ "$WINDOW_REMAIN" -lt 0 ]; then
+                WINDOW_REMAIN=0
+              fi
+              if [ "$DELAY" -gt "$WINDOW_REMAIN" ]; then
+                DELAY="$WINDOW_REMAIN"
+              fi
+            fi
             echo "delay=$DELAY" >> $GITHUB_OUTPUT
           fi
 
