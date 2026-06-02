@@ -307,7 +307,6 @@ jobs:
             exit 0
           elif [ $EXIT_CODE -ne 0 ]; then
             echo "Step1 failed with exit code $EXIT_CODE"
-            echo "STEP1_FAILED=true" >> $GITHUB_ENV
             echo "complete=false" >> "$GITHUB_OUTPUT"
             echo "failed=true" >> "$GITHUB_OUTPUT"
             exit 0

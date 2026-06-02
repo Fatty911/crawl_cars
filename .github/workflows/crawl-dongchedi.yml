@@ -331,7 +331,6 @@ jobs:
             exit 0
           elif [ $EXIT_CODE -ne 0 ]; then
             echo "Step2 failed with exit code $EXIT_CODE"
-            echo "STEP2_FAILED=true" >> $GITHUB_ENV
             echo "complete=false" >> "$GITHUB_OUTPUT"
             echo "failed=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -369,8 +368,10 @@ jobs:
           set +e
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式重试 step2"
+            python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }} 2>&1 | tee step2_error.log
+          else
+            python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }} 2>&1 | tee step2_error.log
           fi
-          python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }} 2>&1 | tee step2_error.log
           EXIT_CODE=$?
           set -e
           echo "Retry step2 exit code: $EXIT_CODE"
