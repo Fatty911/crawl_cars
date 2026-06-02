@@ -456,6 +456,9 @@ class Crack:
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--user-data-dir=/tmp/chrome-user-data-" + str(os.getpid()))
+        if os.getenv("PROXY_ENABLED") == "true":
+            chrome_proxy = os.getenv("CHROME_PROXY_SERVER", "http://127.0.0.1:7890")
+            chrome_options.add_argument(f"--proxy-server={chrome_proxy}")
         cb = find_chrome_binary()
         if cb:
             chrome_options.binary_location = cb

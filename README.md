@@ -601,12 +601,14 @@ python crawl_dongchedi.py --step 2 --time-limit 21600 --max-series 400 --auto
 
 | Secret 名称              | 说明                              | 示例格式 |
 |-------------------------|-----------------------------------|----------|
-| `PROXY_SUBSCRIPTIONS`   | 机场订阅地址（支持多条）           | JSON数组 |
+| `PROXY_SUBSCRIPTIONS`   | 机场订阅地址（支持多条）           | JSON对象、JSON数组或每行一个URL |
 | `OPENROUTER_API_KEY`    | 用于错误自动修复                   | sk-... |
 | `MINIMAX_API_KEY`       | 用于错误自动修复                   | mm-... |
 | `XAI_API_KEY`           | 用于错误自动修复                   | xai-... |
 
 **`PROXY_SUBSCRIPTIONS` 格式示例**（支持VMess、VLESS、Trojan、Hysteria2等）：
+
+推荐使用 JSON 对象；多个订阅地址在 `subscriptions` 数组里用英文逗号分隔：
 
 ```json
 {
@@ -619,11 +621,14 @@ python crawl_dongchedi.py --step 2 --time-limit 21600 --max-series 400 --auto
 }
 ```
 
+也支持简单写法：每行一个订阅地址，或用英文分号 `;`、竖线 `|` 分隔。不要用空格分隔 URL。
+
 **代理工作原理**：
 - 工作流启动时检测 `PROXY_SUBSCRIPTIONS`
-- 有配置则自动生成 Clash 配置并启动
-- 使用 `round_robin` 负载均衡模式，让各节点尽量平均使用
-- 无配置则直接爬取，不影响流程
+- 有配置时会先拉取订阅、解析节点、生成 mihomo 配置并启动本地代理
+- 只有本地代理连通性测试通过后才设置 `PROXY_ENABLED=true`，爬虫请求和 Chrome 都走 `http://127.0.0.1:7890`
+- 没配置、订阅拉取失败、解析不到节点、或所有节点不可用时，自动降级为无代理直连，不影响流程
+- workflow 不把订阅内容写入仓库目录，避免 `git add -A` 误提交订阅 token
 
 ---
 

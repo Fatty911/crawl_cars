@@ -255,30 +255,13 @@ jobs:
           echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
-          if [ -n "${{ secrets.PROXY_SUBSCRIPTIONS }}" ]; then
-            echo "PROXY_SUBSCRIPTIONS<<EOF" >> $GITHUB_ENV
-            cat <<'INNER_EOF' >> $GITHUB_ENV
-          ${{ secrets.PROXY_SUBSCRIPTIONS }}
-          INNER_EOF
-            echo "EOF" >> $GITHUB_ENV
-          fi
 
       - name: Setup proxy if configured
         if: steps.period.outputs.skip != 'true'
+        env:
+          PROXY_SUBSCRIPTIONS: ${{ secrets.PROXY_SUBSCRIPTIONS }}
         run: |
-          if [ -n "$PROXY_SUBSCRIPTIONS" ] && [ "$PROXY_SUBSCRIPTIONS" != "null" ]; then
-            echo "检测到 PROXY_SUBSCRIPTIONS，开始配置代理..."
-            if echo "$PROXY_SUBSCRIPTIONS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
-              echo "$PROXY_SUBSCRIPTIONS" > /tmp/proxies.json
-              echo "已写入临时文件 /tmp/proxies.json（不进仓库）"
-            else
-              echo "PROXY_SUBSCRIPTIONS JSON 格式无效，跳过代理配置"
-              rm -f /tmp/proxies.json
-            fi
-          else
-            echo "未配置 PROXY_SUBSCRIPTIONS，将直接爬取（不使用代理）"
-            rm -f /tmp/proxies.json
-          fi
+          python custom_scripts/setup_proxy_runtime.py --github-env "$GITHUB_ENV"
 
       - name: Restart if requested
         if: steps.period.outputs.skip != 'true' && github.event.inputs.force_restart == 'true'
@@ -302,9 +285,9 @@ jobs:
           STEP1_COMPLETE=false
           while true; do
             set +e
-            if [ -f proxies.json ]; then
-              echo "使用代理模式运行 step1 (负载均衡)"
-              python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy round_robin 2>&1 | tee step1_error.log
+            if [ "$PROXY_ENABLED" = "true" ]; then
+              echo "使用代理模式运行 step1 (mihomo round-robin)"
+              python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
             else
               echo "无代理，直接运行 step1"
               python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
@@ -362,8 +345,9 @@ jobs:
         run: |
           echo "修复后重试 step1..."
           rm -f step1_error.log
-          if [ -f proxies.json ]; then
-            python run_with_proxy.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} --proxy random
+          if [ "$PROXY_ENABLED" = "true" ]; then
+            echo "使用代理模式重试 step1"
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
           else
             python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
           fi
@@ -374,9 +358,13 @@ jobs:
         run: |
           set -o pipefail
           FAILED=0
-          if [ -f proxies.json ]; then
+          if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行剩余步骤"
-            python run_with_proxy.py --skip-dongchedi --proxy round_robin 2>&1 | tee remaining_error.log || FAILED=1
+            python test_autohome.py --step 2 2>&1 | tee -a remaining_error.log || FAILED=1
+            python test_autohome.py --step 3 2>&1 | tee -a remaining_error.log || FAILED=1
+            python test_autohome.py --step 4 2>&1 | tee -a remaining_error.log || FAILED=1
+            python test_autohome.py --step 5 2>&1 | tee -a remaining_error.log || FAILED=1
+            python test_autohome.py --step 6 2>&1 | tee -a remaining_error.log || FAILED=1
           else
             echo "无代理，直接运行 remaining steps"
             python test_autohome.py --step 2 2>&1 | tee -a remaining_error.log || FAILED=1
@@ -405,8 +393,13 @@ jobs:
         if: steps.period.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
         run: |
           echo "修复后重试 remaining steps..."
-          if [ -f proxies.json ]; then
-            python run_with_proxy.py --skip-dongchedi --proxy random
+          if [ "$PROXY_ENABLED" = "true" ]; then
+            echo "使用代理模式重试 remaining steps"
+            python test_autohome.py --step 2
+            python test_autohome.py --step 3
+            python test_autohome.py --step 4
+            python test_autohome.py --step 5
+            python test_autohome.py --step 6
           else
             python test_autohome.py --step 2
             python test_autohome.py --step 3

@@ -1,8 +1,41 @@
 # 对话历史总结
 
-> 最后更新：2026-06-02 15:56
+> 最后更新：2026-06-02 16:20
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-02：GitHub Actions 爬虫代理订阅运行时修复
+
+### 用户诉求
+- 爬虫运行日志显示“无代理”，希望从 GitHub Secrets 的 `PROXY_SUBSCRIPTIONS` 读取多个机场订阅。
+- 如果没配置订阅、订阅拉不到节点、或节点全不可用，再降级为无代理直连。
+- 询问多个订阅地址在 `PROXY_SUBSCRIPTIONS` 中应如何分隔。
+
+### 排查
+- 两个爬虫 workflow 之前只把 secret 写入 `/tmp/proxies.json`，但后续运行判断的是仓库根目录 `proxies.json`，因此始终走“无代理”分支。
+- `run_with_proxy.py` 当前没有 workflow 传入的 `--step`、`--max-series` 参数，且底层爬虫脚本也没有 `--proxy` 参数；即使进入代理分支也不可靠。
+- Chrome/Selenium 不一定自动继承 `HTTP_PROXY`，需要显式设置 Chrome 的 `--proxy-server`。
+- 订阅 URL 或节点链接可能包含敏感 token，日志中不能打印原始订阅地址或订阅内容。
+
+### 修改
+- 新增 `custom_scripts/setup_proxy_runtime.py`：
+  - 支持 `PROXY_SUBSCRIPTIONS` 为 JSON 对象、JSON 数组、每行一个 URL，或用英文分号/竖线/逗号分隔的 URL 列表。
+  - 只在代理准备步骤读取 secret，不再写入 `$GITHUB_ENV` 传播原始订阅。
+  - 拉取订阅并解析 VMess、VLESS、Trojan、SS、Hysteria2、TUIC、WireGuard、Clash YAML 等节点。
+  - 自动下载并启动 mihomo，生成本地 `http://127.0.0.1:7890` / `socks5://127.0.0.1:7891` 代理。
+  - 通过 `http://www.gstatic.com/generate_204` 等地址做连通性测试，测试通过才写入 `PROXY_ENABLED=true`。
+  - 未配置、拉取失败、解析不到节点、mihomo 不可用或全部节点测试失败时，写入 `PROXY_ENABLED=false` 并直连。
+- `crawl-autohome.yml`、`crawl-dongchedi.yml` 改为根据 `PROXY_ENABLED` 决定日志和运行分支，代理启用时直接运行原爬虫脚本，由环境变量统一接管请求代理。
+- `test_autohome.py`、`crawl_dongchedi.py` 在 `PROXY_ENABLED=true` 时为 Chrome 增加 `--proxy-server=http://127.0.0.1:7890`。
+- `generate_clash_config.py` 增加订阅地址脱敏日志，并避免打印订阅内容片段。
+- 更新 `README.md` 说明 `PROXY_SUBSCRIPTIONS` 支持的格式和降级逻辑。
+
+### 结果
+- workflow 不再因为 `/tmp/proxies.json` 与根目录 `proxies.json` 不一致而误判为“无代理”。
+- 代理只有在确实可用时启用；不可用时自动直连，不会阻塞爬虫。
+- 订阅 token 不会写入仓库目录，也不会在日志中直接打印。
 
 ---
 

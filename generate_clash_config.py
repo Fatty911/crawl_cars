@@ -11,6 +11,19 @@ from urllib.parse import urlparse, parse_qs
 import re
 
 
+def redact_url(url: str) -> str:
+    parsed = urlparse(url)
+    if not parsed.netloc:
+        return "<invalid-url>"
+    return f"{parsed.scheme}://{parsed.netloc}/***"
+
+
+def decode_base64_text(value: str) -> str:
+    normalized = value.strip()
+    normalized += "=" * (-len(normalized) % 4)
+    return base64.b64decode(normalized).decode('utf-8')
+
+
 class ClashConfigGenerator:
     def __init__(self, config_path: str = "/root/.config/mihomo/config.yaml"):
         self.config_path = config_path
@@ -30,26 +43,26 @@ class ClashConfigGenerator:
             resp = session.get(url, headers=headers, timeout=30)
             if resp.status_code == 200:
                 content = resp.text.strip()
-                print(f"获取订阅成功: {url[:50]}... 状态码: {resp.status_code} 内容长度: {len(content)}")
+                print(f"获取订阅成功: {redact_url(url)} 状态码: {resp.status_code} 内容长度: {len(content)}")
                 if content.startswith('http'):
                     return self.fetch_subscription(content)
                 try:
-                    decoded = base64.b64decode(content).decode('utf-8')
+                    decoded = decode_base64_text(content)
                     print(f"Base64解码成功，解码后长度: {len(decoded)}")
                     return decoded
                 except (base64.binascii.Error, UnicodeDecodeError):
-                    print(f"非Base64格式，直接返回 (前100字符): {content[:100]}")
+                    print(f"非Base64格式，直接返回，内容长度: {len(content)}")
                     return content
-            print(f"获取订阅失败: HTTP {resp.status_code}")
+            print(f"获取订阅失败: {redact_url(url)} HTTP {resp.status_code}")
             return ""
         except Exception as e:
-            print(f"获取订阅失败: {e}")
+            print(f"获取订阅失败: {redact_url(url)} {e}")
             return ""
     
     def parse_vmess(self, link: str) -> Optional[Dict]:
         """解析vmess链接"""
         try:
-            data = json.loads(base64.b64decode(link[8:]).decode('utf-8'))
+            data = json.loads(decode_base64_text(link[8:]))
             proxy = {
                 'name': data.get('ps', 'vmess'),
                 'type': 'vmess',
@@ -420,11 +433,22 @@ class ClashConfigGenerator:
                        mixed_port: int = 7890, socks_port: int = 7891,
                        external_controller: str = "127.0.0.1:9090") -> str:
         """生成Clash配置文件"""
-        
         all_proxies = []
         for sub in subscriptions:
             proxies = self.parse_subscription(sub, exclude_keywords)
             all_proxies.extend(proxies)
+
+        return self.generate_config_from_proxies(
+            all_proxies,
+            mixed_port=mixed_port,
+            socks_port=socks_port,
+            external_controller=external_controller,
+        )
+
+    def generate_config_from_proxies(self, all_proxies: List[Dict],
+                                     mixed_port: int = 7890, socks_port: int = 7891,
+                                     external_controller: str = "127.0.0.1:9090") -> str:
+        """从已解析节点生成Clash配置文件"""
         
         if not all_proxies:
             print("警告: 没有可用代理节点，将直连")

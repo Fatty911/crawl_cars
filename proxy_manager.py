@@ -15,6 +15,13 @@ from urllib.parse import urlparse
 from datetime import datetime
 
 
+def redact_url(url: str) -> str:
+    parsed = urlparse(url)
+    if not parsed.netloc:
+        return "<invalid-url>"
+    return f"{parsed.scheme}://{parsed.netloc}/***"
+
+
 class ProxyManager:
     def __init__(self, config_file: str = "proxies.json"):
         self.config_file = config_file
@@ -81,14 +88,14 @@ class ProxyManager:
         if url not in self.subscriptions:
             self.subscriptions.append(url)
             self.save_config()
-            print(f"已添加订阅: {url[:50]}...")
+            print(f"已添加订阅: {redact_url(url)}")
 
     def remove_subscription(self, url: str):
         """移除订阅URL"""
         if url in self.subscriptions:
             self.subscriptions.remove(url)
             self.save_config()
-            print(f"已移除订阅: {url[:50]}...")
+            print(f"已移除订阅: {redact_url(url)}")
 
     def clear_proxies(self):
         """清空所有代理"""
@@ -152,7 +159,7 @@ class ProxyManager:
     def parse_v2ray_subscription(self, subscription_url: str) -> List[Dict]:
         """解析V2Ray订阅链接"""
         try:
-            print(f"正在获取订阅: {subscription_url[:50]}...")
+            print(f"正在获取订阅: {redact_url(subscription_url)}")
             resp = requests.get(subscription_url, timeout=30)
             if resp.status_code != 200:
                 print(f"获取订阅失败: HTTP {resp.status_code}")
