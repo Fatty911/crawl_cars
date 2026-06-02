@@ -2,10 +2,10 @@
 name: 汽车之家爬虫
 on:
   schedule:
-    # UTC 01:07 = 北京时间每天 09:07 左右，避开 GitHub Actions 整点调度高峰
-    - cron: '7 1 * * *'
-    # UTC 05:07 = 北京时间每天 13:07 左右，避开整点调度高峰
-    - cron: '7 5 * * *'
+    # UTC 01:07-03:52 = 北京时间 09:07-11:52，备用触发提高 GitHub schedule 可靠性
+    - cron: '7,22,37,52 1-3 * * *'
+    # UTC 05:07/05:17/05:27 = 北京时间 13:07/13:17/13:27，错过 13:30 后会自动跳过
+    - cron: '7,17,27 5 * * *'
   workflow_dispatch:
     inputs:
       force_restart:
@@ -34,6 +34,10 @@ env:
   MAX_CARS: 0
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
+
+concurrency:
+  group: autohome-crawl-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   autohome-crawl:
@@ -65,16 +69,26 @@ jobs:
           EVENT_NAME="${{ github.event_name }}"
           FORCE_RESTART="${{ github.event.inputs.force_restart }}"
           if [ "$EVENT_NAME" = "schedule" ]; then
+            SCHEDULE_EXPR="${{ github.event.schedule }}"
+            if [ "$SCHEDULE_EXPR" = "7,22,37,52 1-3 * * *" ]; then
+              SCHEDULE_PROFILE="morning"
+            elif [ "$SCHEDULE_EXPR" = "7,17,27 5 * * *" ]; then
+              SCHEDULE_PROFILE="afternoon"
+            else
+              SCHEDULE_PROFILE=""
+            fi
+            echo "SCHEDULE_PROFILE=$SCHEDULE_PROFILE" >> $GITHUB_ENV
+
             CN_HOUR_NOW=$(TZ=Asia/Shanghai date +%H)
             CN_MINUTE_NOW=$(TZ=Asia/Shanghai date +%M)
             IN_WINDOW=false
-            if [ $((10#$CN_HOUR_NOW)) -ge 9 ] && [ $((10#$CN_HOUR_NOW)) -lt 12 ]; then
+            if [ "$SCHEDULE_PROFILE" = "morning" ] && [ $((10#$CN_HOUR_NOW)) -ge 9 ] && [ $((10#$CN_HOUR_NOW)) -lt 12 ]; then
               IN_WINDOW=true
-            elif [ $((10#$CN_HOUR_NOW)) -eq 13 ] && [ $((10#$CN_MINUTE_NOW)) -le 30 ]; then
+            elif [ "$SCHEDULE_PROFILE" = "afternoon" ] && [ $((10#$CN_HOUR_NOW)) -eq 13 ] && [ $((10#$CN_MINUTE_NOW)) -le 30 ]; then
               IN_WINDOW=true
             fi
             if [ "$IN_WINDOW" != "true" ]; then
-              echo "当前北京时间 ${CN_HOUR_NOW}:${CN_MINUTE_NOW} 已错过允许爬取窗口，跳过本次延迟 schedule"
+              echo "当前北京时间 ${CN_HOUR_NOW}:${CN_MINUTE_NOW} 不在 $SCHEDULE_PROFILE 允许爬取窗口，跳过本次 schedule"
               echo "SKIP_CRAWL=true" >> $GITHUB_ENV
               echo "skip=true" >> $GITHUB_OUTPUT
               exit 0
@@ -104,6 +118,9 @@ jobs:
         if: steps.period.outputs.skip != 'true'
         run: |
           PROFILE="${{ inputs.run_profile }}"
+          if [ -n "$SCHEDULE_PROFILE" ]; then
+            PROFILE="$SCHEDULE_PROFILE"
+          fi
           if [ -z "$PROFILE" ] || [ "$PROFILE" = "auto" ]; then
             CN_HOUR=$(TZ=Asia/Shanghai date +%H)
             CN_MINUTE=$(TZ=Asia/Shanghai date +%M)
