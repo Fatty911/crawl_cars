@@ -1,6 +1,6 @@
 # 对话历史总结
 
-> 最后更新：2026-06-02 16:20
+> 最后更新：2026-06-02 16:33
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
 
@@ -36,6 +36,29 @@
 - workflow 不再因为 `/tmp/proxies.json` 与根目录 `proxies.json` 不一致而误判为“无代理”。
 - 代理只有在确实可用时启用；不可用时自动直连，不会阻塞爬虫。
 - 订阅 token 不会写入仓库目录，也不会在日志中直接打印。
+
+---
+
+## 2026-06-02：修复明文 Clash 订阅被误判为无节点
+
+### 用户诉求
+- `PROXY_SUBSCRIPTIONS` 直接填两行 URL 后，重新运行爬虫仍显示无代理。
+
+### 排查
+- 最新手动运行已经在 `67dc86c` 上，说明不是旧 commit rerun。
+- 本地复现两行 URL：
+  - 第一条订阅在当前网络环境返回 HTTP 421。
+  - 第二条订阅可下载，但内容是非 ASCII 明文 Clash YAML；`generate_clash_config.py` 尝试按 Base64 解码时抛出 `ValueError: string argument should contain only ASCII characters`，导致订阅内容被丢弃，最终节点数为 0。
+- 因节点数为 0，`setup_proxy_runtime.py` 按设计降级为无代理直连。
+
+### 修改
+- `generate_clash_config.py` 的订阅 Base64 解码失败处理增加 `ValueError` 捕获。
+- 非 Base64 内容现在会按原文继续解析，可正常识别明文 Clash YAML。
+- 取消了两个已按旧逻辑降级为直连的手动爬虫运行，避免继续无代理消耗 Actions。
+
+### 结果
+- 两行 URL 本地复测可解析出第二条订阅中的 Clash YAML 节点。
+- 第一条 HTTP 421 仍会被跳过，但不会影响后续可用订阅。
 
 ---
 
