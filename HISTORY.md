@@ -75,12 +75,12 @@
 - 本地将订阅抓取 UA 改为新版客户端标识后，RioLU 订阅可成功返回明文 Clash YAML，并解析出 51 个节点。
 
 ### 修改
-- `generate_clash_config.py` 默认订阅抓取 UA 改为 `clash-verge/v2.4.2`。
+- `generate_clash_config.py` 默认订阅抓取 UA 改为 `mihomo/1.19.13`。
 - 支持通过 `PROXY_SUBSCRIPTION_USER_AGENT` 环境变量覆盖默认 UA。
 - 取消已用旧 UA 启动并降级直连的两个手动爬虫 run。
 
 ### 结果
-- RioLU 订阅本地复测可解析出 51 个节点。
+- RioLU 订阅本地复测：`ClashVergeRev` 常见格式返回 406，`mihomo/1.19.13` 可解析出 51 个节点。
 - 后续 workflow 会用新版 UA 获取订阅，避免继续触发旧客户端风控。
 
 ---

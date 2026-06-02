@@ -13,7 +13,7 @@ import re
 
 SUBSCRIPTION_USER_AGENT = os.getenv(
     "PROXY_SUBSCRIPTION_USER_AGENT",
-    "clash-verge/v2.4.2",
+    "mihomo/1.19.13",
 )
 
 
