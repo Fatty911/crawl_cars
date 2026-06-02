@@ -17,6 +17,7 @@ crawl_cars/
 ├── proxy_manager.py          # 代理管理器
 ├── run_with_proxy.py         # 带代理的启动脚本
 ├── auto_fix_workflow.py      # 大模型自动修复工作流错误
+├── custom_scripts/           # 工作流校验、失败分类、进度同步等辅助脚本
 ├── deploy_vps.sh             # VPS 一键部署脚本
 ├── VPS_DEPLOY.md             # VPS 部署指南
 ├── DOCKER_DEPLOY.md          # Docker 部署指南
@@ -325,7 +326,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 1. 上午窗口不做随机启动延迟；下午窗口随机延迟 0-10 分钟但会封顶到 13:30 前；外部随机触发最多补足到30分钟，并会封顶在当前运行窗口结束前
 2. 爬取循环：
    - 按当前运行窗口运行指定时长
-   - 未完成：commit进度 → push → 随机等待 → 重新运行
+   - 未完成：commit进度 → pull --rebase + push 重试同步 → 随机等待 → 重新运行
    - 完成：生成数据并写入当前半月的 `crawl_state/*_YYYYMM_H1.done` 或 `crawl_state/*_YYYYMM_H2.done` 标记
 3. 每个主爬虫 workflow 按上午/下午窗口分别加并发锁：同一窗口备用触发不会并发重复爬，但上午不会阻塞下午
 4. 同一个半月周期内如果已完成全量爬取，后续自动触发会直接跳过；进入新半月周期时自动重置对应爬虫进度

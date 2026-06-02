@@ -316,8 +316,7 @@ jobs:
             git config --local user.name "github-actions[bot]"
             git add -A
             git diff --staged --quiet || git commit -m "Dongchedi step1 - series list - $(date +%H:%M)"
-            git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           fi
 
       - name: Run step2 loop
@@ -349,8 +348,7 @@ jobs:
               git config --local user.name "github-actions[bot]"
               git add -A
               git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
-              git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-              git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+              bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
               echo "Re-running step2..."
               sleep $((RANDOM % 15 + 5))
             elif [ $EXIT_CODE -ne 0 ]; then
@@ -379,8 +377,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add -A
           git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
-          git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Classify step2 failure
         id: classify_step2
@@ -456,8 +453,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add crawl_state
           git diff --staged --quiet || git commit -m "Dongchedi complete for $CRAWL_PERIOD"
-          git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - uses: actions/upload-artifact@main
         if: steps.period.outputs.skip != 'true'

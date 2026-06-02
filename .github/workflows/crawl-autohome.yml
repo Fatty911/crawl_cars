@@ -320,10 +320,9 @@ jobs:
               git config --local user.name "github-actions[bot]"
               git add -A
               git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
-              git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+              bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
               echo "Re-running step1..."
               sleep $((RANDOM % 60 + 30))
-              git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
             elif [ $EXIT_CODE -ne 0 ]; then
               echo "Step1 failed with exit code $EXIT_CODE"
               echo "STEP1_FAILED=true" >> $GITHUB_ENV
@@ -344,7 +343,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add -A
           git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Classify step1 failure
         id: classify_step1
@@ -462,8 +461,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add crawl_state
           git diff --staged --quiet || git commit -m "Autohome complete for $CRAWL_PERIOD"
-          git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - uses: actions/upload-artifact@main
         if: steps.period.outputs.skip != 'true'
