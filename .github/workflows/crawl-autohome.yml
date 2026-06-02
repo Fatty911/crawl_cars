@@ -151,6 +151,22 @@ jobs:
           echo "MAX_CARS=0" >> "$GITHUB_ENV"
           echo "运行配置: $PROFILE, RUN_TIME=$RUN_SECONDS 秒, MAX_CARS=0"
 
+          # 上午动态缩短：启动得晚就少跑，12:30 前必须结束（留午饭时间）
+          if [ "$PROFILE" = "morning" ]; then
+            NOW_UTC_SECONDS=$(( $(date -u +%s) % 86400 ))
+            REMAIN=$(( (4 * 3600 + 30 * 60) - NOW_UTC_SECONDS ))
+            if [ "$REMAIN" -lt 300 ]; then
+              echo "距 12:30 不足 5 分钟，跳过本次上午爬虫"
+              echo "SKIP_CRAWL=true" >> $GITHUB_ENV
+              echo "skip=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            if [ "$REMAIN" -lt "$RUN_SECONDS" ]; then
+              echo "距 12:30 仅剩 ${REMAIN}s，上午 RUN_TIME 从 ${RUN_SECONDS}s 缩短到 ${REMAIN}s"
+              echo "RUN_TIME=$REMAIN" >> "$GITHUB_ENV"
+            fi
+          fi
+
       - name: Calculate delay from trigger time
         id: delay
         if: steps.period.outputs.skip != 'true'
@@ -162,7 +178,7 @@ jobs:
             echo "触发器已等待 $WAITED 秒"
             TARGET_DELAY=1800
             if [ "$RUN_PROFILE" = "morning" ]; then
-              WINDOW_END_MINUTES=$((12 * 60))
+              WINDOW_END_MINUTES=$((12 * 60 + 30))
             elif [ "$RUN_PROFILE" = "afternoon" ]; then
               WINDOW_END_MINUTES=$((13 * 60 + 30))
             else
