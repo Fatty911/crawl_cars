@@ -375,7 +375,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 1. 上午窗口不做随机启动延迟；下午窗口随机延迟 0-10 分钟但会封顶到 13:30 前；外部随机触发最多补足到30分钟，并会封顶在当前运行窗口结束前
 2. 爬取循环：
    - 按当前运行窗口运行指定时长
-   - 未完成：commit进度 → pull --rebase + push 重试同步 → 随机等待 → 重新运行
+   - 未完成：commit进度 → pull --rebase + push 重试同步 → 正常结束本次 workflow，等待下一次备用触发/下一天继续
    - 完成：生成数据并写入当前半月的 `crawl_state/*_YYYYMM_H1.done` 或 `crawl_state/*_YYYYMM_H2.done` 标记
 3. 每个主爬虫 workflow 按上午/下午窗口分别加并发锁：同一窗口备用触发不会并发重复爬，但上午不会阻塞下午
 4. 同一个半月周期内如果已完成全量爬取，后续自动触发会直接跳过；进入新半月周期时自动重置对应爬虫进度
@@ -538,6 +538,8 @@ docker compose logs -f crawl-cron
 **半月跳过**：每个爬虫在当月 1-15 日、16-月底两个周期内全量完成后，会写入 `crawl_state/` 完成标记；同一周期后续自动触发直接跳过，不再重复爬。
 
 **随机延迟**：上午不做启动随机延迟；下午随机等待 0-10 分钟但封顶到北京时间 13:30 前；两次网络访问之间默认等待 3-8 秒，可通过 `CRAWL_MIN_DELAY_SECONDS` / `CRAWL_MAX_DELAY_SECONDS` 调整。
+
+**分段续爬**：爬虫脚本返回 `exit code 10` 时表示本次时间预算用完但还没全量完成。workflow 会提交进度并正常结束本次运行，不会在同一个 job 内再次重启长步骤，避免实际运行时间超过上午/下午窗口。
 
 **手动触发**：在 Actions 页面点击 "Run workflow"
 

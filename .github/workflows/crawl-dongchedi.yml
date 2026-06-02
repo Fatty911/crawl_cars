@@ -307,54 +307,39 @@ jobs:
         if: steps.period.outputs.skip != 'true' && steps.check_done_dcd.outputs.done != 'true'
         run: |
           set -o pipefail
-          RUN_COUNT=0
-          STEP2_FAILED=false
-          STEP2_COMPLETE=false
-          while true; do
-            RUN_COUNT=$((RUN_COUNT + 1))
-            echo "=== Step2 run #$RUN_COUNT ==="
-            set +e
-            if [ "$PROXY_ENABLED" = "true" ]; then
-              echo "使用代理模式运行 step2 (mihomo round-robin)"
-              python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }} 2>&1 | tee step2_error.log
-            else
-              echo "无代理，直接运行 step2"
-              python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }} 2>&1 | tee step2_error.log
-            fi
-            EXIT_CODE=$?
-            set -e
-            echo "Exit code: $EXIT_CODE"
+          set +e
+          if [ "$PROXY_ENABLED" = "true" ]; then
+            echo "使用代理模式运行 step2 (mihomo round-robin)"
+            python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }} 2>&1 | tee step2_error.log
+          else
+            echo "无代理，直接运行 step2"
+            python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }} 2>&1 | tee step2_error.log
+          fi
+          EXIT_CODE=$?
+          set -e
+          echo "Exit code: $EXIT_CODE"
 
-            if [ $EXIT_CODE -eq 10 ]; then
-              echo "Step2 incomplete, committing progress..."
-              git config --local user.email "github-actions[bot]@users.noreply.github.com"
-              git config --local user.name "github-actions[bot]"
-              git add -A
-              git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
-              bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-              echo "Re-running step2..."
-              sleep $((RANDOM % 15 + 5))
-            elif [ $EXIT_CODE -ne 0 ]; then
-              echo "Step2 failed with exit code $EXIT_CODE"
-              echo "STEP2_FAILED=true" >> $GITHUB_ENV
-              break
-            else
-              echo "Step2 finished successfully"
-              STEP2_COMPLETE=true
-              break
-            fi
-
-            if [ $RUN_COUNT -gt 50 ]; then
-              echo "Too many runs, stopping"
-              break
-            fi
-          done
-
-          if [ "$STEP2_COMPLETE" != "true" ]; then
-            echo "Step2 未完成或失败，不写入 dcd_step2_done，不继续生成不完整数据"
-            exit 1
+          if [ $EXIT_CODE -eq 10 ]; then
+            echo "Step2 incomplete, committing progress and ending this workflow run..."
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
+            bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "Step2 failed with exit code $EXIT_CODE"
+            echo "STEP2_FAILED=true" >> $GITHUB_ENV
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
+          echo "Step2 finished successfully"
+          echo "complete=true" >> "$GITHUB_OUTPUT"
+          echo "failed=false" >> "$GITHUB_OUTPUT"
           touch dcd_step2_done
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -364,25 +349,57 @@ jobs:
 
       - name: Classify step2 failure
         id: classify_step2
-        if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.step2.outputs.failed == 'true'
         run: |
           python custom_scripts/classify_crawl_failure.py step2_error.log --github-output "$GITHUB_OUTPUT"
 
       - name: Auto-fix step2 error
-        if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true' && steps.classify_step2.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 step2 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step2_error.log crawl_dongchedi.py || echo "自动修复失败，继续运行"
 
       - name: Retry step2 after fix
-        if: steps.period.outputs.skip != 'true' && env.STEP2_FAILED == 'true' && steps.classify_step2.outputs.should_fix == 'true'
+        id: retry_step2
+        if: steps.period.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true'
         run: |
+          set -o pipefail
           echo "修复后重试 step2..."
           rm -f step2_error.log
+          set +e
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式重试 step2"
           fi
-          python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }}
+          python crawl_dongchedi.py --step 2 --auto --time-limit ${{ env.RUN_TIME }} --max-series ${{ env.MAX_CARS }} 2>&1 | tee step2_error.log
+          EXIT_CODE=$?
+          set -e
+          echo "Retry step2 exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -eq 10 ]; then
+            echo "修复后 step2 仍未完成，提交进度并结束本次运行"
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Update dongchedi progress after fix - $(date +%H:%M)"
+            bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "修复后 step2 仍失败"
+            exit $EXIT_CODE
+          fi
+          echo "complete=true" >> "$GITHUB_OUTPUT"
+          touch dcd_step2_done
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "Dongchedi step2 complete after fix - $(date +%H:%M)"
+          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+      - name: Fail unresolved step2 error
+        if: steps.period.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix != 'true'
+        run: |
+          echo "Step2 失败且不适合自动修复，终止工作流"
+          exit 1
 
       - name: Upload error log
         if: failure()
@@ -396,17 +413,17 @@ jobs:
           retention-days: 7
 
       - name: Run step3 and step4
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         run: |
           python crawl_dongchedi.py --step 3
           python crawl_dongchedi.py --step 4
 
       - name: Set date
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Dongchedi output
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         run: |
           python - <<'PY'
           import glob
@@ -426,7 +443,7 @@ jobs:
           PY
 
       - name: Mark Dongchedi period complete
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         run: |
           mkdir -p crawl_state
           touch "$DONGCHEDI_DONE_MARKER"
@@ -438,7 +455,7 @@ jobs:
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - uses: actions/upload-artifact@main
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         with:
           name: dongchedi-data-${{ env.CRAWL_DATE }}
           path: |

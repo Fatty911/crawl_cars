@@ -282,45 +282,39 @@ jobs:
         if: steps.period.outputs.skip != 'true' && steps.check_done.outputs.done != 'true'
         run: |
           set -o pipefail
-          STEP1_COMPLETE=false
-          while true; do
-            set +e
-            if [ "$PROXY_ENABLED" = "true" ]; then
-              echo "使用代理模式运行 step1 (mihomo round-robin)"
-              python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
-            else
-              echo "无代理，直接运行 step1"
-              python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
-            fi
-            EXIT_CODE=$?
-            set -e
-            echo "Step1 exit code: $EXIT_CODE"
+          set +e
+          if [ "$PROXY_ENABLED" = "true" ]; then
+            echo "使用代理模式运行 step1 (mihomo round-robin)"
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
+          else
+            echo "无代理，直接运行 step1"
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
+          fi
+          EXIT_CODE=$?
+          set -e
+          echo "Step1 exit code: $EXIT_CODE"
 
-            if [ $EXIT_CODE -eq 10 ]; then
-              echo "Step1 incomplete, committing progress..."
-              sleep $((RANDOM % 30 + 15))
-              git config --local user.email "github-actions[bot]@users.noreply.github.com"
-              git config --local user.name "github-actions[bot]"
-              git add -A
-              git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
-              bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-              echo "Re-running step1..."
-              sleep $((RANDOM % 60 + 30))
-            elif [ $EXIT_CODE -ne 0 ]; then
-              echo "Step1 failed with exit code $EXIT_CODE"
-              echo "STEP1_FAILED=true" >> $GITHUB_ENV
-              break
-            else
-              STEP1_COMPLETE=true
-              break
-            fi
-          done
-
-          if [ "$STEP1_COMPLETE" != "true" ]; then
-            echo "Step1 未完成或失败，不写入 step1_done，不继续生成不完整数据"
-            exit 1
+          if [ $EXIT_CODE -eq 10 ]; then
+            echo "Step1 incomplete, committing progress and ending this workflow run..."
+            sleep $((RANDOM % 30 + 15))
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
+            bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "Step1 failed with exit code $EXIT_CODE"
+            echo "STEP1_FAILED=true" >> $GITHUB_ENV
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
+          echo "complete=true" >> "$GITHUB_OUTPUT"
+          echo "failed=false" >> "$GITHUB_OUTPUT"
           touch step1_done
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -330,31 +324,63 @@ jobs:
 
       - name: Classify step1 failure
         id: classify_step1
-        if: steps.period.outputs.skip != 'true' && env.STEP1_FAILED == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.step1.outputs.failed == 'true'
         run: |
           python custom_scripts/classify_crawl_failure.py step1_error.log --github-output "$GITHUB_OUTPUT"
 
       - name: Auto-fix step1 error
-        if: steps.period.outputs.skip != 'true' && env.STEP1_FAILED == 'true' && steps.classify_step1.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 step1 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step1_error.log test_autohome.py || echo "自动修复失败，继续运行"
 
       - name: Retry step1 after fix
-        if: steps.period.outputs.skip != 'true' && env.STEP1_FAILED == 'true' && steps.classify_step1.outputs.should_fix == 'true'
+        id: retry_step1
+        if: steps.period.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true'
         run: |
+          set -o pipefail
           echo "修复后重试 step1..."
           rm -f step1_error.log
+          set +e
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式重试 step1"
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
           else
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }}
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
           fi
+          EXIT_CODE=$?
+          set -e
+          echo "Retry step1 exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -eq 10 ]; then
+            echo "修复后 step1 仍未完成，提交进度并结束本次运行"
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Update progress after fix - $(date +%H:%M)"
+            bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "修复后 step1 仍失败"
+            exit $EXIT_CODE
+          fi
+          echo "complete=true" >> "$GITHUB_OUTPUT"
+          touch step1_done
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "Step1 complete after fix - $(date +%H:%M)"
+          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+      - name: Fail unresolved step1 error
+        if: steps.period.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix != 'true'
+        run: |
+          echo "Step1 失败且不适合自动修复，终止工作流"
+          exit 1
 
       - name: Run remaining steps
         id: remaining
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: |
           set -o pipefail
           FAILED=0
@@ -420,11 +446,11 @@ jobs:
           retention-days: 7
 
       - name: Set date
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Autohome output
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: |
           python - <<'PY'
           import glob
@@ -445,7 +471,7 @@ jobs:
           PY
 
       - name: Mark Autohome period complete
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: |
           mkdir -p crawl_state
           touch "$AUTOHOME_DONE_MARKER"
@@ -457,7 +483,7 @@ jobs:
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - uses: actions/upload-artifact@main
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         with:
           name: autohome-data-${{ env.CRAWL_DATE }}
           path: |

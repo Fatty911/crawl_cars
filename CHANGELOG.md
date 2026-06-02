@@ -2,6 +2,12 @@
 
 ## 2026-06-02
 
+### 修改20: 修复爬虫分段退出后同一 job 内反复重启
+- `crawl-autohome.yml` 的 step1 收到 `exit code 10` 后只提交进度并结束本次 workflow，不再立刻重跑 step1。
+- `crawl-dongchedi.yml` 的 step2 收到 `exit code 10` 后只提交进度并结束本次 workflow，不再循环到 6 小时超时或取消。
+- 汽车之家剩余步骤、懂车帝 step3/4、输出校验、半月完成标记和 artifact 上传，都只在对应长步骤真正完成后执行。
+- 保留真实错误的分类/自动修复入口；未完成分段退出不会触发 AI 修复。
+
 ### 修改19: 增加汽车之家爬虫 SSL 重试次数和超时
 - `test_autohome.py` 的 SSL 错误重试逻辑改进：
   - 重试次数从 3 增加到 5
