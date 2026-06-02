@@ -21,6 +21,14 @@
 
 ## 文档同步
 - 每次执行完任务后，必须检查 README.md 和 AGENTS.md 是否需要更新（新增/删除/重命名了文件、功能、配置项，或新增了全局规则等）。
+- **每次更新完代码后，必须自动更新对应文档**：
+  - 修改了爬虫脚本 → 更新 README.md 中的文件详解、命令行参数、步骤说明
+  - 修改了工作流 → 更新 README.md 中的工作流调度、触发条件、Job 结构
+  - 修改了过滤条件 → 更新 README.md 和 CRAWL_SCOPE.md
+  - 修改了代理相关 → 更新 README.md 和 DOCKER_DEPLOY.md 中的代理配置说明
+  - 修改了部署脚本 → 更新 VPS_DEPLOY.md 或 DOCKER_DEPLOY.md
+  - 新增/删除了文件 → 更新 README.md 的目录结构
+  - 任何代码变更 → 更新 CHANGELOG.md 和 HISTORY.md
 - 每次对话结束时，必须更新 HISTORY.md（融合进现有总结，不是新建文件）。
 
 ## 模型与 API 选择

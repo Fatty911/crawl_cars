@@ -253,7 +253,25 @@ def download_car_pages():
             second_url = "https://car.autohome.com.cn/config/series/{}.html"
             print(f"正在获取{letter}开头的车型")
 
-            resp = session.get(first_url, timeout=15)
+            # SSL/Connection 错误重试（代理节点不稳定时需要）
+            resp = None
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    resp = session.get(first_url, timeout=15)
+                    break
+                except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** (attempt + 1)  # 指数退避：2/4/8秒
+                        print(f"连接错误，{wait_time}秒后重试 ({attempt+1}/{max_retries}): {e}")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"连接错误重试 {max_retries} 次后仍然失败: {e}")
+                        raise
+
+            if resp is None:
+                raise RuntimeError(f"请求 {first_url} 失败，未获取到响应")
+
             print(f"第一步下载{letter}品牌响应码: {resp.status_code}")
             human_delay(f"获取{letter}品牌列表")
             resp.encoding = resp.apparent_encoding

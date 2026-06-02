@@ -1,5 +1,39 @@
 # 对话历史
 
+## 2026-06-02
+
+### 修改18: 修复汽车之家爬虫 SSL 错误
+- `test_autohome.py` 的 `download_car_pages()` 函数中，字母列表页请求 `session.get()` 添加 SSL/Connection 错误重试
+- 捕获 `requests.exceptions.SSLError` 和 `requests.exceptions.ConnectionError`
+- 使用指数退避策略（2/4/8秒），最多重试 3 次
+- 解决 mihomo 代理节点 SSL 握手失败导致爬虫崩溃的问题
+
+### 修改17: 更新订阅抓取 User-Agent
+- `generate_clash_config.py` 默认订阅抓取 UA 改为 `mihomo/1.19.13`
+- 支持通过 `PROXY_SUBSCRIPTION_USER_AGENT` 环境变量覆盖默认 UA
+- 避免旧客户端 UA 触发服务商安全拦截
+
+### 修改16: 按上午/下午窗口拆分并发锁
+- `crawl-autohome.yml` 和 `crawl-dongchedi.yml` 的 `concurrency.group` 改为包含 `github.event.schedule` 或 `run_profile`
+- 上午和下午各自独立并发锁，上午不会再阻塞下午
+- 上午窗口不再做随机启动延迟
+- 上午动态 RUN_TIME 增加 15 分钟缓冲，避免拖过 12:30
+
+### 修改15: 上午爬虫动态缩短
+- 上午窗口结束时间从 12:00 改为 12:30
+- 新增上午动态 RUN_TIME 计算，确保 12:30 前结束
+- 下午保持固定 AFTERNOON_RUN_TIME = 21000 秒（5h50m）
+
+### 修改14: 备用调度修复
+- 上午单点定时改为 UTC `7,22,37,52 1-3 * * *`，即北京时间 09:07-11:52 多次备用触发
+- 下午单点定时改为 UTC `7,17,27 5 * * *`，即北京时间 13:07/13:17/13:27 备用触发
+- 增加顶层 `concurrency`，避免备用触发造成并发重复爬
+
+### 修改13: 避免延迟 schedule 傍晚补跑
+- 定时从 UTC 01:00/05:00 调整为 UTC 01:07/05:07，避开整点调度高峰
+- 增加 schedule 时间窗守卫，不在允许时间窗口内直接跳过
+- 懂车帝浏览器初始化增加最多 3 次重试
+
 ## 2026-05-28
 
 ### 修改12: 修复过滤逻辑和不完整爬虫数据误发布

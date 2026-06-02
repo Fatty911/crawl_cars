@@ -1,8 +1,37 @@
 # 对话历史总结
 
-> 最后更新：2026-06-02 17:19
+> 最后更新：2026-06-02 18:30
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-02：修复汽车之家爬虫 SSL 错误
+
+### 用户诉求
+- 汽车之家爬虫报错，需要排查并修复。
+
+### 排查
+- GitHub Actions 运行 `26813787152` 失败，错误日志显示 SSL 握手失败：
+  ```
+  requests.exceptions.SSLError: HTTPSConnectionPool(host='www.autohome.com.cn', port=443): Max retries exceeded with url: /grade/carhtml/A.html (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)')))
+  ```
+- 根因：`test_autohome.py` 第 256 行 `session.get()` 没有捕获 SSL 错误，当前重试策略只针对 HTTP 状态码 `[429, 500, 503, 504]`，不包括 SSL 连接层错误。
+- mihomo 代理节点 SSL 握手失败时，程序直接崩溃。
+
+### 修改
+- `test_autohome.py` 的 `download_car_pages()` 函数中，字母列表页请求添加 SSL/Connection 错误重试。
+- 捕获 `requests.exceptions.SSLError` 和 `requests.exceptions.ConnectionError`。
+- 使用指数退避策略（2/4/8秒），最多重试 3 次。
+- 添加 `resp = None` 初始化和 `if resp is None` 检查，消除 Pyright 警告。
+
+### 评审
+- 启动 3 个 Oracle 并行评审（均 fallback 到 glm-5.1）。
+- 3/3 通过，建议扩大异常捕获范围和使用指数退避。
+
+### 结果
+- 代理节点 SSL 握手失败时会自动重试，不再直接崩溃。
+- 语法校验通过。
 
 ---
 
@@ -742,30 +771,46 @@ GitHub Secrets 中添加 `PROXY_SUBSCRIPTIONS`，格式：
 ### 文件结构
 ```
 crawl_cars/
-├── test_autohome.py      # 汽车之家爬虫
-├── crawl_dongchedi.py    # 懂车帝爬虫
-├── merge_data.py         # 数据合并过滤
-├── proxy_manager.py      # 代理管理器
-├── run_with_proxy.py     # 带代理启动脚本
-├── auto_fix_workflow.py  # 大模型自动修复工作流错误
-├── generate_clash_config.py  # Clash配置生成器
-├── deploy_vps.sh         # VPS一键部署
-├── docker compose.yaml   # Docker配置
-├── opencode.json         # TUI 模型配置
-├── AGENTS.md             # 全局规则
-├── HISTORY.md            # 对话历史
+├── test_autohome.py          # 汽车之家爬虫
+├── crawl_dongchedi.py        # 懂车帝爬虫
+├── merge_data.py             # 数据合并过滤
+├── proxy_manager.py          # 代理管理器
+├── run_with_proxy.py         # 带代理启动脚本
+├── generate_clash_config.py  # Clash/Mihomo 配置生成器
+├── auto_fix_workflow.py      # 大模型自动修复工作流错误
+├── fix_files.py              # 代码修复工具
+├── deploy_vps.sh             # VPS一键部署
+├── start_with_clash.sh       # 带 Clash 代理的启动脚本
+├── docker-compose.yaml       # Docker配置
+├── Dockerfile                # Docker镜像构建
+├── docker-cron.sh            # Docker容器定时任务
+├── docs/                     # GitHub Pages 静态网页查看器
+├── custom_scripts/           # 辅助脚本
+├── CRAWL_SCOPE.md            # 爬取范围记录
+├── CHANGELOG.md              # 变更记录
+├── AGENTS.md                 # 全局规则
+├── HISTORY.md                # 对话历史
 └── .github/workflows/
-    ├── crawl-autohome.yml    # 汽车之家工作流
-    ├── crawl-dongchedi.yml   # 懂车帝工作流
-    ├── crawl-trigger.yml     # 随机触发器
-    ├── merge-and-filter.yml  # 合并工作流
-    └── AI_Auto_Fix_Monitor.yml  # AI 自动修复监控
+    ├── crawl-autohome.yml    # 汽车之家爬虫工作流
+    ├── crawl-dongchedi.yml   # 懂车帝爬虫工作流
+    ├── crawl-trigger.yml     # 随机触发器工作流
+    ├── merge-and-filter.yml  # 合并过滤工作流
+    ├── deploy-pages.yml      # 静态网页发布工作流
+    ├── AI_Auto_Fix_Monitor.yml # AI自动修复监控工作流
+    ├── ci.yml                # CI语法校验和冒烟测试
+    └── auto-merge.yml        # PR自动合并
 ```
 
-### 工作流调度（UTC时间）
-| 周一 | 周二 | 周三 | 周四 | 周五 | 周六 |
-|------|------|------|------|------|------|
-| 汽车之家 2:00 | 懂车帝 2:00 | 合并 3:00 | 汽车之家 14:00 | 懂车帝 14:00 | 合并 3:00 |
+### 工作流调度（北京时间）
+| 时间 | 任务 | 说明 |
+|------|------|------|
+| 每天 09:07-11:52 | 汽车之家 + 懂车帝爬虫 | 上午窗口，多次备用触发，动态缩短确保 12:30 前结束 |
+| 每天 13:07-13:27 | 汽车之家 + 懂车帝爬虫 | 下午窗口，备用触发，约 5 小时 50 分钟 |
+| 每天 20:30 | 合并数据 | 等待下午爬虫窗口结束后合并 |
+
+### 半月跳过机制
+- 每个爬虫在当月 1-15 日、16-月底两个周期内全量完成后，写入 `crawl_state/*_YYYYMM_H1.done` 或 `*_H2.done` 标记
+- 同一周期后续自动触发直接跳过，进入新半月周期时自动重置对应爬虫进度
 
 ### 过滤条件
 - 零百7秒内

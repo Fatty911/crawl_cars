@@ -11,23 +11,45 @@ crawl_cars/
 ├── test_autohome.py          # 汽车之家爬虫脚本
 ├── crawl_dongchedi.py        # 懂车帝爬虫脚本
 ├── merge_data.py             # 数据合并与过滤脚本
-├── docs/                     # GitHub Pages 静态网页表格查看器
-├── crawl_state/              # 半月爬取完成标记目录
-├── CRAWL_SCOPE.md            # 爬取车型范围与排除类型记录
 ├── proxy_manager.py          # 代理管理器
 ├── run_with_proxy.py         # 带代理的启动脚本
+├── generate_clash_config.py  # Clash/Mihomo 配置生成器
 ├── auto_fix_workflow.py      # 大模型自动修复工作流错误
+├── fix_files.py              # 代码修复工具
+├── docs/                     # GitHub Pages 静态网页表格查看器
+│   ├── index.html            # 页面结构
+│   ├── styles.css            # 表格工作台样式
+│   ├── app.js                # 数据加载、搜索、筛选、排序、分页、导出逻辑
+│   ├── CNAME                 # GitHub Pages 自定义域名
+│   └── data/                 # 发布时自动生成的数据目录
 ├── custom_scripts/           # 工作流校验、失败分类、进度同步等辅助脚本
+│   ├── classify_crawl_failure.py  # 爬虫失败分类
+│   ├── git_sync_progress.sh       # 进度同步脚本
+│   ├── reset_dongchedi_progress.py # 懂车帝进度重置
+│   ├── setup_proxy_runtime.py     # 代理运行时配置
+│   └── validate_syntax.py         # 语法校验
+├── crawl_state/              # 半月爬取完成标记目录
+├── CRAWL_SCOPE.md            # 爬取车型范围与排除类型记录
 ├── deploy_vps.sh             # VPS 一键部署脚本
+├── start_with_clash.sh       # 带 Clash 代理的启动脚本
 ├── VPS_DEPLOY.md             # VPS 部署指南
 ├── DOCKER_DEPLOY.md          # Docker 部署指南
+├── CHANGELOG.md              # 变更记录
 ├── HISTORY.md                # 对话历史总结
+├── AGENTS.md                 # AI Agent 全局规则
 ├── .gitignore                # Git 忽略配置
 ├── .github/workflows/
-│   ├── crawl-autohome.yml    # 汽车之家工作流
-│   ├── crawl-dongchedi.yml   # 懂车帝工作流
+│   ├── crawl-autohome.yml    # 汽车之家爬虫工作流
+│   ├── crawl-dongchedi.yml   # 懂车帝爬虫工作流
+│   ├── crawl-trigger.yml     # 随机触发器工作流
+│   ├── merge-and-filter.yml  # 合并过滤、Release、GitHub Pages 发布工作流
 │   ├── deploy-pages.yml      # 静态网页独立发布工作流
-│   └── merge-and-filter.yml  # 合并过滤、Release、GitHub Pages 发布工作流
+│   ├── AI_Auto_Fix_Monitor.yml # AI 自动修复监控工作流
+│   ├── ci.yml                # CI 语法校验和冒烟测试
+│   └── auto-merge.yml        # PR 自动合并
+├── docker-compose.yaml       # Docker Compose 配置
+├── Dockerfile                # Docker 镜像构建
+├── docker-cron.sh            # Docker 容器定时任务
 └── README.md                 # 本文件
 ```
 
@@ -237,7 +259,19 @@ crawl_cars/
 
 ---
 
-### 6. auto_fix_workflow.py
+### 6. generate_clash_config.py
+
+**功能**：Clash/Mihomo 配置生成器，从订阅链接生成 Clash 配置文件
+
+**核心特性**：
+- 支持 VMess、VLESS、Trojan、SS、Hysteria2、TUIC、WireGuard 等协议
+- 自动下载并启动 mihomo 本地代理
+- 订阅地址脱敏日志，避免泄露 token
+- 支持通过 `PROXY_SUBSCRIPTION_USER_AGENT` 环境变量覆盖默认 UA
+
+---
+
+### 7. auto_fix_workflow.py
 
 **功能**：通用多Provider工作流错误自动修复系统（Lobe-Chat 风格配置）
 
@@ -294,9 +328,22 @@ python auto_fix_workflow.py error.log test_autohome.py
 
 ---
 
-### 5. .github/workflows/crawl.yml
+### 8. .github/workflows/
 
-**功能**：GitHub Actions自动化工作流
+**功能**：GitHub Actions 自动化工作流
+
+**工作流文件**：
+
+| 文件 | 功能 |
+|------|------|
+| `crawl-autohome.yml` | 汽车之家爬虫，上午/下午两个运行窗口 |
+| `crawl-dongchedi.yml` | 懂车帝爬虫，上午/下午两个运行窗口 |
+| `crawl-trigger.yml` | 随机触发器，仅在指定时间窗口触发目标爬虫 |
+| `merge-and-filter.yml` | 合并过滤、Release、GitHub Pages 发布 |
+| `deploy-pages.yml` | 静态网页独立发布 |
+| `AI_Auto_Fix_Monitor.yml` | AI 自动修复监控 |
+| `ci.yml` | CI 语法校验和冒烟测试 |
+| `auto-merge.yml` | PR 自动合并（squash） |
 
 **环境变量**：
 
@@ -309,7 +356,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `CRAWL_MIN_DELAY_SECONDS` | 两次访问之间最小等待秒数 | 3 |
 | `CRAWL_MAX_DELAY_SECONDS` | 两次访问之间最大等待秒数 | 8 |
 
-**Job结构**：
+**Job结构**（crawl-autohome.yml / crawl-dongchedi.yml）：
 
 | Job名 | 功能 | 超时 | 依赖 |
 |-------|------|------|------|
@@ -317,7 +364,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `crawl-dongchedi` | 爬取懂车帝 | 390分钟 | 无 |
 | `merge-and-filter` | 合并过滤、Release、发布 GitHub Pages | 10/30/15分钟 | 爬虫 artifact |
 
-**触发条件**：
+**触发条件**（crawl-autohome.yml / crawl-dongchedi.yml）：
 - 汽车之家、懂车帝：每天 UTC 01:07-03:52（北京时间 09:07-11:52）多次备用触发上午窗口，约 3 小时
 - 汽车之家、懂车帝：每天 UTC 05:07/05:17/05:27（北京时间 13:07/13:17/13:27）备用触发下午窗口，约 5 小时 50 分钟
 - 合并分析：每天 UTC 12:30（北京时间 20:30），等待下午爬虫窗口结束后再合并
