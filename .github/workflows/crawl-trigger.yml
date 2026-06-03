@@ -48,12 +48,12 @@ jobs:
           echo "当前东八区时间: $CN_HOUR:$CN_MINUTE (UTC: $UTC_HOUR)"
 
           RUN_PROFILE=""
-          if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 12 ]; then
+          if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 14 ]; then
             RUN_PROFILE="morning"
-          elif [ $CN_HOUR -eq 13 ] && [ $((10#$CN_MINUTE)) -le 30 ]; then
+          elif [ $CN_HOUR -ge 13 ] && [ $CN_HOUR -lt 16 ]; then
             RUN_PROFILE="afternoon"
           else
-            echo "当前不在东八区 9:00-12:00 或 13:00-13:30 范围内，跳过触发"
+            echo "当前不在东八区 9:00-14:00 或 13:00-16:00 范围内，跳过触发"
             echo "crawler=skip" >> $GITHUB_OUTPUT
             echo "delay=0" >> $GITHUB_OUTPUT
             echo "run_profile=skip" >> $GITHUB_OUTPUT
