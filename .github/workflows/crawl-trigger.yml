@@ -47,17 +47,32 @@ jobs:
 
           echo "当前东八区时间: $CN_HOUR:$CN_MINUTE (UTC: $UTC_HOUR)"
 
+          EVENT_NAME="${{ github.event_name }}"
           RUN_PROFILE=""
-          if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 14 ]; then
-            RUN_PROFILE="morning"
-          elif [ $CN_HOUR -ge 13 ] && [ $CN_HOUR -lt 16 ]; then
-            RUN_PROFILE="afternoon"
+          
+          # cron-job.org 通过 repository_dispatch 触发时跳过时间窗口检查
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            echo "由外部服务触发，跳过时间窗口检查"
+            if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 14 ]; then
+              RUN_PROFILE="morning"
+            elif [ $CN_HOUR -ge 13 ] && [ $CN_HOUR -lt 16 ]; then
+              RUN_PROFILE="afternoon"
+            else
+              RUN_PROFILE="afternoon"
+            fi
           else
-            echo "当前不在东八区 9:00-14:00 或 13:00-16:00 范围内，跳过触发"
-            echo "crawler=skip" >> $GITHUB_OUTPUT
-            echo "delay=0" >> $GITHUB_OUTPUT
-            echo "run_profile=skip" >> $GITHUB_OUTPUT
-            exit 0
+            # workflow_dispatch 触发时检查时间窗口
+            if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 14 ]; then
+              RUN_PROFILE="morning"
+            elif [ $CN_HOUR -ge 13 ] && [ $CN_HOUR -lt 16 ]; then
+              RUN_PROFILE="afternoon"
+            else
+              echo "当前不在东八区 9:00-14:00 或 13:00-16:00 范围内，跳过触发"
+              echo "crawler=skip" >> $GITHUB_OUTPUT
+              echo "delay=0" >> $GITHUB_OUTPUT
+              echo "run_profile=skip" >> $GITHUB_OUTPUT
+              exit 0
+            fi
           fi
 
           echo "运行窗口: $RUN_PROFILE"
