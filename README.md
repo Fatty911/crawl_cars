@@ -141,6 +141,7 @@ crawl_cars/
 | `MAX_TIME_PER_STEP` | 每步最大运行秒数 | 命令行参数 |
 | `MAX_SERIES_PER_RUN` | 每轮最多爬取车系数 | 命令行参数 |
 | `AUTO_MODE` | 自动模式，未完成返回exit code 10 | 命令行参数 |
+| `DCD_PAGE_LOAD_TIMEOUT` | Selenium 页面加载超时秒数，避免单页卡住 | 60 |
 
 **命令行参数**：
 
@@ -356,7 +357,9 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `RUN_TIME` | 每轮运行最大秒数；上午窗口为 10800，下午窗口为 21000 | 10800 |
 | `MAX_CARS` | 每轮最多爬取车型/车系数；0 表示不按数量截断 | 0 |
 | `MORNING_RUN_TIME` | 上午窗口运行秒数 | 10800 |
-| `AFTERNOON_RUN_TIME` | 下午窗口运行秒数，预留 6 小时超时缓冲 | 21000 |
+| `AFTERNOON_RUN_TIME` | 下午窗口目标运行秒数；step2 会按 workflow 已耗时再次缩短 | 21000 |
+| `MAX_WORKFLOW_SECONDS` | 单次 workflow 按 GitHub 6 小时硬限制计算的总秒数 | 21600 |
+| `PROGRESS_COMMIT_BUFFER_SECONDS` | step2 结束后提交进度预留秒数 | 1800 |
 | `CRAWL_MIN_DELAY_SECONDS` | 两次访问之间最小等待秒数 | 3 |
 | `CRAWL_MAX_DELAY_SECONDS` | 两次访问之间最大等待秒数 | 8 |
 
@@ -545,7 +548,7 @@ docker compose logs -f crawl-cron
 
 **随机延迟**：上午不做启动随机延迟；下午随机等待 0-10 分钟但封顶到北京时间 13:30 前；两次网络访问之间默认等待 3-8 秒，可通过 `CRAWL_MIN_DELAY_SECONDS` / `CRAWL_MAX_DELAY_SECONDS` 调整。
 
-**分段续爬**：爬虫脚本返回 `exit code 10` 时表示本次时间预算用完但还没全量完成。workflow 会提交进度并正常结束本次运行，不会在同一个 job 内再次重启长步骤，避免实际运行时间超过上午/下午窗口。
+**分段续爬**：爬虫脚本返回 `exit code 10` 时表示本次时间预算用完但还没全量完成。workflow 会提交进度并正常结束本次运行，不会在同一个 job 内再次重启长步骤，避免实际运行时间超过上午/下午窗口。懂车帝 step2 会在启动前按 workflow 已耗时重新缩短 `RUN_TIME`，并预留提交缓冲，防止 GitHub 6 小时硬超时直接取消导致进度无法推送。
 
 **手动触发**：在 Actions 页面点击 "Run workflow"
 

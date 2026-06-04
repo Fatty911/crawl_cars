@@ -32,6 +32,7 @@ MAX_SERIES_PER_RUN = args.max_series
 AUTO_MODE = args.auto
 CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "3"))
 CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "8"))
+DCD_PAGE_LOAD_TIMEOUT = int(os.getenv("DCD_PAGE_LOAD_TIMEOUT", "60"))
 if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
     CRAWL_MAX_DELAY_SECONDS = CRAWL_MIN_DELAY_SECONDS
 
@@ -225,6 +226,8 @@ def create_browser(max_attempts=3):
                 browser = webdriver.Chrome(service=Service(cd), options=chrome_options)
             else:
                 browser = webdriver.Chrome(options=chrome_options)
+            browser.set_page_load_timeout(DCD_PAGE_LOAD_TIMEOUT)
+            browser.set_script_timeout(30)
             browser.execute_cdp_cmd(
                 "Page.addScriptToEvaluateOnNewDocument",
                 {

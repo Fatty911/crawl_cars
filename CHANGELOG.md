@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+### 修改23: 防止懂车帝 step2 触发 6 小时取消后丢失进度
+- `crawl-dongchedi.yml` 记录 workflow 启动时间，并在 step2 前按 GitHub 6 小时硬限制重新缩短 `RUN_TIME`，预留 1800 秒用于提交进度。
+- 懂车帝 step1、step2、修复后重试统一使用运行时 `$RUN_TIME`，确保前置步骤写入的动态时长生效。
+- `crawl_dongchedi.py` 为 Selenium 页面加载设置 `DCD_PAGE_LOAD_TIMEOUT=60` 秒，避免单页卡住导致越过提交缓冲。
+- README 同步更新懂车帝运行时长、页面加载超时和分段续爬说明。
+
 ### 修改22: 优化 AI 自动修复器 Provider 策略和监控工作流退出逻辑
 - `AI_Auto_Fix_Monitor.yml` 在 `auto_fix_workflow.py` 未产出可用修复时记录为跳过并正常结束，不再把 Provider 不可用、无权限或额度耗尽变成监控工作流红叉。
 - `auto_fix_workflow.py` 移除明显过时/不可用的默认模型，新增 AtomGit、NVIDIA NIM 等可靠默认 Provider，并支持 `XXXX_BASE_URL`、`XXXX_MODEL_LIST`、`XXXX_PROXY_URL`。

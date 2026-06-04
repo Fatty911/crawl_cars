@@ -1,6 +1,6 @@
 # 对话历史总结
 
-> 最后更新：2026-06-04 12:40
+> 最后更新：2026-06-04 20:25
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
 
@@ -11,6 +11,7 @@
 ### 用户诉求
 - 解释 `Classify step1 failure` 和 `Auto-fix step1 error` 两步中的报错。
 - 如果有修复必要就修复；如果没有修复必要，需要说明为什么还要保留这两步。
+- 继续检查懂车帝爬虫，确认 6 小时取消时是否没有保存 step2 进度，并修复导致进度无法提交的问题。
 
 ### 排查
 - Racknerd 机器 `/root/crawl_cars` 的 OpenCode 最新会话显示，汽车之家运行中出现过：
@@ -20,6 +21,10 @@
 - 爬虫后续仍正常获取车型配置，说明这类报错主要来自失败分类/自动修复的防御性步骤，而不是车型抓取整体不可用。
 - 现有分类规则把“低行数保护”和“少量车型无法解析config或option”归进 `site_breakage`，过于宽泛，容易误触发 AI 修复。
 - 完整 workflow 日志如果包含 AI Provider 自身失败，也可能被监控工作流再次分类为需要修复，产生噪音。
+- 懂车帝 workflow_dispatch run `26933831918` 从 2026-06-04 13:58:20 北京时间启动，step2 从 14:15:57 开始，传入 `--time-limit 21000`。
+- 该 run 在 2026-06-04 19:58:36 北京时间被 GitHub 直接取消，最后日志停在保存单个车型页面后等待，没有出现 `Exit code: 10`，也没有执行 `Update dongchedi progress` 提交。
+- 远端只出现 `a93171a Dongchedi step1 - series list - 06:15`，说明 step1 列表已保存，step2 本地 HTML/进度没有在超时前推送。
+- 根因是下午 step2 的 21000 秒预算没有扣除 checkout、环境初始化、step1 的耗时，导致 GitHub 6 小时硬限制先于爬虫自身 time-limit 触发。
 
 ### 修改
 - `custom_scripts/classify_crawl_failure.py`：
@@ -34,6 +39,13 @@
   - AtomGit 和 NVIDIA NIM 使用仓库规则中已知可用的默认模型。
   - 支持 `XXXX_BASE_URL` 覆盖、`XXXX_MODEL_LIST` 显式模型、`XXXX_PROXY_URL` Provider 代理。
   - 默认关闭 OpenRouter 动态排行榜模型抓取，并修复排行榜映射中 `glm` KeyError。
+- `crawl-dongchedi.yml`：
+  - 在 `Prepare crawl period` 记录 `WORKFLOW_START_EPOCH`。
+  - 在 step2 前新增安全时长计算：`MAX_WORKFLOW_SECONDS=21600` 扣除已耗时和 `PROGRESS_COMMIT_BUFFER_SECONDS=1800` 后，再缩短 `RUN_TIME`。
+  - step1、step2、修复后重试改用运行时 `$RUN_TIME` / `$MAX_CARS`，确保前置步骤写入的动态环境变量生效。
+- `crawl_dongchedi.py`：
+  - 新增 `DCD_PAGE_LOAD_TIMEOUT`，默认 60 秒。
+  - Chrome driver 初始化后设置页面加载和脚本超时，避免单页卡住越过提交缓冲。
 - `README.md` 更新“触发前分类”说明。
 - `CHANGELOG.md` 记录本次变更。
 
@@ -41,6 +53,7 @@
 - `Classify step1 failure` 和 `Auto-fix step1 error` 仍保留，作为真正站点结构变化或致命解析失败时的自动修复入口。
 - 对正常爬取中的小批量数据保护、局部车型跳过、AI Provider 自身不可用等情况，不再调用 AI 修复，减少误报和日志噪音。
 - 对确实需要 AI 修复但 Provider 暂时不可用的情况，监控工作流会清晰记录“未产出可用改动”，不会继续制造 AI Monitor failure。
+- 懂车帝下午长跑会在 step2 启动前按 job 剩余安全时间缩短运行时长，优先让爬虫主动 `exit code 10` 并提交进度，而不是等 GitHub 6 小时取消。
 
 ---
 
