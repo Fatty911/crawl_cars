@@ -1,8 +1,37 @@
 # 对话历史总结
 
-> 最后更新：2026-06-03 00:58
+> 最后更新：2026-06-04 12:10
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-04：解释并收紧爬虫失败分类与 AI 自动修复触发
+
+### 用户诉求
+- 解释 `Classify step1 failure` 和 `Auto-fix step1 error` 两步中的报错。
+- 如果有修复必要就修复；如果没有修复必要，需要说明为什么还要保留这两步。
+
+### 排查
+- Racknerd 机器 `/root/crawl_cars` 的 OpenCode 最新会话显示，汽车之家运行中出现过：
+  - `classification=site_breakage`
+  - `should_fix=true`
+  - AI Provider 调用失败，包括 Zen SSL 证书错误、OpenRouter 403/SSL EOF、XAI 403、Minimax 401。
+- 爬虫后续仍正常获取车型配置，说明这类报错主要来自失败分类/自动修复的防御性步骤，而不是车型抓取整体不可用。
+- 现有分类规则把“低行数保护”和“少量车型无法解析config或option”归进 `site_breakage`，过于宽泛，容易误触发 AI 修复。
+- 完整 workflow 日志如果包含 AI Provider 自身失败，也可能被监控工作流再次分类为需要修复，产生噪音。
+
+### 修改
+- `custom_scripts/classify_crawl_failure.py`：
+  - 新增 `data_quality_guard` 分类：低行数、疑似未完整爬取、拒绝上传/合并、少量车型 `无法解析config或option` 时跳过 AI 修复。
+  - 新增 `auto_fix_provider_failure` 分类：自动修复 Provider 的 SSL 证书、401/403、`/chat/completions` 网络/权限异常时跳过再次自动修复。
+  - 保留 `site_breakage`：未生成数据、完全解析不到车型、配置页/接口致命异常仍允许自动修复。
+- `README.md` 更新“触发前分类”说明。
+- `CHANGELOG.md` 记录本次变更。
+
+### 结果
+- `Classify step1 failure` 和 `Auto-fix step1 error` 仍保留，作为真正站点结构变化或致命解析失败时的自动修复入口。
+- 对正常爬取中的小批量数据保护、局部车型跳过、AI Provider 自身不可用等情况，不再调用 AI 修复，减少误报和日志噪音。
 
 ---
 

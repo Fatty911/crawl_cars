@@ -1,5 +1,13 @@
 # 对话历史
 
+## 2026-06-04
+
+### 修改21: 收紧爬虫失败分类，减少 AI 自动修复误触发
+- `custom_scripts/classify_crawl_failure.py` 将低行数、少量车型 `无法解析config或option`、拒绝上传/合并等数据质量保护归类为 `data_quality_guard`，默认跳过 AI 修复。
+- 将 AI Provider 自身 SSL 证书、401/403 权限、`/chat/completions` 调用失败等归类为 `auto_fix_provider_failure`，避免监控工作流围绕自动修复失败再次触发修复。
+- 保留 `site_breakage` 对未生成数据、完全解析不到车型、配置页/接口致命异常的自动修复入口。
+- 更新 README 中“触发前分类”的说明。
+
 ## 2026-06-02
 
 ### 修改20: 修复爬虫分段退出后同一 job 内反复重启

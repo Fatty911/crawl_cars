@@ -312,7 +312,9 @@ python auto_fix_workflow.py error.log test_autohome.py
 **触发前分类**：
 - 爬虫日志出现 `exit code 10`、达到时间/数量上限、保存进度继续下次、已处理数百条等主动分段退出特征时，跳过大模型修复。
 - 完整工作流日志或爬虫日志出现 git push/rebase 冲突、非快进、权限拒绝、Runner/浏览器临时异常等基础设施问题时，跳过大模型修复。
-- 日志显示未生成数据、解析不到配置、配置页/接口异常、输出行数明显过少等站点结构或链接异常时，才调用大模型修复。
+- 日志显示输出行数过少、少量车型 `无法解析config或option`、拒绝上传/合并等数据质量保护时，跳过大模型修复，避免把正常保护机制误判为代码需要改。
+- 日志显示 AI Provider 自身 SSL、401、403、证书或网络异常时，跳过再次自动修复，避免监控工作流围绕自动修复失败产生噪音。
+- 只有日志显示未生成数据、完全解析不到车型数据、配置页/接口致命异常等站点结构或链接异常时，才调用大模型修复。
 - `AI_Auto_Fix_Monitor.yml` 会优先抓取完整失败日志，再结合 error-log artifact 分类，避免只看 step 日志造成误判。
 - 分类逻辑位于 `custom_scripts/classify_crawl_failure.py`，两个爬虫 workflow 和 `AI_Auto_Fix_Monitor.yml` 都会调用。
 

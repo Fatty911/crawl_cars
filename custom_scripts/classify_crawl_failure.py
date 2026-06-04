@@ -33,11 +33,9 @@ PROGRESS_AMOUNT_PATTERNS = [
     r"rows?\D+(\d+)",
 ]
 
-SITE_BREAKAGE_PATTERNS = [
+FATAL_SITE_BREAKAGE_PATTERNS = [
     r"未生成\s*(?:autoHome|dongchedi)_\*\.json",
     r"未解析到任何车型数据",
-    r"只有\s*\d+\s*行",
-    r"无法解析config或option",
     r"未能解析到配置数据",
     r"配置页面加载超时",
     r"连续\d+页为空",
@@ -45,6 +43,14 @@ SITE_BREAKAGE_PATTERNS = [
     r"403\b|404\b|429\b|500\b|503\b|504\b",
     r"NoSuchElementException",
     r"TimeoutException",
+]
+
+DATA_QUALITY_GUARD_PATTERNS = [
+    r"只有\s*\d+\s*行",
+    r"无法解析config或option",
+    r"疑似未完整爬取",
+    r"拒绝上传",
+    r"拒绝合并",
 ]
 
 TRANSIENT_INFRA_PATTERNS = [
@@ -62,6 +68,20 @@ TRANSIENT_INFRA_PATTERNS = [
     r"CONFLICT \(",
     r"Resource not accessible by integration",
     r"Permission denied",
+]
+
+AUTO_FIX_PROVIDER_FAILURE_PATTERNS = [
+    r"自动修复失败",
+    r"尝试 Provider:",
+    r"/chat/completions",
+    r"api\.zen\.my",
+    r"openrouter\.ai",
+    r"api\.x\.ai",
+    r"api\.minimax\.io",
+    r"CERTIFICATE_VERIFY_FAILED",
+    r"SSLCertVerificationError",
+    r"Hostname mismatch",
+    r"失败 HTTP\s*(?:401|403)",
 ]
 
 
@@ -96,13 +116,18 @@ def classify(text: str, progress_threshold: int) -> tuple[str, str]:
 
     has_progress = matches_any(PROGRESS_PATTERNS, text)
     has_transient_infra = matches_any(TRANSIENT_INFRA_PATTERNS, text)
-    has_site_breakage = matches_any(SITE_BREAKAGE_PATTERNS, text)
+    has_auto_fix_provider_failure = matches_any(AUTO_FIX_PROVIDER_FAILURE_PATTERNS, text)
+    has_fatal_site_breakage = matches_any(FATAL_SITE_BREAKAGE_PATTERNS, text)
+    has_data_quality_guard = matches_any(DATA_QUALITY_GUARD_PATTERNS, text)
     progress_amount = max_progress_amount(text)
+
+    if has_auto_fix_provider_failure:
+        return "auto_fix_provider_failure", "日志显示 AI Provider 网络、证书或权限异常，跳过再次自动修复"
 
     if has_transient_infra:
         return "transient_infra", "日志显示浏览器或 GitHub runner 临时异常，跳过 AI 修复"
 
-    if has_progress and not has_site_breakage:
+    if has_progress and not has_fatal_site_breakage:
         return "progress_exit", "日志显示爬虫主动保存进度或达到分段限制"
 
     if has_progress and progress_amount >= progress_threshold:
@@ -111,8 +136,11 @@ def classify(text: str, progress_threshold: int) -> tuple[str, str]:
             f"日志显示已处理约 {progress_amount} 条，属于分段爬取/保护退出",
         )
 
-    if has_site_breakage:
-        return "site_breakage", "日志显示配置页、接口、解析或输出数据异常"
+    if has_data_quality_guard and not has_fatal_site_breakage:
+        return "data_quality_guard", "日志显示低行数或部分车型解析失败保护，跳过 AI 修复"
+
+    if has_fatal_site_breakage:
+        return "site_breakage", "日志显示配置页、接口或解析链路出现致命异常"
 
     return "unknown", "没有明确的主动退出或站点结构异常特征"
 
