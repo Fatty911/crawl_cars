@@ -168,11 +168,6 @@ jobs:
               echo "RUN_TIME=$REMAIN" >> "$GITHUB_ENV"
             fi
           fi
-            if [ "$REMAIN" -lt "$RUN_SECONDS" ]; then
-              echo "距 12:30 扣除 15 分钟缓冲后剩 ${REMAIN}s，上午 RUN_TIME 从 ${RUN_SECONDS}s 缩短到 ${REMAIN}s"
-              echo "RUN_TIME=$REMAIN" >> "$GITHUB_ENV"
-            fi
-          fi
 
       - name: Calculate delay from trigger time
         id: delay
