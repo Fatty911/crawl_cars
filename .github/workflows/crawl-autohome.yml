@@ -2,10 +2,8 @@
 name: 汽车之家爬虫
 on:
   schedule:
-    # UTC 01:07-03:52 = 北京时间 09:07-11:52，备用触发提高 GitHub schedule 可靠性
-    - cron: '7,22,37,52 1-3 * * *'
-    # UTC 05:07/05:17/05:27 = 北京时间 13:07/13:17/13:27，错过 13:30 后会自动跳过
-    - cron: '7,17,27 5 * * *'
+    # 每3小时运行一次，由工作流内部判断当前北京时间是否在允许窗口内
+    - cron: '7 */3 * * *'
   workflow_dispatch:
     inputs:
       force_restart:
@@ -36,7 +34,7 @@ env:
   CRAWL_MAX_DELAY_SECONDS: 8
 
 concurrency:
-  group: autohome-crawl-${{ github.ref }}-${{ github.event.schedule || github.event.inputs.run_profile || github.event.client_payload.run_profile || 'manual' }}
+  group: autohome-crawl
   cancel-in-progress: false
 
 jobs:
@@ -69,26 +67,25 @@ jobs:
           EVENT_NAME="${{ github.event_name }}"
           FORCE_RESTART="${{ github.event.inputs.force_restart }}"
           if [ "$EVENT_NAME" = "schedule" ]; then
-            SCHEDULE_EXPR="${{ github.event.schedule }}"
-            if [ "$SCHEDULE_EXPR" = "7,22,37,52 1-3 * * *" ]; then
-              SCHEDULE_PROFILE="morning"
-            elif [ "$SCHEDULE_EXPR" = "7,17,27 5 * * *" ]; then
-              SCHEDULE_PROFILE="afternoon"
-            else
-              SCHEDULE_PROFILE=""
-            fi
-            echo "SCHEDULE_PROFILE=$SCHEDULE_PROFILE" >> $GITHUB_ENV
-
             CN_HOUR_NOW=$(TZ=Asia/Shanghai date +%H)
             CN_MINUTE_NOW=$(TZ=Asia/Shanghai date +%M)
             IN_WINDOW=false
-            if [ "$SCHEDULE_PROFILE" = "morning" ] && [ $((10#$CN_HOUR_NOW)) -ge 9 ] && [ $((10#$CN_HOUR_NOW)) -lt 14 ]; then
+            SCHEDULE_PROFILE=""
+            
+            if [ $((10#$CN_HOUR_NOW)) -ge 9 ] && [ $((10#$CN_HOUR_NOW)) -lt 12 ]; then
               IN_WINDOW=true
-            elif [ "$SCHEDULE_PROFILE" = "afternoon" ] && [ $((10#$CN_HOUR_NOW)) -ge 13 ] && [ $((10#$CN_HOUR_NOW)) -lt 16 ]; then
+              SCHEDULE_PROFILE="morning"
+            elif [ $((10#$CN_HOUR_NOW)) -eq 12 ] && [ $((10#$CN_MINUTE_NOW)) -le 30 ]; then
               IN_WINDOW=true
+              SCHEDULE_PROFILE="morning"
+            elif [ $((10#$CN_HOUR_NOW)) -ge 13 ] && [ $((10#$CN_HOUR_NOW)) -lt 16 ]; then
+              IN_WINDOW=true
+              SCHEDULE_PROFILE="afternoon"
             fi
+            
+            echo "SCHEDULE_PROFILE=$SCHEDULE_PROFILE" >> $GITHUB_ENV
             if [ "$IN_WINDOW" != "true" ]; then
-              echo "当前北京时间 ${CN_HOUR_NOW}:${CN_MINUTE_NOW} 不在 $SCHEDULE_PROFILE 允许爬取窗口，跳过本次 schedule"
+              echo "当前北京时间 ${CN_HOUR_NOW}:${CN_MINUTE_NOW} 不在允许爬取窗口（9:00-12:30 或 13:00-16:00），跳过本次 schedule"
               echo "SKIP_CRAWL=true" >> $GITHUB_ENV
               echo "skip=true" >> $GITHUB_OUTPUT
               exit 0
