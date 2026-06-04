@@ -1,6 +1,6 @@
 # 对话历史总结
 
-> 最后更新：2026-06-04 12:10
+> 最后更新：2026-06-04 12:40
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
 
@@ -26,12 +26,21 @@
   - 新增 `data_quality_guard` 分类：低行数、疑似未完整爬取、拒绝上传/合并、少量车型 `无法解析config或option` 时跳过 AI 修复。
   - 新增 `auto_fix_provider_failure` 分类：自动修复 Provider 的 SSL 证书、401/403、`/chat/completions` 网络/权限异常时跳过再次自动修复。
   - 保留 `site_breakage`：未生成数据、完全解析不到车型、配置页/接口致命异常仍允许自动修复。
+- `AI_Auto_Fix_Monitor.yml`：
+  - `auto_fix_workflow.py` 没有产出可用修复时，记录为跳过并让监控工作流正常结束，不再把 Provider 失败变成新的红叉。
+  - 补充各 Provider 的可选 `BASE_URL`、`MODEL_LIST`、`PROXY_URL` 环境变量透传。
+- `auto_fix_workflow.py`：
+  - 移除 OpenRouter/XAI/Zen/MiniMax 等明显过时或无权限的默认模型，避免反复调用不存在模型。
+  - AtomGit 和 NVIDIA NIM 使用仓库规则中已知可用的默认模型。
+  - 支持 `XXXX_BASE_URL` 覆盖、`XXXX_MODEL_LIST` 显式模型、`XXXX_PROXY_URL` Provider 代理。
+  - 默认关闭 OpenRouter 动态排行榜模型抓取，并修复排行榜映射中 `glm` KeyError。
 - `README.md` 更新“触发前分类”说明。
 - `CHANGELOG.md` 记录本次变更。
 
 ### 结果
 - `Classify step1 failure` 和 `Auto-fix step1 error` 仍保留，作为真正站点结构变化或致命解析失败时的自动修复入口。
 - 对正常爬取中的小批量数据保护、局部车型跳过、AI Provider 自身不可用等情况，不再调用 AI 修复，减少误报和日志噪音。
+- 对确实需要 AI 修复但 Provider 暂时不可用的情况，监控工作流会清晰记录“未产出可用改动”，不会继续制造 AI Monitor failure。
 
 ---
 

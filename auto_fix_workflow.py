@@ -1,9 +1,11 @@
 """
-通用多Provider工作流错误自动修复系统 (2026 Ultimate Edition)
+通用多Provider工作流错误自动修复系统
 
 规则（融合全库优点）：
 - XXXX_API_KEY 存在 → 启用该Provider
-- 动态获取最新人工AI排行榜（人工分析网），应用 2026 最强模型 (Claude 4.6, GPT-5.4, Gemini 3.1)
+- XXXX_BASE_URL 可覆盖或补充 OpenAI-compatible API 地址
+- XXXX_MODEL_LIST 存在 → 使用用户显式配置的模型
+- XXXX_PROXY_URL 存在 → 该 Provider 请求走指定代理
 - 保留完整的上下文解析和命令自动修复执行功能
 """
 
@@ -16,22 +18,22 @@ import re
 from typing import Optional, Dict, List
 
 PROVIDER_BASE_URLS = {
+    "ATOMGIT": "https://api-ai.gitcode.com/v1",
     "OPENROUTER": "https://openrouter.ai/api/v1",
     "DEEPSEEK": "https://api.deepseek.com/v1",
     "MINIMAX": "https://api.minimax.io/v1",
+    "MINIMAX_CODING_PLAN": "https://api.minimax.io/v1",
     "MOONSHOT": "https://api.moonshot.cn/v1",
     "XAI": "https://api.x.ai/v1",
-    "ZEN": "https://api.zen.my/v1"
+    "NVIDIA_NIM": "https://integrate.api.nvidia.com/v1",
+    "OPENAI": "https://api.openai.com/v1",
 }
 
-# 2026 Default Fallback Models
+# 只保留已确认可由仓库规则支撑的默认模型；其他 Provider 需显式配置 MODEL_LIST。
 PROVIDER_DEFAULT_MODELS = {
-    "OPENROUTER": ["anthropic/claude-opus-4.6", "google/gemini-3.1-pro-preview", "openai/gpt-5.4"],
-    "XAI": ["grok-4.20-beta-0309"],
-    "ZEN": ["opencode/mimo-v2-pro-free"],
+    "ATOMGIT": ["zai-org/GLM-5", "Qwen/Qwen3.5-397B-A17B"],
+    "NVIDIA_NIM": ["nemotron-3-super"],
     "DEEPSEEK": ["deepseek-r1"],
-    "MOONSHOT": ["moonshot-v1-128k"],
-    "MINIMAX": ["m2.7"]
 }
 
 class WorkflowErrorFixer:
@@ -49,18 +51,27 @@ class WorkflowErrorFixer:
 
             prefix = key[:-8]
             name = prefix.replace("_", " ").title()
-            base_url = PROVIDER_BASE_URLS.get(prefix)
-            if not base_url: continue
+            base_url = env.get(f"{prefix}_BASE_URL", "").strip() or PROVIDER_BASE_URLS.get(prefix)
+            if not base_url:
+                print(f"跳过 {prefix}: 未配置 {prefix}_BASE_URL，且没有内置 OpenAI-compatible 地址")
+                continue
 
-            model_list_str = env.get(f"{prefix}_MODEL_LIST", "").strip()
-            model_list = [m.strip() for m in model_list_str.split(",") if m.strip()] if model_list_str else PROVIDER_DEFAULT_MODELS.get(prefix, [])
+            model_list = self._parse_model_list(env.get(f"{prefix}_MODEL_LIST", ""))
+            if not model_list:
+                model_list = PROVIDER_DEFAULT_MODELS.get(prefix, [])
+            if not model_list:
+                print(f"跳过 {prefix}: 未配置 {prefix}_MODEL_LIST，且没有可靠默认模型")
+                continue
+
+            proxy_url = env.get(f"{prefix}_PROXY_URL", "").strip()
 
             providers.append({
                 "prefix": prefix,
                 "name": name,
                 "api_key": value.strip(),
                 "base_url": base_url,
-                "model_list": model_list
+                "model_list": model_list,
+                "proxies": {"http": proxy_url, "https": proxy_url} if proxy_url else None,
             })
 
         # 排序：免费模型优先（AtomGit、ZEN、NVIDIA NIM、Modal），然后 OpenRouter
@@ -81,8 +92,11 @@ class WorkflowErrorFixer:
         providers.sort(key=sort_key)
         return providers
 
+    def _parse_model_list(self, value: str) -> List[str]:
+        return [m.strip() for m in re.split(r"[\s,;]+", value.strip()) if m.strip()]
+
     def _fetch_top_models(self) -> List[str]:
-        print("\n=== 实时获取最新排行榜 (2026 specs) ===")
+        print("\n=== 实时获取最新排行榜 ===")
         try:
             r = requests.get("https://artificialanalysis.ai/leaderboards/models", timeout=15, headers={"User-Agent": "AutoFix/2.0"})
             if r.status_code != 200: return []
@@ -92,7 +106,6 @@ class WorkflowErrorFixer:
                 "claude": "anthropic/claude-opus-4.6",
                 "gemini": "google/gemini-3.1-pro-preview",
                 "gpt": "openai/gpt-5.4",
-                "grok": "xai/grok-4.20-beta-0309",
                 "deepseek": "deepseek/deepseek-r1",
                 "qwen": "qwen/qwen3.5-397b-a17b",
                 "minimax": "minimax/minimax-m2.7",
@@ -101,7 +114,8 @@ class WorkflowErrorFixer:
             
             found = []
             for kw in ["gemini", "gpt", "claude", "glm", "minimax", "grok", "mimo", "qwen", "deepseek"]:
-                if kw in text: found.append(mapping[kw])
+                if kw in text and kw in mapping:
+                    found.append(mapping[kw])
             
             print(f"映射结果: {found}")
             return found[:10]
@@ -110,7 +124,7 @@ class WorkflowErrorFixer:
             return []
 
     def _resolve_models(self, provider: Dict) -> List[str]:
-        if provider["prefix"] == "OPENROUTER":
+        if provider["prefix"] == "OPENROUTER" and os.environ.get("AUTO_FIX_DYNAMIC_MODELS", "").lower() in {"1", "true", "yes"}:
             top = self._fetch_top_models()
             if top:
                 return list(dict.fromkeys(top + provider["model_list"]))
@@ -166,7 +180,10 @@ class WorkflowErrorFixer:
         }
         
         try:
-            r = requests.post(url, json=payload, headers=headers, timeout=120)
+            request_kwargs = {"json": payload, "headers": headers, "timeout": 120}
+            if provider.get("proxies"):
+                request_kwargs["proxies"] = provider["proxies"]
+            r = requests.post(url, **request_kwargs)
             if r.status_code == 200:
                 return r.json().get("choices", [{}])[0].get("message", {}).get("content", "")
             print(f"    ✗ 失败 HTTP {r.status_code}")

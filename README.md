@@ -276,12 +276,13 @@ crawl_cars/
 **功能**：通用多Provider工作流错误自动修复系统（Lobe-Chat 风格配置）
 
 **核心规则**：
-- `XXXX_API_KEY` 存在 → 启用该 Provider
+- `XXXX_API_KEY` 存在 → 尝试启用该 Provider
+- `XXXX_BASE_URL` **非必填**：用于覆盖或补充 OpenAI-compatible API 地址；没有内置地址的 Provider 必须显式配置
 - `XXXX_MODEL_LIST` **非必填**：
-  - 未配置 → 只使用排行榜前10且 context ≥ 1M 的模型
-  - 已配置 → 使用排行榜前10(1M+) 与 MODEL_LIST 的**并集**
-- `XXXX_PROXY_URL` **非必填**
-- 未读取到 `XXXX_MODEL_LIST` 时**不报错**
+  - 未配置 → 只使用仓库内置且已确认的默认模型
+  - 已配置 → 使用显式配置的模型列表
+- `XXXX_PROXY_URL` **非必填**：该 Provider 的请求走指定 HTTP/HTTPS 代理
+- 未读取到 `XXXX_MODEL_LIST` 时**不报错**；没有可靠默认模型的 Provider 会跳过，避免无意义调用不存在或无权限模型
 
 **支持的 Provider**（按环境变量自动发现）：
 
@@ -289,16 +290,16 @@ crawl_cars/
 |-------------|----------|----------|
 | `OPENROUTER` | OpenRouter | openrouter.ai |
 | `OPENAI` | OpenAI | api.openai.com |
-| `ANTHROPIC` | Anthropic | api.anthropic.com |
 | `XAI` | xAI | api.x.ai |
 | `ATOMGIT` | AtomGit | api-ai.gitcode.com |
 | `MINIMAX` | MiniMax | api.minimax.io |
-| `ZEN` | OpenCode Zen | opencode.ai/zen |
+| `MINIMAX_CODING_PLAN` | MiniMax Coding Plan | api.minimax.io |
+| `ZEN` | OpenCode Zen | 需配置 `ZEN_BASE_URL` |
 | `NVIDIA_NIM` | NVIDIA NIM | integrate.api.nvidia.com |
 | `MOONSHOT` | Moonshot/Kimi | api.moonshot.cn |
 | `DEEPSEEK` | DeepSeek | api.deepseek.com |
-| `MODELSCOPE` | ModelScope | dashscope.aliyuncs.com |
-| `MODAL` | Modal | modal.labs |
+| `MODELSCOPE` | ModelScope | 需配置 `MODELSCOPE_BASE_URL` |
+| `MODAL` | Modal | 需配置 `MODAL_BASE_URL` |
 
 **使用方式**：
 
@@ -316,6 +317,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 - 日志显示 AI Provider 自身 SSL、401、403、证书或网络异常时，跳过再次自动修复，避免监控工作流围绕自动修复失败产生噪音。
 - 只有日志显示未生成数据、完全解析不到车型数据、配置页/接口致命异常等站点结构或链接异常时，才调用大模型修复。
 - `AI_Auto_Fix_Monitor.yml` 会优先抓取完整失败日志，再结合 error-log artifact 分类，避免只看 step 日志造成误判。
+- `auto_fix_workflow.py` 未能产出可用修复时，监控工作流记录为跳过并正常结束；只有真正生成改动、语法校验通过、提交并推送成功后才标记 `fixed=true`。
 - 分类逻辑位于 `custom_scripts/classify_crawl_failure.py`，两个爬虫 workflow 和 `AI_Auto_Fix_Monitor.yml` 都会调用。
 
 **当前已配置的 GitHub Secrets**：
@@ -324,7 +326,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 
 **工作原理**：
 1. 自动发现所有 `_API_KEY` 环境变量
-2. 有 `MODEL_LIST` → 与排行榜并集；无 → 使用排行榜模型
+2. 解析对应 `BASE_URL`、`MODEL_LIST`、`PROXY_URL`；没有可用 base_url 或模型的 Provider 会跳过
 3. 依次尝试各 Provider 的模型，生成修复方案
 4. 置信度 ≥ 0.6 时自动应用修复并提交推送
 

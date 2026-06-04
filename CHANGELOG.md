@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+### 修改22: 优化 AI 自动修复器 Provider 策略和监控工作流退出逻辑
+- `AI_Auto_Fix_Monitor.yml` 在 `auto_fix_workflow.py` 未产出可用修复时记录为跳过并正常结束，不再把 Provider 不可用、无权限或额度耗尽变成监控工作流红叉。
+- `auto_fix_workflow.py` 移除明显过时/不可用的默认模型，新增 AtomGit、NVIDIA NIM 等可靠默认 Provider，并支持 `XXXX_BASE_URL`、`XXXX_MODEL_LIST`、`XXXX_PROXY_URL`。
+- 默认关闭 OpenRouter 动态排行榜模型抓取，修复排行榜映射中 `glm` 触发 KeyError 的问题。
+- README 同步更新 AI 自动修复 Provider、模型和跳过规则说明。
+
 ### 修改21: 收紧爬虫失败分类，减少 AI 自动修复误触发
 - `custom_scripts/classify_crawl_failure.py` 将低行数、少量车型 `无法解析config或option`、拒绝上传/合并等数据质量保护归类为 `data_quality_guard`，默认跳过 AI 修复。
 - 将 AI Provider 自身 SSL 证书、401/403 权限、`/chat/completions` 调用失败等归类为 `auto_fix_provider_failure`，避免监控工作流围绕自动修复失败再次触发修复。
