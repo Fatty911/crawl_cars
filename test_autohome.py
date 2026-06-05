@@ -26,11 +26,15 @@ parser.add_argument(
 parser.add_argument(
     "--auto", action="store_true", help="全自动模式：跑完自动进入下一步"
 )
+parser.add_argument(
+    "--incremental", action="store_true", help="增量模式：只爬取新增车型，跳过已存在的"
+)
 args = parser.parse_args()
 
 MAX_TIME_PER_STEP = args.time_limit
 MAX_CARS_PER_RUN = args.max_cars
 AUTO_MODE = args.auto
+INCREMENTAL_MODE = args.incremental
 CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "3"))
 CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "8"))
 if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
@@ -233,6 +237,7 @@ def download_car_pages():
     start_time = time.time()
     cars_downloaded = progress.get("cars_downloaded", 0)
     initial_cars_downloaded = cars_downloaded
+    skipped_count = 0  # 增量模式下跳过的已存在车型数
 
     current_letter = progress.get("current_letter", None)
     start_car_idx = progress.get("current_car_idx", 0)
@@ -286,17 +291,22 @@ def download_car_pages():
                 if car_idx < car_start_idx:
                     continue
 
-                if check_time_limit(start_time) or check_car_limit(cars_downloaded - initial_cars_downloaded):
-                    progress["cars_downloaded"] = cars_downloaded
-                    progress["current_letter"] = letter
-                    progress["current_car_idx"] = car_idx
-                    progress["download_car_pages"] = letters
-                    with open(progress_file, "w") as f:
-                        json.dump(progress, f)
-                    if AUTO_MODE:
-                        print(f"未完成，字母{letter}第{car_idx}个车型，等待下次继续")
-                        sys.exit(10)
-                    return
+                # 增量模式下跳过时间限制，只检查车型数量限制
+                if INCREMENTAL_MODE:
+                    if check_car_limit(cars_downloaded - initial_cars_downloaded):
+                        break
+                else:
+                    if check_time_limit(start_time) or check_car_limit(cars_downloaded - initial_cars_downloaded):
+                        progress["cars_downloaded"] = cars_downloaded
+                        progress["current_letter"] = letter
+                        progress["current_car_idx"] = car_idx
+                        progress["download_car_pages"] = letters
+                        with open(progress_file, "w") as f:
+                            json.dump(progress, f)
+                        if AUTO_MODE:
+                            print(f"未完成，字母{letter}第{car_idx}个车型，等待下次继续")
+                            sys.exit(10)
+                        return
 
                 h4 = car.h4
                 if h4 and h4.a:
@@ -308,6 +318,8 @@ def download_car_pages():
                         if car_id:
                             car_file = os.path.join(html_dir, f"{car_id}")
                             if os.path.exists(car_file):
+                                if INCREMENTAL_MODE:
+                                    skipped_count += 1
                                 continue
 
                             car_url = second_url.format(car_id)
@@ -344,7 +356,11 @@ def download_car_pages():
             with open(progress_file, "w") as f:
                 json.dump(progress, f)
 
-    print("第一步完成")
+    new_downloaded = cars_downloaded - initial_cars_downloaded
+    if INCREMENTAL_MODE:
+        print(f"增量模式完成：新增 {new_downloaded} 个车型，跳过 {skipped_count} 个已存在车型")
+    else:
+        print(f"第一步完成：新增 {new_downloaded} 个车型")
 
 
 # 第二步,解析出每个车型的关键js拼装成一个html

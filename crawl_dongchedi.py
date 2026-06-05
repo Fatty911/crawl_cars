@@ -25,11 +25,15 @@ parser.add_argument(
 parser.add_argument(
     "--auto", action="store_true", help="全自动模式：未完成则exit code 10"
 )
+parser.add_argument(
+    "--incremental", action="store_true", help="增量模式：只爬取新增车系，跳过已存在的"
+)
 args = parser.parse_args()
 
 MAX_TIME_PER_STEP = args.time_limit
 MAX_SERIES_PER_RUN = args.max_series
 AUTO_MODE = args.auto
+INCREMENTAL_MODE = args.incremental
 CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "3"))
 CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "8"))
 DCD_PAGE_LOAD_TIMEOUT = int(os.getenv("DCD_PAGE_LOAD_TIMEOUT", "60"))
@@ -485,16 +489,23 @@ def crawl_series_config(browser, series_list):
     crawled = reconcile_step2_progress(series_list)
     initial_crawled_count = len(crawled)
     start_time = time.time()
+    skipped_count = 0
 
     for idx, series in enumerate(series_list):
         series_id = series["id"]
         series_name = series["name"]
 
         if series_id in crawled:
+            skipped_count += 1
             continue
 
-        if check_time_limit(start_time) or check_series_limit(len(crawled) - initial_crawled_count):
-            return
+        # 增量模式下跳过时间限制，只检查车系数量限制
+        if INCREMENTAL_MODE:
+            if check_series_limit(len(crawled) - initial_crawled_count):
+                break
+        else:
+            if check_time_limit(start_time) or check_series_limit(len(crawled) - initial_crawled_count):
+                return
 
         print(
             f"[{idx + 1}/{len(series_list)}] 正在爬取: {series_name} (ID: {series_id})"
@@ -545,7 +556,11 @@ def crawl_series_config(browser, series_list):
         save_progress()
         human_delay(f"保存{series_name}页面")
 
-    print("第二步完成")
+    new_crawled = len(crawled) - initial_crawled_count
+    if INCREMENTAL_MODE:
+        print(f"增量模式完成：新增 {new_crawled} 个车系，跳过 {skipped_count} 个已存在车系")
+    else:
+        print(f"第二步完成：新增 {new_crawled} 个车系")
 
 
 # 第三步：解析配置页面，提取数据

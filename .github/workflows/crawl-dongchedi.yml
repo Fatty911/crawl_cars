@@ -100,10 +100,10 @@ jobs:
           fi
 
           if [ -f "$DONE_MARKER" ]; then
-            echo "$CRAWL_PERIOD 已完成全量懂车帝爬取，本半月不再爬取"
-            echo "SKIP_CRAWL=true" >> $GITHUB_ENV
-            echo "skip=true" >> $GITHUB_OUTPUT
-            exit 0
+            echo "半月周期 $CRAWL_PERIOD 已完成全量爬取，进入增量模式（只爬新增车系）"
+            echo "INCREMENTAL_MODE=true" >> $GITHUB_ENV
+          else
+            echo "INCREMENTAL_MODE=false" >> $GITHUB_ENV
           fi
 
           if [ "$FORCE_RESTART" = "true" ] || [ ! -f "$CURRENT_PERIOD_FILE" ] || [ "$(cat "$CURRENT_PERIOD_FILE")" != "$CRAWL_PERIOD" ]; then
@@ -332,12 +332,17 @@ jobs:
 
           set -o pipefail
           set +e
+          INCREMENTAL_FLAG=""
+          if [ "$INCREMENTAL_MODE" = "true" ]; then
+            INCREMENTAL_FLAG="--incremental"
+            echo "增量模式：只爬取新增车系"
+          fi
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行 step2 (mihomo round-robin)"
-            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
+            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG 2>&1 | tee step2_error.log
           else
             echo "无代理，直接运行 step2"
-            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
+            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG 2>&1 | tee step2_error.log
           fi
           EXIT_CODE=$?
           set -e

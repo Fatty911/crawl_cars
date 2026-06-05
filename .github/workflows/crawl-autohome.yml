@@ -97,10 +97,10 @@ jobs:
           fi
 
           if [ -f "$DONE_MARKER" ]; then
-            echo "$CRAWL_PERIOD 已完成全量汽车之家爬取，本半月不再爬取"
-            echo "SKIP_CRAWL=true" >> $GITHUB_ENV
-            echo "skip=true" >> $GITHUB_OUTPUT
-            exit 0
+            echo "半月周期 $CRAWL_PERIOD 已完成全量爬取，进入增量模式（只爬新增车型）"
+            echo "INCREMENTAL_MODE=true" >> $GITHUB_ENV
+          else
+            echo "INCREMENTAL_MODE=false" >> $GITHUB_ENV
           fi
 
           if [ "$FORCE_RESTART" = "true" ] || [ ! -f "$CURRENT_PERIOD_FILE" ] || [ "$(cat "$CURRENT_PERIOD_FILE")" != "$CRAWL_PERIOD" ]; then
@@ -280,12 +280,17 @@ jobs:
         run: |
           set -o pipefail
           set +e
+          INCREMENTAL_FLAG=""
+          if [ "$INCREMENTAL_MODE" = "true" ]; then
+            INCREMENTAL_FLAG="--incremental"
+            echo "增量模式：只爬取新增车型"
+          fi
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行 step1 (mihomo round-robin)"
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} $INCREMENTAL_FLAG 2>&1 | tee step1_error.log
           else
             echo "无代理，直接运行 step1"
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
+            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} $INCREMENTAL_FLAG 2>&1 | tee step1_error.log
           fi
           EXIT_CODE=$?
           set -e
