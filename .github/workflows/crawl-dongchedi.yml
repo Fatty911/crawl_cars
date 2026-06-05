@@ -277,7 +277,11 @@ jobs:
         id: check_done_dcd
         if: steps.period.outputs.skip != 'true'
         run: |
-          if [ -f "$DONGCHEDI_DONE_MARKER" ]; then
+          # 增量模式下不跳过 step1/step2，让它检查新增车系
+          if [ "$INCREMENTAL_MODE" = "true" ]; then
+            echo "增量模式：跳过 done 检查，运行 step1/step2 扫描新增车系"
+            echo "done=false" >> $GITHUB_OUTPUT
+          elif [ -f "$DONGCHEDI_DONE_MARKER" ]; then
             echo "done=true" >> $GITHUB_OUTPUT
           else
             echo "done=false" >> $GITHUB_OUTPUT
