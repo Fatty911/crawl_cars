@@ -490,6 +490,9 @@ def crawl_series_config(browser, series_list):
     initial_crawled_count = len(crawled)
     start_time = time.time()
     skipped_count = 0
+    need_crawl = len(series_list) - initial_crawled_count
+
+    print(f"车系总数: {len(series_list)}，已有HTML: {initial_crawled_count}，需爬取: {need_crawl}")
 
     for idx, series in enumerate(series_list):
         series_id = series["id"]
