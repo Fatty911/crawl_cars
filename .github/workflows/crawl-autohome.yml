@@ -34,7 +34,7 @@ env:
   CRAWL_MAX_DELAY_SECONDS: 8
 
 concurrency:
-  group: autohome-crawl
+  group: autohome-crawl-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
