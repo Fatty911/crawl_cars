@@ -462,6 +462,10 @@ jobs:
           python - <<'PY'
           import glob
           import json
+          import os
+          import sys
+
+          incremental = os.environ.get("INCREMENTAL_MODE", "false") == "true"
 
           files = glob.glob("dongchedi_*.json")
           if not files:
@@ -472,7 +476,10 @@ jobs:
               rows = json.load(f)
 
           print(f"{path}: {len(rows)} rows")
-          if len(rows) < 50:
+          if incremental and len(rows) == 0:
+              print("增量模式：无新增车系，跳过上传")
+              sys.exit(0)
+          elif len(rows) < 50:
               raise SystemExit(f"懂车帝数据只有 {len(rows)} 行，疑似未完整爬取，拒绝上传")
           PY
 
