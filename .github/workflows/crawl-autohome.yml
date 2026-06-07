@@ -293,10 +293,10 @@ jobs:
           fi
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行 step1 (mihomo round-robin)"
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} $INCREMENTAL_FLAG 2>&1 | tee step1_error.log
+            python test_autohome.py --step 1 --auto --time-limit "$RUN_TIME" --max-cars "$MAX_CARS" $INCREMENTAL_FLAG 2>&1 | tee step1_error.log
           else
             echo "无代理，直接运行 step1"
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} $INCREMENTAL_FLAG 2>&1 | tee step1_error.log
+            python test_autohome.py --step 1 --auto --time-limit "$RUN_TIME" --max-cars "$MAX_CARS" $INCREMENTAL_FLAG 2>&1 | tee step1_error.log
           fi
           EXIT_CODE=$?
           set -e
@@ -351,9 +351,9 @@ jobs:
           set +e
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式重试 step1"
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
+            python test_autohome.py --step 1 --auto --time-limit "$RUN_TIME" --max-cars "$MAX_CARS" 2>&1 | tee step1_error.log
           else
-            python test_autohome.py --step 1 --auto --time-limit ${{ env.RUN_TIME }} --max-cars ${{ env.MAX_CARS }} 2>&1 | tee step1_error.log
+            python test_autohome.py --step 1 --auto --time-limit "$RUN_TIME" --max-cars "$MAX_CARS" 2>&1 | tee step1_error.log
           fi
           EXIT_CODE=$?
           set -e

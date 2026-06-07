@@ -5,6 +5,7 @@
 ### 修改24: 恢复爬虫调度窗口并修复进度同步冲突
 - `crawl-autohome.yml`、`crawl-dongchedi.yml` 恢复上午 `01:07-03:52 UTC`、下午 `05:07/05:17/05:27 UTC` 的备用触发，避免每 3 小时 schedule 导致下午 14 点多才启动。
 - 两个主爬虫 workflow 的 schedule 守卫恢复为上午 09:00-12:30、下午 13:00-13:30；并发组重新按运行窗口区分，避免上午和下午互相阻塞。
+- 汽车之家 step1 和修复后重试改用运行时 `$RUN_TIME` / `$MAX_CARS`，确保上午动态缩短真正生效。
 - `crawl-trigger.yml` 对 `repository_dispatch` 也执行时间窗检查，外部触发不再绕过 09:00-12:30 / 13:00-13:30 限制。
 - 完成半月全量爬取后恢复直接跳过，不再进入增量模式继续爬新增车系。
 - 新增 `custom_scripts/merge_progress_json.py`，`git_sync_progress.sh` 遇到 `progress.json` / `dongchedi/progress.json` rebase 冲突时合并进度列表，避免远端版本覆盖本地刚保存的爬虫进度。
