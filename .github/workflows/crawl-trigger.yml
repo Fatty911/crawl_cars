@@ -1,6 +1,6 @@
 # 爬虫随机触发器 - 通过 repository_dispatch 触发实际爬虫
 # 使用 cron-job.org 或外部定时服务调用此 workflow
-# 随机选择爬虫类型，东八区每天 9:00-12:00 或 13:00-13:30 触发
+# 随机选择爬虫类型，东八区每天 9:00-12:30 或 13:00-13:30 触发
 name: 爬虫随机触发器
 
 on:
@@ -50,29 +50,18 @@ jobs:
           EVENT_NAME="${{ github.event_name }}"
           RUN_PROFILE=""
           
-          # cron-job.org 通过 repository_dispatch 触发时跳过时间窗口检查
-          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
-            echo "由外部服务触发，跳过时间窗口检查"
-            if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 14 ]; then
-              RUN_PROFILE="morning"
-            elif [ $CN_HOUR -ge 13 ] && [ $CN_HOUR -lt 16 ]; then
-              RUN_PROFILE="afternoon"
-            else
-              RUN_PROFILE="afternoon"
-            fi
+          if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 12 ]; then
+            RUN_PROFILE="morning"
+          elif [ $CN_HOUR -eq 12 ] && [ $((10#$CN_MINUTE)) -le 30 ]; then
+            RUN_PROFILE="morning"
+          elif [ $CN_HOUR -eq 13 ] && [ $((10#$CN_MINUTE)) -le 30 ]; then
+            RUN_PROFILE="afternoon"
           else
-            # workflow_dispatch 触发时检查时间窗口
-            if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 14 ]; then
-              RUN_PROFILE="morning"
-            elif [ $CN_HOUR -ge 13 ] && [ $CN_HOUR -lt 16 ]; then
-              RUN_PROFILE="afternoon"
-            else
-              echo "当前不在东八区 9:00-14:00 或 13:00-16:00 范围内，跳过触发"
-              echo "crawler=skip" >> $GITHUB_OUTPUT
-              echo "delay=0" >> $GITHUB_OUTPUT
-              echo "run_profile=skip" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+            echo "当前不在东八区 9:00-12:30 或 13:00-13:30 范围内，跳过触发"
+            echo "crawler=skip" >> $GITHUB_OUTPUT
+            echo "delay=0" >> $GITHUB_OUTPUT
+            echo "run_profile=skip" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
           echo "运行窗口: $RUN_PROFILE"

@@ -25,6 +25,42 @@ set_proxy() {
 }
 
 # 尝试同步（pull + push）
+resolve_rebase_conflicts() {
+  local conflicts
+  conflicts="$(git diff --name-only --diff-filter=U || true)"
+  if [ -z "$conflicts" ]; then
+    return 1
+  fi
+
+  echo "[git-sync] 检测到冲突，尝试合并进度文件..."
+  while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    if [[ "$path" == "progress.json" || "$path" == "dongchedi/progress.json" ]]; then
+      local ours theirs
+      ours="$(mktemp)"
+      theirs="$(mktemp)"
+      git show ":2:$path" > "$ours" 2>/dev/null || echo "{}" > "$ours"
+      git show ":3:$path" > "$theirs" 2>/dev/null || echo "{}" > "$theirs"
+      python custom_scripts/merge_progress_json.py "$path" "$ours" "$theirs"
+      rm -f "$ours" "$theirs"
+      git add "$path"
+      echo "[git-sync] 已合并 $path"
+    else
+      echo "[git-sync] 非进度文件冲突 $path，保留当前提交版本"
+      git checkout --theirs "$path" 2>/dev/null || true
+      git add "$path" 2>/dev/null || true
+    fi
+  done <<< "$conflicts"
+
+  if ! GIT_EDITOR=true git rebase --continue 2>/dev/null; then
+    if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
+      GIT_EDITOR=true git rebase --skip 2>/dev/null
+    else
+      return 1
+    fi
+  fi
+}
+
 try_sync() {
   # stash 未提交的更改
   git stash push -m "sync-progress-stash-$(date +%s)" 2>/dev/null || true
@@ -44,10 +80,7 @@ try_sync() {
 
   # 检查是否有冲突
   if git status --porcelain 2>/dev/null | grep -q "^UU\|^AA\|^DD"; then
-    echo "[git-sync] 检测到冲突，使用远程版本解决..."
-    git checkout --theirs . 2>/dev/null || true
-    git add -A 2>/dev/null || true
-    git rebase --continue 2>/dev/null || true
+    resolve_rebase_conflicts || true
     # 重新尝试 push
     if git push "$REMOTE_URL" 2>/dev/null; then
       git stash pop 2>/dev/null || true

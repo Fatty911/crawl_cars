@@ -1,8 +1,47 @@
 # 对话历史总结
 
-> 最后更新：2026-06-04 20:25
+> 最后更新：2026-06-07 21:25
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-07：检查 GitHub Actions 运行并修复调度与进度同步
+
+### 用户诉求
+- 用 GitHub CLI 查看 workflow 运行情况和最新源码。
+- 判断当前 workflow 运行是否符合预期；如果有问题就直接修复。
+
+### 排查
+- 远端 main 已前进到 `af13b0a Dongchedi step1 - series list - 05:27`，包含 OpenCode/其它模型后续推送的调度和同步脚本变更。
+- 最新运行中：
+  - 懂车帝 schedule run `27083369318` 仍在 step2 运行。
+  - 懂车帝 workflow_dispatch run `27083453452` 失败在 `Run step2 loop`。
+  - 汽车之家 workflow_dispatch run `27078846416` 失败在旧提交 `c1e19c9` 上，后续汽车之家同类 schedule/manual 已成功，优先不按旧源码误修。
+- 懂车帝失败 run 的日志显示，step2 已正常达到 `time-limit 3877`，保存进度并返回 `Exit code: 10`，但 `git_sync_progress.sh` 在同步 `dongchedi/progress.json` 时和远端进度提交发生 rebase 冲突。
+- 现有 `git_sync_progress.sh` 冲突处理使用“远程版本解决”，导致本地刚保存的 `crawled_series` 进度被丢弃，6 次重试都重复冲突，最终 workflow failure。
+- 最新源码还存在两处与用户预期不符：
+  - 两个主爬虫 schedule 被改为每 3 小时一次，下午直接 schedule 会在北京时间 14:27 才触发，不符合 13:00-13:30 启动要求。
+  - 半月完成标记存在时被改成进入增量模式继续跑新增车系，不符合“每半个月完整成功后就不再爬”的限制。
+
+### 修改
+- `crawl-autohome.yml`、`crawl-dongchedi.yml`：
+  - 恢复上午 `7,22,37,52 1-3 * * *` 和下午 `7,17,27 5 * * *` 两组备用 schedule。
+  - schedule 守卫恢复为上午 09:00-12:30、下午 13:00-13:30；延迟到其它时间直接跳过。
+  - 并发组恢复按 `schedule` / `run_profile` 区分，避免上午窗口阻塞下午窗口。
+  - 发现半月 done 标记后直接跳过，本半月不再继续爬。
+- `crawl-trigger.yml`：
+  - `repository_dispatch` 外部触发也执行时间窗检查，不再任意时间触发目标爬虫。
+- `custom_scripts/merge_progress_json.py`：
+  - 新增进度 JSON 合并工具，支持合并 `series_list`、`crawled_series` 等列表。
+- `custom_scripts/git_sync_progress.sh`：
+  - rebase 冲突发生在 `progress.json` 或 `dongchedi/progress.json` 时，调用合并工具保留两边进度后继续 rebase/push。
+- `README.md`、`CHANGELOG.md` 同步记录本次变更。
+
+### 结果
+- 后续懂车帝 step2 达到时间限制后，进度同步冲突会合并本地与远端进度，不会再因为选择远程版本而丢进度。
+- 主爬虫恢复到上午多备用触发、下午 13:07/13:17/13:27 备用触发；傍晚或 14 点多延迟 schedule 不会实际爬取。
+- 半月完成后恢复自动跳过，保留“半个月完整成功后不再爬”的限制。
 
 ---
 
