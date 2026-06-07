@@ -79,3 +79,13 @@
   - Opus 和 Sonnet 最新的是 4.6 代，不要显示 4.5 及前代模型。
   - GPT 系列不要显示后缀带 mini、low、medium 的弱模型，可以不带后缀，可以后缀为 high 或 codex。
 - 免费模型只显示最新最强的三两个。
+
+## 配置对齐（关键）
+
+本仓库如果有自己的 opencode.json 或 oh-my-openagent.json，必须与全局配置保持一致：
+
+- **全局配置位置**：C:\Users\Administrator\.config\opencode\
+- **同步方法**：Copy-Item C:\Users\Administrator\.config\opencode\opencode.json . -Force
+- **检查时机**：每次开启 OpenCode 前检查配置是否最新
+- **过时配置**：发现过时配置立即同步，避免 TUI 中出现已禁用的 Provider 或模型
+- **常见问题**：如果 TUI 中出现已禁用的 Provider（如 qianfan-coding-plan、alibaba-tokenplan），说明本地配置过时，需要同步

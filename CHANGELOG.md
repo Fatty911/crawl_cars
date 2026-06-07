@@ -2,6 +2,13 @@
 
 ## 2026-06-07
 
+### 修改25: 对齐并清理 OpenCode 配置
+- 确认当前 `main` 与 `origin/main` 没有未推送提交，待处理的是本地未提交配置改动。
+- 将仓库根目录与 `ai_tools/opencode/` 下的 `opencode.json`、`oh-my-openagent.json` 同步为全局 OpenCode 最新配置。
+- 移除 `opencode.json` 中不受支持的 `disabled_providers` 字段，继续依赖自定义 Provider + whitelist 控制可见模型。
+- 移除 Copilot Haiku 相关条目，避免 TUI 显示已要求隐藏的弱模型。
+- 在 `AGENTS.md` 固化仓库 OpenCode 配置必须与全局配置对齐的规则。
+
 ### 修改24: 恢复爬虫调度窗口并修复进度同步冲突
 - `crawl-autohome.yml`、`crawl-dongchedi.yml` 恢复上午 `01:07-03:52 UTC`、下午 `05:07/05:17/05:27 UTC` 的备用触发，避免每 3 小时 schedule 导致下午 14 点多才启动。
 - 两个主爬虫 workflow 的 schedule 守卫恢复为上午 09:00-12:30、下午 13:00-13:30；并发组重新按运行窗口区分，避免上午和下午互相阻塞。

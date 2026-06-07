@@ -1,8 +1,35 @@
 # 对话历史总结
 
-> 最后更新：2026-06-07 21:25
+> 最后更新：2026-06-07 15:56
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-07：检查未推送提交并对齐 OpenCode 配置
+
+### 用户诉求
+- 查看所有未推送提交，判断哪些正确、哪些有误。
+- 有误的改正确，没问题后全部推送。
+
+### 排查
+- `main` 与 `origin/main` 没有未推送提交，当前待处理内容是 5 个未提交文件改动：`AGENTS.md`、根目录与 `ai_tools/opencode/` 下的 OpenCode/oh-my-openagent 配置。
+- 这些配置改动的大方向正确：同步新的多 Provider/多模型配置，并新增仓库配置必须对齐全局配置的长期规则。
+- 发现两类需要修正的问题：
+  - `opencode.json` 仍带有 AGENTS 明确说明不支持的 `disabled_providers` 字段。
+  - 配置里仍包含 Copilot Haiku 模型，违反“隐藏旧模型/弱模型”的规则。
+
+### 修改
+- 将仓库根目录与 `ai_tools/opencode/` 下的 `opencode.json`、`oh-my-openagent.json` 同步为全局 OpenCode 最新配置。
+- 同步清理全局和仓库配置中的 `disabled_providers` 字段与 Haiku 模型条目，避免之后再次复制全局配置时把错误带回仓库。
+- 保留 `opencode.json` 的合法单数字段 `provider`、`agent`；`oh-my-openagent.json` 的 `agents` 属于插件自身配置结构。
+- `AGENTS.md` 保留并提交“配置对齐（关键）”规则。
+- `CHANGELOG.md` 与本文件同步记录本次配置修正。
+
+### 结果
+- 仓库两处 OpenCode 配置与全局配置哈希一致。
+- `opencode.json` 不再包含 `disabled_providers`、Haiku 或非法复数字段。
+- 后续在本仓库开启 OpenCode 时，配置与全局源保持一致，并避开已知 schema/模型显示问题。
 
 ---
 
