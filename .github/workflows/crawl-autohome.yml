@@ -31,6 +31,8 @@ env:
   RUN_TIME: 10800
   MORNING_RUN_TIME: 10800
   AFTERNOON_RUN_TIME: 21000
+  MAX_WORKFLOW_SECONDS: 21600
+  PROGRESS_COMMIT_BUFFER_SECONDS: 1800
   MAX_CARS: 0
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
@@ -63,6 +65,7 @@ jobs:
           fi
           DONE_MARKER="crawl_state/autohome_${CRAWL_PERIOD}.done"
           CURRENT_PERIOD_FILE="crawl_state/autohome_current_period"
+          echo "WORKFLOW_START_EPOCH=$(date +%s)" >> $GITHUB_ENV
           echo "CRAWL_PERIOD=$CRAWL_PERIOD" >> $GITHUB_ENV
           echo "AUTOHOME_DONE_MARKER=$DONE_MARKER" >> $GITHUB_ENV
 
@@ -154,18 +157,18 @@ jobs:
           echo "MAX_CARS=0" >> "$GITHUB_ENV"
           echo "运行配置: $PROFILE, RUN_TIME=$RUN_SECONDS 秒, MAX_CARS=0"
 
-          # 上午动态缩短：启动得晚就少跑，14:30 前必须结束（留出缓冲时间）
+          # 上午动态缩短：启动得晚就少跑，12:30 前必须结束（留出缓冲时间）
           if [ "$PROFILE" = "morning" ]; then
             NOW_UTC_SECONDS=$(( $(date -u +%s) % 86400 ))
-            REMAIN=$(( (6 * 3600 + 30 * 60) - NOW_UTC_SECONDS - 900 ))
+            REMAIN=$(( (4 * 3600 + 30 * 60) - NOW_UTC_SECONDS - 900 ))
             if [ "$REMAIN" -lt 300 ]; then
-              echo "距 14:30 扣除 15 分钟缓冲后不足 5 分钟，跳过本次上午爬虫"
+              echo "距 12:30 扣除 15 分钟缓冲后不足 5 分钟，跳过本次上午爬虫"
               echo "SKIP_CRAWL=true" >> $GITHUB_ENV
               echo "skip=true" >> $GITHUB_OUTPUT
               exit 0
             fi
             if [ "$REMAIN" -lt "$RUN_SECONDS" ]; then
-              echo "距 14:30 扣除 15 分钟缓冲后剩 ${REMAIN}s，上午 RUN_TIME 从 ${RUN_SECONDS}s 缩短到 ${REMAIN}s"
+              echo "距 12:30 扣除 15 分钟缓冲后剩 ${REMAIN}s，上午 RUN_TIME 从 ${RUN_SECONDS}s 缩短到 ${REMAIN}s"
               echo "RUN_TIME=$REMAIN" >> "$GITHUB_ENV"
             fi
           fi
@@ -280,10 +283,34 @@ jobs:
             echo "done=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Clamp step1 runtime to workflow budget
+        if: steps.period.outputs.skip != 'true' && steps.check_done.outputs.done != 'true'
+        run: |
+          NOW=$(date +%s)
+          ELAPSED=$((NOW - WORKFLOW_START_EPOCH))
+          SAFE_REMAIN=$((MAX_WORKFLOW_SECONDS - ELAPSED - PROGRESS_COMMIT_BUFFER_SECONDS))
+          echo "workflow elapsed=${ELAPSED}s, safe step1 remain=${SAFE_REMAIN}s, requested RUN_TIME=${RUN_TIME}s"
+          if [ "$SAFE_REMAIN" -lt 300 ]; then
+            echo "剩余安全时间不足 5 分钟，跳过 step1，避免 GitHub 6 小时硬超时导致进度无法提交"
+            echo "STEP1_SKIP=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ "$SAFE_REMAIN" -lt "$RUN_TIME" ]; then
+            echo "RUN_TIME 从 ${RUN_TIME}s 缩短到 ${SAFE_REMAIN}s，预留 ${PROGRESS_COMMIT_BUFFER_SECONDS}s 提交进度缓冲"
+            echo "RUN_TIME=$SAFE_REMAIN" >> "$GITHUB_ENV"
+          fi
+
       - name: Run step1 loop
         id: step1
         if: steps.period.outputs.skip != 'true' && steps.check_done.outputs.done != 'true'
         run: |
+          if [ "$STEP1_SKIP" = "true" ]; then
+            echo "step1 已因剩余安全时间不足跳过"
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           set -o pipefail
           set +e
           INCREMENTAL_FLAG=""

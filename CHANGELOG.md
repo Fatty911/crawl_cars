@@ -2,6 +2,12 @@
 
 ## 2026-06-07
 
+### 修改26: 修正上午截止时间并补齐汽车之家超时缓冲
+- 复查最新 Actions 日志确认懂车帝失败 run 发生在旧提交，当前源码已具备进度 JSON 冲突合并能力。
+- 修复两个主爬虫 workflow 的上午动态缩短误算到北京时间 14:30 的问题，恢复为 12:30 截止并预留 15 分钟缓冲。
+- 汽车之家 step1 增加与懂车帝 step2 同类的 workflow 总时长预算扣减，避免下午长跑因 checkout/setup/proxy 耗时贴近 GitHub 6 小时边界。
+- README 同步更新上午截止、随机触发窗口和长步骤提交缓冲说明。
+
 ### 修改25: 对齐并清理 OpenCode 配置
 - 确认当前 `main` 与 `origin/main` 没有未推送提交，待处理的是本地未提交配置改动。
 - 将仓库根目录与 `ai_tools/opencode/` 下的 `opencode.json`、`oh-my-openagent.json` 同步为全局 OpenCode 最新配置。

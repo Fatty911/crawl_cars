@@ -1,8 +1,39 @@
 # 对话历史总结
 
-> 最后更新：2026-06-07 15:56
+> 最后更新：2026-06-07 16:31
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-07：复查最新 workflow 运行并修正上午截止时间
+
+### 用户诉求
+- 查看最新工作流运行情况和最新源码。
+- 判断 workflow 是否符合预期；如果有问题直接修复。
+
+### 排查
+- 最新 `CI` run `27086740294` 已成功，`main` 与 `origin/main` 同步。
+- 最近 30 个 workflow run 中，最新爬虫失败/取消发生在旧提交：
+  - 懂车帝 workflow_dispatch run `27083453452` 位于 `b60a51c`，失败点是旧版 `git_sync_progress.sh` 遇到 `dongchedi/progress.json` rebase 冲突后仍“使用远程版本解决”，6 次重试失败。
+  - 懂车帝 schedule run `27083369318` 位于 `a9c6aad`，被后续运行/修复链路取消，不代表当前源码失败。
+- 当前源码已经包含 `custom_scripts/merge_progress_json.py` 和新版 `git_sync_progress.sh`，进度冲突会合并 JSON 进度，不再使用远程版本覆盖本地进度。
+- 继续检查源码发现新问题：两个主爬虫的上午动态缩短误算到北京时间 14:30，而历史规则和用户预期是上午窗口应在 12:30 前收口。
+- 汽车之家下午长跑还缺少 workflow 总耗时扣减；如果 checkout、依赖安装和代理初始化耗时较长，step1 跑满 21000 秒后仍可能贴近 GitHub 6 小时边界。
+
+### 修改
+- `crawl-autohome.yml`、`crawl-dongchedi.yml`：
+  - 上午动态 `RUN_TIME` 截止从 UTC 06:30（北京时间 14:30）修正为 UTC 04:30（北京时间 12:30）。
+  - 继续扣除 15 分钟缓冲，上午 late start 会尽量在 12:15 前结束。
+- `crawl-autohome.yml`：
+  - 新增 `WORKFLOW_START_EPOCH`、`MAX_WORKFLOW_SECONDS=21600`、`PROGRESS_COMMIT_BUFFER_SECONDS=1800`。
+  - 在 step1 前按 workflow 已耗时缩短 `RUN_TIME`，剩余安全时间不足时跳过长步骤，避免 GitHub 硬超时导致进度无法提交。
+- `README.md`、`CHANGELOG.md` 同步记录本次修正。
+
+### 结果
+- 上午备用触发不会再把爬虫带到下午两点多。
+- 汽车之家和懂车帝都具备长步骤启动前的总时长预算保护。
+- 旧失败 run 已由当前源码覆盖，不需要按旧日志再次修复爬虫业务逻辑。
 
 ---
 
