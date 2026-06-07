@@ -121,6 +121,7 @@ jobs:
           echo "skip=false" >> $GITHUB_OUTPUT
 
       - name: Configure crawl window
+        id: window
         if: steps.period.outputs.skip != 'true'
         run: |
           PROFILE="${{ inputs.run_profile }}"
@@ -130,12 +131,16 @@ jobs:
           if [ -z "$PROFILE" ] || [ "$PROFILE" = "auto" ]; then
             CN_HOUR=$(TZ=Asia/Shanghai date +%H)
             CN_MINUTE=$(TZ=Asia/Shanghai date +%M)
-            if [ $((10#$CN_HOUR)) -ge 9 ] && [ $((10#$CN_HOUR)) -lt 14 ]; then
+            CURRENT_MINUTES=$((10#$CN_HOUR * 60 + 10#$CN_MINUTE))
+            if [ "$CURRENT_MINUTES" -ge $((9 * 60)) ] && [ "$CURRENT_MINUTES" -le $((12 * 60 + 30)) ]; then
               PROFILE="morning"
-            elif [ $((10#$CN_HOUR)) -ge 13 ] && [ $((10#$CN_HOUR)) -lt 16 ]; then
+            elif [ "$CURRENT_MINUTES" -ge $((13 * 60)) ] && [ "$CURRENT_MINUTES" -le $((13 * 60 + 30)) ]; then
               PROFILE="afternoon"
             else
-              PROFILE="afternoon"
+              echo "当前北京时间 ${CN_HOUR}:${CN_MINUTE} 不在 auto 允许爬取窗口，跳过本次触发"
+              echo "SKIP_CRAWL=true" >> "$GITHUB_ENV"
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
           fi
 
@@ -151,6 +156,22 @@ jobs:
               exit 1
               ;;
           esac
+
+          CN_HOUR_NOW=$(TZ=Asia/Shanghai date +%H)
+          CN_MINUTE_NOW=$(TZ=Asia/Shanghai date +%M)
+          CURRENT_MINUTES=$((10#$CN_HOUR_NOW * 60 + 10#$CN_MINUTE_NOW))
+          WINDOW_OK=false
+          if [ "$PROFILE" = "morning" ] && [ "$CURRENT_MINUTES" -ge $((9 * 60)) ] && [ "$CURRENT_MINUTES" -le $((12 * 60 + 30)) ]; then
+            WINDOW_OK=true
+          elif [ "$PROFILE" = "afternoon" ] && [ "$CURRENT_MINUTES" -ge $((13 * 60)) ] && [ "$CURRENT_MINUTES" -le $((13 * 60 + 30)) ]; then
+            WINDOW_OK=true
+          fi
+          if [ "$WINDOW_OK" != "true" ]; then
+            echo "当前北京时间 ${CN_HOUR_NOW}:${CN_MINUTE_NOW} 不在 $PROFILE 允许爬取窗口，跳过本次触发"
+            echo "SKIP_CRAWL=true" >> "$GITHUB_ENV"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           echo "RUN_PROFILE=$PROFILE" >> "$GITHUB_ENV"
           echo "RUN_TIME=$RUN_SECONDS" >> "$GITHUB_ENV"
@@ -172,10 +193,11 @@ jobs:
               echo "RUN_TIME=$REMAIN" >> "$GITHUB_ENV"
             fi
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Calculate delay from trigger time
         id: delay
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
           TRIGGER_TIME="${{ inputs.trigger_time }}"
           if [ -n "$TRIGGER_TIME" ] && [ "$TRIGGER_TIME" != "" ]; then
@@ -230,7 +252,7 @@ jobs:
           fi
 
       - name: Random delay
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
           DELAY="${{ steps.delay.outputs.delay }}"
           if [ "$DELAY" != "0" ] && [ -n "$DELAY" ]; then
@@ -241,20 +263,20 @@ jobs:
           fi
 
       - uses: actions/setup-python@main
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         with:
           python-version: '3.12'
       - uses: browser-actions/setup-chrome@v2
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         with:
           chrome-version: stable
       - uses: nanasess/setup-chromedriver@v2
-        if: steps.period.outputs.skip != 'true'
-      - if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
+      - if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: pip install requests beautifulsoup4 selenium lxml PyYAML
 
       - name: Setup environment
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
           echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
           echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
@@ -263,19 +285,19 @@ jobs:
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
 
       - name: Setup proxy if configured
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         env:
           PROXY_SUBSCRIPTIONS: ${{ secrets.PROXY_SUBSCRIPTIONS }}
         run: |
           python custom_scripts/setup_proxy_runtime.py --github-env "$GITHUB_ENV"
 
       - name: Restart if requested
-        if: steps.period.outputs.skip != 'true' && github.event.inputs.force_restart == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart == 'true'
         run: rm -f progress.json step1_done "$AUTOHOME_DONE_MARKER"
 
       - name: Check if step1 already done
         id: check_done
-        if: steps.period.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
           if [ -f "$AUTOHOME_DONE_MARKER" ]; then
             echo "done=true" >> $GITHUB_OUTPUT
@@ -284,7 +306,7 @@ jobs:
           fi
 
       - name: Clamp step1 runtime to workflow budget
-        if: steps.period.outputs.skip != 'true' && steps.check_done.outputs.done != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.check_done.outputs.done != 'true'
         run: |
           NOW=$(date +%s)
           ELAPSED=$((NOW - WORKFLOW_START_EPOCH))
@@ -302,7 +324,7 @@ jobs:
 
       - name: Run step1 loop
         id: step1
-        if: steps.period.outputs.skip != 'true' && steps.check_done.outputs.done != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.check_done.outputs.done != 'true'
         run: |
           if [ "$STEP1_SKIP" = "true" ]; then
             echo "step1 已因剩余安全时间不足跳过"
@@ -358,19 +380,19 @@ jobs:
 
       - name: Classify step1 failure
         id: classify_step1
-        if: steps.period.outputs.skip != 'true' && steps.step1.outputs.failed == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true'
         run: |
           python custom_scripts/classify_crawl_failure.py step1_error.log --github-output "$GITHUB_OUTPUT"
 
       - name: Auto-fix step1 error
-        if: steps.period.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 step1 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py step1_error.log test_autohome.py || echo "自动修复失败，继续运行"
 
       - name: Retry step1 after fix
         id: retry_step1
-        if: steps.period.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true'
         run: |
           set -o pipefail
           echo "修复后重试 step1..."
@@ -407,14 +429,14 @@ jobs:
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Fail unresolved step1 error
-        if: steps.period.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix != 'true'
         run: |
           echo "Step1 失败且不适合自动修复，终止工作流"
           exit 1
 
       - name: Run remaining steps
         id: remaining
-        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: |
           set -o pipefail
           FAILED=0
@@ -439,18 +461,18 @@ jobs:
 
       - name: Classify remaining failure
         id: classify_remaining
-        if: steps.period.outputs.skip != 'true' && env.REMAINING_FAILED == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true'
         run: |
           python custom_scripts/classify_crawl_failure.py remaining_error.log --github-output "$GITHUB_OUTPUT"
 
       - name: Auto-fix remaining error
-        if: steps.period.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 remaining steps 错误 (使用新版通用修复器)..."
           python auto_fix_workflow.py remaining_error.log test_autohome.py || echo "自动修复失败，继续运行"
 
       - name: Retry remaining after fix
-        if: steps.period.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
         run: |
           echo "修复后重试 remaining steps..."
           if [ "$PROXY_ENABLED" = "true" ]; then
@@ -480,11 +502,11 @@ jobs:
           retention-days: 7
 
       - name: Set date
-        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Autohome output
-        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: |
           python - <<'PY'
           import glob
@@ -511,7 +533,7 @@ jobs:
           PY
 
       - name: Mark Autohome period complete
-        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: |
           mkdir -p crawl_state
           touch "$AUTOHOME_DONE_MARKER"
@@ -523,7 +545,7 @@ jobs:
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - uses: actions/upload-artifact@main
-        if: steps.period.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         with:
           name: autohome-data-${{ env.CRAWL_DATE }}
           path: |

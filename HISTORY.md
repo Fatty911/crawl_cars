@@ -1,8 +1,40 @@
 # 对话历史总结
 
-> 最后更新：2026-06-07 16:31
+> 最后更新：2026-06-08 07:55
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-08：复查最新 workflow 并阻止窗口外手动默认触发
+
+### 用户诉求
+- 再看最新工作流运行情况。
+- 判断是否符合预期；有问题直接修复。
+
+### 排查
+- 本地同步到远端最新 `cc7bf56 Update dongchedi progress - 16:02`，说明昨晚懂车帝分段运行成功提交了进度。
+- 最新 40 个 workflow run 中，当前源码之后没有失败 run；`合并分析` 成功跳过未就绪数据，`AI Auto Fix Monitor` 对进度提交触发为 skipped。
+- 重点检查最新懂车帝成功 run `27089991071`：
+  - 事件类型是 `workflow_dispatch`，北京时间 2026-06-07 18:31 启动。
+  - `trigger_time` 为空，说明不是 `crawl-trigger.yml` 正常传参触发。
+  - 默认 `run_profile=auto` 在窗口外落到 `afternoon`，随后运行 step1/step2。
+  - step2 启动前按 workflow 已耗时把 `RUN_TIME` 从 21000 缩短到 18821 秒，最终主动 `exit code 10`，提交 `cc7bf56` 并同步成功；进度保护本身有效。
+- 源码问题是两个主爬虫只对 `schedule` 做了窗口守卫，`workflow_dispatch` 默认触发可绕过窗口；同时 `Configure crawl window` 里写 `skip=true` 但该 step 没有 `id`，后续步骤不会读取这个 skip 输出。
+
+### 修改
+- `crawl-autohome.yml`、`crawl-dongchedi.yml`：
+  - 给 `Configure crawl window` 增加 `id: window`。
+  - 修正 `run_profile=auto` 的选择顺序，13:00-13:30 会正确归为 `afternoon`，窗口外不会再默认落到 `afternoon`。
+  - 统一计算当前北京时间，`morning` 只允许 09:00-12:30，`afternoon` 只允许 13:00-13:30。
+  - 窗口外写入 `steps.window.outputs.skip=true` 并成功结束。
+  - 后续安装依赖、代理、爬虫长步骤、自动修复、校验和 artifact 步骤都同时检查 `steps.period.outputs.skip` 与 `steps.window.outputs.skip`。
+- `README.md`、`CHANGELOG.md` 同步记录：手动默认触发和随机触发一样受时间窗约束，不会在傍晚补跑。
+
+### 结果
+- 昨晚 18:31 这类直接 `workflow_dispatch` 默认触发后续会成功跳过，不再启动长爬虫。
+- schedule、随机触发、手动默认触发均收敛到上午 09:00-12:30 或下午 13:00-13:30 的启动窗口。
+- 当前进度提交与 6 小时前缓冲逻辑仍保持有效。
 
 ---
 

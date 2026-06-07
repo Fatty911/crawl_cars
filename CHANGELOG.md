@@ -2,6 +2,12 @@
 
 ## 2026-06-07
 
+### 修改27: 阻止手动默认触发在窗口外启动爬虫
+- 复查最新运行发现懂车帝 `workflow_dispatch` 可在北京时间 18:31 以默认 `run_profile=auto` 落到 afternoon 并运行长步骤。
+- `crawl-autohome.yml`、`crawl-dongchedi.yml` 的 `Configure crawl window` 增加 `id: window`，后续长步骤统一检查 `steps.window.outputs.skip`。
+- 两个主爬虫 workflow 现在对 schedule、随机触发和手动默认触发都执行 09:00-12:30 / 13:00-13:30 时间窗守卫，窗口外直接成功跳过；`auto` 在 13:00-13:30 会正确归为 afternoon。
+- README 同步补充手动默认触发也受时间窗约束。
+
 ### 修改26: 修正上午截止时间并补齐汽车之家超时缓冲
 - 复查最新 Actions 日志确认懂车帝失败 run 发生在旧提交，当前源码已具备进度 JSON 冲突合并能力。
 - 修复两个主爬虫 workflow 的上午动态缩短误算到北京时间 14:30 的问题，恢复为 12:30 截止并预留 15 分钟缓冲。
