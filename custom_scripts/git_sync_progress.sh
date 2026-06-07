@@ -4,6 +4,14 @@ set -euo pipefail
 REMOTE_URL="${1:?remote url required}"
 ATTEMPTS="${2:-3}"
 
+# 如果设置了代理，配置 git 使用代理
+if [ -n "${https_proxy:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then
+  PROXY_URL="${https_proxy:-${HTTPS_PROXY:-}}"
+  echo "git sync 使用代理: $PROXY_URL"
+  git config http.proxy "$PROXY_URL"
+  git config https.proxy "$PROXY_URL"
+fi
+
 for attempt in $(seq 1 "$ATTEMPTS"); do
   # stash 未提交的更改（如生成的数据文件），避免 rebase 冲突
   git stash push -m "sync-progress-stash-$attempt" 2>/dev/null || true
