@@ -320,7 +320,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 - 日志显示输出行数过少、少量车型 `无法解析config或option`、拒绝上传/合并等数据质量保护时，跳过大模型修复，避免把正常保护机制误判为代码需要改。
 - 日志显示 AI Provider 自身 SSL、401、403、证书或网络异常时，跳过再次自动修复，避免监控工作流围绕自动修复失败产生噪音。
 - 只有日志显示未生成数据、完全解析不到车型数据、配置页/接口致命异常等站点结构或链接异常时，才调用大模型修复。
-- `AI_Auto_Fix_Monitor.yml` 会优先抓取完整失败日志，再结合 error-log artifact 分类，避免只看 step 日志造成误判。
+- `AI_Auto_Fix_Monitor.yml` 会优先抓取完整失败日志，再静默尝试下载 `error-log` artifact 参与分类；成功的爬虫 run 通常没有该 artifact，不会因此产生红色 annotation。
 - `AI_Auto_Fix_Monitor.yml` 会先用 `custom_scripts/check_workflow_expectations.py` 判断是否需要代码修复：失败日志属于站点结构/解析异常或未知代码问题时才修，成功但长爬虫跑到允许窗口外时也会触发修复。
 - 监控工作流优先调用官方 `openai/codex-action@v1` 作为 Codex 自修复代理；需要仓库 Secret `OPENAI_API_KEY`。Codex 修完后必须通过 `ensure_codex_autofix_scope.py`、`validate_syntax.py` 和 `validate_workflow_expectations.py`，才会提交并推送到 `main`。
 - 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，监控工作流才退回 `auto_fix_workflow.py` 多 Provider 旧修复器兜底。

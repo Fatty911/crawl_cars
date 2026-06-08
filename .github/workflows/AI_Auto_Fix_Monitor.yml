@@ -38,13 +38,16 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4 pyyaml
 
-      - name: Download error log artifact
-        continue-on-error: true
-        uses: actions/download-artifact@main
-        with:
-          name: error-log
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+      - name: Download error log artifact if present
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh run download ${{ github.event.workflow_run.id }} --name error-log --dir . 2>/tmp/error_log_download.txt; then
+            echo "已下载 error-log artifact"
+          else
+            echo "未找到 error-log artifact，继续使用 gh run view 获取完整日志"
+            cat /tmp/error_log_download.txt
+          fi
 
       - name: Inspect completed workflow
         id: inspect

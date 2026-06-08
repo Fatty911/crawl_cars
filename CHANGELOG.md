@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+### 修改29: 消除 AI Auto Fix Monitor 缺少 error-log artifact 的误报注解
+- `AI_Auto_Fix_Monitor.yml` 不再使用 `actions/download-artifact` 下载可选的 `error-log`，避免成功爬虫 run 没有错误日志 artifact 时产生 `Artifact not found` annotation。
+- 改为通过 `gh run download --name error-log` 在 shell 中静默尝试；找不到 artifact 时继续使用 `gh run view --log` / `--log-failed` 抓取日志，不影响分类和 Codex 自修复。
+- README 同步说明成功 run 缺少 `error-log` 属于正常情况。
+
+## 2026-06-08
+
 ### 修改28: 上午窗口前移到 8 点并接入 Codex 自修复
 - `crawl-autohome.yml`、`crawl-dongchedi.yml` 的上午备用 schedule 从 UTC `01:07-03:52` 前移为 UTC `00:07-03:52`，对应北京时间 `08:07-11:52`。
 - 两个主爬虫 workflow、`crawl-trigger.yml` 和手动 `run_profile=auto` 的上午启动窗口统一改为北京时间 `08:00-12:30`；下午 `13:00-13:30`、下午长跑预算和半月完成后跳过规则保持不变。

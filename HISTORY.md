@@ -1,8 +1,28 @@
 # 对话历史总结
 
-> 最后更新：2026-06-08 08:12
+> 最后更新：2026-06-08 08:26
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-08：消除 AI Auto Fix Monitor 缺少 error-log artifact 的误报注解
+
+### 用户反馈
+- `AI Auto Fix Monitor #281` 虽然 job 成功，但 Annotations 中出现 `Unable to download artifact(s): Artifact not found for name: error-log`。
+
+### 根因
+- `actions/download-artifact` 即使设置了 `continue-on-error: true`，找不到 artifact 时也会在 GitHub UI 里留下红色 annotation。
+- 成功的爬虫 workflow 通常不会上传 `error-log`，所以这是可选 artifact 下载方式导致的噪音，不是爬虫或 Codex 修复逻辑失败。
+
+### 修改
+- `AI_Auto_Fix_Monitor.yml` 删除 `actions/download-artifact` 步骤。
+- 改用 `gh run download --name error-log` 在 shell 中静默尝试下载；找不到时只输出普通日志并继续。
+- README 同步说明成功 run 缺少 `error-log` 属于正常情况，不再产生红色 annotation。
+
+### 结果
+- 后续成功爬虫触发的监控工作流不会再因为没有 `error-log` artifact 挂红色注解。
+- 真正失败时仍会优先使用完整 workflow log，并在存在 `error-log` artifact 时合并分类。
 
 ---
 
