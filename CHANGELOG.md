@@ -2,6 +2,15 @@
 
 ## 2026-06-08
 
+### 修改30: 懂车帝连续 renderer timeout 后自动重启 Chrome
+- 复查懂车帝长跑日志发现 `Timed out receiving message from renderer` 被脚本捕获后会继续爬取，属于单车系页面加载异常，不是 workflow 失败。
+- 当前长跑 `27117329232` 最后因 `exit code 10` 正常提交进度；远端进度显示 `series_list=4692`、`crawled_series=131`，懂车帝本半月还没全量完成。
+- 为避免 Chrome renderer 连续超时后进入坏状态拖慢 step2，`crawl_dongchedi.py` 新增 `DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD`，默认连续 3 次 renderer timeout 后重启 Chrome 并继续。
+- `crawl_series_config()` 现在返回当前活动 browser，外层会关闭重启后的新 browser，避免 runner 残留浏览器进程。
+- README 同步记录新环境变量。
+
+## 2026-06-08
+
 ### 修改29: 消除 AI Auto Fix Monitor 缺少 error-log artifact 的误报注解
 - `AI_Auto_Fix_Monitor.yml` 不再使用 `actions/download-artifact` 下载可选的 `error-log`，避免成功爬虫 run 没有错误日志 artifact 时产生 `Artifact not found` annotation。
 - 改为通过 `gh run download --name error-log` 在 shell 中静默尝试；找不到 artifact 时继续使用 `gh run view --log` / `--log-failed` 抓取日志，不影响分类和 Codex 自修复。

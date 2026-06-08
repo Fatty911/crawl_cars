@@ -145,6 +145,7 @@ crawl_cars/
 | `MAX_SERIES_PER_RUN` | 每轮最多爬取车系数 | 命令行参数 |
 | `AUTO_MODE` | 自动模式，未完成返回exit code 10 | 命令行参数 |
 | `DCD_PAGE_LOAD_TIMEOUT` | Selenium 页面加载超时秒数，避免单页卡住 | 60 |
+| `DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD` | 连续 Chrome renderer 超时多少次后重启浏览器，0 表示不自动重启 | 3 |
 
 **命令行参数**：
 

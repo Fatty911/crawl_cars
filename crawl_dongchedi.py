@@ -37,6 +37,9 @@ INCREMENTAL_MODE = args.incremental
 CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "3"))
 CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "8"))
 DCD_PAGE_LOAD_TIMEOUT = int(os.getenv("DCD_PAGE_LOAD_TIMEOUT", "60"))
+DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD = int(
+    os.getenv("DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD", "3")
+)
 if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
     CRAWL_MAX_DELAY_SECONDS = CRAWL_MIN_DELAY_SECONDS
 
@@ -288,6 +291,11 @@ def human_delay(label):
     time.sleep(delay)
 
 
+def is_renderer_timeout(exc):
+    text = str(exc)
+    return "Timed out receiving message from renderer" in text or "timeout: Timed out" in text
+
+
 def get_existing_html_ids():
     """返回当前工作区真实存在的车系 HTML 缓存 ID。"""
     if not os.path.isdir(dcd_json_dir):
@@ -490,6 +498,7 @@ def crawl_series_config(browser, series_list):
     initial_crawled_count = len(crawled)
     start_time = time.time()
     skipped_count = 0
+    consecutive_renderer_timeouts = 0
     need_crawl = len(series_list) - initial_crawled_count
 
     print(f"车系总数: {len(series_list)}，已有HTML: {initial_crawled_count}，需爬取: {need_crawl}")
@@ -508,7 +517,7 @@ def crawl_series_config(browser, series_list):
                 break
         else:
             if check_time_limit(start_time) or check_series_limit(len(crawled) - initial_crawled_count):
-                return
+                return browser
 
         print(
             f"[{idx + 1}/{len(series_list)}] 正在爬取: {series_name} (ID: {series_id})"
@@ -533,6 +542,7 @@ def crawl_series_config(browser, series_list):
                     os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
                 ) as f:
                     f.write(f"{series_id} {series_name}: 配置页面加载超时\n")
+                consecutive_renderer_timeouts = 0
                 save_progress()
                 continue
 
@@ -546,12 +556,31 @@ def crawl_series_config(browser, series_list):
                 with open(html_file, "w", encoding="utf-8") as f:
                     f.write(page_source)
                 saved_html = True
+            consecutive_renderer_timeouts = 0
         except Exception as e:
             print(f"  爬取异常: {e}")
             with open(
                 os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
             ) as f:
                 f.write(f"{series_id} {series_name}: {e}\n")
+            if is_renderer_timeout(e):
+                consecutive_renderer_timeouts += 1
+                if (
+                    DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD > 0
+                    and consecutive_renderer_timeouts >= DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD
+                ):
+                    print(
+                        "  连续 "
+                        f"{consecutive_renderer_timeouts} 次 renderer 超时，重启 Chrome 后继续"
+                    )
+                    try:
+                        browser.quit()
+                    except Exception as quit_exc:
+                        print(f"  关闭旧浏览器失败，继续重启: {quit_exc}")
+                    browser = create_browser()
+                    consecutive_renderer_timeouts = 0
+            else:
+                consecutive_renderer_timeouts = 0
 
         if saved_html and series_id not in crawled:
             crawled.append(series_id)
@@ -564,6 +593,7 @@ def crawl_series_config(browser, series_list):
         print(f"增量模式完成：新增 {new_crawled} 个车系，跳过 {skipped_count} 个已存在车系")
     else:
         print(f"第二步完成：新增 {new_crawled} 个车系")
+    return browser
 
 
 # 第三步：解析配置页面，提取数据
@@ -860,7 +890,7 @@ def main():
 
             browser = create_browser()
             try:
-                crawl_series_config(browser, series_list)
+                browser = crawl_series_config(browser, series_list)
                 if AUTO_MODE and not is_step2_completed():
                     sys.exit(10)
             finally:
@@ -887,7 +917,7 @@ def main():
         series_list = get_series_list()
         browser = create_browser()
         try:
-            crawl_series_config(browser, series_list)
+            browser = crawl_series_config(browser, series_list)
             all_rows, all_headers = parse_config_pages(series_list)
             require_non_empty_rows(all_rows, "全流程")
             generate_output(all_rows, all_headers)

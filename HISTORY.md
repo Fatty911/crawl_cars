@@ -1,8 +1,34 @@
 # 对话历史总结
 
-> 最后更新：2026-06-08 08:26
+> 最后更新：2026-06-08 20:23
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-08：解释懂车帝 renderer timeout 并优化连续超时处理
+
+### 用户反馈
+- 懂车帝日志里出现 `Timed out receiving message from renderer` / `爬取异常` 堆栈，但后面还能继续爬。
+- 用户感觉懂车帝还没爬完，汽车之家总用时比懂车帝少不少。
+
+### 排查
+- 最新懂车帝长跑 `27117329232` 从北京时间 2026-06-08 13:10 跑到 18:41，workflow 结论 success。
+- 日志显示代理已启用：解析到 52 个节点，`PROXY_ENABLED=true`，step1/step2 使用 mihomo。
+- step2 因 workflow 已耗时扣减，从 `RUN_TIME=21000` 缩短到 `17635` 秒，并在最后以 `Exit code: 10` 正常提交 `Update dongchedi progress - 10:41`。
+- `Timed out receiving message from renderer` 是 Selenium/Chrome 单页加载超时，代码会记录到 `dongchedi/exception/exception.txt`，不把该车系加入 `crawled_series`，然后继续下一个车系。
+- 远端 `origin/main:dongchedi/progress.json` 显示 `series_list=4692`、`crawled_series=131`，且 `crawl_state/` 只有汽车之家 done 标记，没有 `dongchedi_202606_H1.done`，所以懂车帝确实还没全量完成。
+- 汽车之家最新短 run 只是因为 `autohome_202606_H1.done` 已存在，7 秒内成功跳过，不能直接和懂车帝长跑耗时比较。
+
+### 修改
+- `crawl_dongchedi.py` 新增 `DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD`，默认值 3。
+- step2 遇到连续 renderer timeout 时会关闭旧 Chrome、重新创建浏览器后继续，避免一个坏掉的 renderer 让后续车系连续快速 timeout。
+- `crawl_series_config()` 返回当前活动 browser，外层 finally 会关闭重启后的新 browser，避免残留进程。
+- README、CHANGELOG、HISTORY 同步记录。
+
+### 结果
+- 单个车系 renderer timeout 仍不会中断整个 workflow；连续 timeout 会主动重启 Chrome，提高懂车帝 step2 后续续爬效率。
+- 现有半月完成标记逻辑保持不变：懂车帝完整成功后才写 `dongchedi_202606_H1.done`，之后本半月自动跳过。
 
 ---
 
