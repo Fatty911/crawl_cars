@@ -24,6 +24,7 @@
 - `crawl_dongchedi.py` 新增 `DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD`，默认值 3。
 - step2 遇到连续 renderer timeout 时会关闭旧 Chrome、重新创建浏览器后继续，避免一个坏掉的 renderer 让后续车系连续快速 timeout。
 - `crawl_series_config()` 返回当前活动 browser，外层 finally 会关闭重启后的新 browser，避免残留进程。
+- 推送后 CI 成功，但 GitHub 对 `actions/checkout@v4`、`actions/setup-python@v5`、`actions/setup-node@v4` 给出 Node.js 20 deprecation annotation；通过 GitHub API 确认最新 tag 后，将三者升级为 `v6.0.3`、`v6.2.0`、`v6.4.0`。
 - README、CHANGELOG、HISTORY 同步记录。
 
 ### 结果

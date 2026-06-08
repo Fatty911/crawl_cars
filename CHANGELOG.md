@@ -7,6 +7,7 @@
 - 当前长跑 `27117329232` 最后因 `exit code 10` 正常提交进度；远端进度显示 `series_list=4692`、`crawled_series=131`，懂车帝本半月还没全量完成。
 - 为避免 Chrome renderer 连续超时后进入坏状态拖慢 step2，`crawl_dongchedi.py` 新增 `DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD`，默认连续 3 次 renderer timeout 后重启 Chrome 并继续。
 - `crawl_series_config()` 现在返回当前活动 browser，外层会关闭重启后的新 browser，避免 runner 残留浏览器进程。
+- CI 中 `actions/checkout`、`actions/setup-python`、`actions/setup-node` 升级到官方最新 v6 版本，消除 GitHub Actions Node.js 20 deprecation annotation。
 - README 同步记录新环境变量。
 
 ## 2026-06-08
