@@ -1,5 +1,16 @@
 # 对话历史
 
+## 2026-06-08
+
+### 修改28: 上午窗口前移到 8 点并接入 Codex 自修复
+- `crawl-autohome.yml`、`crawl-dongchedi.yml` 的上午备用 schedule 从 UTC `01:07-03:52` 前移为 UTC `00:07-03:52`，对应北京时间 `08:07-11:52`。
+- 两个主爬虫 workflow、`crawl-trigger.yml` 和手动 `run_profile=auto` 的上午启动窗口统一改为北京时间 `08:00-12:30`；下午 `13:00-13:30`、下午长跑预算和半月完成后跳过规则保持不变。
+- `AI_Auto_Fix_Monitor.yml` 改为 Codex 优先的自修复监控：失败时先分类，成功时也检查是否出现长爬虫窗口外启动；需要修代码时优先调用 `openai/codex-action@v1`，未配置 `OPENAI_API_KEY` 或 Codex 执行失败时再回退旧版多 Provider 修复器。
+- 新增 `custom_scripts/check_workflow_expectations.py`、`ensure_codex_autofix_scope.py`、`validate_workflow_expectations.py`，分别负责运行结果预期检查、Codex 修改范围白名单、静态 workflow 规则校验。
+- CI 新增 workflow 预期校验，防止上午 8 点窗口、Codex 自修复护栏或关键 schedule 后续被误改。
+- `validate_syntax.py` 在 Windows 控制台下强制使用 UTF-8/替换错误输出，并修复显式传入相对路径文件时的仓库根目录解析，避免校验脚本自身失败。
+- README 与 DOCKER_DEPLOY 同步更新上午窗口、Codex 自修复、`OPENAI_API_KEY` 和新增辅助脚本说明。
+
 ## 2026-06-07
 
 ### 修改27: 阻止手动默认触发在窗口外启动爬虫

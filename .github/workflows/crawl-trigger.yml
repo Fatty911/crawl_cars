@@ -1,6 +1,6 @@
 # 爬虫随机触发器 - 通过 repository_dispatch 触发实际爬虫
 # 使用 cron-job.org 或外部定时服务调用此 workflow
-# 随机选择爬虫类型，东八区每天 9:00-12:30 或 13:00-13:30 触发
+# 随机选择爬虫类型，东八区每天 8:00-12:30 或 13:00-13:30 触发
 name: 爬虫随机触发器
 
 on:
@@ -50,14 +50,14 @@ jobs:
           EVENT_NAME="${{ github.event_name }}"
           RUN_PROFILE=""
           
-          if [ $CN_HOUR -ge 9 ] && [ $CN_HOUR -lt 12 ]; then
+          if [ $CN_HOUR -ge 8 ] && [ $CN_HOUR -lt 12 ]; then
             RUN_PROFILE="morning"
           elif [ $CN_HOUR -eq 12 ] && [ $((10#$CN_MINUTE)) -le 30 ]; then
             RUN_PROFILE="morning"
           elif [ $CN_HOUR -eq 13 ] && [ $((10#$CN_MINUTE)) -le 30 ]; then
             RUN_PROFILE="afternoon"
           else
-            echo "当前不在东八区 9:00-12:30 或 13:00-13:30 范围内，跳过触发"
+            echo "当前不在东八区 8:00-12:30 或 13:00-13:30 范围内，跳过触发"
             echo "crawler=skip" >> $GITHUB_OUTPUT
             echo "delay=0" >> $GITHUB_OUTPUT
             echo "run_profile=skip" >> $GITHUB_OUTPUT

@@ -1,8 +1,38 @@
 # 对话历史总结
 
-> 最后更新：2026-06-08 07:55
+> 最后更新：2026-06-08 08:12
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-08：上午窗口前移到 8 点并集成 Codex 自修复
+
+### 用户诉求
+- 上午爬虫时间范围从 9 点开始改为 8 点开始。
+- 按前面方案把 Codex 集成进 GitHub workflow，让爬虫工作流报错或不符合预期时能自助修复。
+
+### 修改
+- `crawl-autohome.yml`、`crawl-dongchedi.yml`：
+  - 上午备用 cron 从 `7,22,37,52 1-3 * * *` 改为 `7,22,37,52 0-3 * * *`，对应北京时间 `08:07-11:52`。
+  - schedule 守卫、`run_profile=auto` 识别和显式 morning 窗口统一改为北京时间 `08:00-12:30`。
+  - 下午 `13:00-13:30` 启动窗口、`AFTERNOON_RUN_TIME=21000`、6 小时提交缓冲和半月完成标记逻辑保持不变。
+- `crawl-trigger.yml`：
+  - 外部随机触发与手动触发的上午窗口改为北京时间 `08:00-12:30`。
+- `AI_Auto_Fix_Monitor.yml`：
+  - 从单纯失败触发，改为监听主爬虫 completed 结果；失败时分类，成功时也检查是否出现窗口外长爬虫运行。
+  - 需要修复时优先调用官方 `openai/codex-action@v1`，通过仓库 Secret `OPENAI_API_KEY` 授权。
+  - Codex 修改后必须通过文件白名单、语法校验和 workflow 预期校验，才自动 commit + push 到 `main`。
+  - 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，回退旧版 `auto_fix_workflow.py` 多 Provider 修复器。
+  - 不再 rerun 原失败 run，避免旧 commit 重跑导致修复循环。
+- 新增 `custom_scripts/check_workflow_expectations.py`、`custom_scripts/ensure_codex_autofix_scope.py`、`custom_scripts/validate_workflow_expectations.py`。
+- `custom_scripts/validate_syntax.py` 在 Windows 控制台下强制使用 UTF-8/替换错误输出，并修复显式传入相对路径文件时的仓库根目录解析，避免校验脚本自身失败。
+- `ci.yml` 增加 workflow 预期静态校验，确保上午 8 点窗口和 Codex 护栏后续不会被误改。
+- README、DOCKER_DEPLOY、CHANGELOG 同步更新。
+
+### 结果
+- 两个主爬虫的上午可启动窗口前移到北京时间 8 点，上午备用 schedule 每天 08:07 起尝试。
+- Codex 自修复被接到 Actions：有代码修复价值时自动修，临时网络/代理订阅/正常跳过类情况不改仓库。
 
 ---
 

@@ -45,16 +45,23 @@ jobs:
       - name: Validate changed workflow and site files
         run: >
           python custom_scripts/validate_syntax.py
+          "$PWD/.github/workflows/AI_Auto_Fix_Monitor.yml"
           "$PWD/.github/workflows/ci.yml"
           "$PWD/.github/workflows/auto-merge.yml"
           "$PWD/.github/workflows/crawl-autohome.yml"
           "$PWD/.github/workflows/crawl-dongchedi.yml"
           "$PWD/.github/workflows/deploy-pages.yml"
           "$PWD/.github/workflows/merge-and-filter.yml"
+          "$PWD/custom_scripts/check_workflow_expectations.py"
+          "$PWD/custom_scripts/ensure_codex_autofix_scope.py"
+          "$PWD/custom_scripts/validate_workflow_expectations.py"
           "$PWD/merge_data.py"
           "$PWD/docs/index.html"
           "$PWD/docs/styles.css"
           "$PWD/docs/app.js"
+
+      - name: Validate workflow expectations
+        run: python custom_scripts/validate_workflow_expectations.py
 
       - name: Smoke test merge_data.py
         run: |

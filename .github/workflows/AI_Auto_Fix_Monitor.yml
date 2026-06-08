@@ -6,21 +6,29 @@ on:
     types: [completed]
 
 concurrency:
-  group: ai-auto-fix-${{ github.event.workflow_run.name }}-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: true
+  group: ai-auto-fix-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
 
 jobs:
   ai_fix:
-    name: "AI Fix → ${{ github.event.workflow_run.name }}"
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    name: "Codex Fix → ${{ github.event.workflow_run.name }}"
+    if: >-
+      ${{
+        github.event.workflow_run.head_branch == 'main' &&
+        (github.event.workflow_run.conclusion == 'failure' ||
+         github.event.workflow_run.conclusion == 'success')
+      }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: write
-      actions: write
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
+        with:
+          token: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@main
@@ -38,8 +46,145 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Run AI Auto Fix
-        id: ai_fix
+      - name: Inspect completed workflow
+        id: inspect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_EVENT: ${{ github.event.workflow_run.event }}
+          WORKFLOW_CREATED_AT: ${{ github.event.workflow_run.created_at }}
+          WORKFLOW_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
+        run: |
+          echo "=== 工作流 [${WORKFLOW_NAME}] 已完成 ==="
+          echo "Run ID: ${{ github.event.workflow_run.id }}"
+          echo "Conclusion: ${WORKFLOW_CONCLUSION}"
+          echo "Event: ${WORKFLOW_EVENT}"
+
+          gh run view ${{ github.event.workflow_run.id }} --log > workflow_full.log 2>/tmp/gh_full_log_error.txt || true
+          gh run view ${{ github.event.workflow_run.id }} --log-failed > workflow_error.log 2>/tmp/gh_failed_log_error.txt || true
+
+          LOGS=()
+          for candidate in workflow_full.log workflow_error.log step1_error.log step2_error.log remaining_error.log last_error.log; do
+            if [ -s "$candidate" ]; then
+              echo "找到日志: $candidate"
+              LOGS+=("$candidate")
+            fi
+          done
+
+          if [ "${#LOGS[@]}" -eq 0 ]; then
+            echo "无法获取 workflow 日志，跳过自动修复"
+            echo "classification=no_logs" >> "$GITHUB_OUTPUT"
+            echo "reason=无法通过 gh 或 artifact 获取日志" >> "$GITHUB_OUTPUT"
+            echo "should_fix=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          python custom_scripts/check_workflow_expectations.py "${LOGS[@]}" --github-output "$GITHUB_OUTPUT"
+
+          {
+            echo "# Codex Auto Fix Context"
+            echo
+            echo "- Repository: ${{ github.repository }}"
+            echo "- Workflow: ${WORKFLOW_NAME}"
+            echo "- Run ID: ${{ github.event.workflow_run.id }}"
+            echo "- Conclusion: ${WORKFLOW_CONCLUSION}"
+            echo "- Event: ${WORKFLOW_EVENT}"
+            echo "- Head SHA: ${{ github.event.workflow_run.head_sha }}"
+            echo
+            echo "## Task"
+            echo "你正在 GitHub Actions 中作为 Codex 自修复代理运行。"
+            echo "请只在确认是仓库源码、工作流、校验脚本或文档问题时修改代码。"
+            echo "如果日志显示是临时网络、代理订阅不可用、站点短暂限流、GitHub runner 抖动、或者半月完成后的正常跳过，请不要修改文件。"
+            echo
+            echo "## Repository Rules"
+            echo "- 直接在 main 上修复；禁止 force push。"
+            echo "- 不要启动长时间爬虫；只运行语法校验、workflow 静态校验或很短的 smoke test。"
+            echo "- 修改代码或 workflow 后必须同步 README.md、CHANGELOG.md、HISTORY.md；代理相关还要同步 DOCKER_DEPLOY.md。"
+            echo "- 允许修改的范围：.github/workflows/、custom_scripts/、爬虫脚本、auto_fix_workflow.py、README/CHANGELOG/HISTORY/AGENTS/部署文档。"
+            echo "- 修复目标是让爬虫 workflow 符合：上午 08:00-12:30，下午 13:00-13:30 启动；下午长跑约 21000 秒但保留 6 小时硬超时提交缓冲；每半月完成后跳过。"
+            echo
+            echo "## Logs"
+            echo '```text'
+            head -c 200000 "${LOGS[0]}"
+            echo
+            echo '```'
+          } > codex_auto_fix_context.md
+
+      - name: Check Codex secret
+        id: codex_key
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "${OPENAI_API_KEY:-}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "未配置 OPENAI_API_KEY，将使用旧版多 Provider 修复器兜底"
+          fi
+
+      - name: Run Codex self-healing
+        id: run_codex
+        if: steps.inspect.outputs.should_fix == 'true' && steps.codex_key.outputs.available == 'true'
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: codex_auto_fix_context.md
+          output-file: codex_final_message.md
+          sandbox: workspace-write
+          codex-args: '["--full-auto"]'
+
+      - name: Validate Codex changes
+        if: steps.inspect.outputs.should_fix == 'true' && steps.run_codex.outcome == 'success'
+        run: |
+          rm -f codex_auto_fix_context.md codex_final_message.md
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Codex 没有产生文件改动，视为无需提交"
+            exit 0
+          fi
+          python custom_scripts/ensure_codex_autofix_scope.py
+          python custom_scripts/validate_syntax.py
+          python custom_scripts/validate_workflow_expectations.py
+
+      - name: Commit and push Codex fix
+        id: codex_push
+        if: steps.inspect.outputs.should_fix == 'true' && steps.run_codex.outcome == 'success'
+        env:
+          ACTION_PAT: ${{ secrets.ACTION_PAT }}
+          GH_TOKEN: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          rm -f codex_auto_fix_context.md codex_final_message.md
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "fixed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet && {
+            echo "fixed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          git commit -m "Codex auto-fix crawler workflow"
+
+          if [ -n "${ACTION_PAT:-}" ]; then
+            REMOTE_URL="https://x-access-token:${ACTION_PAT}@github.com/${{ github.repository }}.git"
+          else
+            REMOTE_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          fi
+          git pull --rebase --autostash "$REMOTE_URL" main
+          git push "$REMOTE_URL" HEAD:main
+          echo "fixed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Run legacy AI auto-fix fallback
+        id: legacy_ai_fix
+        if: >-
+          ${{
+            steps.inspect.outputs.should_fix == 'true' &&
+            (steps.codex_key.outputs.available != 'true' || steps.run_codex.outcome == 'failure')
+          }}
         env:
           FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
           ATOMGIT_API_KEY: ${{ secrets.ATOMGIT_API_KEY }}
@@ -83,60 +228,29 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "=== 工作流 [${{ github.event.workflow_run.name }}] 运行失败 ==="
-          echo "Run ID: ${{ github.event.workflow_run.id }}"
-
-          gh run view ${{ github.event.workflow_run.id }} --log-failed > /tmp/workflow_error.log 2>/dev/null || echo "gh CLI 日志获取失败"
-
-          LOGS=()
-          PRIMARY_LOG=""
-          if [ -s "/tmp/workflow_error.log" ]; then
-            LOGS+=("/tmp/workflow_error.log")
-            PRIMARY_LOG="/tmp/workflow_error.log"
+          PRIMARY_LOG="workflow_error.log"
+          if [ ! -s "$PRIMARY_LOG" ]; then
+            PRIMARY_LOG="workflow_full.log"
           fi
-
-          for candidate in step1_error.log step2_error.log remaining_error.log last_error.log; do
-            if [ -f "$candidate" ]; then
-              echo "找到错误日志: $candidate"
-              LOGS+=("$candidate")
-              if [ -z "$PRIMARY_LOG" ]; then
-                PRIMARY_LOG="$candidate"
-              fi
-            fi
-          done
-
-          if [ "${#LOGS[@]}" -eq 0 ]; then
-            echo "无法获取错误日志，跳过 AI 修复"
-            echo "fixed=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          python custom_scripts/classify_crawl_failure.py "${LOGS[@]}" --github-output "$GITHUB_OUTPUT"
-          if grep -q '^should_fix=false$' "$GITHUB_OUTPUT"; then
-            echo "日志判定为主动分段退出、数据质量保护、临时基础设施异常或 AI Provider 自身异常，跳过 AI 修复"
-            echo "fixed=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
           set +e
           python auto_fix_workflow.py "$PRIMARY_LOG"
           FIX_EXIT=$?
           set -e
 
           if [ "$FIX_EXIT" -eq 0 ]; then
-            echo "fixed=true" >> $GITHUB_OUTPUT
+            echo "fixed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "AI 修复器没有产出可用改动，记录为跳过而不是让监控工作流失败"
-            echo "fixed=false" >> $GITHUB_OUTPUT
+            echo "旧版 AI 修复器没有产出可用改动"
+            echo "fixed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Skip automatic rerun
-        if: success() && steps.ai_fix.outputs.fixed == 'true'
+      - name: Report monitor result
+        if: always()
         run: |
-          echo "AI 修复已提交。为避免循环，不自动 rerun 原始失败工作流。"
-          echo "原始 run 使用旧 commit，直接 rerun 可能再次失败并触发监控循环。"
-
-      - name: Report skipped AI fix
-        if: success() && steps.ai_fix.outputs.fixed != 'true'
-        run: |
-          echo "本次失败无需或未能完成自动代码修复，监控工作流已正常结束。"
+          echo "classification=${{ steps.inspect.outputs.classification }}"
+          echo "reason=${{ steps.inspect.outputs.reason }}"
+          echo "should_fix=${{ steps.inspect.outputs.should_fix }}"
+          echo "codex_available=${{ steps.codex_key.outputs.available }}"
+          echo "codex_outcome=${{ steps.run_codex.outcome }}"
+          echo "codex_fixed=${{ steps.codex_push.outputs.fixed }}"
+          echo "legacy_fixed=${{ steps.legacy_ai_fix.outputs.fixed }}"

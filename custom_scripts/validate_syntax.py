@@ -25,6 +25,11 @@ import re
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 class SyntaxValidator:
     """代码语法校验器"""
     
@@ -372,7 +377,10 @@ def main():
     validator = SyntaxValidator(args.repo)
     
     if args.files:
-        files = [Path(f) for f in args.files]
+        files = [
+            (Path(f) if Path(f).is_absolute() else validator.repo_root / f).resolve()
+            for f in args.files
+        ]
     elif args.commit:
         files = validator.get_changed_in_commit(args.commit)
     else:

@@ -24,9 +24,12 @@ crawl_cars/
 │   └── data/                 # 发布时自动生成的数据目录
 ├── custom_scripts/           # 工作流校验、失败分类、进度同步等辅助脚本
 │   ├── classify_crawl_failure.py  # 爬虫失败分类
+│   ├── check_workflow_expectations.py # workflow 成功/失败预期检查
+│   ├── ensure_codex_autofix_scope.py  # Codex 自动修复文件范围检查
 │   ├── git_sync_progress.sh       # 进度同步脚本
 │   ├── reset_dongchedi_progress.py # 懂车帝进度重置
 │   ├── setup_proxy_runtime.py     # 代理运行时配置
+│   ├── validate_workflow_expectations.py # 爬虫调度与自修复静态校验
 │   └── validate_syntax.py         # 语法校验
 ├── crawl_state/              # 半月爬取完成标记目录
 ├── CRAWL_SCOPE.md            # 爬取车型范围与排除类型记录
@@ -318,12 +321,15 @@ python auto_fix_workflow.py error.log test_autohome.py
 - 日志显示 AI Provider 自身 SSL、401、403、证书或网络异常时，跳过再次自动修复，避免监控工作流围绕自动修复失败产生噪音。
 - 只有日志显示未生成数据、完全解析不到车型数据、配置页/接口致命异常等站点结构或链接异常时，才调用大模型修复。
 - `AI_Auto_Fix_Monitor.yml` 会优先抓取完整失败日志，再结合 error-log artifact 分类，避免只看 step 日志造成误判。
+- `AI_Auto_Fix_Monitor.yml` 会先用 `custom_scripts/check_workflow_expectations.py` 判断是否需要代码修复：失败日志属于站点结构/解析异常或未知代码问题时才修，成功但长爬虫跑到允许窗口外时也会触发修复。
+- 监控工作流优先调用官方 `openai/codex-action@v1` 作为 Codex 自修复代理；需要仓库 Secret `OPENAI_API_KEY`。Codex 修完后必须通过 `ensure_codex_autofix_scope.py`、`validate_syntax.py` 和 `validate_workflow_expectations.py`，才会提交并推送到 `main`。
+- 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，监控工作流才退回 `auto_fix_workflow.py` 多 Provider 旧修复器兜底。
 - `auto_fix_workflow.py` 未能产出可用修复时，监控工作流记录为跳过并正常结束；只有真正生成改动、语法校验通过、提交并推送成功后才标记 `fixed=true`。
 - 分类逻辑位于 `custom_scripts/classify_crawl_failure.py`，两个爬虫 workflow 和 `AI_Auto_Fix_Monitor.yml` 都会调用。
 
 **当前已配置的 GitHub Secrets**：
 
-`ACTION_PAT`、`ATOMGIT_API_KEY`、`MINIMAX_API_KEY`、`MINIMAX_CODING_PLAN_API_KEY`、`MODAL_API_KEY`、`MODELSCOPE_API_KEY`、`MOONSHOT_API_KEY`、`NVIDIA_NIM_API_KEY`、`OPENROUTER_API_KEY`、`PROXY_SUBSCRIPTIONS`、`XAI_API_KEY`、`ZEN_API_KEY`
+`ACTION_PAT`、`ATOMGIT_API_KEY`、`MINIMAX_API_KEY`、`MINIMAX_CODING_PLAN_API_KEY`、`MODAL_API_KEY`、`MODELSCOPE_API_KEY`、`MOONSHOT_API_KEY`、`NVIDIA_NIM_API_KEY`、`OPENAI_API_KEY`、`OPENROUTER_API_KEY`、`PROXY_SUBSCRIPTIONS`、`XAI_API_KEY`、`ZEN_API_KEY`
 
 **工作原理**：
 1. 自动发现所有 `_API_KEY` 环境变量
@@ -346,7 +352,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `crawl-trigger.yml` | 随机触发器，仅在指定时间窗口触发目标爬虫 |
 | `merge-and-filter.yml` | 合并过滤、Release、GitHub Pages 发布 |
 | `deploy-pages.yml` | 静态网页独立发布 |
-| `AI_Auto_Fix_Monitor.yml` | AI 自动修复监控 |
+| `AI_Auto_Fix_Monitor.yml` | Codex 优先的 AI 自动修复监控 |
 | `ci.yml` | CI 语法校验和冒烟测试 |
 | `auto-merge.yml` | PR 自动合并（squash） |
 
@@ -372,11 +378,11 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `merge-and-filter` | 合并过滤、Release、发布 GitHub Pages | 10/30/15分钟 | 爬虫 artifact |
 
 **触发条件**（crawl-autohome.yml / crawl-dongchedi.yml）：
-- 汽车之家、懂车帝：每天 UTC 01:07-03:52（北京时间 09:07-11:52）多次备用触发上午窗口，约 3 小时
+- 汽车之家、懂车帝：每天 UTC 00:07-03:52（北京时间 08:07-11:52）多次备用触发上午窗口，约 4 小时
 - 汽车之家、懂车帝：每天 UTC 05:07/05:17/05:27（北京时间 13:07/13:17/13:27）备用触发下午窗口，约 5 小时 50 分钟
 - 合并分析：每天 UTC 12:30（北京时间 20:30），等待下午爬虫窗口结束后再合并；如果两份爬虫数据尚未完整生成，会成功跳过且不发布不完整数据
-- 随机触发器只在北京时间 09:00-12:30 或 13:00-13:30 触发爬虫
-- 手动触发 (workflow_dispatch)：默认 `run_profile=auto` 时也会检查当前北京时间，只在 09:00-12:30 或 13:00-13:30 内运行长步骤
+- 随机触发器只在北京时间 08:00-12:30 或 13:00-13:30 触发爬虫
+- 手动触发 (workflow_dispatch)：默认 `run_profile=auto` 时也会检查当前北京时间，只在 08:00-12:30 或 13:00-13:30 内运行长步骤
 
 **自动运行逻辑**：
 1. 上午窗口不做随机启动延迟；下午窗口随机延迟 0-10 分钟但会封顶到 13:30 前；外部随机触发最多补足到30分钟，并会封顶在当前运行窗口结束前
@@ -539,8 +545,8 @@ docker compose logs -f crawl-cron
 
 | 爬虫 | 定时 | 次数/月 | 分钟数 |
 |------|------|---------|--------|
-| 汽车之家 | 上午 UTC 01:07-03:52 多次备用触发；下午 UTC 05:07/05:17/05:27 | 备用触发较多但有并发锁 | 半月全量完成后跳过 |
-| 懂车帝 | 上午 UTC 01:07-03:52 多次备用触发；下午 UTC 05:07/05:17/05:27 | 备用触发较多但有并发锁 | 半月全量完成后跳过 |
+| 汽车之家 | 上午 UTC 00:07-03:52 多次备用触发；下午 UTC 05:07/05:17/05:27 | 备用触发较多但有并发锁 | 半月全量完成后跳过 |
+| 懂车帝 | 上午 UTC 00:07-03:52 多次备用触发；下午 UTC 05:07/05:17/05:27 | 备用触发较多但有并发锁 | 半月全量完成后跳过 |
 | 合并 | 每天 UTC 12:30（北京时间 20:30） | 30 | <300 |
 
 **半月跳过**：每个爬虫在当月 1-15 日、16-月底两个周期内全量完成后，会写入 `crawl_state/` 完成标记；同一周期后续自动触发直接跳过，不再重复爬。
@@ -649,10 +655,10 @@ python crawl_dongchedi.py --step 2 --time-limit 21600 --max-series 400 --auto
 ### GitHub Actions运行
 
 **当前调度**（UTC时间）：
-- 汽车之家：上午 01:07-03:52 多次备用触发（北京时间 09:07-11:52，约 3 小时）；下午 05:07/05:17/05:27 备用触发（北京时间 13:07-13:27，约 5 小时 50 分钟）
-- 懂车帝：上午 01:07-03:52 多次备用触发（北京时间 09:07-11:52，约 3 小时）；下午 05:07/05:17/05:27 备用触发（北京时间 13:07-13:27，约 5 小时 50 分钟）
+- 汽车之家：上午 00:07-03:52 多次备用触发（北京时间 08:07-11:52，约 4 小时）；下午 05:07/05:17/05:27 备用触发（北京时间 13:07-13:27，约 5 小时 50 分钟）
+- 懂车帝：上午 00:07-03:52 多次备用触发（北京时间 08:07-11:52，约 4 小时）；下午 05:07/05:17/05:27 备用触发（北京时间 13:07-13:27，约 5 小时 50 分钟）
 - 数据合并：每天 12:30（北京时间 20:30）
-- 随机触发器：仅北京时间 09:00-12:30 或 13:00-13:30 触发目标爬虫
+- 随机触发器：仅北京时间 08:00-12:30 或 13:00-13:30 触发目标爬虫
 
 **代理配置（强烈推荐）**
 
@@ -662,6 +668,7 @@ python crawl_dongchedi.py --step 2 --time-limit 21600 --max-series 400 --auto
 |-------------------------|-----------------------------------|----------|
 | `PROXY_SUBSCRIPTIONS`   | 机场订阅地址（支持多条）           | JSON对象、JSON数组或每行一个URL |
 | `OPENROUTER_API_KEY`    | 用于错误自动修复                   | sk-... |
+| `OPENAI_API_KEY`        | 用于 Codex 自修复监控               | sk-... |
 | `MINIMAX_API_KEY`       | 用于错误自动修复                   | mm-... |
 | `XAI_API_KEY`           | 用于错误自动修复                   | xai-... |
 

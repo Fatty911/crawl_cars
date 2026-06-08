@@ -2,8 +2,8 @@
 name: 汽车之家爬虫
 on:
   schedule:
-    # UTC 01:07-03:52 = 北京时间 09:07-11:52，备用触发提高 GitHub schedule 可靠性
-    - cron: '7,22,37,52 1-3 * * *'
+    # UTC 00:07-03:52 = 北京时间 08:07-11:52，备用触发提高 GitHub schedule 可靠性
+    - cron: '7,22,37,52 0-3 * * *'
     # UTC 05:07/05:17/05:27 = 北京时间 13:07/13:17/13:27，错过 13:30 后会自动跳过
     - cron: '7,17,27 5 * * *'
   workflow_dispatch:
@@ -73,7 +73,7 @@ jobs:
           FORCE_RESTART="${{ github.event.inputs.force_restart }}"
           if [ "$EVENT_NAME" = "schedule" ]; then
             SCHEDULE_EXPR="${{ github.event.schedule }}"
-            if [ "$SCHEDULE_EXPR" = "7,22,37,52 1-3 * * *" ]; then
+            if [ "$SCHEDULE_EXPR" = "7,22,37,52 0-3 * * *" ]; then
               SCHEDULE_PROFILE="morning"
             elif [ "$SCHEDULE_EXPR" = "7,17,27 5 * * *" ]; then
               SCHEDULE_PROFILE="afternoon"
@@ -85,7 +85,7 @@ jobs:
             CN_HOUR_NOW=$(TZ=Asia/Shanghai date +%H)
             CN_MINUTE_NOW=$(TZ=Asia/Shanghai date +%M)
             IN_WINDOW=false
-            if [ "$SCHEDULE_PROFILE" = "morning" ] && [ $((10#$CN_HOUR_NOW)) -ge 9 ] && [ $((10#$CN_HOUR_NOW)) -lt 12 ]; then
+            if [ "$SCHEDULE_PROFILE" = "morning" ] && [ $((10#$CN_HOUR_NOW)) -ge 8 ] && [ $((10#$CN_HOUR_NOW)) -lt 12 ]; then
               IN_WINDOW=true
             elif [ "$SCHEDULE_PROFILE" = "morning" ] && [ $((10#$CN_HOUR_NOW)) -eq 12 ] && [ $((10#$CN_MINUTE_NOW)) -le 30 ]; then
               IN_WINDOW=true
@@ -132,7 +132,7 @@ jobs:
             CN_HOUR=$(TZ=Asia/Shanghai date +%H)
             CN_MINUTE=$(TZ=Asia/Shanghai date +%M)
             CURRENT_MINUTES=$((10#$CN_HOUR * 60 + 10#$CN_MINUTE))
-            if [ "$CURRENT_MINUTES" -ge $((9 * 60)) ] && [ "$CURRENT_MINUTES" -le $((12 * 60 + 30)) ]; then
+            if [ "$CURRENT_MINUTES" -ge $((8 * 60)) ] && [ "$CURRENT_MINUTES" -le $((12 * 60 + 30)) ]; then
               PROFILE="morning"
             elif [ "$CURRENT_MINUTES" -ge $((13 * 60)) ] && [ "$CURRENT_MINUTES" -le $((13 * 60 + 30)) ]; then
               PROFILE="afternoon"
@@ -161,7 +161,7 @@ jobs:
           CN_MINUTE_NOW=$(TZ=Asia/Shanghai date +%M)
           CURRENT_MINUTES=$((10#$CN_HOUR_NOW * 60 + 10#$CN_MINUTE_NOW))
           WINDOW_OK=false
-          if [ "$PROFILE" = "morning" ] && [ "$CURRENT_MINUTES" -ge $((9 * 60)) ] && [ "$CURRENT_MINUTES" -le $((12 * 60 + 30)) ]; then
+          if [ "$PROFILE" = "morning" ] && [ "$CURRENT_MINUTES" -ge $((8 * 60)) ] && [ "$CURRENT_MINUTES" -le $((12 * 60 + 30)) ]; then
             WINDOW_OK=true
           elif [ "$PROFILE" = "afternoon" ] && [ "$CURRENT_MINUTES" -ge $((13 * 60)) ] && [ "$CURRENT_MINUTES" -le $((13 * 60 + 30)) ]; then
             WINDOW_OK=true
