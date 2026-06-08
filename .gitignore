@@ -33,6 +33,7 @@ merged_*.csv
 diff_*.csv
 filtered_cars_*.csv
 filtered_cars_*.json
+zero_to_whole_ratios*.json
 
 # 日志
 *.log

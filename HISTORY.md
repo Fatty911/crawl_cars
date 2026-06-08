@@ -1,8 +1,41 @@
 # 对话历史总结
 
-> 最后更新：2026-06-08 20:23
+> 最后更新：2026-06-08 21:30
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-08：增加零整比属性、来源明细和 Pages 展示
+
+### 用户诉求
+- 希望 Pages 页面增加“零整比”属性。
+- 想从中保研、中保协、中汽修协等公开来源爬取零整比；多个来源给同一车型不同数值时取平均值，同时列出不同来源分别多少。
+
+### 排查
+- 公开可抓来源主要是中国保险行业协会/中国汽车维修行业协会联合发布的汽车零整比体系 PDF，以及中保研在中保协指导下发布的汽车零整比研究成果。
+- 部分媒体稿只给摘要，完整可落地的数据通常要从 PDF/HTML 表格抽取；因此更适合独立成零整比来源脚本，再由合并层统一给车型补字段。
+
+### 修改
+- 新增 `crawl_zero_to_whole_ratio.py`：
+  - 支持默认公开 PDF 来源、`zero_to_whole_sources.json`、`ZERO_TO_WHOLE_RATIO_URLS` 和本地 `zero_to_whole_manual.csv/json`。
+  - 使用 `pdfplumber` 优先抽取 PDF 表格，失败时回退文本/HTML 解析。
+  - 输出 `zero_to_whole_ratios_YYYYMMDD.json` 和 `zero_to_whole_ratios.json`。
+- `merge_data.py`：
+  - 新增 `零整比`、`零整比来源明细`、`零整比匹配方式`。
+  - 按车型名称、车系和包含关系匹配零整比来源，同一车型多来源取算术平均。
+- `docs/app.js`：
+  - 把 `零整比` 和 `零整比来源明细` 加入常用列。
+  - 下载区展示零整比来源 JSON。
+- `merge-and-filter.yml`：
+  - 合并前先运行零整比抓取。
+  - Release、artifact、Pages 产物新增 `zero_to_whole_ratios_YYYYMMDD.json`。
+- CI 冒烟测试补充两来源平均值断言。
+- README、DOCKER_DEPLOY、CHANGELOG 同步记录。
+
+### 验证
+- 本地运行 `python crawl_zero_to_whole_ratio.py`，从两个公开 PDF 抽取 291 条零整比来源记录。
+- 小型端到端合并测试确认两来源 `320.50%` 与 `340.50%` 会写成平均 `330.50%`，并保留来源明细。
 
 ---
 

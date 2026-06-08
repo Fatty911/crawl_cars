@@ -40,7 +40,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compile Python files
-        run: python -m py_compile crawl_dongchedi.py merge_data.py proxy_manager.py run_with_proxy.py test_autohome.py
+        run: python -m py_compile crawl_dongchedi.py crawl_zero_to_whole_ratio.py merge_data.py proxy_manager.py run_with_proxy.py test_autohome.py
 
       - name: Validate changed workflow and site files
         run: >
@@ -55,6 +55,7 @@ jobs:
           "$PWD/custom_scripts/check_workflow_expectations.py"
           "$PWD/custom_scripts/ensure_codex_autofix_scope.py"
           "$PWD/custom_scripts/validate_workflow_expectations.py"
+          "$PWD/crawl_zero_to_whole_ratio.py"
           "$PWD/merge_data.py"
           "$PWD/docs/index.html"
           "$PWD/docs/styles.css"
@@ -90,6 +91,27 @@ jobs:
 
           with open("dongchedi_ci_smoke.json", "w", encoding="utf-8") as f:
               json.dump([match_row, low_range_row], f, ensure_ascii=False)
+
+          zero_ratio_rows = [
+              {
+                  "数据来源": "CI零整比来源",
+                  "发布日期": "2026-06",
+                  "品牌": "测试品牌",
+                  "车系": "测试车系",
+                  "车型名称": "2026 测试品牌 测试车系 CI测试车型",
+                  "零整比": 320.5
+              },
+              {
+                  "数据来源": "CI零整比来源B",
+                  "发布日期": "2026-06",
+                  "品牌": "测试品牌",
+                  "车系": "测试车系",
+                  "车型名称": "2026 测试品牌 测试车系 CI测试车型",
+                  "零整比": 340.5
+              }
+          ]
+          with open("zero_to_whole_ratios_ci_smoke.json", "w", encoding="utf-8") as f:
+              json.dump(zero_ratio_rows, f, ensure_ascii=False)
           PY
 
           python merge_data.py
@@ -113,4 +135,7 @@ jobs:
               raise SystemExit(f"expected 4 merged rows, got {len(merged_rows)}")
           if len(filtered_rows) != 2:
               raise SystemExit(f"expected 2 filtered rows, got {len(filtered_rows)}")
+          ratios = [row.get("零整比") for row in filtered_rows if row.get("车型名称") == "CI测试车型"]
+          if ratios != ["330.50%", "330.50%"]:
+              raise SystemExit(f"expected averaged zero-to-whole ratio, got {ratios}")
           PY

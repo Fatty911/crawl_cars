@@ -2,6 +2,17 @@
 
 ## 2026-06-08
 
+### 修改31: 增加零整比属性、来源明细和 Pages 展示
+- 新增 `crawl_zero_to_whole_ratio.py`，可抓取中保研/中保协/中汽修协公开发布的汽车零整比 PDF/HTML，并兼容本地 `zero_to_whole_manual.csv/json` 补充数据。
+- 默认从中国保险行业协会/中国汽车维修行业协会公开 PDF 抽取零整比，当前本地验证可从两个 PDF 抽取 291 条来源记录。
+- `merge_data.py` 新增零整比 enrichment：按车型名称、车系和包含关系匹配；同一车型匹配到多个来源时计算平均 `零整比`，并保留 `零整比来源明细` 与 `零整比匹配方式`。
+- `docs/app.js` 把 `零整比`、`零整比来源明细` 加入 Pages 常用列，下载区增加零整比来源 JSON。
+- `merge-and-filter.yml` 在合并前运行零整比抓取，并把 `zero_to_whole_ratios_YYYYMMDD.json` 纳入 artifact、Release 和 Pages 产物。
+- CI 冒烟测试增加两来源零整比平均值断言，确保 `330.50%` 这类平均结果写入筛选车型。
+- README、DOCKER_DEPLOY 同步记录零整比脚本、来源配置、工作流和 Pages 字段。
+
+## 2026-06-08
+
 ### 修改30: 懂车帝连续 renderer timeout 后自动重启 Chrome
 - 复查懂车帝长跑日志发现 `Timed out receiving message from renderer` 被脚本捕获后会继续爬取，属于单车系页面加载异常，不是 workflow 失败。
 - 当前长跑 `27117329232` 最后因 `exit code 10` 正常提交进度；远端进度显示 `series_list=4692`、`crawled_series=131`，懂车帝本半月还没全量完成。

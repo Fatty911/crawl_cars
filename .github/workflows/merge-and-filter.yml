@@ -112,6 +112,12 @@ jobs:
               sys.exit(0)
           PY
 
+      - name: 爬取零整比数据
+        if: steps.validate.outputs.ready == 'true'
+        run: python crawl_zero_to_whole_ratio.py
+        env:
+          ZERO_TO_WHOLE_RATIO_URLS: ${{ vars.ZERO_TO_WHOLE_RATIO_URLS }}
+
       - name: 合并数据文件
         if: steps.validate.outputs.ready == 'true'
         run: |
@@ -155,6 +161,7 @@ jobs:
             merged_${{ steps.date.outputs.date }}.json
             filtered_cars_${{ steps.date.outputs.date }}.csv
             filtered_cars_${{ steps.date.outputs.date }}.json
+            zero_to_whole_ratios_${{ steps.date.outputs.date }}.json
           retention-days: 90
 
   create-release:
@@ -184,6 +191,7 @@ jobs:
             release-files/merged_${{ needs.merge-data.outputs.crawl_date }}.json
             release-files/filtered_cars_${{ needs.merge-data.outputs.crawl_date }}.csv
             release-files/filtered_cars_${{ needs.merge-data.outputs.crawl_date }}.json
+            release-files/zero_to_whole_ratios_${{ needs.merge-data.outputs.crawl_date }}.json
           fail_on_unmatched_files: true
           generate_release_notes: true
           prerelease: false
@@ -223,6 +231,7 @@ jobs:
           cp "release-files/filtered_cars_${DATE}.json" site/data/filtered.json
           cp "release-files/merged_${DATE}.csv" "site/data/merged_${DATE}.csv"
           cp "release-files/filtered_cars_${DATE}.csv" "site/data/filtered_cars_${DATE}.csv"
+          cp "release-files/zero_to_whole_ratios_${DATE}.json" site/data/zero_to_whole_ratios.json
           touch site/.nojekyll
           python - <<'PY'
           import json
@@ -245,6 +254,7 @@ jobs:
                   "filteredJson": "data/filtered.json",
                   "latestCsv": f"data/merged_{date}.csv",
                   "filteredCsv": f"data/filtered_cars_{date}.csv",
+                  "zeroRatioJson": "data/zero_to_whole_ratios.json",
               },
           }
           with open("site/data/manifest.json", "w", encoding="utf-8") as f:

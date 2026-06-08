@@ -92,6 +92,7 @@ python test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
 python crawl_dongchedi.py --step 2 --auto --time-limit 7200 --max-series 500
 
 # 合并数据
+python crawl_zero_to_whole_ratio.py
 python merge_data.py
 
 # 退出容器

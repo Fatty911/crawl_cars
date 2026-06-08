@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-自动爬取汽车之家和懂车帝的车型配置数据，过滤出符合高配条件的车型，并生成数据文件供Release使用。
+自动爬取汽车之家和懂车帝的车型配置数据，补充中保研/中保协/中汽修协等公开发布的汽车零整比数据，过滤出符合高配条件的车型，并生成数据文件供 Release 和 GitHub Pages 使用。
 
 ## 目录结构
 
@@ -10,6 +10,7 @@
 crawl_cars/
 ├── test_autohome.py          # 汽车之家爬虫脚本
 ├── crawl_dongchedi.py        # 懂车帝爬虫脚本
+├── crawl_zero_to_whole_ratio.py # 零整比公开数据抓取脚本
 ├── merge_data.py             # 数据合并与过滤脚本
 ├── proxy_manager.py          # 代理管理器
 ├── run_with_proxy.py         # 带代理的启动脚本
@@ -181,7 +182,7 @@ crawl_cars/
 
 ### 3. merge_data.py
 
-**功能**：合并两个数据源，过滤符合条件的车型
+**功能**：合并汽车之家、懂车帝和零整比数据源，过滤符合条件的车型
 
 **核心常量**：
 
@@ -190,6 +191,7 @@ crawl_cars/
 | `HEADER_MAP` | 字段名映射表，统一不同数据源的字段名 |
 | `FIXED` | 固定字段列表 ['车系ID', '车型名称', '年款'] |
 | `FILTER_CONDITIONS` | 过滤条件配置 |
+| `ZERO_RATIO_FIELDS` | 零整比输出字段：`零整比`、`零整比来源明细`、`零整比匹配方式` |
 
 **过滤条件 (FILTER_CONDITIONS)**：
 
@@ -212,6 +214,8 @@ crawl_cars/
 | `find_latest()` | 查找最新数据文件 |
 | `load()` | 加载JSON文件 |
 | `norm_rows()` | 规范化数据行 |
+| `load_zero_ratio_rows()` | 加载最新零整比 JSON |
+| `enrich_zero_ratio()` | 按车型名/车系匹配零整比，多来源取平均 |
 | `diff()` | 对比两个数据源差异 |
 | `parse_number()` | 解析数值 |
 | `check_condition()` | 检查单条件 |
@@ -228,9 +232,49 @@ crawl_cars/
 | `filtered_cars_YYYYMMDD.json` | 符合条件车型 |
 | `diff_YYYYMMDD.csv` | 数据源差异 |
 
+**零整比字段**：
+- `零整比`：同一车型匹配到多个来源时取算术平均值，格式如 `330.50%`。
+- `零整比来源明细`：列出每个来源、发布日期、来源车型和对应零整比，便于核对不同来源差异。
+- `零整比匹配方式`：记录使用 `车型名称`、`车系` 或包含关系完成匹配。
+
 ---
 
-### 4. docs/
+### 4. crawl_zero_to_whole_ratio.py
+
+**功能**：抓取汽车零整比公开发布数据，生成 `zero_to_whole_ratios_YYYYMMDD.json` 和 `zero_to_whole_ratios.json`。
+
+**默认来源**：
+- 中国保险行业协会/中国汽车维修行业协会公开 PDF（汽车零整比体系、汽车零整比 100 指数体系）。
+- 中保研发布的零整比研究成果通常由中保协指导，很多新闻稿只摘要展示；可把能直接下载表格/PDF 的新 URL 加到配置里。
+
+**可扩展来源**：
+- 仓库根目录可新增 `zero_to_whole_sources.json`：
+
+```json
+{
+  "sources": [
+    {
+      "source": "中保研第18期汽车零整比",
+      "published_at": "2024-10",
+      "url": "https://example.com/zero-ratio.pdf"
+    }
+  ]
+}
+```
+
+- GitHub Actions 可通过 Repository Variable `ZERO_TO_WHOLE_RATIO_URLS` 追加来源，支持 JSON 数组、换行、英文分号或竖线分隔。
+- 如果某个 PDF 是扫描版或表格抽取失败，可放置 `zero_to_whole_manual.csv` / `zero_to_whole_manual.json` 手工补充，字段使用 `数据来源`、`发布日期`、`品牌`、`车系`、`车型名称`、`零整比`。
+
+**输出文件**：
+
+| 文件名 | 内容 |
+|--------|------|
+| `zero_to_whole_ratios_YYYYMMDD.json` | 当日零整比来源明细 |
+| `zero_to_whole_ratios.json` | 最新零整比来源明细 |
+
+---
+
+### 5. docs/
 
 **功能**：GitHub Pages 静态网页表格查看器，用浏览器像 Excel 一样查看车型配置。
 
@@ -245,6 +289,7 @@ crawl_cars/
 **数据来源**：
 - 合并工作流成功后，会把 `merged_YYYYMMDD.json` 复制为 `data/latest.json`。
 - 会把 `filtered_cars_YYYYMMDD.json` 复制为 `data/filtered.json`。
+- 会把 `zero_to_whole_ratios_YYYYMMDD.json` 复制为 `data/zero_to_whole_ratios.json`。
 - 同时生成 `data/manifest.json`，记录数据日期、行数和 CSV/JSON 下载链接。
 
 **主要功能**：
@@ -254,17 +299,18 @@ crawl_cars/
 - 支持按数据来源、品牌、车系快速筛选。
 - 默认打开“符合条件”数据集，并支持切换“全部车型”和“符合条件”。
 - 网页展示时会把 `长宽高` / `长*宽*高(mm)` / `车身尺寸` 这类合并字段拆成 `长度(mm)`、`宽度(mm)`、`高度(mm)` 三列。
+- 常用列包含 `零整比` 和 `零整比来源明细`；多个来源匹配同一车型时页面展示平均值，并保留来源明细。
 - 支持选择显示列、分页查看、导出当前筛选结果为 CSV/JSON。
 
 ---
 
-### 5. fix_files.py
+### 6. fix_files.py
 
 **功能**：代码修复工具，用于修复test_autohome.py中的缩进问题
 
 ---
 
-### 6. generate_clash_config.py
+### 7. generate_clash_config.py
 
 **功能**：Clash/Mihomo 配置生成器，从订阅链接生成 Clash 配置文件
 
@@ -276,7 +322,7 @@ crawl_cars/
 
 ---
 
-### 7. auto_fix_workflow.py
+### 8. auto_fix_workflow.py
 
 **功能**：通用多Provider工作流错误自动修复系统（Lobe-Chat 风格配置）
 
@@ -340,7 +386,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 
 ---
 
-### 8. .github/workflows/
+### 9. .github/workflows/
 
 **功能**：GitHub Actions 自动化工作流
 
@@ -351,7 +397,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `crawl-autohome.yml` | 汽车之家爬虫，上午/下午两个运行窗口 |
 | `crawl-dongchedi.yml` | 懂车帝爬虫，上午/下午两个运行窗口 |
 | `crawl-trigger.yml` | 随机触发器，仅在指定时间窗口触发目标爬虫 |
-| `merge-and-filter.yml` | 合并过滤、Release、GitHub Pages 发布 |
+| `merge-and-filter.yml` | 抓取零整比、合并过滤、Release、GitHub Pages 发布 |
 | `deploy-pages.yml` | 静态网页独立发布 |
 | `AI_Auto_Fix_Monitor.yml` | Codex 优先的 AI 自动修复监控 |
 | `ci.yml` | CI 语法校验和冒烟测试 |
@@ -376,7 +422,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 |-------|------|------|------|
 | `crawl-autohome` | 爬取汽车之家 | 390分钟 | 无 |
 | `crawl-dongchedi` | 爬取懂车帝 | 390分钟 | 无 |
-| `merge-and-filter` | 合并过滤、Release、发布 GitHub Pages | 10/30/15分钟 | 爬虫 artifact |
+| `merge-and-filter` | 抓取零整比、合并过滤、Release、发布 GitHub Pages | 10/30/15分钟 | 爬虫 artifact |
 
 **触发条件**（crawl-autohome.yml / crawl-dongchedi.yml）：
 - 汽车之家、懂车帝：每天 UTC 00:07-03:52（北京时间 08:07-11:52）多次备用触发上午窗口，约 4 小时
@@ -397,6 +443,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 6. 进度提交通过 `custom_scripts/git_sync_progress.sh` 同步；若多个 workflow 同时更新 `progress.json` / `dongchedi/progress.json`，会合并 JSON 进度，避免远端覆盖本地已爬进度
 7. 懂车帝重置进度时会保留车系列表缓存，接口短暂返回非 JSON 或空响应时可回退继续爬取
 8. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
+9. 合并分析在两份爬虫数据完整后先运行 `crawl_zero_to_whole_ratio.py`，再运行 `merge_data.py`；零整比来源抓取失败会跳过该来源，不影响主车型数据发布
 
 **车型范围**：当前只保留轿车、跑车、SUV；MPV、房车、皮卡、微面、轻客、货车、卡车等会被排除。详见 `CRAWL_SCOPE.md`。
 
@@ -554,6 +601,8 @@ docker compose logs -f crawl-cron
 
 **合并保护**：合并分析只在汽车之家和懂车帝两份数据都存在且各不少于 50 行时发布 Release/Pages；定时运行遇到数据未就绪会成功跳过，手动 `force_merge=true` 仍会按失败处理。
 
+**零整比来源**：合并分析会抓取公开零整比 PDF/HTML，并输出 `zero_to_whole_ratios_YYYYMMDD.json`；可用 Repository Variable `ZERO_TO_WHOLE_RATIO_URLS` 补充中保研、中保协、中汽修协或媒体转载的可下载来源。
+
 **随机延迟**：上午不做启动随机延迟，并按 12:30 截止时间动态缩短运行时长；下午随机等待 0-10 分钟但封顶到北京时间 13:30 前；两次网络访问之间默认等待 3-8 秒，可通过 `CRAWL_MIN_DELAY_SECONDS` / `CRAWL_MAX_DELAY_SECONDS` 调整。
 
 **分段续爬**：爬虫脚本返回 `exit code 10` 时表示本次时间预算用完但还没全量完成。workflow 会提交进度并正常结束本次运行，不会在同一个 job 内再次重启长步骤，避免实际运行时间超过上午/下午窗口。汽车之家 step1 与懂车帝 step2 都会在长步骤启动前按 workflow 已耗时重新缩短 `RUN_TIME`，并预留提交缓冲，防止 GitHub 6 小时硬超时直接取消导致进度无法推送。
@@ -630,6 +679,7 @@ python test_autohome.py
 python crawl_dongchedi.py
 
 # 4. 合并并过滤数据
+python crawl_zero_to_whole_ratio.py
 python merge_data.py
 ```
 

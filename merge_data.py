@@ -1,4 +1,4 @@
-"""合并汽车之家和懂车帝数据，统一表头，对比差异，并过滤符合条件的车型。"""
+"""合并汽车之家、懂车帝和零整比数据，统一表头，对比差异，并过滤符合条件的车型。"""
 import csv
 import glob
 import json
@@ -69,12 +69,21 @@ HEADER_MAP = {
 }
 
 FIXED = ["数据来源", "品牌", "车系", "车系ID", "车型名称", "年款"]
+ZERO_RATIO_FIELDS = ["零整比", "零整比来源明细", "零整比匹配方式"]
 
 
 def parse_numbers(value):
     if not value or value == "-":
         return []
     return [float(n) for n in re.findall(r"\d+(?:\.\d+)?", str(value))]
+
+
+def normalize_match_text(value):
+    text = str(value or "").lower()
+    text = re.sub(r"\s+", "", text)
+    text = re.sub(r"[·・\-_()（）\[\]【】/\\.,，。:：;；]", "", text)
+    text = re.sub(r"^(19|20)\d{2}款?", "", text)
+    return text
 
 
 def check_numeric_condition(row, field_name, threshold, op):
@@ -215,6 +224,105 @@ def load(path):
         return json.load(f)
 
 
+def load_zero_ratio_rows():
+    latest = find_latest("zero_to_whole_ratios_*.json") or os.path.join(DIR, "zero_to_whole_ratios.json")
+    rows = load(latest)
+    if rows:
+        print(f"零整比数据: {latest} ({len(rows)} 条)")
+    else:
+        print("零整比数据: 未找到，跳过该属性")
+    return rows
+
+
+def parse_ratio_value(value):
+    numbers = parse_numbers(value)
+    if not numbers:
+        return None
+    return round(numbers[0], 2)
+
+
+def zero_ratio_candidates(row, zero_ratio_rows):
+    brand = normalize_match_text(row.get("品牌"))
+    series = normalize_match_text(row.get("车系"))
+    model = normalize_match_text(row.get("车型名称"))
+    matches = []
+
+    for item in zero_ratio_rows:
+        ratio = parse_ratio_value(item.get("零整比") or item.get("零整比原始值"))
+        if ratio is None:
+            continue
+
+        src_brand = normalize_match_text(item.get("品牌"))
+        src_series = normalize_match_text(item.get("车系"))
+        src_model = normalize_match_text(item.get("车型名称"))
+        if brand and src_brand and brand not in src_brand and src_brand not in brand and not (
+            brand in src_model or src_brand in model
+        ):
+            continue
+
+        match_type = ""
+        if model and src_model and (model == src_model or model in src_model or src_model in model):
+            match_type = "车型名称"
+        elif series and src_series and (series == src_series or series in src_series or src_series in series):
+            match_type = "车系"
+        elif series and src_model and series in src_model:
+            match_type = "来源车型包含车系"
+        elif model and src_series and src_series in model:
+            match_type = "车型名称包含来源车系"
+
+        if match_type:
+            matches.append((match_type, item, ratio))
+
+    priority = {"车型名称": 0, "车系": 1, "来源车型包含车系": 2, "车型名称包含来源车系": 3}
+    if not matches:
+        return []
+    best = min(priority.get(match_type, 9) for match_type, _, _ in matches)
+    return [match for match in matches if priority.get(match[0], 9) == best]
+
+
+def enrich_zero_ratio(rows, zero_ratio_rows):
+    if not zero_ratio_rows:
+        return rows
+
+    enriched = 0
+    for row in rows:
+        candidates = zero_ratio_candidates(row, zero_ratio_rows)
+        if not candidates:
+            continue
+
+        details = []
+        ratios = []
+        seen = set()
+        match_types = []
+        for match_type, item, ratio in candidates:
+            detail_key = (
+                item.get("数据来源"),
+                item.get("发布日期"),
+                item.get("车型名称"),
+                ratio,
+            )
+            if detail_key in seen:
+                continue
+            seen.add(detail_key)
+            ratios.append(ratio)
+            match_types.append(match_type)
+            source = item.get("数据来源", "零整比来源")
+            published_at = item.get("发布日期")
+            source_label = f"{source}({published_at})" if published_at else source
+            model_label = item.get("车型名称") or item.get("车系") or "未命名车型"
+            details.append(f"{source_label} {model_label}: {ratio:.2f}%")
+
+        if not ratios:
+            continue
+        row["零整比"] = f"{sum(ratios) / len(ratios):.2f}%"
+        row["零整比来源明细"] = "；".join(details)
+        row["零整比匹配方式"] = "|".join(sorted(set(match_types)))
+        enriched += 1
+
+    print(f"零整比匹配车型: {enriched} 行")
+    return rows
+
+
 def norm_rows(rows, source):
     out = []
     for row in rows:
@@ -268,6 +376,9 @@ def diff(autohome_rows, dongchedi_rows, all_fields):
 
 def collect_fields(rows):
     fields = []
+    for field in ZERO_RATIO_FIELDS:
+        if any(row.get(field) for row in rows) and field not in fields:
+            fields.append(field)
     for row in rows:
         for key in row:
             if key not in FIXED and key not in fields:
@@ -304,6 +415,7 @@ def main():
         return
 
     all_rows = autohome_rows + dongchedi_rows
+    all_rows = enrich_zero_ratio(all_rows, load_zero_ratio_rows())
     print(f"汽车之家:{len(autohome_rows)} 懂车帝:{len(dongchedi_rows)} 合计:{len(all_rows)}")
 
     filtered_rows = [row for row in all_rows if filter_car(row)]
