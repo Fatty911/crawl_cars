@@ -105,7 +105,7 @@ jobs:
             echo "- 不要启动长时间爬虫；只运行语法校验、workflow 静态校验或很短的 smoke test。"
             echo "- 修改代码或 workflow 后必须同步 README.md、CHANGELOG.md、HISTORY.md；代理相关还要同步 DOCKER_DEPLOY.md。"
             echo "- 允许修改的范围：.github/workflows/、custom_scripts/、爬虫脚本、auto_fix_workflow.py、README/CHANGELOG/HISTORY/AGENTS/部署文档。"
-            echo "- 修复目标是让爬虫 workflow 符合：上午 08:00-12:30，下午 13:00-13:30 启动；下午长跑约 21000 秒但保留 6 小时硬超时提交缓冲；每半月完成后跳过。"
+            echo "- 修复目标是让爬虫 workflow 符合：上午 08:00-12:30，下午 13:00-22:00；长跑自动按 Action 6 小时硬限制和当前时间窗口取更早截止，并保留提交缓冲；每半月完成后跳过。"
             echo
             echo "## Logs"
             echo '```text'

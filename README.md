@@ -26,6 +26,8 @@ crawl_cars/
 ├── custom_scripts/           # 工作流校验、失败分类、进度同步等辅助脚本
 │   ├── classify_crawl_failure.py  # 爬虫失败分类
 │   ├── check_workflow_expectations.py # workflow 成功/失败预期检查
+│   ├── configure_cron_job_org.py  # 配置 cron-job.org 外部触发
+│   ├── crawl_budget.py            # 计算北京时间窗口和 Actions 6 小时预算
 │   ├── ensure_codex_autofix_scope.py  # Codex 自动修复文件范围检查
 │   ├── git_sync_progress.sh       # 进度同步脚本
 │   ├── reset_dongchedi_progress.py # 懂车帝进度重置
@@ -45,7 +47,7 @@ crawl_cars/
 ├── .github/workflows/
 │   ├── crawl-autohome.yml    # 汽车之家爬虫工作流
 │   ├── crawl-dongchedi.yml   # 懂车帝爬虫工作流
-│   ├── crawl-trigger.yml     # 随机触发器工作流
+│   ├── crawl-trigger.yml     # cron-job.org 外部触发器工作流
 │   ├── merge-and-filter.yml  # 合并过滤、Release、GitHub Pages 发布工作流
 │   ├── deploy-pages.yml      # 静态网页独立发布工作流
 │   ├── AI_Auto_Fix_Monitor.yml # AI 自动修复监控工作流
@@ -396,7 +398,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 |------|------|
 | `crawl-autohome.yml` | 汽车之家爬虫，上午/下午两个运行窗口 |
 | `crawl-dongchedi.yml` | 懂车帝爬虫，上午/下午两个运行窗口 |
-| `crawl-trigger.yml` | 随机触发器，仅在指定时间窗口触发目标爬虫 |
+| `crawl-trigger.yml` | cron-job.org 外部触发器，仅在指定时间窗口触发目标爬虫 |
 | `merge-and-filter.yml` | 抓取零整比、合并过滤、Release、GitHub Pages 发布 |
 | `deploy-pages.yml` | 静态网页独立发布 |
 | `AI_Auto_Fix_Monitor.yml` | Codex 优先的 AI 自动修复监控 |
@@ -413,6 +415,7 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `AFTERNOON_RUN_TIME` | 下午窗口目标运行秒数；长步骤会按 workflow 已耗时再次缩短 | 21000 |
 | `MAX_WORKFLOW_SECONDS` | 单次 workflow 按 GitHub 6 小时硬限制计算的总秒数 | 21600 |
 | `PROGRESS_COMMIT_BUFFER_SECONDS` | 长步骤结束后提交进度预留秒数 | 1800 |
+| `WINDOW_END_BUFFER_SECONDS` | 当前北京时间窗口结束前预留秒数 | 900 |
 | `CRAWL_MIN_DELAY_SECONDS` | 两次访问之间最小等待秒数 | 3 |
 | `CRAWL_MAX_DELAY_SECONDS` | 两次访问之间最大等待秒数 | 8 |
 
@@ -425,21 +428,29 @@ python auto_fix_workflow.py error.log test_autohome.py
 | `merge-and-filter` | 抓取零整比、合并过滤、Release、发布 GitHub Pages | 10/30/15分钟 | 爬虫 artifact |
 
 **触发条件**（crawl-autohome.yml / crawl-dongchedi.yml）：
-- 汽车之家、懂车帝：每天 UTC 00:07-03:52（北京时间 08:07-11:52）多次备用触发上午窗口，约 4 小时
-- 汽车之家、懂车帝：每天 UTC 05:07/05:17/05:27（北京时间 13:07/13:17/13:27）备用触发下午窗口，约 5 小时 50 分钟
+- 主爬虫 workflow 不再依赖 GitHub Actions `schedule`，只作为手动或外部入口的目标 workflow。
+- cron-job.org 在北京时间约 08:30 和 13:30 调用 `crawl-trigger.yml` 的 `repository_dispatch`，默认同时拉起汽车之家和懂车帝。
+- 有效爬取窗口为北京时间 08:00-12:30 和 13:00-22:00，窗口外启动会成功跳过。
 - 合并分析：每天 UTC 12:30（北京时间 20:30），等待下午爬虫窗口结束后再合并；如果两份爬虫数据尚未完整生成，会成功跳过且不发布不完整数据
-- 随机触发器只在北京时间 08:00-12:30 或 13:00-13:30 触发爬虫
-- 手动触发 (workflow_dispatch)：默认 `run_profile=auto` 时也会检查当前北京时间，只在 08:00-12:30 或 13:00-13:30 内运行长步骤
+- 手动触发 (workflow_dispatch)：默认 `run_profile=auto` 时也会检查当前北京时间，只在 08:00-12:30 或 13:00-22:00 内运行长步骤
+
+cron-job.org 配置脚本：
+
+```bash
+CRON_JOB_ORG_API_KEY=... GITHUB_DISPATCH_TOKEN=... python custom_scripts/configure_cron_job_org.py
+```
+
+该脚本会创建或更新两个 Asia/Shanghai 定时任务：08:30 和 13:30，POST 到 GitHub `repository_dispatch`，payload 为 `event_type=trigger-crawl`。
 
 **自动运行逻辑**：
-1. 上午窗口不做随机启动延迟；下午窗口随机延迟 0-10 分钟但会封顶到 13:30 前；外部随机触发最多补足到30分钟，并会封顶在当前运行窗口结束前
+1. 外部触发已经固定在北京时间约 08:30 和 13:30，主爬虫 workflow 不再追加随机启动延迟。
 2. 爬取循环：
    - 按当前运行窗口运行指定时长
-   - 未完成：commit进度 → pull --rebase + push 重试同步 → 正常结束本次 workflow，等待下一次备用触发/下一天继续
+   - 未完成：commit进度 → pull --rebase + push 重试同步 → 正常结束本次 workflow，等待下一次 cron-job.org 外部触发继续
    - 完成：生成数据并写入当前半月的 `crawl_state/*_YYYYMM_H1.done` 或 `crawl_state/*_YYYYMM_H2.done` 标记
 3. 每个主爬虫 workflow 按上午/下午窗口分别加并发锁：同一窗口备用触发不会并发重复爬，但上午不会阻塞下午
 4. 同一个半月周期内如果已完成全量爬取，后续自动触发会直接跳过；进入新半月周期时自动重置对应爬虫进度
-5. 如果 GitHub Actions schedule、随机触发或手动默认触发被延迟到北京时间 12:30 以后或 13:30 以后，工作流会直接跳过，不在傍晚补跑
+5. `custom_scripts/crawl_budget.py` 会取“当前窗口结束前预留 900 秒”和“GitHub Actions 6 小时限制前预留 1800 秒”两者中更早的截止时间来缩短 `RUN_TIME`；不足 5 分钟会成功跳过，避免进度来不及提交
 6. 进度提交通过 `custom_scripts/git_sync_progress.sh` 同步；若多个 workflow 同时更新 `progress.json` / `dongchedi/progress.json`，会合并 JSON 进度，避免远端覆盖本地已爬进度
 7. 懂车帝重置进度时会保留车系列表缓存，接口短暂返回非 JSON 或空响应时可回退继续爬取
 8. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
@@ -593,8 +604,8 @@ docker compose logs -f crawl-cron
 
 | 爬虫 | 定时 | 次数/月 | 分钟数 |
 |------|------|---------|--------|
-| 汽车之家 | 上午 UTC 00:07-03:52 多次备用触发；下午 UTC 05:07/05:17/05:27 | 备用触发较多但有并发锁 | 半月全量完成后跳过 |
-| 懂车帝 | 上午 UTC 00:07-03:52 多次备用触发；下午 UTC 05:07/05:17/05:27 | 备用触发较多但有并发锁 | 半月全量完成后跳过 |
+| 汽车之家 | cron-job.org 北京时间 08:30/13:30 外部触发 | 约 60 | 半月全量完成后跳过 |
+| 懂车帝 | cron-job.org 北京时间 08:30/13:30 外部触发 | 约 60 | 半月全量完成后跳过 |
 | 合并 | 每天 UTC 12:30（北京时间 20:30） | 30 | <300 |
 
 **半月跳过**：每个爬虫在当月 1-15 日、16-月底两个周期内全量完成后，会写入 `crawl_state/` 完成标记；同一周期后续自动触发直接跳过，不再重复爬。
@@ -603,7 +614,7 @@ docker compose logs -f crawl-cron
 
 **零整比来源**：合并分析会抓取公开零整比 PDF/HTML，并输出 `zero_to_whole_ratios_YYYYMMDD.json`；可用 Repository Variable `ZERO_TO_WHOLE_RATIO_URLS` 补充中保研、中保协、中汽修协或媒体转载的可下载来源。
 
-**随机延迟**：上午不做启动随机延迟，并按 12:30 截止时间动态缩短运行时长；下午随机等待 0-10 分钟但封顶到北京时间 13:30 前；两次网络访问之间默认等待 3-8 秒，可通过 `CRAWL_MIN_DELAY_SECONDS` / `CRAWL_MAX_DELAY_SECONDS` 调整。
+**启动与窗口预算**：外部触发固定在北京时间约 08:30 和 13:30，主爬虫不再增加随机等待；长步骤按 08:00-12:30、13:00-22:00 两个窗口动态缩短运行时长，并同时扣减 GitHub Actions 6 小时硬限制。两次网络访问之间默认等待 3-8 秒，可通过 `CRAWL_MIN_DELAY_SECONDS` / `CRAWL_MAX_DELAY_SECONDS` 调整。
 
 **分段续爬**：爬虫脚本返回 `exit code 10` 时表示本次时间预算用完但还没全量完成。workflow 会提交进度并正常结束本次运行，不会在同一个 job 内再次重启长步骤，避免实际运行时间超过上午/下午窗口。汽车之家 step1 与懂车帝 step2 都会在长步骤启动前按 workflow 已耗时重新缩短 `RUN_TIME`，并预留提交缓冲，防止 GitHub 6 小时硬超时直接取消导致进度无法推送。
 
@@ -706,10 +717,10 @@ python crawl_dongchedi.py --step 2 --time-limit 21600 --max-series 400 --auto
 ### GitHub Actions运行
 
 **当前调度**（UTC时间）：
-- 汽车之家：上午 00:07-03:52 多次备用触发（北京时间 08:07-11:52，约 4 小时）；下午 05:07/05:17/05:27 备用触发（北京时间 13:07-13:27，约 5 小时 50 分钟）
-- 懂车帝：上午 00:07-03:52 多次备用触发（北京时间 08:07-11:52，约 4 小时）；下午 05:07/05:17/05:27 备用触发（北京时间 13:07-13:27，约 5 小时 50 分钟）
+- 汽车之家：由 cron-job.org 在北京时间约 08:30 和 13:30 外部触发 `crawl-trigger.yml` 后拉起
+- 懂车帝：由 cron-job.org 在北京时间约 08:30 和 13:30 外部触发 `crawl-trigger.yml` 后拉起
 - 数据合并：每天 12:30（北京时间 20:30）
-- 随机触发器：仅北京时间 08:00-12:30 或 13:00-13:30 触发目标爬虫
+- 外部触发器：仅北京时间 08:00-12:30 或 13:00-22:00 触发目标爬虫
 
 **代理配置（强烈推荐）**
 

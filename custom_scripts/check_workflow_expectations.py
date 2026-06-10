@@ -18,7 +18,7 @@ CN_OFFSET = timedelta(hours=8)
 MORNING_START = 8 * 60
 MORNING_END = 12 * 60 + 30
 AFTERNOON_START = 13 * 60
-AFTERNOON_END = 13 * 60 + 30
+AFTERNOON_END = 22 * 60
 CRAWLER_WORKFLOWS = {"汽车之家爬虫", "懂车帝爬虫"}
 
 

@@ -1,5 +1,14 @@
 # 对话历史
 
+## 2026-06-10
+
+### 修改32: 改为 cron-job.org 外部触发并统一长窗口预算
+- 移除汽车之家、懂车帝主爬虫 workflow 对 GitHub Actions `schedule` 的依赖。
+- `crawl-trigger.yml` 改为 cron-job.org 外部入口，接受 `trigger-crawl` 后默认同时拉起汽车之家和懂车帝。
+- 爬取窗口统一为北京时间 `08:00-12:30`、`13:00-22:00`，并移除额外随机启动延迟。
+- 新增 `custom_scripts/crawl_budget.py`，长步骤按当前窗口剩余时间和 GitHub Actions 6 小时剩余时间取更早截止点，预留进度提交缓冲。
+- 新增 `custom_scripts/configure_cron_job_org.py`，用于创建或更新北京时间 08:30、13:30 两个 cron-job.org `repository_dispatch` 任务。
+
 ## 2026-06-08
 
 ### 修改31: 增加零整比属性、来源明细和 Pages 展示

@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-06-10：改为 cron-job.org 外部触发并统一长窗口预算
+
+### 用户诉求
+- 手机配置和汽车配置爬虫都只在北京时间 `08:00-12:30`、`13:00-22:00` 窗口内长跑。
+- 无论从什么入口启动，都要自动判断先撞上 GitHub Actions 6 小时限制还是当前时间窗口限制，并提前几分钟结束。
+- 不再相信 GitHub Actions cron schedule；手机爬虫也要像汽车爬虫一样通过 cron-job.org API 配置触发；cron-job.org 触发时间改为北京时间约 08:30 和 13:30。
+
+### 修改
+- 主爬虫 `crawl-autohome.yml`、`crawl-dongchedi.yml` 不再依赖 GitHub Actions `schedule` 准点触发。
+- `crawl-trigger.yml` 改为外部触发入口，接受 `trigger-crawl` 后默认同时拉起汽车之家和懂车帝。
+- 新增 `custom_scripts/crawl_budget.py`，长步骤启动前按当前窗口剩余时间与 GitHub Actions 6 小时剩余时间取更早截止点，并保留进度提交缓冲。
+- 新增 `custom_scripts/configure_cron_job_org.py`，用于创建或更新 cron-job.org 的 08:30、13:30 两个 `repository_dispatch` 任务。
+- README、CHANGELOG、CI 预期校验同步更新，避免后续误回退到只靠 GitHub cron schedule。
+
 ## 2026-06-08：增加零整比属性、来源明细和 Pages 展示
 
 ### 用户诉求

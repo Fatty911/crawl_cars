@@ -10,10 +10,8 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MORNING_CRON = "7,22,37,52 0-3 * * *"
-AFTERNOON_CRON = "7,17,27 5 * * *"
-MORNING_START_SNIPPET = "$((8 * 60))"
 WINDOW_TEXT = "8:00-12:30"
+AFTERNOON_TEXT = "13:00-22:00"
 
 
 def load_yaml(path: Path) -> dict:
@@ -29,19 +27,29 @@ def assert_condition(condition: bool, message: str, errors: list[str]) -> None:
 def check_crawler_workflow(path: Path, errors: list[str]) -> None:
     data = load_yaml(path)
     text = path.read_text(encoding="utf-8")
-    schedules = [item.get("cron") for item in data.get(True, {}).get("schedule", [])]
+    schedules = data.get(True, {}).get("schedule", [])
 
-    assert_condition(MORNING_CRON in schedules, f"{path.name} 缺少 08:07-11:52 上午备用 cron", errors)
-    assert_condition(AFTERNOON_CRON in schedules, f"{path.name} 缺少 13:07/13:17/13:27 下午 cron", errors)
-    assert_condition(MORNING_START_SNIPPET in text, f"{path.name} 未使用 08:00 作为上午窗口起点", errors)
-    assert_condition("13 * 60 + 30" in text, f"{path.name} 未保留 13:30 下午启动截止", errors)
-    assert_condition("4 * 3600 + 30 * 60" in text, f"{path.name} 未保留 12:30 上午结束预算", errors)
+    assert_condition(not schedules, f"{path.name} 不应继续依赖 GitHub Actions schedule", errors)
+    assert_condition("WINDOW_END_BUFFER_SECONDS" in text, f"{path.name} 缺少窗口结束缓冲", errors)
+    assert_condition("crawl_budget.py configure" in text, f"{path.name} 未使用共享窗口预算脚本", errors)
+    assert_condition("crawl_budget.py clamp" in text, f"{path.name} 未按 Action 和窗口综合预算收口", errors)
 
 
 def check_trigger(path: Path, errors: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
-    assert_condition("CN_HOUR -ge 8" in text, "crawl-trigger.yml 未使用 08:00 作为上午触发起点", errors)
+    assert_condition("$((8 * 60))" in text, "crawl-trigger.yml 未使用 08:00 作为上午触发起点", errors)
     assert_condition(WINDOW_TEXT in text, "crawl-trigger.yml 未同步 08:00-12:30 文案", errors)
+    assert_condition(AFTERNOON_TEXT in text, "crawl-trigger.yml 未同步 13:00-22:00 文案", errors)
+    assert_condition('default: \'all\'' in text or 'default: "all"' in text, "crawl-trigger.yml 默认不应随机漏掉车源", errors)
+    assert_condition("crawl-autohome.yml" in text and "crawl-dongchedi.yml" in text, "crawl-trigger.yml 未触发两个主爬虫", errors)
+    assert_condition("RANDOM" not in text and "skip_delay" not in text, "crawl-trigger.yml 不应再追加随机启动延迟", errors)
+
+
+def check_budget_script(path: Path, errors: list[str]) -> None:
+    text = path.read_text(encoding="utf-8")
+    assert_condition('"afternoon": (13 * 60, 22 * 60)' in text, "crawl_budget.py 未设置 13:00-22:00 下午窗口", errors)
+    assert_condition("MAX_WORKFLOW_SECONDS" in text, "crawl_budget.py 缺少 Action 总时限预算", errors)
+    assert_condition("PROGRESS_COMMIT_BUFFER_SECONDS" in text, "crawl_budget.py 缺少进度提交缓冲", errors)
 
 
 def check_ai_monitor(path: Path, errors: list[str]) -> None:
@@ -61,6 +69,8 @@ def main() -> int:
     check_crawler_workflow(ROOT / ".github/workflows/crawl-autohome.yml", errors)
     check_crawler_workflow(ROOT / ".github/workflows/crawl-dongchedi.yml", errors)
     check_trigger(ROOT / ".github/workflows/crawl-trigger.yml", errors)
+    check_budget_script(ROOT / "custom_scripts/crawl_budget.py", errors)
+    assert_condition((ROOT / "custom_scripts/configure_cron_job_org.py").exists(), "缺少 cron-job.org 配置脚本", errors)
     check_ai_monitor(ROOT / ".github/workflows/AI_Auto_Fix_Monitor.yml", errors)
 
     if errors:

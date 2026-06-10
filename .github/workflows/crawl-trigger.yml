@@ -1,7 +1,7 @@
-# 爬虫随机触发器 - 通过 repository_dispatch 触发实际爬虫
+# 爬虫外部触发器 - 通过 repository_dispatch 触发实际爬虫
 # 使用 cron-job.org 或外部定时服务调用此 workflow
-# 随机选择爬虫类型，东八区每天 8:00-12:30 或 13:00-13:30 触发
-name: 爬虫随机触发器
+# 默认触发全部车源，东八区每天 8:00-12:30 或 13:00-22:00 触发
+name: 爬虫外部触发器
 
 on:
   # 由外部定时服务（如 cron-job.org）通过 API 触发
@@ -13,16 +13,12 @@ on:
       crawler_type:
         description: '爬虫类型'
         required: false
-        default: 'random'
+        default: 'all'
         type: choice
         options:
-          - random
+          - all
           - autohome
           - dongchedi
-      skip_delay:
-        description: '跳过随机延迟'
-        required: false
-        default: 'false'
 
 jobs:
   trigger:
@@ -30,36 +26,24 @@ jobs:
     timeout-minutes: 5
     outputs:
       crawler: ${{ steps.select.outputs.crawler }}
-      delay: ${{ steps.select.outputs.delay }}
       run_profile: ${{ steps.select.outputs.run_profile }}
     steps:
-      - name: Select crawler and calculate delay
+      - name: Select crawler and profile
         id: select
         run: |
-          # 东八区时间 (UTC+8)
-          # GitHub Actions 运行在 UTC 时区，需要转换
-          UTC_HOUR=$(date -u +%H)
-          CN_HOUR=$((UTC_HOUR + 8))
-          if [ $CN_HOUR -ge 24 ]; then
-            CN_HOUR=$((CN_HOUR - 24))
-          fi
+          CN_HOUR=$(TZ=Asia/Shanghai date +%H)
           CN_MINUTE=$(TZ=Asia/Shanghai date +%M)
+          CURRENT_MINUTES=$((10#$CN_HOUR * 60 + 10#$CN_MINUTE))
 
-          echo "当前东八区时间: $CN_HOUR:$CN_MINUTE (UTC: $UTC_HOUR)"
+          echo "当前北京时间: $CN_HOUR:$CN_MINUTE"
 
-          EVENT_NAME="${{ github.event_name }}"
-          RUN_PROFILE=""
-          
-          if [ $CN_HOUR -ge 8 ] && [ $CN_HOUR -lt 12 ]; then
+          if [ "$CURRENT_MINUTES" -ge $((8 * 60)) ] && [ "$CURRENT_MINUTES" -le $((12 * 60 + 30)) ]; then
             RUN_PROFILE="morning"
-          elif [ $CN_HOUR -eq 12 ] && [ $((10#$CN_MINUTE)) -le 30 ]; then
-            RUN_PROFILE="morning"
-          elif [ $CN_HOUR -eq 13 ] && [ $((10#$CN_MINUTE)) -le 30 ]; then
+          elif [ "$CURRENT_MINUTES" -ge $((13 * 60)) ] && [ "$CURRENT_MINUTES" -le $((22 * 60)) ]; then
             RUN_PROFILE="afternoon"
           else
-            echo "当前不在东八区 8:00-12:30 或 13:00-13:30 范围内，跳过触发"
+            echo "当前北京时间 ${CN_HOUR}:${CN_MINUTE} 不在 08:00-12:30 或 13:00-22:00 爬取窗口，跳过触发"
             echo "crawler=skip" >> $GITHUB_OUTPUT
-            echo "delay=0" >> $GITHUB_OUTPUT
             echo "run_profile=skip" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -70,31 +54,14 @@ jobs:
           # 选择爬虫类型
           if [ "${{ github.event.client_payload.crawler }}" != "" ]; then
             CRAWLER="${{ github.event.client_payload.crawler }}"
-          elif [ "${{ inputs.crawler_type }}" != "random" ] && [ "${{ inputs.crawler_type }}" != "" ]; then
+          elif [ "${{ inputs.crawler_type }}" != "" ]; then
             CRAWLER="${{ inputs.crawler_type }}"
           else
-            # 随机选择：autohome 或 dongchedi
-            RAND=$((RANDOM % 2))
-            if [ $RAND -eq 0 ]; then
-              CRAWLER="autohome"
-            else
-              CRAWLER="dongchedi"
-            fi
+            CRAWLER="all"
           fi
           
           echo "选择的爬虫: $CRAWLER"
           echo "crawler=$CRAWLER" >> $GITHUB_OUTPUT
-          
-          # 计算随机延迟 (0~30 分钟，不占用工作流时间)
-          if [ "${{ inputs.skip_delay }}" == "true" ]; then
-            DELAY=0
-          else
-            # 延迟范围：0~1800 秒 (0~30 分钟)
-            DELAY=$((RANDOM % 1800))
-          fi
-          
-          echo "随机延迟: $DELAY 秒 ($(($DELAY / 60)) 分钟)"
-          echo "delay=$DELAY" >> $GITHUB_OUTPUT
 
       - name: Trigger target workflow
         if: steps.select.outputs.crawler != 'skip'
@@ -102,28 +69,34 @@ jobs:
           GH_TOKEN: ${{ secrets.ACTION_PAT }}
         run: |
           CRAWLER="${{ steps.select.outputs.crawler }}"
-          
-          # 根据爬虫类型触发对应 workflow
+          RUN_PROFILE="${{ steps.select.outputs.run_profile }}"
+          TRIGGER_TIME="$(date +%s)"
+
+          trigger_workflow() {
+            local workflow="$1"
+            echo "触发 $workflow..."
+            gh workflow run "$workflow" \
+              --repo "${{ github.repository }}" \
+              -f trigger_source="cron-job-org" \
+              -f trigger_time="$TRIGGER_TIME" \
+              -f run_profile="$RUN_PROFILE"
+          }
+
           case $CRAWLER in
+            all)
+              trigger_workflow "crawl-autohome.yml"
+              trigger_workflow "crawl-dongchedi.yml"
+              ;;
             autohome)
-              WORKFLOW="crawl-autohome.yml"
+              trigger_workflow "crawl-autohome.yml"
               ;;
             dongchedi)
-              WORKFLOW="crawl-dongchedi.yml"
+              trigger_workflow "crawl-dongchedi.yml"
               ;;
             *)
               echo "未知爬虫类型: $CRAWLER"
               exit 1
               ;;
           esac
-          
-          echo "触发 $WORKFLOW..."
-          
-          # 使用 gh CLI 触发 workflow
-          gh workflow run "$WORKFLOW" \
-            --repo "${{ github.repository }}" \
-            -f trigger_source="random-trigger" \
-            -f trigger_time="$(date +%s)" \
-            -f run_profile="${{ steps.select.outputs.run_profile }}"
-          
-          echo "✅ 已触发 $WORKFLOW"
+
+          echo "已触发汽车爬虫，trigger_time=$TRIGGER_TIME, run_profile=$RUN_PROFILE"

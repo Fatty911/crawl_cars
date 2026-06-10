@@ -40,7 +40,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compile Python files
-        run: python -m py_compile crawl_dongchedi.py crawl_zero_to_whole_ratio.py merge_data.py proxy_manager.py run_with_proxy.py test_autohome.py
+        run: python -m py_compile crawl_dongchedi.py crawl_zero_to_whole_ratio.py merge_data.py proxy_manager.py run_with_proxy.py test_autohome.py custom_scripts/*.py
 
       - name: Validate changed workflow and site files
         run: >
@@ -53,6 +53,8 @@ jobs:
           "$PWD/.github/workflows/deploy-pages.yml"
           "$PWD/.github/workflows/merge-and-filter.yml"
           "$PWD/custom_scripts/check_workflow_expectations.py"
+          "$PWD/custom_scripts/configure_cron_job_org.py"
+          "$PWD/custom_scripts/crawl_budget.py"
           "$PWD/custom_scripts/ensure_codex_autofix_scope.py"
           "$PWD/custom_scripts/validate_workflow_expectations.py"
           "$PWD/crawl_zero_to_whole_ratio.py"
