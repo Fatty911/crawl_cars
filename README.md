@@ -181,6 +181,8 @@ crawl_cars/
 | `processed_brands` | 已处理品牌列表 |
 | `crawled_series` | 已爬取的车系ID列表 |
 
+`dongchedi/json/*.html` 是 step2 的真实页面缓存，文件较大且不提交到 git；GitHub Actions 通过 `actions/cache` 按半月周期恢复该目录。`crawled_series` 只在对应 HTML 文件真实存在时才会被视为有效，避免进度记录存在但页面缓存丢失时生成空数据。
+
 ---
 
 ### 3. merge_data.py
@@ -454,9 +456,10 @@ CRON_JOB_ORG_API_KEY=... GITHUB_DISPATCH_TOKEN=... python custom_scripts/configu
 5. `custom_scripts/crawl_budget.py` 会取“当前窗口结束前预留 900 秒”和“GitHub Actions 6 小时限制前预留 1800 秒”两者中更早的截止时间来缩短 `RUN_TIME`；不足 5 分钟会成功跳过，避免进度来不及提交
 6. 进度提交通过 `custom_scripts/git_sync_progress.sh` 同步；脚本使用 `fetch → rebase → push` 并打印脱敏后的 Git 错误，直连重试会显式清除代理环境，遇到空 rebase/进度冲突会自动 skip 或合并 JSON 进度，避免远端覆盖本地已爬进度
 7. 懂车帝重置进度时会保留车系列表缓存，接口短暂返回非 JSON 或空响应时可回退继续爬取
-8. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
-9. 合并分析在两份爬虫数据完整后先运行 `crawl_zero_to_whole_ratio.py`，再运行 `merge_data.py`；零整比来源抓取失败会跳过该来源，不影响主车型数据发布
-10. 主爬虫 workflow 上传 error-log 或数据 artifact 前会清空代理环境，避免 GitHub artifact API 请求被本地 mihomo 代理断流影响
+8. 懂车帝 step2 的 `dongchedi/json/*.html` 页面缓存通过 `actions/cache` 按半月周期恢复；强制重跑或进入新半月周期会清空旧 HTML，普通分段续爬会先恢复缓存再校验 `crawled_series`
+9. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
+10. 合并分析在两份爬虫数据完整后先运行 `crawl_zero_to_whole_ratio.py`，再运行 `merge_data.py`；零整比来源抓取失败会跳过该来源，不影响主车型数据发布
+11. 主爬虫 workflow 上传 error-log 或数据 artifact 前会清空代理环境，避免 GitHub artifact API 请求被本地 mihomo 代理断流影响
 
 **车型范围**：当前只保留轿车、跑车、SUV；MPV、房车、皮卡、微面、轻客、货车、卡车等会被排除。详见 `CRAWL_SCOPE.md`。
 
@@ -619,6 +622,8 @@ docker compose logs -f crawl-cron
 **启动与窗口预算**：外部触发固定在北京时间约 08:30 和 13:30，主爬虫不再增加随机等待；长步骤按 08:00-12:30、13:00-22:00 两个窗口动态缩短运行时长，并同时扣减 GitHub Actions 6 小时硬限制。两次网络访问之间默认等待 3-8 秒，可通过 `CRAWL_MIN_DELAY_SECONDS` / `CRAWL_MAX_DELAY_SECONDS` 调整。
 
 **分段续爬**：爬虫脚本返回 `exit code 10` 时表示本次时间预算用完但还没全量完成。workflow 会提交进度并正常结束本次运行，不会在同一个 job 内再次重启长步骤，避免实际运行时间超过上午/下午窗口。汽车之家 step1 与懂车帝 step2 都会在长步骤启动前按 workflow 已耗时重新缩短 `RUN_TIME`，并预留提交缓冲，防止 GitHub 6 小时硬超时直接取消导致进度无法推送。
+
+**懂车帝 HTML 缓存**：懂车帝 step2 的 HTML 页面不提交到 git，而是由 `crawl-dongchedi.yml` 在 step1 前恢复 `dongchedi/json/` Actions cache。日志中的 `已有HTML` 代表本次 runner 实际恢复到的页面数；如果缓存缺失，脚本会重置缺少 HTML 的 `crawled_series`，防止只保存进度却没有页面数据。
 
 **手动触发**：在 Actions 页面点击 "Run workflow"
 

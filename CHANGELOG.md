@@ -2,6 +2,13 @@
 
 ## 2026-06-11
 
+### 修改35: 恢复懂车帝 step2 HTML 跨 runner 缓存
+- 复查远端 `dongchedi/progress.json` 和最新 Actions 日志，确认懂车帝车系列表已缓存，但 `dongchedi/json/*.html` 被 `.gitignore` 排除且没有跨 GitHub runner 恢复，导致每次普通续爬时 `crawled_series` 被一致性检查重置，看起来总从 0 开始。
+- `crawl-dongchedi.yml` 在 step1 前新增 `actions/cache` 恢复 `dongchedi/json/`，cache key 按当前半月周期加 run id 保存，restore key 按半月周期回退到最近一次缓存。
+- 强制重跑或进入新半月周期仍会清空旧 HTML，不会把上一周期页面误用于新一轮；普通分段续爬会先恢复 HTML，再校验 `crawled_series`。
+- 新增缓存文件数日志，方便从 Actions 日志直接判断本次 runner 是否恢复到 HTML 页面缓存。
+- README 同步说明懂车帝 step2 HTML 缓存与 `crawled_series` 的关系。
+
 ### 修改34: 增强爬虫 workflow 进度同步、artifact 上传和网络异常恢复
 - 复查最近 40 条 workflow：当前源码后的 CI、Pages、合并分析、外部触发器和汽车之家均成功；唯一失败的懂车帝 run 是旧提交上 step2 正常 `exit code 10` 后进度同步失败。
 - `custom_scripts/git_sync_progress.sh` 的直连重试现在会显式清除 `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY` 环境变量，避免日志显示直连但 Git 仍走 mihomo。

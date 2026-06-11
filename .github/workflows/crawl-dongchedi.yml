@@ -64,6 +64,7 @@ jobs:
           echo "WORKFLOW_START_EPOCH=$(date +%s)" >> $GITHUB_ENV
           echo "CRAWL_PERIOD=$CRAWL_PERIOD" >> $GITHUB_ENV
           echo "DONGCHEDI_DONE_MARKER=$DONE_MARKER" >> $GITHUB_ENV
+          echo "crawl_period=$CRAWL_PERIOD" >> $GITHUB_OUTPUT
 
           FORCE_RESTART="${{ github.event.inputs.force_restart }}"
 
@@ -123,6 +124,23 @@ jobs:
           python custom_scripts/reset_dongchedi_progress.py
           rm -f dongchedi/json/*.html
           echo "已重置所有进度"
+
+      - name: Restore Dongchedi HTML cache
+        id: dongchedi_html_cache
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
+        uses: actions/cache@main
+        with:
+          path: dongchedi/json
+          key: dongchedi-html-${{ steps.period.outputs.crawl_period }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            dongchedi-html-${{ steps.period.outputs.crawl_period }}-
+
+      - name: Report Dongchedi HTML cache
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
+        run: |
+          mkdir -p dongchedi/json
+          HTML_COUNT=$(find dongchedi/json -type f -name '*.html' | wc -l)
+          echo "Dongchedi HTML cache files: $HTML_COUNT"
 
       - uses: actions/setup-python@main
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'

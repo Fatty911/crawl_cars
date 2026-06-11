@@ -1,8 +1,28 @@
 # 对话历史总结
 
-> 最后更新：2026-06-11 21:30
+> 最后更新：2026-06-11
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-11：修复懂车帝 step2 HTML 缓存未跨 runner 保存
+
+### 排查
+- 远端 `origin/main:dongchedi/progress.json` 只有 `series_list`，`crawled_series` 为 0；说明车系列表被提交保存了，但 step2 完成车系没有留下可复用进度。
+- 最新懂车帝 Actions 日志出现 `发现 1327 条 step2 进度缺少对应 HTML，已重置为未爬取`，随后打印 `车系总数: 4681，已有HTML: 0，需爬取: 4681`。
+- 根因是 `dongchedi/json/` 被 `.gitignore` 排除，GitHub Actions 新 runner checkout 后没有 step2 HTML 页面缓存；`crawl_dongchedi.py` 的一致性检查会把没有对应 HTML 的 `crawled_series` 移除，避免生成空数据。
+
+### 修改
+- `crawl-dongchedi.yml` 在 step1 前新增 `actions/cache` 恢复 `dongchedi/json/`，按当前半月周期保存和恢复 HTML 页面缓存。
+- `Prepare crawl period` 输出 `crawl_period` 供 cache key 使用，避免依赖运行时写入的 `$GITHUB_ENV` 做表达式展开。
+- 强制重跑或进入新半月周期仍会清理旧 HTML，普通分段续爬才恢复同半月周期缓存。
+- 新增 `Report Dongchedi HTML cache` 步骤，在日志中打印恢复到的 HTML 文件数。
+- README、CHANGELOG 同步解释 `crawled_series` 与 HTML 页面缓存的关系。
+
+### 结果
+- 后续懂车帝普通分段续爬不应再因为 runner 换机而总显示 `已有HTML: 0`。
+- 如果日志继续显示 `已有HTML: 0`，可以直接看新增的 `Dongchedi HTML cache files` 日志判断是 cache 未命中、cache 过期，还是上一轮没有成功保存缓存。
 
 ---
 
