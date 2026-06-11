@@ -329,6 +329,18 @@ jobs:
             python test_autohome.py --step 6
           fi
 
+      - name: Disable proxy for GitHub artifact upload
+        if: failure()
+        run: |
+          {
+            echo "HTTP_PROXY="
+            echo "HTTPS_PROXY="
+            echo "ALL_PROXY="
+            echo "http_proxy="
+            echo "https_proxy="
+            echo "all_proxy="
+          } >> "$GITHUB_ENV"
+
       - name: Upload error log
         if: failure()
         uses: actions/upload-artifact@main
@@ -382,6 +394,18 @@ jobs:
           git add crawl_state
           git diff --staged --quiet || git commit -m "Autohome complete for $CRAWL_PERIOD"
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+      - name: Disable proxy for Autohome artifact upload
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        run: |
+          {
+            echo "HTTP_PROXY="
+            echo "HTTPS_PROXY="
+            echo "ALL_PROXY="
+            echo "http_proxy="
+            echo "https_proxy="
+            echo "all_proxy="
+          } >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@main
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')

@@ -298,6 +298,18 @@ jobs:
           echo "Step2 失败且不适合自动修复，终止工作流"
           exit 1
 
+      - name: Disable proxy for GitHub artifact upload
+        if: failure()
+        run: |
+          {
+            echo "HTTP_PROXY="
+            echo "HTTPS_PROXY="
+            echo "ALL_PROXY="
+            echo "http_proxy="
+            echo "https_proxy="
+            echo "all_proxy="
+          } >> "$GITHUB_ENV"
+
       - name: Upload error log
         if: failure()
         uses: actions/upload-artifact@main
@@ -357,6 +369,18 @@ jobs:
           git add crawl_state
           git diff --staged --quiet || git commit -m "Dongchedi complete for $CRAWL_PERIOD"
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+      - name: Disable proxy for Dongchedi artifact upload
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
+        run: |
+          {
+            echo "HTTP_PROXY="
+            echo "HTTPS_PROXY="
+            echo "ALL_PROXY="
+            echo "http_proxy="
+            echo "https_proxy="
+            echo "all_proxy="
+          } >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@main
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')

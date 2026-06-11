@@ -40,6 +40,9 @@ DCD_PAGE_LOAD_TIMEOUT = int(os.getenv("DCD_PAGE_LOAD_TIMEOUT", "60"))
 DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD = int(
     os.getenv("DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD", "3")
 )
+DCD_NETWORK_ERROR_RESTART_THRESHOLD = int(
+    os.getenv("DCD_NETWORK_ERROR_RESTART_THRESHOLD", "5")
+)
 if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
     CRAWL_MAX_DELAY_SECONDS = CRAWL_MIN_DELAY_SECONDS
 
@@ -296,6 +299,28 @@ def is_renderer_timeout(exc):
     return "Timed out receiving message from renderer" in text or "timeout: Timed out" in text
 
 
+def is_network_navigation_error(exc):
+    text = str(exc)
+    markers = [
+        "net::ERR_CONNECTION_CLOSED",
+        "net::ERR_CONNECTION_RESET",
+        "net::ERR_TUNNEL_CONNECTION_FAILED",
+        "net::ERR_PROXY_CONNECTION_FAILED",
+        "net::ERR_SOCKS_CONNECTION_FAILED",
+        "net::ERR_TIMED_OUT",
+    ]
+    return any(marker in text for marker in markers)
+
+
+def restart_browser(browser, reason):
+    print(f"  {reason}，重启 Chrome 后继续")
+    try:
+        browser.quit()
+    except Exception as quit_exc:
+        print(f"  关闭旧浏览器失败，继续重启: {quit_exc}")
+    return create_browser()
+
+
 def get_existing_html_ids():
     """返回当前工作区真实存在的车系 HTML 缓存 ID。"""
     if not os.path.isdir(dcd_json_dir):
@@ -499,6 +524,7 @@ def crawl_series_config(browser, series_list):
     start_time = time.time()
     skipped_count = 0
     consecutive_renderer_timeouts = 0
+    consecutive_network_errors = 0
     need_crawl = len(series_list) - initial_crawled_count
 
     print(f"车系总数: {len(series_list)}，已有HTML: {initial_crawled_count}，需爬取: {need_crawl}")
@@ -543,6 +569,7 @@ def crawl_series_config(browser, series_list):
                 ) as f:
                     f.write(f"{series_id} {series_name}: 配置页面加载超时\n")
                 consecutive_renderer_timeouts = 0
+                consecutive_network_errors = 0
                 save_progress()
                 continue
 
@@ -557,6 +584,7 @@ def crawl_series_config(browser, series_list):
                     f.write(page_source)
                 saved_html = True
             consecutive_renderer_timeouts = 0
+            consecutive_network_errors = 0
         except Exception as e:
             print(f"  爬取异常: {e}")
             with open(
@@ -565,22 +593,31 @@ def crawl_series_config(browser, series_list):
                 f.write(f"{series_id} {series_name}: {e}\n")
             if is_renderer_timeout(e):
                 consecutive_renderer_timeouts += 1
+                consecutive_network_errors = 0
                 if (
                     DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD > 0
                     and consecutive_renderer_timeouts >= DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD
                 ):
-                    print(
-                        "  连续 "
-                        f"{consecutive_renderer_timeouts} 次 renderer 超时，重启 Chrome 后继续"
+                    browser = restart_browser(
+                        browser,
+                        f"连续 {consecutive_renderer_timeouts} 次 renderer 超时",
                     )
-                    try:
-                        browser.quit()
-                    except Exception as quit_exc:
-                        print(f"  关闭旧浏览器失败，继续重启: {quit_exc}")
-                    browser = create_browser()
                     consecutive_renderer_timeouts = 0
+            elif is_network_navigation_error(e):
+                consecutive_network_errors += 1
+                consecutive_renderer_timeouts = 0
+                if (
+                    DCD_NETWORK_ERROR_RESTART_THRESHOLD > 0
+                    and consecutive_network_errors >= DCD_NETWORK_ERROR_RESTART_THRESHOLD
+                ):
+                    browser = restart_browser(
+                        browser,
+                        f"连续 {consecutive_network_errors} 次网络连接异常",
+                    )
+                    consecutive_network_errors = 0
             else:
                 consecutive_renderer_timeouts = 0
+                consecutive_network_errors = 0
 
         if saved_html and series_id not in crawled:
             crawled.append(series_id)

@@ -3,14 +3,22 @@ set -euo pipefail
 
 REMOTE_URL="${1:?remote url required}"
 MAX_ATTEMPTS="${2:-6}"
+BRANCH="${GIT_SYNC_BRANCH:-main}"
 
 # 检测可用代理
 PROXY_URL="${https_proxy:-${HTTPS_PROXY:-}}"
+ORIGINAL_HTTP_PROXY="${HTTP_PROXY:-}"
+ORIGINAL_HTTPS_PROXY="${HTTPS_PROXY:-}"
+ORIGINAL_ALL_PROXY="${ALL_PROXY:-}"
+ORIGINAL_LOWER_HTTP_PROXY="${http_proxy:-}"
+ORIGINAL_LOWER_HTTPS_PROXY="${https_proxy:-}"
+ORIGINAL_LOWER_ALL_PROXY="${all_proxy:-}"
 
 # 清除 git 代理配置
 clear_proxy() {
   git config --unset http.proxy 2>/dev/null || true
   git config --unset https.proxy 2>/dev/null || true
+  unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
 }
 
 # 设置代理
@@ -18,6 +26,16 @@ set_proxy() {
   if [ -n "$PROXY_URL" ]; then
     git config http.proxy "$PROXY_URL"
     git config https.proxy "$PROXY_URL"
+    export HTTP_PROXY="${ORIGINAL_HTTP_PROXY:-$PROXY_URL}"
+    export HTTPS_PROXY="${ORIGINAL_HTTPS_PROXY:-$PROXY_URL}"
+    export http_proxy="${ORIGINAL_LOWER_HTTP_PROXY:-$PROXY_URL}"
+    export https_proxy="${ORIGINAL_LOWER_HTTPS_PROXY:-$PROXY_URL}"
+    if [ -n "$ORIGINAL_ALL_PROXY" ]; then
+      export ALL_PROXY="$ORIGINAL_ALL_PROXY"
+    fi
+    if [ -n "$ORIGINAL_LOWER_ALL_PROXY" ]; then
+      export all_proxy="$ORIGINAL_LOWER_ALL_PROXY"
+    fi
     echo "[git-sync] 使用代理: $PROXY_URL"
   else
     echo "[git-sync] 无可用代理，使用直连"
@@ -25,6 +43,10 @@ set_proxy() {
 }
 
 # 尝试同步（pull + push）
+rebase_in_progress() {
+  [ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ]
+}
+
 resolve_rebase_conflicts() {
   local conflicts
   conflicts="$(git diff --name-only --diff-filter=U || true)"
@@ -52,39 +74,83 @@ resolve_rebase_conflicts() {
     fi
   done <<< "$conflicts"
 
-  if ! GIT_EDITOR=true git rebase --continue 2>/dev/null; then
-    if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
-      GIT_EDITOR=true git rebase --skip 2>/dev/null
-    else
+  return 0
+}
+
+finish_rebase() {
+  local guard=0
+  while rebase_in_progress; do
+    guard=$((guard + 1))
+    if [ "$guard" -gt 20 ]; then
+      echo "[git-sync] rebase 状态处理超过 20 次，放弃" >&2
       return 1
     fi
+
+    if git status --porcelain 2>/dev/null | grep -q "^UU\|^AA\|^DD"; then
+      resolve_rebase_conflicts || return 1
+    elif ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+      git add -A
+    fi
+
+    if GIT_EDITOR=true git rebase --continue; then
+      continue
+    fi
+
+    if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
+      echo "[git-sync] 当前 rebase 提交为空，执行 rebase --skip"
+      GIT_EDITOR=true git rebase --skip || return 1
+      continue
+    fi
+
+    return 1
+  done
+  return 0
+}
+
+print_git_failure() {
+  local label="$1"
+  local log_file="$2"
+  echo "[git-sync] $label 失败，最近日志:" >&2
+  sed -E 's#https://[^/@]+(:[^/@]+)?@github.com/#https://***@github.com/#g' "$log_file" | tail -n 40 >&2 || true
+}
+
+run_git_with_log() {
+  local label="$1"
+  shift
+  local log_file
+  log_file="$(mktemp)"
+  if "$@" >"$log_file" 2>&1; then
+    rm -f "$log_file"
+    return 0
   fi
+  print_git_failure "$label" "$log_file"
+  rm -f "$log_file"
+  return 1
 }
 
 try_sync() {
   # stash 未提交的更改
   git stash push -m "sync-progress-stash-$(date +%s)" 2>/dev/null || true
 
-  # 尝试 pull --rebase
-  if git pull --rebase "$REMOTE_URL" 2>/dev/null; then
-    # pull 成功，尝试 push
-    if git push "$REMOTE_URL" 2>/dev/null; then
-      git stash pop 2>/dev/null || true
-      echo "[git-sync] 同步成功"
-      return 0
+  # 尝试 fetch + rebase，失败时打印真实原因，避免只看到 pull --rebase 失败。
+  if run_git_with_log "fetch" git fetch --no-tags "$REMOTE_URL" "$BRANCH"; then
+    if run_git_with_log "rebase" git rebase FETCH_HEAD; then
+      if run_git_with_log "push" git push "$REMOTE_URL" "HEAD:$BRANCH"; then
+        git stash pop 2>/dev/null || true
+        echo "[git-sync] 同步成功"
+        return 0
+      fi
     fi
-    echo "[git-sync] push 失败"
   else
-    echo "[git-sync] pull --rebase 失败"
+    echo "[git-sync] fetch 失败"
   fi
 
-  # 检查是否有冲突
-  if git status --porcelain 2>/dev/null | grep -q "^UU\|^AA\|^DD"; then
-    resolve_rebase_conflicts || true
+  if rebase_in_progress; then
+    finish_rebase || true
     # 重新尝试 push
-    if git push "$REMOTE_URL" 2>/dev/null; then
+    if run_git_with_log "push after rebase recovery" git push "$REMOTE_URL" "HEAD:$BRANCH"; then
       git stash pop 2>/dev/null || true
-      echo "[git-sync] 冲突解决后同步成功"
+      echo "[git-sync] rebase 修复后同步成功"
       return 0
     fi
   fi

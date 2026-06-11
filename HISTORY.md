@@ -1,10 +1,45 @@
 # 对话历史总结
 
-> 最后更新：2026-06-08 21:30
+> 最后更新：2026-06-11 21:30
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
 
 ---
+
+## 2026-06-11：增强爬虫 workflow 进度同步、artifact 上传和网络异常恢复
+
+### 排查
+- 最近 40 条 GitHub Actions 中，当前源码后的 CI、Pages、合并分析、外部触发器和汽车之家均成功。
+- 唯一失败的懂车帝 run `27246666876` 位于旧提交 `3759cd0`：step2 正常达到时间限制并返回 `exit code 10`，但进度同步阶段连续 rebase/push 失败；随后 error-log artifact 上传经代理访问 GitHub API 又出现 `ECONNRESET`。
+- 该失败日志还显示大量连续 `net::ERR_CONNECTION_CLOSED`，说明浏览器或代理链路进入坏状态后会持续浪费爬取窗口。
+
+### 修改
+- `custom_scripts/git_sync_progress.sh`：
+  - 直连重试时显式清除 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 及小写变量，确保真正不走 mihomo。
+  - rebase 失败后除进度 JSON 冲突合并外，增加空提交/空 rebase 自动 `rebase --skip` 恢复。
+- `crawl-autohome.yml`、`crawl-dongchedi.yml`：
+  - 上传 error-log 或数据 artifact 前清空代理环境，避免 GitHub artifact API 请求被本地代理断流影响。
+- `crawl_dongchedi.py`：
+  - 新增 `DCD_NETWORK_ERROR_RESTART_THRESHOLD`，连续 `net::ERR_CONNECTION_*` 导航异常默认 5 次后重启 Chrome。
+- README、CHANGELOG 同步记录。
+
+### 结果
+- 后续分段退出的进度提交更能抵抗远端进度提交竞态、空 rebase 和代理异常。
+- artifact 上传不再继承爬虫代理环境。
+- 懂车帝遇到连续连接关闭时会主动恢复浏览器状态，而不是在同一坏链路上继续消耗时间。
+
+---
+
+## 2026-06-11：配置 cron-job.org 并增强进度同步诊断
+
+### 排查
+- 最近汽车爬虫外部触发器已经能通过 `repository_dispatch` 拉起主爬虫。
+- 旧的懂车帝失败不是爬虫逻辑失败，而是长跑正常 `exit code 10` 后，`git_sync_progress.sh` 在同步进度时多次 `pull --rebase` 失败且隐藏了真实原因。
+
+### 修改
+- 使用 cron-job.org API 配置 `Fatty911/crawl_cars` 的 08:30、13:30 两个外部触发任务。
+- `custom_scripts/configure_cron_job_org.py` 增加短暂 API/network 失败重试。
+- `custom_scripts/git_sync_progress.sh` 改为显式 `fetch → rebase → push`，失败时打印脱敏后的 Git 错误，后续进度同步失败能直接看到根因。
 
 ## 2026-06-10：改为 cron-job.org 外部触发并统一长窗口预算
 

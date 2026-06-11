@@ -149,6 +149,7 @@ crawl_cars/
 | `AUTO_MODE` | 自动模式，未完成返回exit code 10 | 命令行参数 |
 | `DCD_PAGE_LOAD_TIMEOUT` | Selenium 页面加载超时秒数，避免单页卡住 | 60 |
 | `DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD` | 连续 Chrome renderer 超时多少次后重启浏览器，0 表示不自动重启 | 3 |
+| `DCD_NETWORK_ERROR_RESTART_THRESHOLD` | 连续 `net::ERR_CONNECTION_*` 这类导航网络异常多少次后重启浏览器，0 表示不自动重启 | 5 |
 
 **命令行参数**：
 
@@ -451,10 +452,11 @@ CRON_JOB_ORG_API_KEY=... GITHUB_DISPATCH_TOKEN=... python custom_scripts/configu
 3. 每个主爬虫 workflow 按上午/下午窗口分别加并发锁：同一窗口备用触发不会并发重复爬，但上午不会阻塞下午
 4. 同一个半月周期内如果已完成全量爬取，后续自动触发会直接跳过；进入新半月周期时自动重置对应爬虫进度
 5. `custom_scripts/crawl_budget.py` 会取“当前窗口结束前预留 900 秒”和“GitHub Actions 6 小时限制前预留 1800 秒”两者中更早的截止时间来缩短 `RUN_TIME`；不足 5 分钟会成功跳过，避免进度来不及提交
-6. 进度提交通过 `custom_scripts/git_sync_progress.sh` 同步；若多个 workflow 同时更新 `progress.json` / `dongchedi/progress.json`，会合并 JSON 进度，避免远端覆盖本地已爬进度
+6. 进度提交通过 `custom_scripts/git_sync_progress.sh` 同步；脚本使用 `fetch → rebase → push` 并打印脱敏后的 Git 错误，直连重试会显式清除代理环境，遇到空 rebase/进度冲突会自动 skip 或合并 JSON 进度，避免远端覆盖本地已爬进度
 7. 懂车帝重置进度时会保留车系列表缓存，接口短暂返回非 JSON 或空响应时可回退继续爬取
 8. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
 9. 合并分析在两份爬虫数据完整后先运行 `crawl_zero_to_whole_ratio.py`，再运行 `merge_data.py`；零整比来源抓取失败会跳过该来源，不影响主车型数据发布
+10. 主爬虫 workflow 上传 error-log 或数据 artifact 前会清空代理环境，避免 GitHub artifact API 请求被本地 mihomo 代理断流影响
 
 **车型范围**：当前只保留轿车、跑车、SUV；MPV、房车、皮卡、微面、轻客、货车、卡车等会被排除。详见 `CRAWL_SCOPE.md`。
 

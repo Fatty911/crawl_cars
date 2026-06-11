@@ -1,5 +1,21 @@
 # 对话历史
 
+## 2026-06-11
+
+### 修改34: 增强爬虫 workflow 进度同步、artifact 上传和网络异常恢复
+- 复查最近 40 条 workflow：当前源码后的 CI、Pages、合并分析、外部触发器和汽车之家均成功；唯一失败的懂车帝 run 是旧提交上 step2 正常 `exit code 10` 后进度同步失败。
+- `custom_scripts/git_sync_progress.sh` 的直连重试现在会显式清除 `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY` 环境变量，避免日志显示直连但 Git 仍走 mihomo。
+- 进度 rebase 失败时新增空提交/空 rebase 自动 `rebase --skip` 处理，并保留进度 JSON 冲突合并逻辑。
+- 汽车之家、懂车帝 workflow 在上传 error-log 或数据 artifact 前清空代理环境，避免 `actions/upload-artifact` 经本地代理请求 GitHub API 时 `ECONNRESET`。
+- `crawl_dongchedi.py` 新增 `DCD_NETWORK_ERROR_RESTART_THRESHOLD`，连续 `net::ERR_CONNECTION_*` 导航异常默认 5 次后重启 Chrome，减少坏浏览器/坏代理链路持续浪费运行窗口。
+
+## 2026-06-11
+
+### 修改33: 配置 cron-job.org 并增强进度同步诊断
+- 使用 cron-job.org API 创建/更新汽车爬虫外部触发任务：北京时间 08:30 和 13:30。
+- `custom_scripts/configure_cron_job_org.py` 增加 API/network 短暂失败重试，避免连接超时导致只配置一半。
+- `custom_scripts/git_sync_progress.sh` 改为显式 `fetch → rebase → push`，失败时打印脱敏后的 Git 错误，便于定位进度同步失败。
+
 ## 2026-06-10
 
 ### 修改32: 改为 cron-job.org 外部触发并统一长窗口预算
