@@ -9,6 +9,15 @@ on:
       - docs/**
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
+    inputs:
+      trigger_source:
+        description: '触发来源'
+        required: false
+        default: 'manual'
+      trigger_time:
+        description: '触发时间戳'
+        required: false
+        default: ''
 
 permissions:
   contents: read

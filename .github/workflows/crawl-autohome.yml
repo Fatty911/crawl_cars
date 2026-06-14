@@ -357,6 +357,7 @@ jobs:
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Autohome output
+        id: verify_autohome
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         run: |
           python - <<'PY'
@@ -378,9 +379,14 @@ jobs:
           print(f"{path}: {len(rows)} rows")
           if incremental and len(rows) == 0:
               print("增量模式：无新增车型，跳过上传")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("has_data=false\n")
               sys.exit(0)
           elif len(rows) < 50:
               raise SystemExit(f"汽车之家数据只有 {len(rows)} 行，疑似未完整爬取，拒绝上传")
+          else:
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("has_data=true\n")
           PY
 
       - name: Mark Autohome period complete
@@ -407,10 +413,24 @@ jobs:
             echo "all_proxy="
           } >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@main
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+      - name: Upload Autohome artifact
+        id: upload_autohome
+        uses: actions/upload-artifact@main
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true') && steps.verify_autohome.outputs.has_data != 'false'
         with:
           name: autohome-data-${{ env.CRAWL_DATE }}
           path: |
             autoHome_*.json
           retention-days: 90
+
+      - name: Trigger merge-and-filter workflow
+        if: steps.upload_autohome.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.ACTION_PAT }}
+        run: |
+          echo "汽车之家爬虫完成，触发合并分析工作流..."
+          gh workflow run merge-and-filter.yml \
+            --repo ${{ github.repository }} \
+            -f force_merge=false \
+            -f trigger_source=autohome-crawl \
+            -f trigger_time=$(date +%s)

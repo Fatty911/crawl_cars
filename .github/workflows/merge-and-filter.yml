@@ -10,6 +10,18 @@ on:
         description: '强制重新合并'
         required: false
         default: 'false'
+      trigger_source:
+        description: '触发来源'
+        required: false
+        default: 'manual'
+      trigger_time:
+        description: '触发时间戳'
+        required: false
+        default: ''
+
+concurrency:
+  group: merge-and-filter
+  cancel-in-progress: false
 
 jobs:
   merge-data:
@@ -198,79 +210,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy-pages:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [merge-data]
-    if: needs.merge-data.outputs.ready == 'true'
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@main
-
-      - name: 下载合并产物
-        uses: actions/download-artifact@main
-        with:
-          name: car-data-${{ needs.merge-data.outputs.crawl_date }}
-          path: release-files
-
-      - name: 准备 Pages 静态站点
-        run: |
-          set -euo pipefail
-          DATE="${{ needs.merge-data.outputs.crawl_date }}"
-          rm -rf site
-          mkdir -p site/data
-          cp -R docs/. site/
-          cp "release-files/merged_${DATE}.json" site/data/latest.json
-          cp "release-files/filtered_cars_${DATE}.json" site/data/filtered.json
-          cp "release-files/merged_${DATE}.csv" "site/data/merged_${DATE}.csv"
-          cp "release-files/filtered_cars_${DATE}.csv" "site/data/filtered_cars_${DATE}.csv"
-          cp "release-files/zero_to_whole_ratios_${DATE}.json" site/data/zero_to_whole_ratios.json
-          touch site/.nojekyll
-          python - <<'PY'
-          import json
-          import os
-          from datetime import datetime, timezone
-
-          date = os.environ["DATE"]
-          with open("site/data/latest.json", "r", encoding="utf-8") as f:
-              latest = json.load(f)
-          with open("site/data/filtered.json", "r", encoding="utf-8") as f:
-              filtered = json.load(f)
-
-          manifest = {
-              "date": date,
-              "updatedAt": datetime.now(timezone.utc).isoformat(),
-              "rowCount": len(latest),
-              "filteredRowCount": len(filtered),
-              "files": {
-                  "latestJson": "data/latest.json",
-                  "filteredJson": "data/filtered.json",
-                  "latestCsv": f"data/merged_{date}.csv",
-                  "filteredCsv": f"data/filtered_cars_{date}.csv",
-                  "zeroRatioJson": "data/zero_to_whole_ratios.json",
-              },
-          }
-          with open("site/data/manifest.json", "w", encoding="utf-8") as f:
-              json.dump(manifest, f, ensure_ascii=False, indent=2)
-          PY
+      - name: Trigger deploy-pages workflow
+        if: success()
         env:
-          DATE: ${{ needs.merge-data.outputs.crawl_date }}
-
-      - name: 配置 GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: 上传 Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: site
-
-      - name: 部署到 GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          GH_TOKEN: ${{ secrets.ACTION_PAT }}
+        run: |
+          echo "Release 创建完成，触发部署 Pages 工作流..."
+          gh workflow run deploy-pages.yml \
+            --repo ${{ github.repository }} \
+            -f trigger_source=merge-and-filter \
+            -f trigger_time=$(date +%s)

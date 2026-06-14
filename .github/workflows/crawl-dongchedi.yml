@@ -350,6 +350,7 @@ jobs:
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Dongchedi output
+        id: verify_dongchedi
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         run: |
           python - <<'PY'
@@ -371,9 +372,14 @@ jobs:
           print(f"{path}: {len(rows)} rows")
           if incremental and len(rows) == 0:
               print("增量模式：无新增车系，跳过上传")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("has_data=false\n")
               sys.exit(0)
           elif len(rows) < 50:
               raise SystemExit(f"懂车帝数据只有 {len(rows)} 行，疑似未完整爬取，拒绝上传")
+          else:
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("has_data=true\n")
           PY
 
       - name: Mark Dongchedi period complete
@@ -400,10 +406,24 @@ jobs:
             echo "all_proxy="
           } >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@main
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
+      - name: Upload Dongchedi artifact
+        id: upload_dongchedi
+        uses: actions/upload-artifact@main
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true') && steps.verify_dongchedi.outputs.has_data != 'false'
         with:
           name: dongchedi-data-${{ env.CRAWL_DATE }}
           path: |
             dongchedi_*.json
           retention-days: 90
+
+      - name: Trigger merge-and-filter workflow
+        if: steps.upload_dongchedi.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.ACTION_PAT }}
+        run: |
+          echo "懂车帝爬虫完成，触发合并分析工作流..."
+          gh workflow run merge-and-filter.yml \
+            --repo ${{ github.repository }} \
+            -f force_merge=false \
+            -f trigger_source=dongchedi-crawl \
+            -f trigger_time=$(date +%s)
