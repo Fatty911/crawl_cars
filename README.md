@@ -196,10 +196,10 @@ crawl_cars/
 |--------|------|
 | `HEADER_MAP` | 字段名映射表，统一不同数据源的字段名 |
 | `FIXED` | 固定字段列表 ['车系ID', '车型名称', '年款'] |
-| `FILTER_CONDITIONS` | 过滤条件配置 |
+| `FILTER_CONFIG_PATH` | 筛选条件配置文件路径：`filter_conditions.json` |
 | `ZERO_RATIO_FIELDS` | 零整比输出字段：`零整比`、`零整比来源明细`、`零整比匹配方式` |
 
-**过滤条件 (FILTER_CONDITIONS)**：
+**过滤条件 (`filter_conditions.json`)**：
 
 | 条件名 | 字段 | 阈值/值 |
 |--------|------|---------|
@@ -211,6 +211,8 @@ crawl_cars/
 | `bluetooth_key` | 蓝牙/数字/UWB钥匙 | 存在任一字段 |
 | `seat_memory` | 座椅记忆 | 存在任一字段 |
 | `mirror_memory` | 后视镜记忆 | 存在任一字段 |
+
+修改筛选条件时优先改 `filter_conditions.json`；网页发布时会把该文件复制到站点根目录，前端条件栏和 `merge_data.py` 默认筛选共用同一份配置。
 
 **函数**：
 
@@ -291,6 +293,10 @@ crawl_cars/
 | `docs/index.html` | 页面结构 |
 | `docs/styles.css` | 表格工作台样式 |
 | `docs/app.js` | 数据加载、搜索、筛选、排序、分页、导出逻辑 |
+| `docs/config.js` | 前端运行配置，默认使用 `/api/filter-history` 保存历史 |
+| `docs/filter_conditions.json` | 网页筛选条件配置副本 |
+| `filter_conditions.json` | 合并脚本和网页共用的筛选条件配置 |
+| `cloudflare/filter-history-worker.js` | Cloudflare Worker 筛选历史 API |
 
 **数据来源**：
 - 合并工作流成功后，会把 `merged_YYYYMMDD.json` 复制为 `data/latest.json`。
@@ -301,12 +307,21 @@ crawl_cars/
 **主要功能**：
 - 全局搜索品牌、车系、车型名称和任意配置值。
 - 点击表头按列升序/降序排序。
-- 表头第二行支持每列关键字筛选。
-- 支持按数据来源、品牌、车系快速筛选。
-- 默认打开“符合条件”数据集，并支持切换“全部车型”和“符合条件”。
+- 表头第二行支持每列关键字筛选，并优化中文输入法输入期间的光标稳定性。
+- 支持按品牌、车系快速筛选；网页不再提供数据来源筛选，改为展示 `交叉核验` 和 `核验来源`。
+- 条件筛选栏由 `filter_conditions.json` 生成，支持功能勾选和数值范围筛选，不再把筛选条件写死在前端代码里。
+- 筛选历史可通过同步码保存到服务端；默认 API 路径为 `/api/filter-history`，需要 Cloudflare Worker 路由到该路径。
 - 网页展示时会把 `长宽高` / `长*宽*高(mm)` / `车身尺寸` 这类合并字段拆成 `长度(mm)`、`宽度(mm)`、`高度(mm)` 三列。
 - 常用列包含 `零整比` 和 `零整比来源明细`；多个来源匹配同一车型时页面展示平均值，并保留来源明细。
 - 支持选择显示列、分页查看、导出当前筛选结果为 CSV/JSON。
+
+**筛选历史后端**：
+
+```bash
+wrangler deploy
+```
+
+Cloudflare 需要把 `cars.jiucai.eu.org/api/filter-history` 路由到 `cars-filter-history` Worker，并绑定 KV namespace `FILTER_HISTORY`。当前仓库已包含 `wrangler.toml` 和 Worker 代码。
 
 ---
 

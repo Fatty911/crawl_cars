@@ -62,6 +62,9 @@ jobs:
           "$PWD/docs/index.html"
           "$PWD/docs/styles.css"
           "$PWD/docs/app.js"
+          "$PWD/docs/config.js"
+          "$PWD/docs/filter_conditions.json"
+          "$PWD/filter_conditions.json"
 
       - name: Validate workflow expectations
         run: python custom_scripts/validate_workflow_expectations.py

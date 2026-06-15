@@ -1,26 +1,9 @@
 (function () {
   "use strict";
 
-  var CORE_COLUMNS = [
-    "车型名称",
-    "品牌",
-    "车系",
-    "年款",
-    "数据来源",
-    "长度(mm)",
-    "宽度(mm)",
-    "高度(mm)",
-    "零整比",
-    "零整比来源明细",
-    "百公里加速(s)",
-    "纯电续航(km)",
-    "NOA城市领航",
-    "远程启动",
-    "远程控制",
-    "蓝牙/数字钥匙",
-    "座椅记忆",
-    "外后视镜记忆",
-  ];
+  var HISTORY_API = window.CARS_FILTER_HISTORY_API || "/api/filter-history";
+  var STORAGE_SYNC_KEY = "cars_filter_sync_id";
+  var STORAGE_HISTORY_KEY = "cars_filter_history_cache";
 
   var SAMPLE_ROWS = [
     {
@@ -30,8 +13,6 @@
       "车型名称": "等待 GitHub Pages 发布最新数据",
       "年款": "2026",
       "长*宽*高(mm)": "4890*1920*1685",
-      "零整比": "336.97%",
-      "零整比来源明细": "中国保险行业协会/中国汽车维修行业协会(2019-04) 示例车系: 336.97%",
       "百公里加速(s)": "6.8",
       "纯电续航(km)": "200",
       "NOA城市领航": "支持",
@@ -39,21 +20,28 @@
       "远程控制": "车门控制|空调控制",
       "蓝牙/数字钥匙": "蓝牙钥匙",
       "座椅记忆": "驾驶位",
-      "外后视镜记忆": "支持",
-    },
+      "外后视镜记忆": "支持"
+    }
   ];
+
+  var fallbackConfig = {
+    defaultDataset: "latest",
+    hiddenByDefault: ["数据来源", "ABS防抱死", "制动防抱死", "刹车防抱死"],
+    dropIfUniformPositive: ["ABS防抱死", "制动防抱死", "刹车防抱死"],
+    defaultVisibleColumns: ["车型名称", "品牌", "车系", "年款", "交叉核验", "百公里加速(s)", "纯电续航(km)"],
+    conditions: []
+  };
 
   var state = {
     manifest: null,
-    dataset: "filtered",
-    latestRows: [],
-    filteredRows: [],
+    config: fallbackConfig,
     rows: [],
     columns: [],
     visibleColumns: new Set(),
     columnFilters: {},
+    rangeFilters: {},
+    featureFilters: {},
     search: "",
-    source: "",
     brand: "",
     series: "",
     sortField: "",
@@ -61,21 +49,22 @@
     page: 1,
     pageSize: 100,
     columnSearch: "",
+    composing: false,
+    syncId: "",
+    histories: []
   };
 
   var els = {
     dataMeta: document.getElementById("dataMeta"),
-    showAll: document.getElementById("showAll"),
-    showFiltered: document.getElementById("showFiltered"),
     globalSearch: document.getElementById("globalSearch"),
     resetFilters: document.getElementById("resetFilters"),
+    saveHistory: document.getElementById("saveHistory"),
     exportCsv: document.getElementById("exportCsv"),
     exportJson: document.getElementById("exportJson"),
     visibleCount: document.getElementById("visibleCount"),
     totalCount: document.getElementById("totalCount"),
     columnCount: document.getElementById("columnCount"),
-    sourceCount: document.getElementById("sourceCount"),
-    sourceFilter: document.getElementById("sourceFilter"),
+    verifiedCount: document.getElementById("verifiedCount"),
     brandFilter: document.getElementById("brandFilter"),
     seriesFilter: document.getElementById("seriesFilter"),
     pageSize: document.getElementById("pageSize"),
@@ -85,7 +74,9 @@
     prevPage: document.getElementById("prevPage"),
     nextPage: document.getElementById("nextPage"),
     pageInfo: document.getElementById("pageInfo"),
+    conditionList: document.getElementById("conditionList"),
     fieldSelect: document.getElementById("fieldSelect"),
+    fieldOperator: document.getElementById("fieldOperator"),
     fieldValue: document.getElementById("fieldValue"),
     applyFieldFilter: document.getElementById("applyFieldFilter"),
     activeFilters: document.getElementById("activeFilters"),
@@ -93,7 +84,12 @@
     showAllColumns: document.getElementById("showAllColumns"),
     columnSearch: document.getElementById("columnSearch"),
     columnList: document.getElementById("columnList"),
-    downloadList: document.getElementById("downloadList"),
+    historySyncId: document.getElementById("historySyncId"),
+    copySyncId: document.getElementById("copySyncId"),
+    loadHistory: document.getElementById("loadHistory"),
+    historyStatus: document.getElementById("historyStatus"),
+    historyList: document.getElementById("historyList"),
+    downloadList: document.getElementById("downloadList")
   };
 
   function fetchJson(url) {
@@ -105,111 +101,12 @@
     });
   }
 
-  function uniqueValues(rows, field) {
-    var values = Array.from(
-      new Set(
-        rows
-          .map(function (row) {
-            return String(row[field] || "").trim();
-          })
-          .filter(Boolean)
-      )
-    );
-    return values.sort(function (a, b) {
-      return a.localeCompare(b, "zh-Hans", { numeric: true });
-    });
-  }
-
-  function isDimensionColumn(column) {
-    var text = String(column || "").replace(/\s/g, "");
-    return (
-      text.indexOf("长宽高") !== -1 ||
-      text.indexOf("长*宽*高") !== -1 ||
-      text.indexOf("长×宽×高") !== -1 ||
-      text.indexOf("长x宽x高") !== -1 ||
-      text.indexOf("车身尺寸") !== -1 ||
-      (text.indexOf("长度") !== -1 && text.indexOf("宽度") !== -1 && text.indexOf("高度") !== -1)
-    );
-  }
-
-  function parseDimensionValue(value) {
-    var text = String(value == null ? "" : value).trim();
-    if (!text || text === "-") {
-      return null;
-    }
-    var numbers = text.match(/\d+(?:\.\d+)?/g);
-    if (!numbers || numbers.length < 3) {
-      return null;
-    }
-    return numbers.slice(0, 3);
-  }
-
-  function withDerivedDimensions(rows) {
-    return rows.map(function (row) {
-      var next = Object.assign({}, row);
-      var dimensionColumn = Object.keys(row).find(isDimensionColumn);
-      var dimensions = dimensionColumn ? parseDimensionValue(row[dimensionColumn]) : null;
-
-      if (dimensions) {
-        if (!next["长度(mm)"]) {
-          next["长度(mm)"] = dimensions[0];
-        }
-        if (!next["宽度(mm)"]) {
-          next["宽度(mm)"] = dimensions[1];
-        }
-        if (!next["高度(mm)"]) {
-          next["高度(mm)"] = dimensions[2];
-        }
-      }
-
-      return next;
-    });
-  }
-
-  function buildColumns(rows) {
-    var seen = new Set();
-    var columns = [];
-
-    CORE_COLUMNS.forEach(function (column) {
-      if (rows.some(function (row) { return Object.prototype.hasOwnProperty.call(row, column); })) {
-        seen.add(column);
-        columns.push(column);
-      }
-    });
-
-    rows.forEach(function (row) {
-      Object.keys(row).forEach(function (column) {
-        if (isDimensionColumn(column)) {
-          return;
-        }
-        if (!seen.has(column)) {
-          seen.add(column);
-          columns.push(column);
-        }
-      });
-    });
-
-    return columns;
-  }
-
-  function setDataset(dataset) {
-    state.dataset = dataset;
-    state.rows = dataset === "filtered" ? state.filteredRows : state.latestRows;
-    state.columns = buildColumns(state.rows);
-    state.visibleColumns = new Set(state.columns.slice(0, Math.min(18, state.columns.length)));
-    CORE_COLUMNS.forEach(function (column) {
-      if (state.columns.indexOf(column) !== -1) {
-        state.visibleColumns.add(column);
-      }
-    });
-    state.columnFilters = {};
-    state.page = 1;
-    state.showAllClass = dataset === "latest";
-    renderEverything();
-  }
-
   function normalizeText(value) {
     return String(value == null ? "" : value).toLowerCase();
+  }
+
+  function cleanText(value) {
+    return String(value == null ? "" : value).replace(/\s+/g, "").toLowerCase();
   }
 
   function firstNumber(value) {
@@ -217,13 +114,166 @@
     return match ? Number(match[0]) : null;
   }
 
+  function uniqueValues(rows, field) {
+    return Array.from(new Set(rows.map(function (row) {
+      return String(row[field] || "").trim();
+    }).filter(Boolean))).sort(function (a, b) {
+      return a.localeCompare(b, "zh-Hans", { numeric: true });
+    });
+  }
+
+  function isDimensionColumn(column) {
+    var text = String(column || "").replace(/\s/g, "");
+    return text.indexOf("长宽高") !== -1 ||
+      text.indexOf("长*宽*高") !== -1 ||
+      text.indexOf("长×宽×高") !== -1 ||
+      text.indexOf("长x宽x高") !== -1 ||
+      text.indexOf("车身尺寸") !== -1 ||
+      (text.indexOf("长度") !== -1 && text.indexOf("宽度") !== -1 && text.indexOf("高度") !== -1);
+  }
+
+  function parseDimensionValue(value) {
+    var numbers = String(value == null ? "" : value).match(/\d+(?:\.\d+)?/g);
+    return numbers && numbers.length >= 3 ? numbers.slice(0, 3) : null;
+  }
+
+  function hasPositiveValue(value) {
+    var text = String(value == null ? "" : value).trim();
+    if (!text || text === "-") {
+      return false;
+    }
+    return ["无", "不支持", "否", "没有", "未配备", "不提供", "0", "0.0"].indexOf(text) === -1;
+  }
+
+  function rowKey(row) {
+    return [row["品牌"], row["车系"], row["车型名称"], row["年款"]].map(cleanText).join("|");
+  }
+
+  function mergeVerifiedRows(rows) {
+    var groups = {};
+    rows.forEach(function (row) {
+      var key = rowKey(row);
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(row);
+    });
+
+    return Object.keys(groups).map(function (key) {
+      var items = groups[key];
+      var merged = {};
+      var sources = new Set();
+
+      items.forEach(function (row) {
+        if (row["数据来源"]) {
+          sources.add(row["数据来源"]);
+        }
+        Object.keys(row).forEach(function (column) {
+          var current = merged[column];
+          var next = row[column];
+          if (!hasPositiveValue(current) && hasPositiveValue(next)) {
+            merged[column] = next;
+          }
+        });
+      });
+
+      var sourceList = Array.from(sources).sort();
+      merged["核验来源"] = sourceList.join(" + ") || "-";
+      merged["交叉核验"] = sourceList.length >= 2 ? "双源核验" : "单源数据";
+      return merged;
+    });
+  }
+
+  function withDerivedDimensions(rows) {
+    return rows.map(function (row) {
+      var next = Object.assign({}, row);
+      var dimensionColumn = Object.keys(row).find(isDimensionColumn);
+      var dimensions = dimensionColumn ? parseDimensionValue(row[dimensionColumn]) : null;
+      if (dimensions) {
+        next["长度(mm)"] = next["长度(mm)"] || dimensions[0];
+        next["宽度(mm)"] = next["宽度(mm)"] || dimensions[1];
+        next["高度(mm)"] = next["高度(mm)"] || dimensions[2];
+      }
+      return next;
+    });
+  }
+
+  function shouldHideColumn(column, rows) {
+    var hidden = state.config.hiddenByDefault || [];
+    var dropUniform = state.config.dropIfUniformPositive || [];
+    if (hidden.indexOf(column) !== -1) {
+      return true;
+    }
+    if (dropUniform.indexOf(column) !== -1) {
+      var values = rows.map(function (row) { return row[column]; }).filter(function (value) {
+        return value != null && value !== "";
+      });
+      return values.length > 0 && values.every(hasPositiveValue);
+    }
+    return false;
+  }
+
+  function buildColumns(rows) {
+    var seen = new Set();
+    var columns = [];
+    (state.config.defaultVisibleColumns || []).forEach(function (column) {
+      if (rows.some(function (row) { return Object.prototype.hasOwnProperty.call(row, column); }) && !shouldHideColumn(column, rows)) {
+        seen.add(column);
+        columns.push(column);
+      }
+    });
+    rows.forEach(function (row) {
+      Object.keys(row).forEach(function (column) {
+        if (isDimensionColumn(column) || shouldHideColumn(column, rows) || seen.has(column)) {
+          return;
+        }
+        seen.add(column);
+        columns.push(column);
+      });
+    });
+    return columns;
+  }
+
+  function conditionMatches(row, condition) {
+    if (condition.type === "range") {
+      var filter = state.rangeFilters[condition.id] || {};
+      var rowValue = firstNumber(row[condition.field]);
+      if (rowValue == null) {
+        return false;
+      }
+      if (filter.min !== "" && filter.min != null && rowValue < Number(filter.min)) {
+        return false;
+      }
+      if (filter.max !== "" && filter.max != null && rowValue > Number(filter.max)) {
+        return false;
+      }
+      return true;
+    }
+
+    if (condition.type === "feature") {
+      if (!state.featureFilters[condition.id]) {
+        return true;
+      }
+      var fields = condition.fields || [];
+      var keywords = condition.keywords || [];
+      return Object.keys(row).some(function (key) {
+        var val = row[key];
+        if (!hasPositiveValue(val)) {
+          return false;
+        }
+        var keyHit = fields.some(function (field) { return key.indexOf(field) !== -1 || field.indexOf(key) !== -1; });
+        var valHit = keywords.some(function (keyword) { return String(val).indexOf(keyword) !== -1; });
+        return condition.requireKeyword ? valHit : (keyHit || valHit);
+      });
+    }
+
+    return true;
+  }
+
   function getFilteredRows() {
     var rows = state.rows.slice();
     var search = normalizeText(state.search);
 
-    if (state.source) {
-      rows = rows.filter(function (row) { return row["数据来源"] === state.source; });
-    }
     if (state.brand) {
       rows = rows.filter(function (row) { return row["品牌"] === state.brand; });
     }
@@ -238,30 +288,50 @@
       });
     }
 
+    (state.config.conditions || []).forEach(function (condition) {
+      var activeRange = state.rangeFilters[condition.id];
+      var activeFeature = state.featureFilters[condition.id];
+      if (condition.type === "range" && !activeRange) {
+        return;
+      }
+      if (condition.type === "feature" && !activeFeature) {
+        return;
+      }
+      rows = rows.filter(function (row) { return conditionMatches(row, condition); });
+    });
+
     Object.keys(state.columnFilters).forEach(function (column) {
-      var value = normalizeText(state.columnFilters[column]);
-      if (!value) {
+      var filter = state.columnFilters[column];
+      if (!filter || filter.value === "") {
         return;
       }
       rows = rows.filter(function (row) {
-        return normalizeText(row[column]).indexOf(value) !== -1;
+        var text = normalizeText(row[column]);
+        var value = normalizeText(filter.value);
+        var number = firstNumber(row[column]);
+        if (filter.operator === "contains") {
+          return text.indexOf(value) !== -1;
+        }
+        if (number == null) {
+          return false;
+        }
+        if (filter.operator === "gte") {
+          return number >= Number(filter.value);
+        }
+        if (filter.operator === "lte") {
+          return number <= Number(filter.value);
+        }
+        return filter.operator === "equals" ? text === value : text.indexOf(value) !== -1;
       });
     });
 
     if (state.sortField) {
       rows.sort(function (a, b) {
-        var av = a[state.sortField];
-        var bv = b[state.sortField];
-        var an = firstNumber(av);
-        var bn = firstNumber(bv);
-        var result;
-
-        if (an !== null && bn !== null) {
-          result = an - bn;
-        } else {
-          result = String(av || "").localeCompare(String(bv || ""), "zh-Hans", { numeric: true });
-        }
-
+        var an = firstNumber(a[state.sortField]);
+        var bn = firstNumber(b[state.sortField]);
+        var result = an !== null && bn !== null
+          ? an - bn
+          : String(a[state.sortField] || "").localeCompare(String(b[state.sortField] || ""), "zh-Hans", { numeric: true });
         return state.sortDir === "asc" ? result : -result;
       });
     }
@@ -284,11 +354,10 @@
   }
 
   function renderFilters() {
-    renderOptions(els.sourceFilter, uniqueValues(state.rows, "数据来源"), "来源");
     renderOptions(els.brandFilter, uniqueValues(state.rows, "品牌"), "品牌");
-    renderOptions(els.seriesFilter, uniqueValues(state.rows, "车系"), "车系");
-
-    els.sourceFilter.value = state.source;
+    renderOptions(els.seriesFilter, uniqueValues(state.brand ? state.rows.filter(function (row) {
+      return row["品牌"] === state.brand;
+    }) : state.rows, "车系"), "车系");
     els.brandFilter.value = state.brand;
     els.seriesFilter.value = state.series;
 
@@ -301,6 +370,55 @@
     });
   }
 
+  function renderConditions() {
+    var fragment = document.createDocumentFragment();
+    els.conditionList.textContent = "";
+    (state.config.conditions || []).forEach(function (condition) {
+      var item = document.createElement("div");
+      item.className = "condition-item";
+      item.dataset.conditionId = condition.id;
+
+      var title = document.createElement("label");
+      title.className = "condition-title";
+      if (condition.type === "feature") {
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = Boolean(state.featureFilters[condition.id]);
+        checkbox.dataset.conditionId = condition.id;
+        title.appendChild(checkbox);
+      }
+      var text = document.createElement("span");
+      text.textContent = condition.label;
+      title.appendChild(text);
+      item.appendChild(title);
+
+      if (condition.type === "range") {
+        var controls = document.createElement("div");
+        controls.className = "range-controls";
+        ["min", "max"].forEach(function (side) {
+          var input = document.createElement("input");
+          input.type = "number";
+          input.inputMode = "decimal";
+          input.placeholder = side === "min" ? "最小" : "最大";
+          input.dataset.conditionId = condition.id;
+          input.dataset.side = side;
+          var active = state.rangeFilters[condition.id] || {};
+          input.value = active[side] != null ? active[side] : (condition[side] != null ? condition[side] : "");
+          controls.appendChild(input);
+        });
+        var button = document.createElement("button");
+        button.type = "button";
+        button.dataset.conditionId = condition.id;
+        button.textContent = "筛选";
+        controls.appendChild(button);
+        item.appendChild(controls);
+      }
+
+      fragment.appendChild(item);
+    });
+    els.conditionList.appendChild(fragment);
+  }
+
   function sortMark(column) {
     if (state.sortField !== column) {
       return "";
@@ -308,15 +426,9 @@
     return state.sortDir === "asc" ? "↑" : "↓";
   }
 
-  function renderTable(rows) {
-    var visibleColumns = state.columns.filter(function (column) {
-      return state.visibleColumns.has(column);
-    });
-    var start = (state.page - 1) * state.pageSize;
-    var pageRows = rows.slice(start, start + state.pageSize);
-
+  function renderTableHead() {
+    var visibleColumns = state.columns.filter(function (column) { return state.visibleColumns.has(column); });
     els.tableHead.textContent = "";
-    els.tableBody.textContent = "";
 
     var titleRow = document.createElement("tr");
     visibleColumns.forEach(function (column) {
@@ -326,7 +438,6 @@
       button.className = "sort-button";
       button.dataset.column = column;
       button.title = "按 " + column + " 排序";
-
       var name = document.createElement("span");
       name.textContent = column;
       var mark = document.createElement("span");
@@ -344,15 +455,20 @@
       var input = document.createElement("input");
       input.className = "filter-input";
       input.dataset.column = column;
-      input.value = state.columnFilters[column] || "";
-      input.placeholder = "筛选";
+      input.value = state.columnFilters[column] ? state.columnFilters[column].value : "";
+      input.placeholder = "输入或点侧栏筛选";
       th.appendChild(input);
       filterRow.appendChild(th);
     });
-
     els.tableHead.appendChild(titleRow);
     els.tableHead.appendChild(filterRow);
+  }
 
+  function renderTableBody(rows) {
+    var visibleColumns = state.columns.filter(function (column) { return state.visibleColumns.has(column); });
+    var start = (state.page - 1) * state.pageSize;
+    var pageRows = rows.slice(start, start + state.pageSize);
+    els.tableBody.textContent = "";
     pageRows.forEach(function (row) {
       var tr = document.createElement("tr");
       visibleColumns.forEach(function (column) {
@@ -362,7 +478,6 @@
       });
       els.tableBody.appendChild(tr);
     });
-
     els.emptyState.hidden = rows.length !== 0;
   }
 
@@ -370,36 +485,44 @@
     var query = normalizeText(state.columnSearch);
     var fragment = document.createDocumentFragment();
     els.columnList.textContent = "";
-
-    state.columns
-      .filter(function (column) {
-        return !query || normalizeText(column).indexOf(query) !== -1;
-      })
-      .forEach(function (column) {
-        var label = document.createElement("label");
-        var checkbox = document.createElement("input");
-        var text = document.createElement("span");
-        checkbox.type = "checkbox";
-        checkbox.checked = state.visibleColumns.has(column);
-        checkbox.dataset.column = column;
-        text.textContent = column;
-        label.appendChild(checkbox);
-        label.appendChild(text);
-        fragment.appendChild(label);
-      });
-
+    state.columns.filter(function (column) {
+      return !query || normalizeText(column).indexOf(query) !== -1;
+    }).forEach(function (column) {
+      var label = document.createElement("label");
+      var checkbox = document.createElement("input");
+      var text = document.createElement("span");
+      checkbox.type = "checkbox";
+      checkbox.checked = state.visibleColumns.has(column);
+      checkbox.dataset.column = column;
+      text.textContent = column;
+      label.appendChild(checkbox);
+      label.appendChild(text);
+      fragment.appendChild(label);
+    });
     els.columnList.appendChild(fragment);
+  }
+
+  function filterLabel(column, filter) {
+    if (!filter) {
+      return "";
+    }
+    if (filter.operator === "contains") {
+      return column + ": " + filter.value;
+    }
+    var symbol = filter.operator === "gte" ? "≥" : (filter.operator === "lte" ? "≤" : "=");
+    return column + " " + symbol + " " + filter.value;
   }
 
   function renderActiveFilters() {
     els.activeFilters.textContent = "";
     Object.keys(state.columnFilters).forEach(function (column) {
-      if (!state.columnFilters[column]) {
+      var filter = state.columnFilters[column];
+      if (!filter || filter.value === "") {
         return;
       }
       var chip = document.createElement("span");
       chip.className = "filter-chip";
-      chip.textContent = column + ": " + state.columnFilters[column];
+      chip.textContent = filterLabel(column, filter);
       var close = document.createElement("button");
       close.type = "button";
       close.dataset.column = column;
@@ -411,14 +534,7 @@
 
   function renderDownloads() {
     var files = state.manifest && state.manifest.files ? state.manifest.files : {};
-    var links = [
-      ["完整 JSON", files.latestJson],
-      ["完整 CSV", files.latestCsv],
-      ["筛选 JSON", files.filteredJson],
-      ["筛选 CSV", files.filteredCsv],
-      ["零整比来源", files.zeroRatioJson],
-    ];
-
+    var links = [["完整 JSON", files.latestJson], ["完整 CSV", files.latestCsv], ["默认筛选 JSON", files.filteredJson], ["默认筛选 CSV", files.filteredCsv]];
     els.downloadList.textContent = "";
     links.forEach(function (item) {
       if (!item[1]) {
@@ -430,42 +546,63 @@
       anchor.download = "";
       els.downloadList.appendChild(anchor);
     });
-
     if (!els.downloadList.children.length) {
       els.downloadList.textContent = "发布后会显示 Release 同款下载文件。";
     }
   }
 
-  function renderEverything() {
+  function renderHistory() {
+    els.historySyncId.value = state.syncId;
+    els.historyList.textContent = "";
+    if (!state.histories.length) {
+      els.historyList.textContent = "暂无筛选历史。";
+      return;
+    }
+    state.histories.slice().reverse().forEach(function (item) {
+      var row = document.createElement("div");
+      row.className = "history-item";
+      var button = document.createElement("button");
+      button.type = "button";
+      button.dataset.historyId = item.id;
+      button.textContent = item.name || "未命名筛选";
+      var meta = document.createElement("span");
+      meta.textContent = (item.resultCount || 0) + " 辆 · " + new Date(item.createdAt || Date.now()).toLocaleString("zh-CN");
+      row.appendChild(button);
+      row.appendChild(meta);
+      els.historyList.appendChild(row);
+    });
+  }
+
+  function renderResultsOnly() {
     var filtered = getFilteredRows();
     var pageCount = Math.max(1, Math.ceil(filtered.length / state.pageSize));
     if (state.page > pageCount) {
       state.page = pageCount;
     }
-
-    els.showAll.classList.toggle("active", state.dataset === "latest");
-    els.showFiltered.classList.toggle("active", state.dataset === "filtered");
     els.visibleCount.textContent = String(filtered.length);
     els.totalCount.textContent = String(state.rows.length);
     els.columnCount.textContent = String(state.visibleColumns.size);
-    els.sourceCount.textContent = String(uniqueValues(state.rows, "数据来源").length);
+    els.verifiedCount.textContent = String(filtered.filter(function (row) { return row["交叉核验"] === "双源核验"; }).length);
     els.pageInfo.textContent = "第 " + state.page + " / " + pageCount + " 页";
     els.prevPage.disabled = state.page <= 1;
     els.nextPage.disabled = state.page >= pageCount;
-
-    renderFilters();
-    renderTable(filtered);
-    renderColumnList();
+    renderTableBody(filtered);
     renderActiveFilters();
+  }
+
+  function renderEverything() {
+    renderFilters();
+    renderConditions();
+    renderTableHead();
+    renderColumnList();
     renderDownloads();
+    renderHistory();
+    renderResultsOnly();
   }
 
   function csvEscape(value) {
     var text = String(value == null ? "" : value);
-    if (/[",\n\r]/.test(text)) {
-      return '"' + text.replace(/"/g, '""') + '"';
-    }
-    return text;
+    return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
   }
 
   function downloadBlob(name, type, content) {
@@ -491,31 +628,140 @@
   }
 
   function exportCurrentJson() {
-    downloadBlob(
-      "car-config-current.json",
-      "application/json;charset=utf-8",
-      JSON.stringify(getFilteredRows(), null, 2)
-    );
+    downloadBlob("car-config-current.json", "application/json;charset=utf-8", JSON.stringify(getFilteredRows(), null, 2));
+  }
+
+  function snapshotFilters() {
+    return {
+      search: state.search,
+      brand: state.brand,
+      series: state.series,
+      columnFilters: state.columnFilters,
+      rangeFilters: state.rangeFilters,
+      featureFilters: state.featureFilters,
+      sortField: state.sortField,
+      sortDir: state.sortDir,
+      visibleColumns: Array.from(state.visibleColumns)
+    };
+  }
+
+  function applySnapshot(snapshot) {
+    state.search = snapshot.search || "";
+    state.brand = snapshot.brand || "";
+    state.series = snapshot.series || "";
+    state.columnFilters = snapshot.columnFilters || {};
+    state.rangeFilters = snapshot.rangeFilters || {};
+    state.featureFilters = snapshot.featureFilters || {};
+    state.sortField = snapshot.sortField || "";
+    state.sortDir = snapshot.sortDir || "asc";
+    if (Array.isArray(snapshot.visibleColumns)) {
+      state.visibleColumns = new Set(snapshot.visibleColumns.filter(function (column) {
+        return state.columns.indexOf(column) !== -1;
+      }));
+    }
+    els.globalSearch.value = state.search;
+    state.page = 1;
+    renderEverything();
+  }
+
+  function generateSyncId() {
+    if (window.crypto && crypto.getRandomValues) {
+      var bytes = new Uint8Array(8);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes).map(function (byte) {
+        return byte.toString(16).padStart(2, "0");
+      }).join("");
+    }
+    return String(Date.now()) + Math.random().toString(16).slice(2);
+  }
+
+  function cacheHistories() {
+    localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(state.histories));
+  }
+
+  function loadCachedHistories() {
+    try {
+      state.histories = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || "[]");
+    } catch (error) {
+      state.histories = [];
+    }
+  }
+
+  function loadRemoteHistory() {
+    if (!state.syncId) {
+      return Promise.resolve();
+    }
+    els.historyStatus.textContent = "正在同步历史...";
+    return fetchJson(HISTORY_API + "?syncId=" + encodeURIComponent(state.syncId))
+      .then(function (data) {
+        state.histories = Array.isArray(data.histories) ? data.histories : [];
+        cacheHistories();
+        els.historyStatus.textContent = "已同步 " + state.histories.length + " 条历史";
+      })
+      .catch(function () {
+        els.historyStatus.textContent = "服务端历史暂不可用，已使用本机缓存";
+      })
+      .then(renderHistory);
+  }
+
+  function saveRemoteHistory() {
+    var rows = getFilteredRows();
+    var snapshot = snapshotFilters();
+    var activeNames = [];
+    (state.config.conditions || []).forEach(function (condition) {
+      if (state.featureFilters[condition.id] || state.rangeFilters[condition.id]) {
+        activeNames.push(condition.label);
+      }
+    });
+    var name = activeNames.length ? activeNames.join(" + ") : (state.search || state.brand || state.series || "自定义筛选");
+    var item = {
+      id: String(Date.now()),
+      name: name,
+      state: snapshot,
+      resultCount: rows.length,
+      createdAt: new Date().toISOString()
+    };
+
+    state.histories.push(item);
+    state.histories = state.histories.slice(-50);
+    cacheHistories();
+    renderHistory();
+    els.historyStatus.textContent = "正在保存...";
+
+    return fetch(HISTORY_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ syncId: state.syncId, history: item })
+    }).then(function (response) {
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+      els.historyStatus.textContent = "已保存到服务端";
+    }).catch(function () {
+      els.historyStatus.textContent = "服务端保存失败，已保存在本机";
+    });
   }
 
   function bindEvents() {
-    els.showAll.addEventListener("click", function () { setDataset("latest"); });
-    els.showFiltered.addEventListener("click", function () { setDataset("filtered"); });
-
-    els.globalSearch.addEventListener("input", function (event) {
+    els.globalSearch.addEventListener("compositionstart", function () { state.composing = true; });
+    els.globalSearch.addEventListener("compositionend", function (event) {
+      state.composing = false;
       state.search = event.target.value;
       state.page = 1;
-      renderEverything();
+      renderResultsOnly();
     });
-
-    els.sourceFilter.addEventListener("change", function (event) {
-      state.source = event.target.value;
+    els.globalSearch.addEventListener("input", function (event) {
+      if (state.composing) {
+        return;
+      }
+      state.search = event.target.value;
       state.page = 1;
-      renderEverything();
+      renderResultsOnly();
     });
 
     els.brandFilter.addEventListener("change", function (event) {
       state.brand = event.target.value;
+      state.series = "";
       state.page = 1;
       renderEverything();
     });
@@ -523,13 +769,13 @@
     els.seriesFilter.addEventListener("change", function (event) {
       state.series = event.target.value;
       state.page = 1;
-      renderEverything();
+      renderResultsOnly();
     });
 
     els.pageSize.addEventListener("change", function (event) {
       state.pageSize = Number(event.target.value);
       state.page = 1;
-      renderEverything();
+      renderResultsOnly();
     });
 
     els.tableHead.addEventListener("click", function (event) {
@@ -544,26 +790,68 @@
         state.sortField = column;
         state.sortDir = "asc";
       }
-      renderEverything();
+      renderTableHead();
+      renderResultsOnly();
     });
 
-    els.tableHead.addEventListener("input", function (event) {
+    els.tableHead.addEventListener("compositionstart", function () { state.composing = true; });
+    els.tableHead.addEventListener("compositionend", function (event) {
       if (!event.target.classList.contains("filter-input")) {
         return;
       }
-      state.columnFilters[event.target.dataset.column] = event.target.value;
+      state.composing = false;
+      state.columnFilters[event.target.dataset.column] = { operator: "contains", value: event.target.value };
       state.page = 1;
-      renderEverything();
+      renderResultsOnly();
+    });
+    els.tableHead.addEventListener("input", function (event) {
+      if (!event.target.classList.contains("filter-input") || state.composing) {
+        return;
+      }
+      state.columnFilters[event.target.dataset.column] = { operator: "contains", value: event.target.value };
+      state.page = 1;
+      renderResultsOnly();
+    });
+
+    els.conditionList.addEventListener("change", function (event) {
+      if (event.target.type !== "checkbox") {
+        return;
+      }
+      state.featureFilters[event.target.dataset.conditionId] = event.target.checked;
+      if (!event.target.checked) {
+        delete state.featureFilters[event.target.dataset.conditionId];
+      }
+      state.page = 1;
+      renderResultsOnly();
+    });
+
+    els.conditionList.addEventListener("click", function (event) {
+      if (event.target.tagName !== "BUTTON") {
+        return;
+      }
+      var id = event.target.dataset.conditionId;
+      var inputs = els.conditionList.querySelectorAll('input[data-condition-id="' + id + '"][data-side]');
+      var value = {};
+      inputs.forEach(function (input) {
+        value[input.dataset.side] = input.value;
+      });
+      state.rangeFilters[id] = value;
+      state.page = 1;
+      renderResultsOnly();
     });
 
     els.applyFieldFilter.addEventListener("click", function () {
-      if (!els.fieldSelect.value) {
+      if (!els.fieldSelect.value || !els.fieldValue.value) {
         return;
       }
-      state.columnFilters[els.fieldSelect.value] = els.fieldValue.value;
+      state.columnFilters[els.fieldSelect.value] = {
+        operator: els.fieldOperator.value,
+        value: els.fieldValue.value
+      };
       els.fieldValue.value = "";
       state.page = 1;
-      renderEverything();
+      renderTableHead();
+      renderResultsOnly();
     });
 
     els.activeFilters.addEventListener("click", function (event) {
@@ -572,7 +860,8 @@
       }
       delete state.columnFilters[event.target.dataset.column];
       state.page = 1;
-      renderEverything();
+      renderTableHead();
+      renderResultsOnly();
     });
 
     els.columnList.addEventListener("change", function (event) {
@@ -584,7 +873,8 @@
       } else {
         state.visibleColumns.delete(event.target.dataset.column);
       }
-      renderEverything();
+      renderTableHead();
+      renderResultsOnly();
     });
 
     els.columnSearch.addEventListener("input", function (event) {
@@ -594,23 +884,28 @@
 
     els.showCoreColumns.addEventListener("click", function () {
       state.visibleColumns = new Set();
-      CORE_COLUMNS.forEach(function (column) {
+      (state.config.defaultVisibleColumns || []).forEach(function (column) {
         if (state.columns.indexOf(column) !== -1) {
           state.visibleColumns.add(column);
         }
       });
-      renderEverything();
+      renderTableHead();
+      renderColumnList();
+      renderResultsOnly();
     });
 
     els.showAllColumns.addEventListener("click", function () {
       state.visibleColumns = new Set(state.columns);
-      renderEverything();
+      renderTableHead();
+      renderColumnList();
+      renderResultsOnly();
     });
 
     els.resetFilters.addEventListener("click", function () {
       state.columnFilters = {};
+      state.rangeFilters = {};
+      state.featureFilters = {};
       state.search = "";
-      state.source = "";
       state.brand = "";
       state.series = "";
       state.sortField = "";
@@ -622,43 +917,84 @@
 
     els.prevPage.addEventListener("click", function () {
       state.page = Math.max(1, state.page - 1);
-      renderEverything();
+      renderResultsOnly();
     });
 
     els.nextPage.addEventListener("click", function () {
       state.page += 1;
-      renderEverything();
+      renderResultsOnly();
+    });
+
+    els.saveHistory.addEventListener("click", saveRemoteHistory);
+    els.copySyncId.addEventListener("click", function () {
+      navigator.clipboard.writeText(state.syncId).catch(function () {});
+      els.historyStatus.textContent = "同步码已复制";
+    });
+    els.loadHistory.addEventListener("click", function () {
+      state.syncId = els.historySyncId.value.trim();
+      localStorage.setItem(STORAGE_SYNC_KEY, state.syncId);
+      loadRemoteHistory();
+    });
+    els.historyList.addEventListener("click", function (event) {
+      var button = event.target.closest("button[data-history-id]");
+      if (!button) {
+        return;
+      }
+      var item = state.histories.find(function (history) { return history.id === button.dataset.historyId; });
+      if (item) {
+        applySnapshot(item.state || {});
+      }
     });
 
     els.exportCsv.addEventListener("click", exportCurrentCsv);
     els.exportJson.addEventListener("click", exportCurrentJson);
   }
 
+  function initializeRows(rows) {
+    state.rows = withDerivedDimensions(mergeVerifiedRows(Array.isArray(rows) ? rows : []));
+    state.columns = buildColumns(state.rows);
+    state.visibleColumns = new Set();
+    (state.config.defaultVisibleColumns || []).forEach(function (column) {
+      if (state.columns.indexOf(column) !== -1) {
+        state.visibleColumns.add(column);
+      }
+    });
+    if (!state.visibleColumns.size) {
+      state.visibleColumns = new Set(state.columns.slice(0, Math.min(18, state.columns.length)));
+    }
+  }
+
   function loadData() {
-    return fetchJson("data/manifest.json")
-      .then(function (manifest) {
-        state.manifest = manifest;
-        return Promise.all([
-          fetchJson(manifest.files.latestJson || "data/latest.json"),
-          fetchJson(manifest.files.filteredJson || "data/filtered.json").catch(function () { return []; }),
-        ]);
-      })
-      .then(function (datasets) {
-        state.latestRows = withDerivedDimensions(Array.isArray(datasets[0]) ? datasets[0] : []);
-        state.filteredRows = withDerivedDimensions(Array.isArray(datasets[1]) ? datasets[1] : []);
-        var dateText = state.manifest && state.manifest.date ? "数据日期 " + state.manifest.date : "最新数据";
-        els.dataMeta.textContent = dateText + " · 完整 " + state.latestRows.length + " 行 · 筛选 " + state.filteredRows.length + " 行";
-      })
-      .catch(function () {
-        state.manifest = null;
-        state.latestRows = withDerivedDimensions(SAMPLE_ROWS);
-        state.filteredRows = withDerivedDimensions(SAMPLE_ROWS);
+    return Promise.all([
+      fetchJson("filter_conditions.json").catch(function () { return fallbackConfig; }),
+      fetchJson("data/manifest.json").catch(function () { return null; })
+    ]).then(function (results) {
+      state.config = Object.assign({}, fallbackConfig, results[0] || {});
+      state.manifest = results[1];
+      if (!state.manifest) {
+        initializeRows(SAMPLE_ROWS);
         els.dataMeta.textContent = "本地预览示例 · GitHub Pages 部署后自动加载最新 Release 数据";
+        return;
+      }
+      return fetchJson(state.manifest.files.latestJson || "data/latest.json").then(function (latest) {
+        initializeRows(latest);
+        var dateText = state.manifest.date ? "数据日期 " + state.manifest.date : "最新数据";
+        els.dataMeta.textContent = dateText + " · 综合核验 " + state.rows.length + " 款车型";
       });
+    });
+  }
+
+  function initSync() {
+    state.syncId = localStorage.getItem(STORAGE_SYNC_KEY) || generateSyncId();
+    localStorage.setItem(STORAGE_SYNC_KEY, state.syncId);
+    loadCachedHistories();
+    renderHistory();
+    return loadRemoteHistory();
   }
 
   bindEvents();
   loadData().then(function () {
-    setDataset("filtered");
+    renderEverything();
+    initSync();
   });
 }());

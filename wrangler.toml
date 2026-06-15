@@ -1,0 +1,8 @@
+name = "cars-filter-history"
+main = "cloudflare/filter-history-worker.js"
+compatibility_date = "2026-06-15"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "FILTER_HISTORY"
+id = "f998ae1ea8bd4c04adc555a9f527fa99"

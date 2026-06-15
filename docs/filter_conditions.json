@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "defaultDataset": "latest",
+  "hiddenByDefault": ["数据来源", "ABS防抱死", "制动防抱死", "刹车防抱死"],
+  "dropIfUniformPositive": ["ABS防抱死", "制动防抱死", "刹车防抱死"],
+  "defaultVisibleColumns": [
+    "车型名称",
+    "品牌",
+    "车系",
+    "年款",
+    "交叉核验",
+    "长度(mm)",
+    "宽度(mm)",
+    "高度(mm)",
+    "零整比",
+    "零整比来源明细",
+    "百公里加速(s)",
+    "纯电续航(km)",
+    "NOA城市领航",
+    "远程启动",
+    "远程控制",
+    "蓝牙/数字钥匙",
+    "座椅记忆",
+    "外后视镜记忆"
+  ],
+  "conditions": [
+    {
+      "id": "zero_to_hundred",
+      "label": "百公里加速",
+      "type": "range",
+      "field": "百公里加速(s)",
+      "max": 7,
+      "unit": "s"
+    },
+    {
+      "id": "ev_range",
+      "label": "纯电续航",
+      "type": "range",
+      "field": "纯电续航(km)",
+      "min": 150,
+      "unit": "km"
+    },
+    {
+      "id": "city_navigation",
+      "label": "NOA城市领航",
+      "type": "feature",
+      "fields": ["NOA城市领航", "城市领航辅助", "城市NOA", "城市智驾", "城市辅助驾驶", "NOP城市", "城市NOP", "城市导航辅助驾驶", "城市自动驾驶"],
+      "keywords": ["NOA", "NOP", "城市", "领航", "导航辅助"]
+    },
+    {
+      "id": "remote_start",
+      "label": "远程启动",
+      "type": "feature",
+      "fields": ["远程启动", "远程启动功能", "发动机远程启动"],
+      "keywords": ["远程启动", "车辆启动", "发动机启动", "启动"]
+    },
+    {
+      "id": "remote_control",
+      "label": "手机远程控制",
+      "type": "feature",
+      "fields": ["远程控制", "远程操控", "远程车门", "远程空调", "远程鸣笛闪灯"],
+      "keywords": ["远程控制", "手机APP", "车门控制", "空调控制", "车辆启动"]
+    },
+    {
+      "id": "bluetooth_key",
+      "label": "蓝牙/数字钥匙",
+      "type": "feature",
+      "fields": ["蓝牙/数字钥匙", "蓝牙钥匙", "数字钥匙", "手机钥匙", "UWB钥匙", "NFC钥匙"],
+      "keywords": ["蓝牙钥匙", "数字钥匙", "手机钥匙", "UWB钥匙", "NFC钥匙"],
+      "requireKeyword": true
+    },
+    {
+      "id": "seat_memory",
+      "label": "座椅记忆",
+      "type": "feature",
+      "fields": ["座椅记忆", "主驾驶座椅记忆", "副驾驶座椅记忆"],
+      "keywords": ["座椅记忆", "电动座椅记忆", "主驾驶位", "驾驶位"]
+    },
+    {
+      "id": "mirror_memory",
+      "label": "外后视镜记忆",
+      "type": "feature",
+      "fields": ["后视镜记忆", "外后视镜记忆"],
+      "keywords": ["后视镜记忆", "外后视镜记忆", "记忆"]
+    }
+  ]
+}

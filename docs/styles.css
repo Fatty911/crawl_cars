@@ -76,6 +76,7 @@ button {
 .summary-strip,
 .pager,
 .field-filter,
+.history-actions,
 .panel-title-row {
   display: flex;
   align-items: center;
@@ -363,6 +364,7 @@ tbody tr:hover td {
 
 .field-filter {
   align-items: stretch;
+  flex-wrap: wrap;
 }
 
 .field-filter select,
@@ -374,11 +376,11 @@ tbody tr:hover td {
 }
 
 .field-filter select {
-  width: 42%;
+  flex: 1 1 42%;
 }
 
 .field-filter input {
-  width: 36%;
+  flex: 1 1 36%;
 }
 
 .field-filter button {
@@ -393,6 +395,105 @@ tbody tr:hover td {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.condition-list {
+  display: grid;
+  gap: 10px;
+}
+
+.condition-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fbfdfe;
+}
+
+.condition-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.range-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.range-controls input,
+.history-sync input {
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.range-controls button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.history-sync {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.history-actions {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.history-status {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.history-list {
+  display: grid;
+  max-height: 220px;
+  overflow: auto;
+  gap: 8px;
+}
+
+.history-item {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fbfdfe;
+}
+
+.history-item button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.history-item span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .filter-chip {

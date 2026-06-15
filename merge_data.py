@@ -8,26 +8,7 @@ from datetime import date
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 
-FILTER_CONDITIONS = {
-    "zero_to_hundred": ("百公里加速(s)", 7.0),
-    "ev_range": ("纯电续航(km)", 150),
-    "city_navigation": [
-        "NOA城市领航",
-        "城市领航辅助",
-        "城市NOA",
-        "城市智驾",
-        "城市辅助驾驶",
-        "NOP城市",
-        "城市NOP",
-        "城市导航辅助驾驶",
-        "城市自动驾驶",
-    ],
-    "remote_start": ["远程启动", "远程启动功能", "发动机远程启动"],
-    "remote_control": ["远程控制", "远程操控", "远程车门", "远程空调", "远程鸣笛闪灯"],
-    "bluetooth_key": ["蓝牙/数字钥匙", "蓝牙钥匙", "数字钥匙", "手机钥匙", "UWB钥匙"],
-    "seat_memory": ["座椅记忆", "主驾驶座椅记忆", "副驾驶座椅记忆"],
-    "mirror_memory": ["后视镜记忆", "外后视镜记忆"],
-}
+FILTER_CONFIG_PATH = os.path.join(DIR, "filter_conditions.json")
 
 HEADER_MAP = {
     "全速自适应巡航控制_ACC_": "全速自适应巡航",
@@ -70,6 +51,15 @@ HEADER_MAP = {
 
 FIXED = ["数据来源", "品牌", "车系", "车系ID", "车型名称", "年款"]
 ZERO_RATIO_FIELDS = ["零整比", "零整比来源明细", "零整比匹配方式"]
+
+
+def load_filter_config():
+    with open(FILTER_CONFIG_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+FILTER_CONFIG = load_filter_config()
+FILTER_CONDITIONS = FILTER_CONFIG.get("conditions", [])
 
 
 def parse_numbers(value):
@@ -135,64 +125,24 @@ def check_feature(row, field_names, value_keywords=None, require_keyword=False):
 
 def filter_car(row):
     try:
-        if not check_numeric_condition(
-            row,
-            FILTER_CONDITIONS["zero_to_hundred"][0],
-            FILTER_CONDITIONS["zero_to_hundred"][1],
-            "<=",
-        ):
-            return False
-
-        if not check_numeric_condition(
-            row,
-            FILTER_CONDITIONS["ev_range"][0],
-            FILTER_CONDITIONS["ev_range"][1],
-            ">=",
-        ):
-            return False
-
-        if not check_feature(
-            row,
-            FILTER_CONDITIONS["city_navigation"],
-            ["NOA", "NOP", "城市", "领航", "导航辅助"],
-        ):
-            return False
-
-        if not check_feature(
-            row,
-            FILTER_CONDITIONS["remote_start"],
-            ["远程启动", "车辆启动", "发动机启动", "启动"],
-        ):
-            return False
-
-        if not check_feature(
-            row,
-            FILTER_CONDITIONS["remote_control"],
-            ["远程控制", "手机APP", "车门控制", "空调控制", "车辆启动"],
-        ):
-            return False
-
-        if not check_feature(
-            row,
-            FILTER_CONDITIONS["bluetooth_key"],
-            ["蓝牙钥匙", "数字钥匙", "手机钥匙", "UWB钥匙", "NFC钥匙"],
-            require_keyword=True,
-        ):
-            return False
-
-        if not check_feature(
-            row,
-            FILTER_CONDITIONS["seat_memory"],
-            ["座椅记忆", "电动座椅记忆", "主驾驶位", "驾驶位"],
-        ):
-            return False
-
-        if not check_feature(
-            row,
-            FILTER_CONDITIONS["mirror_memory"],
-            ["后视镜记忆", "外后视镜记忆", "记忆"],
-        ):
-            return False
+        for condition in FILTER_CONDITIONS:
+            condition_type = condition.get("type")
+            if condition_type == "range":
+                field_name = condition.get("field")
+                min_value = condition.get("min")
+                max_value = condition.get("max")
+                if min_value is not None and not check_numeric_condition(row, field_name, float(min_value), ">="):
+                    return False
+                if max_value is not None and not check_numeric_condition(row, field_name, float(max_value), "<="):
+                    return False
+            elif condition_type == "feature":
+                if not check_feature(
+                    row,
+                    condition.get("fields", []),
+                    condition.get("keywords", []),
+                    condition.get("requireKeyword", False),
+                ):
+                    return False
 
         return True
     except Exception as exc:

@@ -14,10 +14,6 @@
           <p id="dataMeta">正在加载最新数据...</p>
         </div>
         <div class="toolbar" aria-label="表格工具栏">
-          <div class="segmented" role="group" aria-label="数据集">
-            <button class="segment active" id="showAll" type="button">全部车型</button>
-            <button class="segment" id="showFiltered" type="button">符合条件</button>
-          </div>
           <label class="search-control">
             <span>搜索</span>
             <input id="globalSearch" type="search" placeholder="品牌、车系、配置项...">
@@ -25,6 +21,7 @@
           <button class="icon-button" id="resetFilters" type="button" title="清空筛选" aria-label="清空筛选">
             <span aria-hidden="true">↺</span>
           </button>
+          <button class="text-button" id="saveHistory" type="button">保存筛选</button>
           <button class="text-button" id="exportCsv" type="button">导出当前CSV</button>
           <button class="text-button" id="exportJson" type="button">导出当前JSON</button>
         </div>
@@ -46,16 +43,12 @@
               <strong id="columnCount">0</strong>
             </div>
             <div>
-              <span class="summary-label">数据源</span>
-              <strong id="sourceCount">0</strong>
+              <span class="summary-label">双源核验</span>
+              <strong id="verifiedCount">0</strong>
             </div>
           </div>
 
           <div class="quick-filters" aria-label="快速筛选">
-            <label>
-              <span>数据来源</span>
-              <select id="sourceFilter"></select>
-            </label>
             <label>
               <span>品牌</span>
               <select id="brandFilter"></select>
@@ -95,13 +88,38 @@
 
         <aside class="side-panel" aria-label="筛选和列设置">
           <section>
+            <h2>条件筛选</h2>
+            <div class="condition-list" id="conditionList"></div>
+          </section>
+
+          <section>
             <h2>字段筛选</h2>
             <div class="field-filter">
               <select id="fieldSelect"></select>
+              <select id="fieldOperator" aria-label="筛选方式">
+                <option value="contains">包含</option>
+                <option value="gte">≥</option>
+                <option value="lte">≤</option>
+                <option value="equals">=</option>
+              </select>
               <input id="fieldValue" type="search" placeholder="包含关键字">
               <button id="applyFieldFilter" type="button">应用</button>
             </div>
             <div class="active-filters" id="activeFilters"></div>
+          </section>
+
+          <section>
+            <h2>筛选历史</h2>
+            <label class="history-sync">
+              <span>同步码</span>
+              <input id="historySyncId" type="text" autocomplete="off">
+            </label>
+            <div class="history-actions">
+              <button class="link-button" id="copySyncId" type="button">复制</button>
+              <button class="link-button" id="loadHistory" type="button">载入</button>
+            </div>
+            <p class="history-status" id="historyStatus">等待同步</p>
+            <div class="history-list" id="historyList"></div>
           </section>
 
           <section>
@@ -128,6 +146,7 @@
         </aside>
       </main>
     </div>
+    <script src="config.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
