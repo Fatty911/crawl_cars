@@ -322,6 +322,9 @@
     var rows = state.rows.slice();
     var search = normalizeText(state.search);
 
+    if (state.source) {
+      rows = rows.filter(function (row) { return String(row["数据来源"] || "").indexOf(state.source) !== -1; });
+    }
     if (state.brand) {
       rows = rows.filter(function (row) { return row["品牌"] === state.brand; });
     }

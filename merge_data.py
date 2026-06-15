@@ -51,6 +51,7 @@ HEADER_MAP = {
 
 FIXED = ["数据来源", "品牌", "车系", "车系ID", "车型名称", "年款"]
 ZERO_RATIO_FIELDS = ["零整比", "零整比来源明细", "零整比匹配方式"]
+IDENTITY_FIELDS = {"品牌", "车系", "车型名称", "年款", "车系ID"}
 
 
 def load_filter_config():
@@ -324,6 +325,85 @@ def diff(autohome_rows, dongchedi_rows, all_fields):
     return out
 
 
+def merge_single_row(ah_row, dcd_row):
+    """合并单个车型的两个数据源，标识字段优先取非空，配置字段冲突用|分隔"""
+    merged = {}
+    all_keys = set(ah_row.keys()) | set(dcd_row.keys())
+
+    for key in all_keys:
+        ah_val = str(ah_row.get(key, "") or "")
+        dcd_val = str(dcd_row.get(key, "") or "")
+
+        if key in IDENTITY_FIELDS:
+            # 标识字段：不拼接，优先取非空且更完整的值
+            if ah_val and ah_val != "-":
+                if dcd_val and dcd_val != "-" and dcd_val != ah_val:
+                    # 两个值都非空且不同，取较长值（通常更完整）
+                    merged[key] = ah_val if len(ah_val) >= len(dcd_val) else dcd_val
+                else:
+                    merged[key] = ah_val
+            elif dcd_val and dcd_val != "-":
+                merged[key] = dcd_val
+            else:
+                merged[key] = "-"
+        else:
+            # 配置字段：复用 norm_rows 的拼接逻辑
+            if ah_val and ah_val != "-":
+                if dcd_val and dcd_val != "-" and dcd_val != ah_val:
+                    merged[key] = f"{ah_val}|{dcd_val}"
+                else:
+                    merged[key] = ah_val
+            elif dcd_val and dcd_val != "-":
+                merged[key] = dcd_val
+            else:
+                merged[key] = "-"
+
+    return merged
+
+
+def merge_rows(autohome_rows, dongchedi_rows):
+    """按车型名称合并两个数据源，而非简单拼接"""
+    # 建立索引，使用去空格后的车型名称作为键
+    autohome_index = {}
+    for row in autohome_rows:
+        name = row.get("车型名称", "").replace(" ", "")
+        if name:
+            autohome_index[name] = row
+
+    dongchedi_index = {}
+    for row in dongchedi_rows:
+        name = row.get("车型名称", "").replace(" ", "")
+        if name:
+            dongchedi_index[name] = row
+
+    merged = []
+    all_names = set(autohome_index.keys()) | set(dongchedi_index.keys())
+    stats = {"双源": 0, "仅汽车之家": 0, "仅懂车帝": 0}
+
+    for name in all_names:
+        ah_row = autohome_index.get(name)
+        dcd_row = dongchedi_index.get(name)
+
+        if ah_row and dcd_row:
+            # 双源：合并配置
+            merged_row = merge_single_row(ah_row, dcd_row)
+            merged_row["数据来源"] = "汽车之家+懂车帝"
+            stats["双源"] += 1
+        elif ah_row:
+            merged_row = dict(ah_row)
+            merged_row["数据来源"] = "仅汽车之家"
+            stats["仅汽车之家"] += 1
+        else:
+            merged_row = dict(dcd_row)
+            merged_row["数据来源"] = "仅懂车帝"
+            stats["仅懂车帝"] += 1
+
+        merged.append(merged_row)
+
+    print(f"合并统计: 双源核验{stats['双源']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 合计{len(merged)}")
+    return merged
+
+
 def collect_fields(rows):
     fields = []
     for field in ZERO_RATIO_FIELDS:
@@ -364,9 +444,28 @@ def main():
         print("错误: 没有找到任何数据文件")
         return
 
-    all_rows = autohome_rows + dongchedi_rows
+    print(f"汽车之家:{len(autohome_rows)} 懂车帝:{len(dongchedi_rows)}")
+
+    # 先diff（需要原始两源数据）
+    diffs = []
+    if autohome_rows and dongchedi_rows:
+        header_for_diff = collect_fields(autohome_rows + dongchedi_rows)
+        diffs = diff(autohome_rows, dongchedi_rows, header_for_diff)
+        if diffs:
+            diff_path = os.path.join(DIR, f"diff_{today}.csv")
+            with open(diff_path, "w", encoding="utf-8-sig", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=["车型", "配置项", "汽车之家", "懂车帝"])
+                writer.writeheader()
+                writer.writerows(diffs)
+            print(f"差异: {len(diffs)} 处")
+        else:
+            print("无差异")
+    else:
+        print("跳过差异比较: 只有一个数据源")
+
+    # 再合并（按车型去重）
+    all_rows = merge_rows(autohome_rows, dongchedi_rows)
     all_rows = enrich_zero_ratio(all_rows, load_zero_ratio_rows())
-    print(f"汽车之家:{len(autohome_rows)} 懂车帝:{len(dongchedi_rows)} 合计:{len(all_rows)}")
 
     filtered_rows = [row for row in all_rows if filter_car(row)]
     print(f"过滤后符合条件的车型: {len(filtered_rows)} 辆")
@@ -379,21 +478,6 @@ def main():
     merged_json_path = os.path.join(DIR, f"merged_{today}.json")
     write_csv(merged_csv_path, all_rows, header)
     write_json(merged_json_path, all_rows)
-
-    diffs = []
-    if autohome_rows and dongchedi_rows:
-        diffs = diff(autohome_rows, dongchedi_rows, header)
-        if diffs:
-            diff_path = os.path.join(DIR, f"diff_{today}.csv")
-            with open(diff_path, "w", encoding="utf-8-sig", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=["车型", "配置项", "汽车之家", "懂车帝"])
-                writer.writeheader()
-                writer.writerows(diffs)
-            print(f"差异: {len(diffs)} 处")
-        else:
-            print("无差异")
-    else:
-        print("跳过差异比较: 只有一个数据源")
 
     filtered_csv_path = os.path.join(DIR, f"filtered_cars_{today}.csv")
     filtered_json_path = os.path.join(DIR, f"filtered_cars_{today}.json")
