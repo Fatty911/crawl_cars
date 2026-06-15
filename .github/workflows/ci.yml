@@ -136,11 +136,11 @@ jobs:
           with open(f"filtered_cars_{today}.json", "r", encoding="utf-8") as f:
               filtered_rows = json.load(f)
 
-          if len(merged_rows) != 4:
-              raise SystemExit(f"expected 4 merged rows, got {len(merged_rows)}")
-          if len(filtered_rows) != 2:
-              raise SystemExit(f"expected 2 filtered rows, got {len(filtered_rows)}")
+          if len(merged_rows) != 2:
+              raise SystemExit(f"expected 2 merged rows (deduplicated), got {len(merged_rows)}")
+          if len(filtered_rows) != 1:
+              raise SystemExit(f"expected 1 filtered row (low range excluded), got {len(filtered_rows)}")
           ratios = [row.get("零整比") for row in filtered_rows if row.get("车型名称") == "CI测试车型"]
-          if ratios != ["330.50%", "330.50%"]:
+          if ratios != ["330.50%"]:
               raise SystemExit(f"expected averaged zero-to-whole ratio, got {ratios}")
           PY
