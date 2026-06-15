@@ -1,8 +1,39 @@
 # 对话历史总结
 
-> 最后更新：2026-06-15 14:10
+> 最后更新：2026-06-15 18:35
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-15：筛选历史迁移到 Personal_commonly_used 并修复双源核验
+
+### 用户诉求
+- 不要新建独立仓库保存筛选历史，改为放在 `Personal_commonly_used` 仓库的某个文件夹内。
+- 陌生人访问网站时，即使不填写 Gist 或 GitHub Token，也要能匿名使用；填写了远端同步信息的用户数据不能被匿名状态影响。
+- 解释并修复网页“双源核验”显示 0 的问题。
+
+### 排查
+- `Fatty911/Personal_commonly_used` 是私有仓库，默认分支 `main`。
+- 目标历史文件 `cars/filter-history/history.json` 原本不存在，已通过 GitHub Contents API 初始化。
+- 20260615 Release 的 `merged_20260615.json` 实际包含两源数据：懂车帝 7507 行、汽车之家 1123 行。
+- 双源核验显示 0 的原因是前端原本用 `品牌 + 车系 + 车型名称 + 年款` 做合并键；汽车之家行里 `品牌`/`车系` 多数为空、`年款` 也常为空，而懂车帝把车型拆在 `车系`、`年款`、`车型名称` 三列，导致同一车型无法对上。
+
+### 修改
+- `docs/config.js` 将默认 GitHub 历史后端改为：
+  - owner: `Fatty911`
+  - repo: `Personal_commonly_used`
+  - path: `cars/filter-history/history.json`
+  - branch: `main`
+- `docs/app.js` 保持未填写 Token 时的匿名本机缓存模式；匿名访客不会读取、写入或覆盖远端历史。
+- `docs/app.js` 新增车型名归一化：把懂车帝的 `车系 + 年款 + 车型名称` 与汽车之家的完整 `车型名称` 合成同一类 key，再去掉空白、`改款` 和常见标点后匹配双源。
+- README、CHANGELOG 同步记录新后端路径、匿名使用逻辑和双源核验口径。
+- 尝试删除上一轮新建的 `Fatty911/cars-filter-history` 仓库，但当前 `gh` token 缺少 `delete_repo` scope；随后通过 GitHub API 将该仓库设为 `archived=true`，并确保网站配置不再引用它。
+
+### 结果
+- 筛选历史不再依赖新建的 `cars-filter-history` 仓库，改为存储在 `Personal_commonly_used/cars/filter-history/history.json`。
+- 匿名访问网站不需要填写任何 Token，筛选历史只存在当前设备本机；填写 GitHub Token 的用户使用私有仓库远端历史，两者互不覆盖。
+- 按 20260615 数据离线试算，修复后的精确双源核验可识别约 290 个车型配置组，不再显示为 0。
 
 ---
 

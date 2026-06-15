@@ -2,6 +2,14 @@
 
 ## 2026-06-15
 
+### 修改38: 筛选历史迁移到 Personal_commonly_used 并修复双源核验
+- 不再使用新建的 `cars-filter-history` 独立仓库，改为在 `Fatty911/Personal_commonly_used` 的 `cars/filter-history/history.json` 保存筛选历史。
+- `docs/config.js` 指向 `Personal_commonly_used` 内部历史文件，默认同步码改为 `personal-cars-filter-history`。
+- 未填写 GitHub Token 的陌生访客继续匿名使用本机缓存，不会读取、写入或覆盖远端历史。
+- `docs/app.js` 的双源核验键从“品牌 + 车系 + 车型名称 + 年款”改为归一化“车系 + 年款 + 车型名称”，兼容汽车之家和懂车帝字段拆分差异。
+- 通过 20260615 Release 数据排查确认两源数据存在：懂车帝 7507 行、汽车之家 1123 行；原先显示 0 是前端合并键过严导致。
+- 由于当前 `gh` token 缺少 `delete_repo` scope，无法删除上一轮新建的 `cars-filter-history` 仓库，已改为归档并停止使用。
+
 ### 修改37: 筛选历史改用 GitHub 私有仓库可选同步
 - 使用 `gh repo create Fatty911/cars-filter-history --private --add-readme` 创建私有历史仓库，并通过 GitHub Contents API 初始化 `history.json`。
 - `docs/config.js` 默认把筛选历史后端切到 GitHub 私有仓库，保留 Cloudflare Worker API 路径作为可切换后端。

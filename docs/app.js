@@ -117,6 +117,12 @@
     return String(value == null ? "" : value).replace(/\s+/g, "").toLowerCase();
   }
 
+  function cleanModelText(value) {
+    return cleanText(value)
+      .replace(/改款/g, "")
+      .replace(/[·・,，.。/／\\()（）\-_+]/g, "");
+  }
+
   function firstNumber(value) {
     var match = String(value == null ? "" : value).match(/\d+(?:\.\d+)?/);
     return match ? Number(match[0]) : null;
@@ -153,8 +159,42 @@
     return ["无", "不支持", "否", "没有", "未配备", "不提供", "0", "0.0"].indexOf(text) === -1;
   }
 
+  function modelYear(row) {
+    var fields = [row["年款"], row["车型名称"]];
+    for (var i = 0; i < fields.length; i += 1) {
+      var match = String(fields[i] == null ? "" : fields[i]).match(/(?:19|20)\d{2}/);
+      if (match) {
+        return match[0];
+      }
+    }
+    return "";
+  }
+
+  function canonicalModelName(row) {
+    var name = String(row["车型名称"] || "").trim();
+    var series = String(row["车系"] || "").trim();
+    var year = modelYear(row);
+    var cleanName = cleanModelText(name);
+    var parts = [];
+
+    if (series && cleanName.indexOf(cleanModelText(series)) === -1) {
+      parts.push(series);
+    }
+    if (year && cleanName.indexOf(year + "款") === -1 && cleanName.indexOf(year) === -1) {
+      parts.push(year + "款");
+    }
+    if (name) {
+      parts.push(name);
+    }
+    return cleanModelText(parts.join(" "));
+  }
+
   function rowKey(row) {
-    return [row["品牌"], row["车系"], row["车型名称"], row["年款"]].map(cleanText).join("|");
+    var modelKey = canonicalModelName(row);
+    if (modelKey) {
+      return "model|" + modelKey;
+    }
+    return "fallback|" + [row["品牌"], row["车系"], row["车型名称"], row["年款"]].map(cleanText).join("|");
   }
 
   function mergeVerifiedRows(rows) {

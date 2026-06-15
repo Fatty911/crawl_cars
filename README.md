@@ -299,7 +299,7 @@ crawl_cars/
 | `docs/index.html` | 页面结构 |
 | `docs/styles.css` | 表格工作台样式 |
 | `docs/app.js` | 数据加载、搜索、筛选、排序、分页、导出逻辑 |
-| `docs/config.js` | 前端运行配置，默认优先使用 GitHub 私有仓库保存历史，保留 `/api/filter-history` 作为 Worker 后端路径 |
+| `docs/config.js` | 前端运行配置，默认优先使用 `Personal_commonly_used` 私有仓库内的历史文件，保留 `/api/filter-history` 作为 Worker 后端路径 |
 | `docs/filter_conditions.json` | 网页筛选条件配置副本 |
 | `filter_conditions.json` | 合并脚本和网页共用的筛选条件配置 |
 | `cloudflare/filter-history-worker.js` | Cloudflare Worker 筛选历史 API |
@@ -316,8 +316,10 @@ crawl_cars/
 - 表头第二行支持每列关键字筛选，并优化中文输入法输入期间的光标稳定性。
 - 支持按品牌、车系快速筛选；网页不再提供数据来源筛选，改为展示 `交叉核验` 和 `核验来源`。
 - 条件筛选栏由 `filter_conditions.json` 生成，支持功能勾选和数值范围筛选，不再把筛选条件写死在前端代码里。
-- 筛选历史可通过同步码保存到服务端；当前默认使用 GitHub 私有仓库 `Fatty911/cars-filter-history` 的 `history.json`，浏览器端需要用户在本机保存具备该仓库 Contents 读写权限的 GitHub Token。
+- 筛选历史可通过同步码保存到服务端；当前默认使用私有仓库 `Fatty911/Personal_commonly_used` 的 `cars/filter-history/history.json`，浏览器端需要用户在本机保存具备该仓库 Contents 读写权限的 GitHub Token。
+- 不填写 GitHub Token 时网页仍可匿名使用，筛选历史只保存在当前浏览器本机缓存中，不会读取或覆盖已填写 Token 的远端历史。
 - 如果切回 Worker 后端，默认 API 路径为 `/api/filter-history`，需要 Cloudflare Worker 路由到该路径。
+- 双源核验按归一化后的“车系 + 年款 + 车型名称”匹配，兼容汽车之家把车系/年款写在 `车型名称`、懂车帝拆分到 `车系` / `年款` 字段的格式差异。
 - 网页展示时会把 `长宽高` / `长*宽*高(mm)` / `车身尺寸` 这类合并字段拆成 `长度(mm)`、`宽度(mm)`、`高度(mm)` 三列。
 - 常用列包含 `零整比` 和 `零整比来源明细`；多个来源匹配同一车型时页面展示平均值，并保留来源明细。
 - 支持选择显示列、分页查看、导出当前筛选结果为 CSV/JSON。
@@ -330,19 +332,19 @@ crawl_cars/
 window.CARS_FILTER_HISTORY_PROVIDER = "github";
 window.CARS_GITHUB_HISTORY = {
   owner: "Fatty911",
-  repo: "cars-filter-history",
-  path: "history.json",
+  repo: "Personal_commonly_used",
+  path: "cars/filter-history/history.json",
   branch: "main"
 };
 ```
 
-`cars-filter-history` 是通过 `gh repo create Fatty911/cars-filter-history --private --add-readme` 创建的私有仓库，初始 `history.json` 为：
+历史文件在 `Personal_commonly_used` 仓库内通过 GitHub Contents API 初始化，初始内容为：
 
 ```json
 {"version":1,"updatedAt":"2026-06-15T00:00:00.000Z","profiles":{}}
 ```
 
-网页不会把 GitHub Token 写入公开仓库；Token 只保存在当前浏览器本机存储中。跨设备时使用同一同步码和一个只授权该私有仓库 Contents 读写权限的 fine-grained token 即可读取和保存同一份筛选历史。
+网页不会把 GitHub Token 写入公开仓库；Token 只保存在当前浏览器本机存储中。跨设备时使用同一同步码和一个只授权 `Personal_commonly_used` 仓库 Contents 读写权限的 fine-grained token 即可读取和保存同一份筛选历史。未填写 Token 的访客只使用本机匿名缓存。
 
 Cloudflare Worker 后端仍保留：
 
