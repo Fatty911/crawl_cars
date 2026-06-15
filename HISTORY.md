@@ -1,8 +1,28 @@
 # 对话历史总结
 
-> 最后更新：2026-06-15 13:25
+> 最后更新：2026-06-15 14:10
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-15：筛选历史改用 GitHub 私有仓库可选同步
+
+### 用户诉求
+- Cloudflare Worker 服务端历史暂不可用时，确认能否改用私有仓库或 Gist 同步，并直接调用 `gh` 完成可用路径。
+
+### 修改
+- 使用 `gh auth status` 确认当前 GitHub CLI 登录账号 `Fatty911` 具备 `gist`、`repo`、`workflow` 权限。
+- 未选择 Gist 作为默认后端，因为 Gist 的 secret 只是未列出链接，不是真正私有；改用 `gh repo create Fatty911/cars-filter-history --private --add-readme` 创建 GitHub 私有仓库。
+- 通过 GitHub Contents API 初始化私有仓库 `history.json`，结构为 `version`、`updatedAt`、`profiles`。
+- `docs/config.js` 默认将历史后端切到 GitHub 私有仓库，同时保留 `/api/filter-history` 作为 Cloudflare Worker 备用路径。
+- `docs/app.js` 新增 GitHub Contents API 读写：按同步码保存到 `profiles[syncId]`，保存时带 SHA，遇到一次 409 冲突会重新读取后重试。
+- 网页筛选历史区新增 GitHub Token 输入、保存和清除按钮；Token 只保存在当前浏览器本机 `localStorage`，不会写入公开仓库。
+- README、CHANGELOG 同步记录私有仓库后端、Token 权限边界和 Worker 备用路径。
+
+### 结果
+- 筛选历史现在具备 GitHub 私有仓库同步能力；跨电脑或手机时，只要使用同一同步码并在该设备本机保存具备私有历史仓库 Contents 读写权限的 GitHub Token，就能读取和保存同一份筛选历史。
+- 公开 Pages 配置只暴露私有仓库名称和默认同步码，不包含可写密钥。
 
 ---
 

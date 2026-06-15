@@ -1,9 +1,13 @@
 (function () {
   "use strict";
 
+  var HISTORY_PROVIDER = window.CARS_FILTER_HISTORY_PROVIDER || "worker";
   var HISTORY_API = window.CARS_FILTER_HISTORY_API || "/api/filter-history";
+  var GITHUB_HISTORY = window.CARS_GITHUB_HISTORY || null;
+  var DEFAULT_SYNC_ID = window.CARS_DEFAULT_FILTER_SYNC_ID || "";
   var STORAGE_SYNC_KEY = "cars_filter_sync_id";
   var STORAGE_HISTORY_KEY = "cars_filter_history_cache";
+  var STORAGE_GITHUB_TOKEN_KEY = "cars_filter_github_token";
 
   var SAMPLE_ROWS = [
     {
@@ -51,6 +55,7 @@
     columnSearch: "",
     composing: false,
     syncId: "",
+    githubToken: "",
     histories: []
   };
 
@@ -85,8 +90,11 @@
     columnSearch: document.getElementById("columnSearch"),
     columnList: document.getElementById("columnList"),
     historySyncId: document.getElementById("historySyncId"),
+    githubToken: document.getElementById("githubToken"),
     copySyncId: document.getElementById("copySyncId"),
     loadHistory: document.getElementById("loadHistory"),
+    saveGithubToken: document.getElementById("saveGithubToken"),
+    clearGithubToken: document.getElementById("clearGithubToken"),
     historyStatus: document.getElementById("historyStatus"),
     historyList: document.getElementById("historyList"),
     downloadList: document.getElementById("downloadList")
@@ -687,7 +695,135 @@
     }
   }
 
-  function loadRemoteHistory() {
+  function githubHistoryConfigured() {
+    return HISTORY_PROVIDER === "github" &&
+      GITHUB_HISTORY &&
+      GITHUB_HISTORY.owner &&
+      GITHUB_HISTORY.repo &&
+      GITHUB_HISTORY.path;
+  }
+
+  function githubHistoryApiUrl() {
+    return "https://api.github.com/repos/" +
+      encodeURIComponent(GITHUB_HISTORY.owner) + "/" +
+      encodeURIComponent(GITHUB_HISTORY.repo) + "/contents/" +
+      GITHUB_HISTORY.path.split("/").map(encodeURIComponent).join("/");
+  }
+
+  function githubHeaders() {
+    return {
+      Accept: "application/vnd.github+json",
+      Authorization: "Bearer " + state.githubToken,
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+  }
+
+  function decodeBase64Json(content) {
+    var clean = String(content || "").replace(/\s/g, "");
+    var binary = atob(clean);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return JSON.parse(new TextDecoder("utf-8").decode(bytes));
+  }
+
+  function encodeBase64Json(data) {
+    var json = JSON.stringify(data, null, 2);
+    var bytes = new TextEncoder().encode(json);
+    var chunk = "";
+    var parts = [];
+    bytes.forEach(function (byte, index) {
+      chunk += String.fromCharCode(byte);
+      if (chunk.length >= 8192 || index === bytes.length - 1) {
+        parts.push(chunk);
+        chunk = "";
+      }
+    });
+    return btoa(parts.join(""));
+  }
+
+  function normalizeHistoryStore(store) {
+    var next = store && typeof store === "object" ? store : {};
+    if (!next.version) {
+      next.version = 1;
+    }
+    if (!next.profiles || typeof next.profiles !== "object") {
+      next.profiles = {};
+    }
+    return next;
+  }
+
+  function readGithubHistoryStore() {
+    var url = githubHistoryApiUrl() + "?ref=" + encodeURIComponent(GITHUB_HISTORY.branch || "main");
+    return fetch(url, {
+      cache: "no-store",
+      headers: githubHeaders()
+    }).then(function (response) {
+      if (response.status === 404) {
+        return { sha: null, store: normalizeHistoryStore(null) };
+      }
+      if (!response.ok) {
+        throw new Error("GitHub HTTP " + response.status);
+      }
+      return response.json();
+    }).then(function (data) {
+      if (data.store) {
+        return data;
+      }
+      return {
+        sha: data.sha,
+        store: normalizeHistoryStore(decodeBase64Json(data.content))
+      };
+    });
+  }
+
+  function loadGithubHistory() {
+    if (!state.githubToken) {
+      els.historyStatus.textContent = "GitHub 私有历史仓库已配置，保存 Token 后可跨设备同步";
+      renderHistory();
+      return Promise.resolve();
+    }
+    els.historyStatus.textContent = "正在从 GitHub 私有仓库同步...";
+    return readGithubHistoryStore().then(function (result) {
+      state.histories = Array.isArray(result.store.profiles[state.syncId]) ?
+        result.store.profiles[state.syncId] : [];
+      cacheHistories();
+      els.historyStatus.textContent = "已从 GitHub 同步 " + state.histories.length + " 条历史";
+    }).catch(function () {
+      els.historyStatus.textContent = "GitHub 同步失败，已使用本机缓存";
+    }).then(renderHistory);
+  }
+
+  function saveGithubHistory(histories, retries) {
+    return readGithubHistoryStore().then(function (result) {
+      var store = normalizeHistoryStore(result.store);
+      store.profiles[state.syncId] = histories.slice(-50);
+      store.updatedAt = new Date().toISOString();
+      var body = {
+        message: "Update car filter history",
+        content: encodeBase64Json(store),
+        branch: GITHUB_HISTORY.branch || "main"
+      };
+      if (result.sha) {
+        body.sha = result.sha;
+      }
+      return fetch(githubHistoryApiUrl(), {
+        method: "PUT",
+        headers: Object.assign({ "Content-Type": "application/json" }, githubHeaders()),
+        body: JSON.stringify(body)
+      }).then(function (response) {
+        if (response.status === 409 && retries > 0) {
+          return saveGithubHistory(histories, retries - 1);
+        }
+        if (!response.ok) {
+          throw new Error("GitHub HTTP " + response.status);
+        }
+      });
+    });
+  }
+
+  function loadWorkerHistory() {
     if (!state.syncId) {
       return Promise.resolve();
     }
@@ -702,6 +838,16 @@
         els.historyStatus.textContent = "服务端历史暂不可用，已使用本机缓存";
       })
       .then(renderHistory);
+  }
+
+  function loadRemoteHistory() {
+    if (!state.syncId) {
+      return Promise.resolve();
+    }
+    if (githubHistoryConfigured()) {
+      return loadGithubHistory();
+    }
+    return loadWorkerHistory();
   }
 
   function saveRemoteHistory() {
@@ -727,6 +873,18 @@
     cacheHistories();
     renderHistory();
     els.historyStatus.textContent = "正在保存...";
+
+    if (githubHistoryConfigured()) {
+      if (!state.githubToken) {
+        els.historyStatus.textContent = "已保存在本机；保存 GitHub Token 后可跨设备同步";
+        return Promise.resolve();
+      }
+      return saveGithubHistory(state.histories, 1).then(function () {
+        els.historyStatus.textContent = "已保存到 GitHub 私有仓库";
+      }).catch(function () {
+        els.historyStatus.textContent = "GitHub 保存失败，已保存在本机";
+      });
+    }
 
     return fetch(HISTORY_API, {
       method: "POST",
@@ -935,6 +1093,25 @@
       localStorage.setItem(STORAGE_SYNC_KEY, state.syncId);
       loadRemoteHistory();
     });
+    els.saveGithubToken.addEventListener("click", function () {
+      var token = els.githubToken.value.trim();
+      if (!token) {
+        els.historyStatus.textContent = "Token 留空，继续使用本机已有设置";
+        return;
+      }
+      state.githubToken = token;
+      localStorage.setItem(STORAGE_GITHUB_TOKEN_KEY, token);
+      els.githubToken.value = "";
+      els.githubToken.placeholder = "已保存，留空保持不变";
+      loadRemoteHistory();
+    });
+    els.clearGithubToken.addEventListener("click", function () {
+      state.githubToken = "";
+      localStorage.removeItem(STORAGE_GITHUB_TOKEN_KEY);
+      els.githubToken.value = "";
+      els.githubToken.placeholder = "仅保存在本机";
+      els.historyStatus.textContent = "GitHub Token 已清除，当前使用本机缓存";
+    });
     els.historyList.addEventListener("click", function (event) {
       var button = event.target.closest("button[data-history-id]");
       if (!button) {
@@ -985,8 +1162,12 @@
   }
 
   function initSync() {
-    state.syncId = localStorage.getItem(STORAGE_SYNC_KEY) || generateSyncId();
+    state.syncId = localStorage.getItem(STORAGE_SYNC_KEY) || DEFAULT_SYNC_ID || generateSyncId();
     localStorage.setItem(STORAGE_SYNC_KEY, state.syncId);
+    state.githubToken = localStorage.getItem(STORAGE_GITHUB_TOKEN_KEY) || "";
+    if (state.githubToken) {
+      els.githubToken.placeholder = "已保存，留空保持不变";
+    }
     loadCachedHistories();
     renderHistory();
     return loadRemoteHistory();

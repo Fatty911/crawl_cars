@@ -114,9 +114,15 @@
               <span>同步码</span>
               <input id="historySyncId" type="text" autocomplete="off">
             </label>
+            <label class="history-sync">
+              <span>GitHub Token</span>
+              <input id="githubToken" type="password" autocomplete="off" placeholder="仅保存在本机">
+            </label>
             <div class="history-actions">
               <button class="link-button" id="copySyncId" type="button">复制</button>
               <button class="link-button" id="loadHistory" type="button">载入</button>
+              <button class="link-button" id="saveGithubToken" type="button">保存Token</button>
+              <button class="link-button" id="clearGithubToken" type="button">清除Token</button>
             </div>
             <p class="history-status" id="historyStatus">等待同步</p>
             <div class="history-list" id="historyList"></div>

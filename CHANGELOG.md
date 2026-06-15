@@ -2,6 +2,13 @@
 
 ## 2026-06-15
 
+### 修改37: 筛选历史改用 GitHub 私有仓库可选同步
+- 使用 `gh repo create Fatty911/cars-filter-history --private --add-readme` 创建私有历史仓库，并通过 GitHub Contents API 初始化 `history.json`。
+- `docs/config.js` 默认把筛选历史后端切到 GitHub 私有仓库，保留 Cloudflare Worker API 路径作为可切换后端。
+- `docs/app.js` 新增 GitHub Contents API 读写逻辑：按同步码把历史保存在 `history.json` 的 `profiles` 中，保存时处理文件 SHA 与一次 409 重试。
+- 网页筛选历史区新增 GitHub Token 输入、保存和清除按钮；Token 只存当前浏览器本机，不提交到公开仓库或 Pages 配置。
+- README 同步说明 GitHub 私有仓库历史后端、Token 权限边界和 Cloudflare Worker 备用路径。
+
 ### 修改36: 合并发布扫描当前半月有效爬虫 artifact
 - 复查最新 Release 和 Pages 未更新的原因：`merge-and-filter.yml` 只下载最近一次成功的汽车之家/懂车帝 run；两个爬虫完成半月任务后后续自动触发会成功跳过且没有数据 artifact，导致合并分析下载不到 `autoHome_*.json` / `dongchedi_*.json` 后成功跳过发布。
 - 新增 `custom_scripts/download_latest_crawler_artifact.py`：按 workflow 向前扫描成功 run 的 artifacts，跳过缺失、过期、过小、非当前半月或 JSON 行数少于 50 的 artifact，只把真正可合并的数据复制到工作目录。

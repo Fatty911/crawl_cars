@@ -455,6 +455,7 @@ tbody tr:hover td {
 }
 
 .history-actions {
+  flex-wrap: wrap;
   justify-content: flex-start;
   margin-top: 8px;
 }
