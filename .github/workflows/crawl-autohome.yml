@@ -343,7 +343,7 @@ jobs:
 
       - name: Upload error log
         if: failure()
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: error-log
           path: |
@@ -415,7 +415,7 @@ jobs:
 
       - name: Upload Autohome artifact
         id: upload_autohome
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true') && steps.verify_autohome.outputs.has_data != 'false'
         with:
           name: autohome-data-${{ env.CRAWL_DATE }}
