@@ -1,8 +1,28 @@
 # 对话历史总结
 
-> 最后更新：2026-06-11
+> 最后更新：2026-06-15
 > 
 > 本文档记录了汽车数据爬虫项目从创建到最新的所有对话历史，融合了所有历史文件的内容。
+
+---
+
+## 2026-06-15：修复半月完成后 Release 和 Pages 不更新
+
+### 排查
+- 最近 Release 仍停在 `v20260528`，说明 6 月上半月数据没有发布。
+- 6 月 14 日两次 `合并分析` 都显示成功，但日志中实际写明：`下载汽车之家 artifact 失败`、`下载懂车帝 artifact 失败`，随后 `汽车之家 未找到 autoHome_*.json 数据文件`、`懂车帝 未找到 dongchedi_*.json 数据文件`，所以合并发布被保护逻辑成功跳过。
+- 根因是合并工作流只取最近一次成功爬虫 run；半月完成后后续自动触发的爬虫 run 会快速成功跳过且不上传数据 artifact，于是“最近成功 run”反而没有可发布数据。
+- artifact 列表显示懂车帝有 2026-06-14 的有效 `dongchedi-data-20260614`，汽车之家最近有效 artifact 是 2026-06-04 的 `autohome-data-20260604`，但后续跳过 run 把它们挡住了。
+
+### 修改
+- 新增 `custom_scripts/download_latest_crawler_artifact.py`，按 workflow 向前扫描成功 run 的 artifacts，跳过缺失、过期、过小、非当前半月和 JSON 行数少于 50 的 artifact。
+- `merge-and-filter.yml` 改用该脚本下载汽车之家和懂车帝当前半月有效数据，再执行零整比抓取、合并、Release 和 Pages 发布。
+- `custom_scripts/validate_workflow_expectations.py` 增加合并工作流静态校验，避免后续退回只取最新成功 run。
+- README、CHANGELOG 同步记录。
+
+### 结果
+- 半月完成后的短跳过 run 不再阻挡合并发布。
+- 合并工作流会优先使用当前半月内最近的真实数据 artifact；如果没有完整数据，仍会成功跳过或在手动强制合并时失败，避免发布空数据。
 
 ---
 

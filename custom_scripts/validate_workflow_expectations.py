@@ -64,12 +64,23 @@ def check_ai_monitor(path: Path, errors: list[str]) -> None:
     assert_condition("check_workflow_expectations.py" in text, "AI 监控缺少 workflow 预期检查", errors)
 
 
+def check_merge_workflow(path: Path, errors: list[str]) -> None:
+    text = path.read_text(encoding="utf-8")
+    assert_condition(
+        "download_latest_crawler_artifact.py" in text,
+        "merge-and-filter.yml 不应只下载最近一次成功爬虫 run，应扫描最近有效数据 artifact",
+        errors,
+    )
+    assert_condition("MIN_ARTIFACT_DATE" in text, "merge-and-filter.yml 缺少当前半月 artifact 日期限制", errors)
+
+
 def main() -> int:
     errors: list[str] = []
     check_crawler_workflow(ROOT / ".github/workflows/crawl-autohome.yml", errors)
     check_crawler_workflow(ROOT / ".github/workflows/crawl-dongchedi.yml", errors)
     check_trigger(ROOT / ".github/workflows/crawl-trigger.yml", errors)
     check_budget_script(ROOT / "custom_scripts/crawl_budget.py", errors)
+    check_merge_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
     assert_condition((ROOT / "custom_scripts/configure_cron_job_org.py").exists(), "缺少 cron-job.org 配置脚本", errors)
     check_ai_monitor(ROOT / ".github/workflows/AI_Auto_Fix_Monitor.yml", errors)
 

@@ -28,6 +28,7 @@ crawl_cars/
 │   ├── check_workflow_expectations.py # workflow 成功/失败预期检查
 │   ├── configure_cron_job_org.py  # 配置 cron-job.org 外部触发
 │   ├── crawl_budget.py            # 计算北京时间窗口和 Actions 6 小时预算
+│   ├── download_latest_crawler_artifact.py # 合并前扫描最近有效爬虫 artifact
 │   ├── ensure_codex_autofix_scope.py  # Codex 自动修复文件范围检查
 │   ├── git_sync_progress.sh       # 进度同步脚本
 │   ├── reset_dongchedi_progress.py # 懂车帝进度重置
@@ -458,7 +459,7 @@ CRON_JOB_ORG_API_KEY=... GITHUB_DISPATCH_TOKEN=... python custom_scripts/configu
 7. 懂车帝重置进度时会保留车系列表缓存，接口短暂返回非 JSON 或空响应时可回退继续爬取
 8. 懂车帝 step2 的 `dongchedi/json/*.html` 页面缓存通过 `actions/cache` 按半月周期恢复；强制重跑或进入新半月周期会清空旧 HTML，普通分段续爬会先恢复缓存再校验 `crawled_series`
 9. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
-10. 合并分析在两份爬虫数据完整后先运行 `crawl_zero_to_whole_ratio.py`，再运行 `merge_data.py`；零整比来源抓取失败会跳过该来源，不影响主车型数据发布
+10. 合并分析通过 `custom_scripts/download_latest_crawler_artifact.py` 向前扫描当前半月内最近的有效爬虫 artifact；会跳过半月完成后的短跳过 run、空/过小 artifact 和行数少于 50 的 JSON，再运行 `crawl_zero_to_whole_ratio.py` 与 `merge_data.py`
 11. 主爬虫 workflow 上传 error-log 或数据 artifact 前会清空代理环境，避免 GitHub artifact API 请求被本地 mihomo 代理断流影响
 
 **车型范围**：当前只保留轿车、跑车、SUV；MPV、房车、皮卡、微面、轻客、货车、卡车等会被排除。详见 `CRAWL_SCOPE.md`。
@@ -615,7 +616,7 @@ docker compose logs -f crawl-cron
 
 **半月跳过**：每个爬虫在当月 1-15 日、16-月底两个周期内全量完成后，会写入 `crawl_state/` 完成标记；同一周期后续自动触发直接跳过，不再重复爬。
 
-**合并保护**：合并分析只在汽车之家和懂车帝两份数据都存在且各不少于 50 行时发布 Release/Pages；定时运行遇到数据未就绪会成功跳过，手动 `force_merge=true` 仍会按失败处理。
+**合并保护**：合并分析只在汽车之家和懂车帝两份数据都存在且各不少于 50 行时发布 Release/Pages；定时运行遇到数据未就绪会成功跳过，手动 `force_merge=true` 仍会按失败处理。下载爬虫数据时不会只取最近一次成功 run，而是扫描当前半月内最近的有效 artifact，避免半月完成后的“跳过 run”没有数据 artifact 却挡住发布。
 
 **零整比来源**：合并分析会抓取公开零整比 PDF/HTML，并输出 `zero_to_whole_ratios_YYYYMMDD.json`；可用 Repository Variable `ZERO_TO_WHOLE_RATIO_URLS` 补充中保研、中保协、中汽修协或媒体转载的可下载来源。
 

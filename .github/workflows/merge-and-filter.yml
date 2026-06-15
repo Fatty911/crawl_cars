@@ -47,33 +47,37 @@ jobs:
 
       - name: 下载最新爬虫数据
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "尝试下载最新的爬虫数据 artifact..."
 
-          # 获取最近的汽车之家爬虫 artifact
-          AUTORUN=$(gh run list --repo ${{ github.repository }} --workflow crawl-autohome.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
-          if [ -n "$AUTORUN" ]; then
-            echo "找到汽车之家成功运行: $AUTORUN"
-            gh run download "$AUTORUN" --repo ${{ github.repository }} --pattern "autohome-data-*" --dir . 2>/dev/null || echo "下载汽车之家 artifact 失败"
-            # 移动文件到当前目录
-            mv autohome-data-*/*.json . 2>/dev/null || true
-            rm -rf autohome-data-* 2>/dev/null || true
+          CN_DAY=$(TZ=Asia/Shanghai date +%d)
+          CN_MONTH=$(TZ=Asia/Shanghai date +%Y%m)
+          if [ $((10#$CN_DAY)) -le 15 ]; then
+            MIN_ARTIFACT_DATE="${CN_MONTH}01"
           else
-            echo "未找到成功的汽车之家爬虫运行"
+            MIN_ARTIFACT_DATE="${CN_MONTH}16"
           fi
+          echo "只接受当前半月内 artifact，最早日期: $MIN_ARTIFACT_DATE"
 
-          # 获取最近的懂车帝爬虫 artifact
-          DCDRUN=$(gh run list --repo ${{ github.repository }} --workflow crawl-dongchedi.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
-          if [ -n "$DCDRUN" ]; then
-            echo "找到懂车帝成功运行: $DCDRUN"
-            gh run download "$DCDRUN" --repo ${{ github.repository }} --pattern "dongchedi-data-*" --dir . 2>/dev/null || echo "下载懂车帝 artifact 失败"
-            # 移动文件到当前目录
-            mv dongchedi-data-*/*.json . 2>/dev/null || true
-            rm -rf dongchedi-data-* 2>/dev/null || true
-          else
-            echo "未找到成功的懂车帝爬虫运行"
-          fi
+          python custom_scripts/download_latest_crawler_artifact.py \
+            --repo "${{ github.repository }}" \
+            --workflow crawl-autohome.yml \
+            --artifact-prefix autohome-data- \
+            --json-pattern "autoHome_*.json" \
+            --label "汽车之家" \
+            --min-date "$MIN_ARTIFACT_DATE" \
+            --min-rows 50
+
+          python custom_scripts/download_latest_crawler_artifact.py \
+            --repo "${{ github.repository }}" \
+            --workflow crawl-dongchedi.yml \
+            --artifact-prefix dongchedi-data- \
+            --json-pattern "dongchedi_*.json" \
+            --label "懂车帝" \
+            --min-date "$MIN_ARTIFACT_DATE" \
+            --min-rows 50
 
           echo "当前目录数据文件:"
           ls -la *.json 2>/dev/null || echo "没有找到数据文件"
