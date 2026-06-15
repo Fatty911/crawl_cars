@@ -39,6 +39,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: 安装合并依赖
+        run: pip install requests beautifulsoup4 lxml pdfplumber pypdf
+
       - name: 强制重新合并
         if: github.event.inputs.force_merge == 'true'
         run: |

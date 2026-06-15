@@ -460,7 +460,8 @@ CRON_JOB_ORG_API_KEY=... GITHUB_DISPATCH_TOKEN=... python custom_scripts/configu
 8. 懂车帝 step2 的 `dongchedi/json/*.html` 页面缓存通过 `actions/cache` 按半月周期恢复；强制重跑或进入新半月周期会清空旧 HTML，普通分段续爬会先恢复缓存再校验 `crawled_series`
 9. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
 10. 合并分析通过 `custom_scripts/download_latest_crawler_artifact.py` 向前扫描当前半月内最近的有效爬虫 artifact；会跳过半月完成后的短跳过 run、空/过小 artifact 和行数少于 50 的 JSON，再运行 `crawl_zero_to_whole_ratio.py` 与 `merge_data.py`
-11. 主爬虫 workflow 上传 error-log 或数据 artifact 前会清空代理环境，避免 GitHub artifact API 请求被本地 mihomo 代理断流影响
+11. 合并分析会先安装 `requests`、`beautifulsoup4`、`lxml`、`pdfplumber`、`pypdf`，确保零整比 PDF/HTML 抓取脚本可运行
+12. 主爬虫 workflow 上传 error-log 或数据 artifact 前会清空代理环境，避免 GitHub artifact API 请求被本地 mihomo 代理断流影响
 
 **车型范围**：当前只保留轿车、跑车、SUV；MPV、房车、皮卡、微面、轻客、货车、卡车等会被排除。详见 `CRAWL_SCOPE.md`。
 

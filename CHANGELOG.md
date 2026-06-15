@@ -6,6 +6,7 @@
 - 复查最新 Release 和 Pages 未更新的原因：`merge-and-filter.yml` 只下载最近一次成功的汽车之家/懂车帝 run；两个爬虫完成半月任务后后续自动触发会成功跳过且没有数据 artifact，导致合并分析下载不到 `autoHome_*.json` / `dongchedi_*.json` 后成功跳过发布。
 - 新增 `custom_scripts/download_latest_crawler_artifact.py`：按 workflow 向前扫描成功 run 的 artifacts，跳过缺失、过期、过小、非当前半月或 JSON 行数少于 50 的 artifact，只把真正可合并的数据复制到工作目录。
 - `merge-and-filter.yml` 改用该脚本分别下载汽车之家和懂车帝当前半月有效数据，不再被最新的短跳过 run 挡住。
+- `merge-and-filter.yml` 在合并前安装 `requests`、`beautifulsoup4`、`lxml`、`pdfplumber`、`pypdf`，避免零整比抓取步骤因缺少依赖中断。
 - `validate_workflow_expectations.py` 增加静态检查，防止合并工作流退回“只取最近一次成功 run”的旧逻辑。
 - README 同步记录合并发布的数据 artifact 选择规则。
 
