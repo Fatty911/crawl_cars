@@ -429,7 +429,8 @@ python auto_fix_workflow.py error.log test_autohome.py
 |-------|------|------|------|
 | `crawl-autohome` | 爬取汽车之家 | 390分钟 | 无 |
 | `crawl-dongchedi` | 爬取懂车帝 | 390分钟 | 无 |
-| `merge-and-filter` | 抓取零整比、合并过滤、Release、发布 GitHub Pages | 10/30/15分钟 | 爬虫 artifact |
+| `merge-data` / `create-release` | 抓取零整比、合并过滤、上传合并产物、创建 Release | 60/60分钟 | 爬虫 artifact |
+| `deploy` | 发布 GitHub Pages 静态站点 | 30分钟 | 最新 Release |
 
 **触发条件**（crawl-autohome.yml / crawl-dongchedi.yml）：
 - 主爬虫 workflow 不再依赖 GitHub Actions `schedule`，只作为手动或外部入口的目标 workflow。

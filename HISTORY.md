@@ -19,6 +19,7 @@
 - `merge-and-filter.yml` 改用该脚本下载汽车之家和懂车帝当前半月有效数据，再执行零整比抓取、合并、Release 和 Pages 发布。
 - 手动触发新合并 run `27516553176` 后，数据下载和完整性校验已经通过：汽车之家 `autoHome_20260604.json` 1123 行，懂车帝 `dongchedi_20260614.json` 7507 行；随后失败在零整比脚本缺少 `requests`。
 - `merge-and-filter.yml` 增加合并依赖安装：`requests`、`beautifulsoup4`、`lxml`、`pdfplumber`、`pypdf`。
+- 第二次手动合并 run `27516642745` 已成功生成 `merged_20260615.*` 和 `filtered_cars_20260615.*`，但 `merge-data` 只有 10 分钟超时，检查结果阶段被取消；因此把 `merge-data` / `create-release` 放宽到 60 分钟，并把 `deploy-pages.yml` 放宽到 30 分钟。
 - `custom_scripts/validate_workflow_expectations.py` 增加合并工作流静态校验，避免后续退回只取最新成功 run。
 - README、CHANGELOG 同步记录。
 

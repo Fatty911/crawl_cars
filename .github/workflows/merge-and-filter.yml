@@ -26,7 +26,7 @@ concurrency:
 jobs:
   merge-data:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 60
     outputs:
       crawl_date: ${{ steps.date.outputs.date }}
       ready: ${{ steps.validate.outputs.ready }}
@@ -185,7 +185,7 @@ jobs:
 
   create-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     needs: [merge-data]
     if: needs.merge-data.outputs.ready == 'true'
     permissions:
