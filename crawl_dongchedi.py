@@ -537,13 +537,9 @@ def crawl_series_config(browser, series_list):
             skipped_count += 1
             continue
 
-        # 增量模式下跳过时间限制，只检查车系数量限制
-        if INCREMENTAL_MODE:
-            if check_series_limit(len(crawled) - initial_crawled_count):
-                break
-        else:
-            if check_time_limit(start_time) or check_series_limit(len(crawled) - initial_crawled_count):
-                return browser
+        # 增量模式和全量模式都检查时间限制和数量限制
+        if check_time_limit(start_time) or check_series_limit(len(crawled) - initial_crawled_count):
+            return browser
 
         print(
             f"[{idx + 1}/{len(series_list)}] 正在爬取: {series_name} (ID: {series_id})"

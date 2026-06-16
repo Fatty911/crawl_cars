@@ -291,22 +291,18 @@ def download_car_pages():
                 if car_idx < car_start_idx:
                     continue
 
-                # 增量模式下跳过时间限制，只检查车型数量限制
-                if INCREMENTAL_MODE:
-                    if check_car_limit(cars_downloaded - initial_cars_downloaded):
-                        break
-                else:
-                    if check_time_limit(start_time) or check_car_limit(cars_downloaded - initial_cars_downloaded):
-                        progress["cars_downloaded"] = cars_downloaded
-                        progress["current_letter"] = letter
-                        progress["current_car_idx"] = car_idx
-                        progress["download_car_pages"] = letters
-                        with open(progress_file, "w") as f:
-                            json.dump(progress, f)
-                        if AUTO_MODE:
-                            print(f"未完成，字母{letter}第{car_idx}个车型，等待下次继续")
-                            sys.exit(10)
-                        return
+                # 增量模式和全量模式都检查时间限制和数量限制
+                if check_time_limit(start_time) or check_car_limit(cars_downloaded - initial_cars_downloaded):
+                    progress["cars_downloaded"] = cars_downloaded
+                    progress["current_letter"] = letter
+                    progress["current_car_idx"] = car_idx
+                    progress["download_car_pages"] = letters
+                    with open(progress_file, "w") as f:
+                        json.dump(progress, f)
+                    if AUTO_MODE:
+                        print(f"未完成，字母{letter}第{car_idx}个车型，等待下次继续")
+                        sys.exit(10)
+                    return
 
                 h4 = car.h4
                 if h4 and h4.a:
