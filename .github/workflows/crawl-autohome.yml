@@ -81,7 +81,7 @@ jobs:
 
           if [ "$FORCE_RESTART" = "true" ] || [ ! -f "$CURRENT_PERIOD_FILE" ] || [ "$(cat "$CURRENT_PERIOD_FILE")" != "$CRAWL_PERIOD" ]; then
             echo "进入新的半月周期 $CRAWL_PERIOD，启用增量模式（保留已有HTML）"
-            rm -f step1_done
+            rm -f progress.json step1_done
           fi
           echo "$CRAWL_PERIOD" > "$CURRENT_PERIOD_FILE"
           echo "SKIP_CRAWL=false" >> $GITHUB_ENV
