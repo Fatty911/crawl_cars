@@ -78,13 +78,11 @@ jobs:
             echo "skip=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          echo "INCREMENTAL_MODE=false" >> $GITHUB_ENV
+          echo "INCREMENTAL_MODE=true" >> $GITHUB_ENV
 
           if [ "$FORCE_RESTART" = "true" ] || [ ! -f "$CURRENT_PERIOD_FILE" ] || [ "$(cat "$CURRENT_PERIOD_FILE")" != "$CRAWL_PERIOD" ]; then
-            echo "进入新的半月周期 $CRAWL_PERIOD，重置懂车帝进度"
+            echo "进入新的半月周期 $CRAWL_PERIOD，启用增量模式（保留已有HTML）"
             rm -f dcd_step2_done
-            python custom_scripts/reset_dongchedi_progress.py
-            rm -f dongchedi/json/*.html
           fi
           echo "$CRAWL_PERIOD" > "$CURRENT_PERIOD_FILE"
           echo "SKIP_CRAWL=false" >> $GITHUB_ENV
