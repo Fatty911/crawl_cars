@@ -199,22 +199,21 @@
   │
   ├── 第一步：确定当前主模型，排除对应的 Review category
   │   例如主模型是 volcengine-coding/glm-5.1 → 排除 ReviewGLM
-  │   从剩余 Review category 中按优先级选 N 个并行启动
+  │   从剩余 Review category 中按优先级选 2 个并行启动
   │
-  ├── 第二步：Sisyphus 启动前 N 个评审任务
+  ├── 第二步：Sisyphus 启动前 2 个评审任务
   │   task(category="ReviewDeepseek", prompt="...", run_in_background=true)
   │   task(category="ReviewKimi", prompt="...", run_in_background=true)
-  │   task(category="ReviewMimo", prompt="...", run_in_background=true)
   │
-  ├── 第三步：收集前 N 个评审结果，按 M 阈值判断
-  │   - 如果 N 个全部通过 → 不启动后续 Review，立即继续任务（省 Token）
+  ├── 第三步：收集前 2 个评审结果，按 M 阈值判断
+  │   - 如果 2 个全部通过 → 不启动后续 Review，立即继续任务（省 Token）
   │   - 如果达到 M 个通过 → 立即继续任务
-  │   - 如果通过不足 M 个 → 启动第 N+1 个（ReviewQwen 等）
-  │   - N+1 及以后**逐一启动**，每完成一个判断一次
+  │   - 如果通过不足 M 个 → 启动第 3 个（ReviewQwen 等）
+  │   - 第 3 个起**逐一启动**，每完成一个判断一次
   │   - 直到达到 M 个通过或全部可用 Review 用完
   │
-  ├── 第四步：监控 N+1 及以后未返回结果的 Review
-  │   - 若 N+1 及以后的 Review Agent 静默中断 → 整个任务阻塞
+  ├── 第四步：监控第 3 个及以后未返回结果的 Review
+  │   - 若第 3 个及以后的 Review Agent 静默中断 → 整个任务阻塞
   │   - 主 Agent 每 3 分钟检查一次未返回结果的评审状态
   │   - 超时无响应 → 跳过该 Review，启动下一个
   │
@@ -277,8 +276,8 @@
 ### 默认评审策略
 
 > **用户未明确指定评审参数时，自动采用以下默认策略：**
-> - **N=3**（并行启动 3 个 Oracle）
-> - **M=2**（3 中至少 2 票通过即放行）
+> - **先启动 2 个 Review Agent**
+> - **M=2**（2 中至少 2 票通过即放行；不足 2 票则逐个补审）
 > - 无需再次询问用户，直接并行启动评审
 >
 > ⚠️ **服务器资源限制**：当前生产服务器为 2核4G，3 个 Oracle 并行评审峰值额外内存消耗约 90-240MB。
