@@ -19,6 +19,10 @@ on:
         description: '运行时长配置：auto/morning/afternoon'
         required: false
         default: 'auto'
+      debug_mode:
+        description: '调试模式：不限时间窗口，只爬30款验证流程'
+        required: false
+        default: 'false'
   repository_dispatch:
     types: [trigger-autohome]
 
@@ -92,9 +96,16 @@ jobs:
         if: steps.period.outputs.skip != 'true'
         env:
           PROFILE_INPUT: ${{ github.event.inputs.run_profile || github.event.client_payload.run_profile || 'auto' }}
+          DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'false' }}
         run: |
-          python custom_scripts/crawl_budget.py configure
-          echo "MAX_CARS=0" >> "$GITHUB_ENV"
+          if [ "$DEBUG_MODE" = "true" ]; then
+            echo "调试模式：跳过时间窗口限制，每次最多爬30车型"
+            echo "MAX_CARS=30" >> "$GITHUB_ENV"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          else
+            python custom_scripts/crawl_budget.py configure
+            echo "MAX_CARS=0" >> "$GITHUB_ENV"
+          fi
 
       - name: Calculate delay from trigger time
         id: delay
@@ -158,7 +169,7 @@ jobs:
           fi
 
       - name: Clamp step1 runtime to workflow budget
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.check_done.outputs.done != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.check_done.outputs.done != 'true' && github.event.inputs.debug_mode != 'true'
         run: python custom_scripts/crawl_budget.py clamp --step-label step1 --skip-env STEP1_SKIP
 
       - name: Run step1 loop
