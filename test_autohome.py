@@ -234,6 +234,20 @@ def download_car_pages():
     print("第一步,下载出所有车型的网页")
     letters = progress.get("download_car_pages", [])
 
+    # 校验：Runner重启后html目录可能为空，需重置已完成字母进度
+    if letters:
+        existing_html = [f for f in os.listdir(html_dir) if f.endswith(".html")] if os.path.isdir(html_dir) else []
+        if not existing_html:
+            print("html目录无有效HTML文件，Runner已重建，重置所有已完成字母进度")
+            letters = []
+            progress["download_car_pages"] = letters
+            progress.pop("cars_downloaded", None)
+            # 同时清除步骤2~5的进度，确保依赖链完整
+            for key in ("parse_js_to_html", "parse_json_data",
+                        "crack_html_files", "generate_data_files"):
+                progress.pop(key, None)
+    
+
     start_time = time.time()
     cars_downloaded = progress.get("cars_downloaded", 0)
     initial_cars_downloaded = cars_downloaded
