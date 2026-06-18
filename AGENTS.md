@@ -199,25 +199,30 @@
   │
   ├── 第一步：确定当前主模型，排除对应的 Review category
   │   例如主模型是 volcengine-coding/glm-5.1 → 排除 ReviewGLM
-  │   从剩余 Review category 中选 3 个并行启动
+  │   从剩余 Review category 中按优先级选 N 个并行启动
   │
-  ├── 第二步：Sisyphus 启动前 3 个评审任务
+  ├── 第二步：Sisyphus 启动前 N 个评审任务
   │   task(category="ReviewDeepseek", prompt="...", run_in_background=true)
   │   task(category="ReviewKimi", prompt="...", run_in_background=true)
   │   task(category="ReviewMimo", prompt="...", run_in_background=true)
   │
-  ├── 第三步：监控评审状态（每 3 分钟检查一次）
-  │   - 如果 3 个全部通过 → 立即继续任务
-  │   - 如果 3 个中达到 M=2 通过 → 立即继续任务
-  │   - 如果 3 个中通过不足 M 个 → 启动第 4 个（ReviewQwen 等）
-  │   - 逐个启动后续 Review，直到达到 M 个通过或全部用完
-  │   - 主 Agent 每 3 分钟检查一次未返回结果的评审状态
+  ├── 第三步：收集前 N 个评审结果，按 M 阈值判断
+  │   - 如果 N 个全部通过 → 不启动后续 Review，立即继续任务（省 Token）
+  │   - 如果达到 M 个通过 → 立即继续任务
+  │   - 如果通过不足 M 个 → 启动第 N+1 个（ReviewQwen 等）
+  │   - N+1 及以后**逐一启动**，每完成一个判断一次
+  │   - 直到达到 M 个通过或全部可用 Review 用完
   │
-  ├── 第四步：收集评审结果
+  ├── 第四步：监控 N+1 及以后未返回结果的 Review
+  │   - 若 N+1 及以后的 Review Agent 静默中断 → 整个任务阻塞
+  │   - 主 Agent 每 3 分钟检查一次未返回结果的评审状态
+  │   - 超时无响应 → 跳过该 Review，启动下一个
+  │
+  ├── 第五步：收集评审结果
   │   - 后续返回的评审结果如果提出问题 → 主 AGENT 必须查看并改进
   │   - 后续返回的评审结果没提出问题 → 忽略，提升效率
   │
-  └── 第五步：标记评审通过 → 同步到全端 → 推送
+  └── 第六步：标记评审通过 → 同步到全端 → 推送
 ```
 
 ### 评审 Category 模型覆盖
