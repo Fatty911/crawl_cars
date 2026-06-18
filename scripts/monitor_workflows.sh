@@ -21,7 +21,6 @@ echo "[$(date)] 监控第 $((DAYS_ELAPSED + 1)) 天 (最多7天)"
 
 CURRENT_MONTH=$(date +%Y%m)
 TODAY=$(date +%Y%m%d)
-AUTO_CMD="opencode run --project /root/crawl_cars"
 
 # ── 1. 检查爬虫是否都在跑/已完成 ──
 AH_RUNNING=$(gh run list --workflow=crawl-autohome.yml --limit=1 --json status -q '.[0].status' 2>/dev/null || echo "unknown")
@@ -72,15 +71,53 @@ if [ "$PAGE_DATE" != "$TODAY" ] && [ "$PAGE_DATE" != "?" ]; then
 fi
 
 # ── 5. 自动修复 ──
-if [ -n "$ISSUES" ]; then
-    echo "[$(date)] 发现问题:" 
+fix_applied=false
+
+# 修复1: 爬虫标记完成但artifact太小 → 删标记重新触发
+autohome_done=$(ls crawl_state/autohome_*_H2.done 2>/dev/null | head -1)
+if [ -n "$autohome_done" ] && [ "$AH_ARTIFACT" != "none" ]; then
+    ah_kb=$(echo "$AH_ARTIFACT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('size_kb',0))" 2>/dev/null || echo 0)
+    if [ "$ah_kb" -lt 200 ]; then
+        echo "[$(date)] 汽车之家done标记存在但artifact仅${ah_kb}KB→删除标记重新触发"
+        rm -f crawl_state/autohome_*_H*.done
+        gh workflow run crawl-autohome.yml
+        fix_applied=true
+    fi
+fi
+
+# 修复2: 爬虫失败/取消 → 重新触发
+if [ "$AH_COMPLETE" = "failure" ] || [ "$AH_COMPLETE" = "cancelled" ]; then
+    echo "[$(date)] 汽车之家爬虫${AH_COMPLETE}→重新触发"
+    gh workflow run crawl-autohome.yml
+    fix_applied=true
+fi
+if [ "$DCD_COMPLETE" = "failure" ] || [ "$DCD_COMPLETE" = "cancelled" ]; then
+    echo "[$(date)] 懂车帝爬虫${DCD_COMPLETE}→重新触发"
+    gh workflow run crawl-dongchedi.yml
+    fix_applied=true
+fi
+
+# 修复3: artifact超3天未更新且无运行中的爬虫 → 重新触发
+if [ "$DCD_AGE_DAYS" -gt 3 ] && [ "$DCD_RUNNING" != "in_progress" ] && [ "$DCD_RUNNING" != "queued" ]; then
+    echo "[$(date)] 懂车帝artifact${DCD_AGE_DAYS}天未更新→重新触发"
+    gh workflow run crawl-dongchedi.yml
+    fix_applied=true
+fi
+
+# 修复4: 爬虫都完成且有artifact → 触发合并分析
+ah_size=$(echo "$AH_ARTIFACT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('size_kb',0))" 2>/dev/null || echo 0)
+dcd_size=$(echo "$DCD_ARTIFACT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('size_kb',0))" 2>/dev/null || echo 0)
+if [ "$ah_size" -gt 100 ] && [ "$dcd_size" -gt 1000 ] && [ "$PAGE_DATE" != "$TODAY" ]; then
+    echo "[$(date)] 两个爬虫都有数据但Pages未更新→触发合并分析"
+    gh workflow run merge-and-filter.yml
+    fix_applied=true
+fi
+
+if [ "$fix_applied" = true ]; then
+    echo "[$(date)] 已自动修复，等待下次监控验证"
+elif [ -n "$ISSUES" ]; then
+    echo "[$(date)] 发现问题但无法自动修复，需人工介入:"
     echo -e "$ISSUES"
-    
-    FIX_PROMPT="自动诊断并修复以下crawl_cars项目问题：$ISSUES。请：1)查看工作流日志定位根因 2)修复代码或配置 3)如有必要重新触发工作流。遵循AGENTS.md规则，修改代码前必须多模型评审。"
-    
-    echo "[$(date)] 调用 OpenCode 自动修复..."
-    cd /root/crawl_cars
-    $AUTO_CMD "$FIX_PROMPT" 2>&1 | tail -20 || echo "[$(date)] opencode run 调用失败"
 else
-    echo "[$(date)] 一切正常：爬虫运行中/已完成，artifact已更新，Pages数据为${PAGE_DATE}"
+    echo "[$(date)] 一切正常"
 fi
