@@ -73,35 +73,71 @@ fi
 # ── 5. 自动修复 ──
 fix_applied=false
 
-# 修复1: 爬虫标记完成但artifact太小 → 删标记重新触发
+# 修复1: 爬虫标记完成但artifact太小 → 删标记重新触发（24h防抖）
 autohome_done=$(ls crawl_state/autohome_*_H2.done 2>/dev/null | head -1)
 if [ -n "$autohome_done" ] && [ "$AH_ARTIFACT" != "none" ]; then
     ah_kb=$(echo "$AH_ARTIFACT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('size_kb',0))" 2>/dev/null || echo 0)
     if [ "$ah_kb" -lt 200 ]; then
-        echo "[$(date)] 汽车之家done标记存在但artifact仅${ah_kb}KB→删除标记重新触发"
-        rm -f crawl_state/autohome_*_H*.done
+        LAST_TRIGGER="/tmp/ah_fix_trigger"
+        TRIGGER_OK=true
+        if [ -f "$LAST_TRIGGER" ]; then
+            if [ $(($(date +%s) - $(cat "$LAST_TRIGGER"))) -lt 86400 ]; then TRIGGER_OK=false; fi
+        fi
+        if [ "$TRIGGER_OK" = true ]; then
+            echo "[$(date)] 汽车之家done标记存在但artifact仅${ah_kb}KB→删除标记重新触发"
+            rm -f crawl_state/autohome_*_H*.done
+            gh workflow run crawl-autohome.yml
+            date +%s > "$LAST_TRIGGER"
+            fix_applied=true
+        fi
+    fi
+fi
+
+# 修复2: 爬虫失败/取消 → 重新触发（24h防抖）
+if [ "$AH_COMPLETE" = "failure" ] || [ "$AH_COMPLETE" = "cancelled" ]; then
+    LAST_TRIGGER="/tmp/ah_fail_trigger"
+    TRIGGER_OK=true
+    if [ -f "$LAST_TRIGGER" ]; then
+        if [ $(($(date +%s) - $(cat "$LAST_TRIGGER"))) -lt 86400 ]; then TRIGGER_OK=false; fi
+    fi
+    if [ "$TRIGGER_OK" = true ]; then
+        echo "[$(date)] 汽车之家爬虫${AH_COMPLETE}→重新触发"
         gh workflow run crawl-autohome.yml
+        date +%s > "$LAST_TRIGGER"
+        fix_applied=true
+    fi
+fi
+if [ "$DCD_COMPLETE" = "failure" ] || [ "$DCD_COMPLETE" = "cancelled" ]; then
+    LAST_TRIGGER="/tmp/dcd_fail_trigger"
+    TRIGGER_OK=true
+    if [ -f "$LAST_TRIGGER" ]; then
+        if [ $(($(date +%s) - $(cat "$LAST_TRIGGER"))) -lt 86400 ]; then TRIGGER_OK=false; fi
+    fi
+    if [ "$TRIGGER_OK" = true ]; then
+        echo "[$(date)] 懂车帝爬虫${DCD_COMPLETE}→重新触发"
+        gh workflow run crawl-dongchedi.yml
+        date +%s > "$LAST_TRIGGER"
         fix_applied=true
     fi
 fi
 
-# 修复2: 爬虫失败/取消 → 重新触发
-if [ "$AH_COMPLETE" = "failure" ] || [ "$AH_COMPLETE" = "cancelled" ]; then
-    echo "[$(date)] 汽车之家爬虫${AH_COMPLETE}→重新触发"
-    gh workflow run crawl-autohome.yml
-    fix_applied=true
-fi
-if [ "$DCD_COMPLETE" = "failure" ] || [ "$DCD_COMPLETE" = "cancelled" ]; then
-    echo "[$(date)] 懂车帝爬虫${DCD_COMPLETE}→重新触发"
-    gh workflow run crawl-dongchedi.yml
-    fix_applied=true
-fi
-
-# 修复3: artifact超3天未更新且无运行中的爬虫 → 重新触发
+# 修复3: artifact超3天未更新且无运行中爬虫 → 重新触发（24h内不重复触发）
 if [ "$DCD_AGE_DAYS" -gt 3 ] && [ "$DCD_RUNNING" != "in_progress" ] && [ "$DCD_RUNNING" != "queued" ]; then
-    echo "[$(date)] 懂车帝artifact${DCD_AGE_DAYS}天未更新→重新触发"
-    gh workflow run crawl-dongchedi.yml
-    fix_applied=true
+    LAST_TRIGGER="/tmp/dcd_last_trigger"
+    TRIGGER_OK=true
+    if [ -f "$LAST_TRIGGER" ]; then
+        LAST_TS=$(cat "$LAST_TRIGGER")
+        NOW_TS=$(date +%s)
+        if [ $((NOW_TS - LAST_TS)) -lt 86400 ]; then
+            TRIGGER_OK=false
+        fi
+    fi
+    if [ "$TRIGGER_OK" = true ]; then
+        echo "[$(date)] 懂车帝artifact${DCD_AGE_DAYS}天未更新→重新触发"
+        gh workflow run crawl-dongchedi.yml
+        date +%s > "$LAST_TRIGGER"
+        fix_applied=true
+    fi
 fi
 
 # 修复4: 爬虫都完成且有artifact → 触发合并分析
