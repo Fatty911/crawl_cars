@@ -102,6 +102,7 @@ jobs:
           if [ "$DEBUG_MODE" = "true" ]; then
             echo "调试模式：跳过时间窗口限制，每次最多爬30车系"
             echo "MAX_CARS=30" >> "$GITHUB_ENV"
+            echo "DEBUG_LIMIT=30" >> "$GITHUB_ENV"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           else
             python custom_scripts/crawl_budget.py configure
@@ -231,12 +232,16 @@ jobs:
             INCREMENTAL_FLAG="--incremental"
             echo "增量模式：只爬取新增车系"
           fi
+          DEBUG_LIMIT_FLAG=""
+          if [ "${DEBUG_LIMIT:-0}" -gt 0 ]; then
+            DEBUG_LIMIT_FLAG="--debug-limit $DEBUG_LIMIT"
+          fi
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行 step2 (mihomo round-robin)"
-            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG 2>&1 | tee step2_error.log
+            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
           else
             echo "无代理，直接运行 step2"
-            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG 2>&1 | tee step2_error.log
+            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
           fi
           EXIT_CODE=$?
           set -e
@@ -268,6 +273,17 @@ jobs:
           git add -A
           git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+      - name: Upload Dongchedi HTML cache (early, after step2)
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'true' || steps.step2.outputs.complete == 'false')
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: dongchedi-html-early-${{ github.run_id }}
+          path: |
+            dongchedi/json/
+            dongchedi/progress.json
+          retention-days: 90
 
       - name: Classify step2 failure
         id: classify_step2

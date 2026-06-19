@@ -28,12 +28,22 @@ parser.add_argument(
 parser.add_argument(
     "--incremental", action="store_true", help="增量模式：只爬取新增车系，跳过已存在的"
 )
+parser.add_argument(
+    "--debug-limit", type=int, default=0, help="调试模式限制爬取数量（配合 --incremental 使用）"
+)
 args = parser.parse_args()
 
 MAX_TIME_PER_STEP = args.time_limit
 MAX_SERIES_PER_RUN = args.max_series
 AUTO_MODE = args.auto
 INCREMENTAL_MODE = args.incremental
+
+# 调试模式：强制开启增量扫描模式，并限制爬取数量
+if args.debug_limit > 0:
+    INCREMENTAL_MODE = True
+    MAX_SERIES_PER_RUN = args.debug_limit
+    print(f"调试模式：限制爬取 {args.debug_limit} 个车系，启用增量扫描模式")
+
 CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "3"))
 CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "8"))
 DCD_PAGE_LOAD_TIMEOUT = int(os.getenv("DCD_PAGE_LOAD_TIMEOUT", "60"))
@@ -380,10 +390,123 @@ def require_non_empty_rows(all_rows, stage):
         raise SystemExit(f"{stage} 未解析到任何车型数据，拒绝生成空结果")
 
 
+def _get_existing_series_ids():
+    """获取本地已存车系的series_id集合（基于HTML文件实际存在性）"""
+    existing = set()
+    if not os.path.exists(dcd_json_dir):
+        return existing
+    for filename in os.listdir(dcd_json_dir):
+        if filename.endswith('.html'):
+            series_id = filename.replace('.html', '')
+            if os.path.getsize(os.path.join(dcd_json_dir, filename)) > 0:
+                existing.add(series_id)
+    return existing
+
+
+def _scan_all_series():
+    """全量扫描所有车系列表（仅收集基础信息，不爬详情）"""
+    print("=" * 70)
+    print("增量扫描模式：全量扫描所有车系...")
+    print("=" * 70)
+
+    import requests
+
+    api = "https://www.dongchedi.com/motor/pc/car/brand/select_series_v2"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.0",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Origin": "https://www.dongchedi.com",
+        "Referer": "https://www.dongchedi.com/auto/library/x-x-x-x-x-x-x-x-x-x-x",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    session = requests.Session()
+
+    all_series = []
+    seen_ids = set()
+    page = 1
+
+    while True:
+        try:
+            body = {"limit": 30, "page": page, "city_name": ""}
+            r = session.post(api, headers=headers, data=body, timeout=20)
+            try:
+                d = r.json()
+            except ValueError:
+                page += 1
+                continue
+
+            if d.get("status") != 0:
+                break
+
+            data = d.get("data", {})
+            series_data = data.get("series") or []
+            if not series_data:
+                break
+
+            for s in series_data:
+                sid = str(s.get("id") or s.get("concern_id") or "")
+                sname = s.get("outter_name", "")
+                sbrand = s.get("brand_name", "")
+                category = get_dcd_series_category(s)
+                if category and is_excluded_vehicle_level(category):
+                    continue
+                if sid and sname and sid not in seen_ids:
+                    seen_ids.add(sid)
+                    item = {"id": sid, "name": sname, "brand": sbrand}
+                    if category:
+                        item["category"] = category
+                    all_series.append(item)
+
+            page += 1
+
+            # 调试/限制模式下：可以提前终止扫描
+            if MAX_SERIES_PER_RUN > 0 and len(all_series) >= MAX_SERIES_PER_RUN * 3:
+                print(f"接近数量限制，提前终止车系扫描（已扫描 {len(all_series)} 个车系）")
+                break
+
+            if page > 100:
+                print("警告：分页超过100页，强制结束以防止无限循环")
+                break
+
+        except Exception as e:
+            print(f"获取车系列表时发生异常: {e}")
+            break
+
+    print(f"全量扫描完成：共 {len(all_series)} 个唯一车系")
+    return all_series
+
+
 # 第一步：获取所有车系ID
 def get_series_list(browser=None):
-    """通过懂车帝分页API获取全部车系（无需浏览器）"""
+    """通过懂车帝分页API获取全部车系（无需浏览器），增量模式下只返回新增车系"""
     print("第一步：获取所有车系列表")
+
+    # 增量模式：先全量扫描所有车系，与本地已有HTML对比，仅返回新增车系
+    if INCREMENTAL_MODE:
+        print("=" * 70)
+        print("增量模式：先全量扫描所有车系列表，然后仅爬取新增车系...")
+        print("=" * 70)
+
+        all_series = _scan_all_series()
+        existing_ids = _get_existing_series_ids()
+        new_series = [s for s in all_series if str(s.get("id")) not in existing_ids]
+
+        print(f"全量扫描完成：共 {len(all_series)} 个车系，新增 {len(new_series)} 个，已有 {len(all_series) - len(new_series)} 个")
+
+        if not new_series:
+            print("增量模式：未发现新增车系，本次可跳过详细抓取")
+            progress["series_list"] = []
+            save_progress()
+            return []
+
+        progress["series_list"] = new_series
+        save_progress()
+        print(f"增量模式：将爬取 {len(new_series)} 个新增车系")
+        return new_series
+
+    # 非增量模式：原有逻辑
 
     cached_series_list = progress.get("series_list", [])
     if cached_series_list:
