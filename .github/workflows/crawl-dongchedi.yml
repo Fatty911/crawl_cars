@@ -71,12 +71,13 @@ jobs:
           echo "crawl_period=$CRAWL_PERIOD" >> $GITHUB_OUTPUT
 
           FORCE_RESTART="${{ github.event.inputs.force_restart }}"
+          DEBUG_MODE="${{ github.event.inputs.debug_mode }}"
 
           if [ "$FORCE_RESTART" = "true" ]; then
             rm -f "$DONE_MARKER"
           fi
 
-          if [ -f "$DONE_MARKER" ]; then
+          if [ "$FORCE_RESTART" != "true" ] && [ "$DEBUG_MODE" != "true" ] && [ -f "$DONE_MARKER" ]; then
             echo "$CRAWL_PERIOD 已完成全量懂车帝爬取，本半月不再爬取"
             echo "SKIP_CRAWL=true" >> $GITHUB_ENV
             echo "skip=true" >> $GITHUB_OUTPUT
