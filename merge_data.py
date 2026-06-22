@@ -77,6 +77,30 @@ def normalize_match_text(value):
     return text
 
 
+def normalize_for_match(text):
+    """更激进的文本规范化用于匹配"""
+    text = str(text or '')
+    text = re.sub(r'\s+', '', text)
+    text = text.lower()
+    text = re.sub(r'^(19|20)\d{2}款', '', text)
+    for word in ['运动版', '运动系列', '豪华版', '精英版', '舒适版', '领先版', '旗舰版', '智享版', '尊享版', '进取版', '时尚版', '经典版', '豪华型', '舒适型', '时尚型', '领先型', '精英型', '旗舰型', '进取型', '尊贵型', '智享型']:
+        text = text.replace(word, '')
+    text = re.sub(r'[·・\-_/()（）【】\[\]\\\s]', '', text)
+    return text
+
+
+def series_year_key(row):
+    """生成车系+年款匹配键"""
+    brand = normalize_match_text(row.get('品牌', ''))
+    series = normalize_match_text(row.get('车系', ''))
+    year = ''
+    year_str = str(row.get('年款', ''))
+    year_match = re.search(r'(\d{4})', year_str)
+    if year_match:
+        year = year_match.group(1)
+    return f"{brand}|{series}|{year}" if brand and series else ''
+
+
 def check_numeric_condition(row, field_name, threshold, op):
     numbers = parse_numbers(row.get(field_name, "-"))
     if not numbers:
@@ -362,45 +386,111 @@ def merge_single_row(ah_row, dcd_row):
 
 
 def merge_rows(autohome_rows, dongchedi_rows):
-    """按车型名称合并两个数据源，而非简单拼接"""
-    # 建立索引，使用去空格后的车型名称作为键
+    """按车型名称合并两个数据源，支持多级匹配"""
+    # 第一级: 精确匹配
     autohome_index = {}
     for row in autohome_rows:
         name = row.get("车型名称", "").replace(" ", "")
         if name:
             autohome_index[name] = row
-
     dongchedi_index = {}
     for row in dongchedi_rows:
         name = row.get("车型名称", "").replace(" ", "")
         if name:
             dongchedi_index[name] = row
 
+    # 第二级: 规范化匹配
+    autohome_norm = {}
+    for row in autohome_rows:
+        name = row.get("车型名称", "")
+        norm_name = normalize_for_match(name)
+        if norm_name:
+            autohome_norm.setdefault(norm_name, []).append(row)
+    dongchedi_norm = {}
+    for row in dongchedi_rows:
+        name = row.get("车型名称", "")
+        norm_name = normalize_for_match(name)
+        if norm_name:
+            dongchedi_norm.setdefault(norm_name, []).append(row)
+
+    # 第三级: 车系级匹配
+    autohome_by_series = {}
+    for row in autohome_rows:
+        key = series_year_key(row)
+        if key:
+            autohome_by_series.setdefault(key, []).append(row)
+    dongchedi_by_series = {}
+    for row in dongchedi_rows:
+        key = series_year_key(row)
+        if key:
+            dongchedi_by_series.setdefault(key, []).append(row)
+
     merged = []
-    all_names = set(autohome_index.keys()) | set(dongchedi_index.keys())
-    stats = {"双源": 0, "仅汽车之家": 0, "仅懂车帝": 0}
+    used_autohome = set()
+    used_dongchedi = set()
+    stats = {'精确': 0, '规范': 0, '车系': 0, '仅汽车之家': 0, '仅懂车帝': 0}
 
-    for name in all_names:
-        ah_row = autohome_index.get(name)
+    # 第一级: 精确匹配
+    for name, ah_row in autohome_index.items():
         dcd_row = dongchedi_index.get(name)
-
-        if ah_row and dcd_row:
-            # 双源：合并配置
+        if dcd_row:
             merged_row = merge_single_row(ah_row, dcd_row)
             merged_row["数据来源"] = "汽车之家+懂车帝"
-            stats["双源"] += 1
-        elif ah_row:
-            merged_row = dict(ah_row)
+            merged.append(merged_row)
+            used_autohome.add(id(ah_row))
+            used_dongchedi.add(id(dcd_row))
+            stats['精确'] += 1
+
+    # 第二级: 规范化匹配
+    for norm_name, ah_rows in autohome_norm.items():
+        dcd_rows = dongchedi_norm.get(norm_name, [])
+        if not dcd_rows:
+            continue
+        for ah_row in ah_rows:
+            if id(ah_row) in used_autohome:
+                continue
+            for dcd_row in dcd_rows:
+                if id(dcd_row) in used_dongchedi:
+                    continue
+                merged_row = merge_single_row(ah_row, dcd_row)
+                merged_row["数据来源"] = "汽车之家+懂车帝"
+                merged.append(merged_row)
+                used_autohome.add(id(ah_row))
+                used_dongchedi.add(id(dcd_row))
+                stats['规范'] += 1
+                break
+            break
+
+    # 第三级: 车系级匹配
+    for skey, ah_rows in autohome_by_series.items():
+        dcd_rows_list = dongchedi_by_series.get(skey, [])
+        if not dcd_rows_list:
+            continue
+        ah_unused = [r for r in ah_rows if id(r) not in used_autohome]
+        dcd_unused = [r for r in dcd_rows_list if id(r) not in used_dongchedi]
+        if ah_unused and dcd_unused:
+            merged_row = merge_single_row(ah_unused[0], dcd_unused[0])
+            merged_row["数据来源"] = "汽车之家+懂车帝(车系级)"
+            merged.append(merged_row)
+            used_autohome.add(id(ah_unused[0]))
+            used_dongchedi.add(id(dcd_unused[0]))
+            stats['车系'] += 1
+
+    # 未匹配的车型
+    for row in autohome_rows:
+        if id(row) not in used_autohome:
+            merged_row = dict(row)
             merged_row["数据来源"] = "仅汽车之家"
-            stats["仅汽车之家"] += 1
-        else:
-            merged_row = dict(dcd_row)
+            merged.append(merged_row)
+            stats['仅汽车之家'] += 1
+    for row in dongchedi_rows:
+        if id(row) not in used_dongchedi:
+            merged_row = dict(row)
             merged_row["数据来源"] = "仅懂车帝"
-            stats["仅懂车帝"] += 1
+            merged.append(merged_row)
+            stats['仅懂车帝'] += 1
 
-        merged.append(merged_row)
-
-    print(f"合并统计: 双源核验{stats['双源']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 合计{len(merged)}")
+    print(f"合并统计: 精确{stats['精确']} 规范{stats['规范']} 车系级{stats['车系']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 合计{len(merged)}")
     return merged
 
 

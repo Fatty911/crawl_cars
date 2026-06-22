@@ -14,6 +14,53 @@ import csv
 import argparse
 from datetime import date
 
+from crawl_state.registry import ModelRegistry
+
+# 字段名标准化映射表（网站原始字段名 -> 标准字段名）
+HEADER_MAP = {
+    '厂商指导价': '价格',
+    '发动机': '发动机型号',
+    '排量': '发动机排量',
+    '最大扭矩': '扭矩',
+    '最大功率': '功率',
+    '变速箱': '变速器',
+    '车身尺寸': '长x宽x高',
+    '轴距': '轴距(mm)',
+    '整备质量': '整备质量(kg)',
+    '燃油标号': '燃油类型',
+    'WLTC综合油耗': '油耗(L/100km)',
+    'CLTC纯电续航': '纯电续航(km)',
+    'NEDC纯电续航': '纯电续航(km)',
+    '快充时间': '快充(小时)',
+    '慢充时间': '慢充(小时)',
+    '驱动方式': '驱动形式',
+    '前悬架': '前悬挂',
+    '后悬架': '后悬挂',
+    '电动机总功率': '电机功率(kW)',
+    '电动机总扭矩': '电机扭矩(N·m)',
+    '电池能量密度': '电池能量密度(Wh/kg)',
+    '百公里加速': '0-100km/h加速(s)',
+    '最高车速': '最高车速(km/h)',
+    '前轮胎规格': '前轮胎',
+    '后轮胎规格': '后轮胎',
+}
+
+def normalize_car_fields(car):
+    """标准化车型字段名，将网站原始字段名映射为标准字段名"""
+    normalized = {}
+    for key, value in car.items():
+        new_key = HEADER_MAP.get(key, key)
+        # 如果标准字段已有值且新值更详细，则更新
+        if new_key in normalized and not normalized[new_key] and value:
+            normalized[new_key] = value
+        elif new_key not in normalized:
+            normalized[new_key] = value
+        elif value and normalized[new_key]:
+            if len(str(value)) > len(str(normalized[new_key])):
+                normalized[new_key] = value
+    return normalized
+
+
 parser = argparse.ArgumentParser(description="懂车帝爬虫")
 parser.add_argument("--step", type=int, choices=[1, 2, 3, 4], help="运行指定步骤")
 parser.add_argument(
@@ -390,8 +437,15 @@ def require_non_empty_rows(all_rows, stage):
         raise SystemExit(f"{stage} 未解析到任何车型数据，拒绝生成空结果")
 
 
+dongchedi_registry = ModelRegistry("dongchedi")
+
+
 def _get_existing_series_ids():
-    """获取本地已存车系的series_id集合（基于HTML文件实际存在性）"""
+    """获取本地已存车系的series_id集合（优先从注册表读取，fallback 到 HTML 文件扫描）"""
+    if not dongchedi_registry.is_first_run():
+        ids = dongchedi_registry.get_existing_uids()
+        if ids:
+            return ids
     existing = set()
     if not os.path.exists(dcd_json_dir):
         return existing
@@ -745,6 +799,10 @@ def crawl_series_config(browser, series_list):
         human_delay(f"保存{series_name}页面")
 
     new_crawled = len(crawled) - initial_crawled_count
+    newly_registered = [sid for sid in crawled[initial_crawled_count:] if not dongchedi_registry.is_registered(sid)]
+    if newly_registered:
+        dongchedi_registry.register_uids(newly_registered)
+        print(f"已注册 {len(newly_registered)} 个新车系到注册表（共 {dongchedi_registry.count()} 个）")
     if INCREMENTAL_MODE:
         print(f"增量模式完成：新增 {new_crawled} 个车系，跳过 {skipped_count} 个已存在车系")
     else:
@@ -854,6 +912,10 @@ def parse_config_pages(series_list):
                         brand_values = [info.get("brand_name", "") for info in car_info]
                         if any(brand_values):
                             car_data["厂商"] = brand_values
+                        # 从series_info取品牌级的品牌名写入系列品牌
+                        series_brand = series_info.get("brand", "") if series_info else ""
+                        if series_brand:
+                            car_data["系列品牌"] = [series_brand] * num_cars
 
                         # 收集所有车型中出现的所有配置项key
                         all_config_keys = set()
@@ -970,8 +1032,25 @@ def parse_config_pages(series_list):
                 year = int(year_match.group(1))
                 if year < MIN_YEAR:
                     continue
+            # 品牌：优先 series_info，再 __NEXT_DATA__ 系列品牌，再厂商，再车系名推导
+            final_brand = brand_name
+            if not final_brand:
+                series_brand_list = car_data.get("系列品牌", [])
+                final_brand = series_brand_list[i] if i < len(series_brand_list) else ""
+            if not final_brand:
+                mfr_values = car_data.get("厂商", [])
+                mfr = mfr_values[i] if i < len(mfr_values) else ""
+                if mfr:
+                    final_brand = mfr
+            if not final_brand and series_name:
+                # 按长度降序排列，长前缀优先匹配，避免"吉利"在"吉利银河"前误匹配
+                brand_prefixes = ['吉利银河', '凯迪拉克', '雷克萨斯', '英菲尼迪', '雪铁龙', '比亚迪', '保时捷', '沃尔沃', '特斯拉', '阿维塔', '斯柯达', '雪佛兰', '马自达', '宝马', '奔驰', '奥迪', '大众', '丰田', '本田', '日产', '别克', '福特', '现代', '起亚', '吉利', '长城', '红旗', '领克', '极氪', '小鹏', '理想', '蔚来', '零跑', '问界', '埃安', '极狐', '岚图', '智己', '路虎', '捷豹', '林肯', '捷达', '五菱', '宝骏', 'WEY', '坦克', '欧拉', '哈弗', '魏牌', '标致']
+                for bp in brand_prefixes:
+                    if series_name.startswith(bp):
+                        final_brand = bp
+                        break
             row = {
-                "品牌": brand_name,
+                "品牌": final_brand,
                 "车系": series_name,
                 "车系ID": series_id,
                 "车型名称": car_names[i] if i < len(car_names) else "",
@@ -1007,7 +1086,9 @@ def generate_output(all_rows, all_headers):
 
     json_path = os.path.join(working_dir, f"dongchedi_{today}.json")
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(all_rows, f, ensure_ascii=False, indent=2)
+        # 标准化字段名
+        normalized_rows = [normalize_car_fields(row) for row in all_rows]
+        json.dump(normalized_rows, f, ensure_ascii=False, indent=2)
 
     print("第四步完成")
     print(f"  CSV:  {csv_path}")
