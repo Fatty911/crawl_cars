@@ -23,6 +23,10 @@ on:
         description: '调试模式：不限时间窗口，只爬30款验证流程'
         required: false
         default: 'false'
+      retry_remaining:
+        description: '跳过 step1，直接运行 step2-6（使用已有 HTML 数据）'
+        required: false
+        default: 'false'
   repository_dispatch:
     types: [trigger-autohome]
 
@@ -286,7 +290,7 @@ jobs:
 
       - name: Run remaining steps
         id: remaining
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true')
         run: |
           set -o pipefail
           FAILED=0
