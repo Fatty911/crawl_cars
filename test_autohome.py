@@ -599,6 +599,38 @@ def generate_data_files():
     print("第五步完成")
 
 
+# 品牌前缀列表（长度降序，长前缀优先匹配）
+BRAND_PREFIXES = [
+    '吉利银河', '凯迪拉克', '雷克萨斯', '英菲尼迪', '雪铁龙', '比亚迪',
+    '保时捷', '沃尔沃', '特斯拉', '阿维塔', '斯柯达', '雪佛兰', '马自达',
+    '宝马', '奔驰', '奥迪', '大众', '丰田', '本田', '日产',
+    '别克', '福特', '现代', '起亚', '吉利', '长城', '红旗', '领克',
+    '极氪', '小鹏', '理想', '蔚来', '零跑', '问界', '埃安', '极狐',
+    '岚图', '智己', '路虎', '捷豹', '林肯', '捷达', '五菱', '宝骏',
+    'WEY', '坦克', '欧拉', '哈弗', '魏牌', '标致', '奇瑞', '传祺',
+    '荣威', '名爵', '长安', '深蓝', '启源', '哪吒', '腾势', '方程豹',
+    '仰望', '星途', '捷途', '猛士', '蓝电', '北汽', '江淮', '东风',
+    '大通', '依维柯', '金杯', '福田', '庆铃', '江铃', '凯马',
+    '长安欧尚', '广汽', '北京', '东南', '海马', '中华', '力帆',
+    '众泰', '陆风', '猎豹', '野马', '黄海', '中兴', '福迪',
+    '法拉利', '兰博基尼', '玛莎拉蒂', '劳斯莱斯', '宾利', '阿斯顿马丁',
+    '迈凯伦', '布加迪', '帕加尼', '科尼赛克', '阿尔法罗密欧',
+    '迈巴赫', 'MINI', 'Smart', 'DS', 'Jeep', 'Ram', '道奇',
+    '克莱斯勒', 'GMC', '标致', '雷诺', '菲亚特',
+    '斯巴鲁', '三菱', '铃木', '五十铃', '双龙', '讴歌',
+]
+
+
+def derive_brand_from_series(series_name):
+    """从车系名称推导品牌"""
+    if not series_name:
+        return ''
+    for bp in BRAND_PREFIXES:
+        if series_name.startswith(bp):
+            return bp
+    return ''
+
+
 # 第六步,读取数据文件,生成excel
 def clean_header(header):
     return re.sub(r"[/()]", "_", header).strip()
@@ -608,11 +640,29 @@ def clean_value(value):
     return re.sub(r"<.*?>", "", value)
 
 
+def extract_series_from_html(file_id):
+    """从原始 HTML 文件中提取车系名称"""
+    html_path = os.path.join(html_dir, file_id)
+    if not os.path.exists(html_path):
+        return ''
+    try:
+        with open(html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        m = re.search(r'<title>\s*汽车之家\s*\|\s*([^|]+?)\s*\|', html, re.IGNORECASE)
+        if m:
+            series = m.group(1).strip()
+            series = series.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&#39;', "'")
+            return series
+    except Exception as e:
+        print(f"提取车系名称失败 {file_id}: {e}")
+    return ''
+
+
 def generate_csv():
     print("第六步,生成CSV")
     today = date.today().strftime("%Y%m%d")
 
-    fixed = ["车系ID", "车型名称", "年款"]
+    fixed = ["数据来源", "品牌", "车系", "车系ID", "车型名称", "年款"]
     all_h, rows = [], []
 
     for file in os.listdir(newjson_dir):
@@ -631,6 +681,10 @@ def generate_csv():
             od = json.loads(option.group(1))
             names, years, data = [], [], {}
             print(f"Processing: {file}")
+
+            # 从原始 HTML 提取车系名称和品牌
+            series_name = extract_series_from_html(file)
+            brand = derive_brand_from_series(series_name)
 
             if "result" in cd and "paramtypeitems" in cd["result"]:
                 for pt in cd["result"]["paramtypeitems"]:
@@ -661,6 +715,9 @@ def generate_csv():
                 if ym and int(ym.group(1)) < MIN_YEAR:
                     continue
                 row = {
+                    "数据来源": "汽车之家",
+                    "品牌": brand,
+                    "车系": series_name,
                     "车系ID": file,
                     "车型名称": names[i] if i < len(names) else "",
                     "年款": ys,
