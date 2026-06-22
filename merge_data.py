@@ -298,6 +298,38 @@ def enrich_zero_ratio(rows, zero_ratio_rows):
     return rows
 
 
+# 品牌前缀列表（从 test_autohome.py 同步，长度降序优先匹配）
+BRAND_PREFIXES = [
+    '吉利银河', '凯迪拉克', '雷克萨斯', '英菲尼迪', '雪铁龙', '比亚迪',
+    '保时捷', '沃尔沃', '特斯拉', '阿维塔', '斯柯达', '雪佛兰', '马自达',
+    '宝马', '奔驰', '奥迪', '大众', '丰田', '本田', '日产',
+    '别克', '福特', '现代', '起亚', '吉利', '长城', '红旗', '领克',
+    '极氪', '小鹏', '理想', '蔚来', '零跑', '问界', '埃安', '极狐',
+    '岚图', '智己', '路虎', '捷豹', '林肯', '捷达', '五菱', '宝骏',
+    'WEY', '坦克', '欧拉', '哈弗', '魏牌', '标致', '奇瑞', '传祺',
+    '荣威', '名爵', '长安', '深蓝', '启源', '哪吒', '腾势', '方程豹',
+    '仰望', '星途', '捷途', '猛士', '蓝电', '北汽', '江淮', '东风',
+    '大通', '依维柯', '金杯', '福田', '庆铃', '江铃', '凯马',
+    '长安欧尚', '广汽', '北京', '东南', '海马', '中华', '力帆',
+    '众泰', '陆风', '猎豹', '野马', '黄海', '中兴', '福迪',
+    '法拉利', '兰博基尼', '玛莎拉蒂', '劳斯莱斯', '宾利', '阿斯顿马丁',
+    '迈凯伦', '布加迪', '帕加尼', '科尼赛克', '阿尔法罗密欧',
+    '迈巴赫', 'MINI', 'Smart', 'DS', 'Jeep', 'Ram', '道奇',
+    '克莱斯勒', 'GMC', '标致', '雷诺', '菲亚特',
+    '斯巴鲁', '三菱', '铃木', '五十铃', '双龙', '讴歌',
+]
+
+
+def derive_brand(series_name):
+    """从车系名称推导品牌，在 merge 阶段作为 brand 回填"""
+    if not series_name:
+        return ''
+    for bp in sorted(BRAND_PREFIXES, key=len, reverse=True):
+        if series_name.startswith(bp) or bp in series_name:
+            return bp
+    return ''
+
+
 def norm_rows(rows, source):
     out = []
     for row in rows:
@@ -305,6 +337,13 @@ def norm_rows(rows, source):
         for key in ["品牌", "车系", "车系ID", "车型名称", "年款"]:
             if key in row:
                 normalized[key] = row[key]
+
+        # 品牌回填：汽车之家爬虫可能漏品牌，从车系名推导
+        if (not normalized.get("品牌") or normalized.get("品牌") == "-") and source == "汽车之家":
+            series = normalized.get("车系", "")
+            derived = derive_brand(series)
+            if derived:
+                normalized["品牌"] = derived
 
         for key, val in row.items():
             if key in FIXED:
