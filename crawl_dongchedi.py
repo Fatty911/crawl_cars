@@ -91,8 +91,8 @@ if args.debug_limit > 0:
     MAX_SERIES_PER_RUN = args.debug_limit
     print(f"调试模式：限制爬取 {args.debug_limit} 个车系，启用增量扫描模式")
 
-CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "3"))
-CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "8"))
+CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "8"))
+CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "20"))
 DCD_PAGE_LOAD_TIMEOUT = int(os.getenv("DCD_PAGE_LOAD_TIMEOUT", "60"))
 DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD = int(
     os.getenv("DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD", "3")
@@ -814,6 +814,22 @@ def crawl_series_config(browser, series_list):
                 consecutive_network_errors = 0
                 save_progress()
                 continue
+
+            # 模拟人类滚动浏览行为：分段下滚+随机停顿
+            try:
+                scroll_height = browser.execute_script("return document.body.scrollHeight")
+                viewport_height = browser.execute_script("return window.innerHeight")
+                if scroll_height and viewport_height and scroll_height > viewport_height:
+                    scroll_steps = min(5, scroll_height // viewport_height)
+                    for step in range(scroll_steps):
+                        scroll_to = viewport_height * (step + 1)
+                        browser.execute_script(f"window.scrollTo(0, {scroll_to})")
+                        time.sleep(random.uniform(0.5, 1.5))  # 滚动间随机停顿
+                    # 滚回顶部（模拟人类回头查看）
+                    browser.execute_script("window.scrollTo(0, 0)")
+                    time.sleep(random.uniform(0.3, 0.8))
+            except Exception:
+                pass  # 滚动失败不影响数据采集
 
             # 保存页面源码用于解析
             html_file = os.path.join(dcd_json_dir, f"{series_id}.html")
