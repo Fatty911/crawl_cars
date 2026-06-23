@@ -158,6 +158,23 @@ jobs:
         run: |
           python custom_scripts/setup_proxy_runtime.py --github-env "$GITHUB_ENV"
 
+      - name: Restore Autohome HTML cache
+        id: autohome_html_cache
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
+        uses: actions/cache@main
+        with:
+          path: html
+          key: autohome-html-${{ env.CRAWL_PERIOD }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            autohome-html-${{ env.CRAWL_PERIOD }}-
+
+      - name: Report Autohome HTML cache
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
+        run: |
+          mkdir -p html
+          HTML_COUNT=$(find html -type f | wc -l)
+          echo "Autohome HTML cache files: $HTML_COUNT"
+
       - name: Restart if requested
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart == 'true'
         run: rm -f progress.json step1_done "$AUTOHOME_DONE_MARKER"
@@ -231,6 +248,18 @@ jobs:
           git add -A
           git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+      - name: Upload Autohome HTML cache (early, after step1)
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: autohome-html-early-${{ github.run_id }}
+          path: |
+            html/
+            progress.json
+            crawl_state/model_registry_autohome.json
+          retention-days: 90
 
       - name: Classify step1 failure
         id: classify_step1
@@ -368,12 +397,12 @@ jobs:
           retention-days: 7
 
       - name: Set date
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true')
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Autohome output
         id: verify_autohome
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true')
         run: |
           python - <<'PY'
           import glob
@@ -405,7 +434,7 @@ jobs:
           PY
 
       - name: Mark Autohome period complete
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true')
         run: |
           mkdir -p crawl_state
           touch "$AUTOHOME_DONE_MARKER"
@@ -417,7 +446,7 @@ jobs:
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Disable proxy for Autohome artifact upload
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true')
         run: |
           {
             echo "HTTP_PROXY="
@@ -431,7 +460,7 @@ jobs:
       - name: Upload Autohome artifact
         id: upload_autohome
         uses: actions/upload-artifact@v4
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true') && steps.verify_autohome.outputs.has_data != 'false'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true') && steps.verify_autohome.outputs.has_data != 'false'
         with:
           name: autohome-data-${{ env.CRAWL_DATE }}
           path: |
