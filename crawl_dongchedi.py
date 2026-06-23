@@ -476,10 +476,10 @@ BRAND_HEAT_ORDER = [
 
 
 def sort_series_by_brand_heat(series_list):
-    """按品牌销量热度排序车系列表，热门品牌优先爬取。
+    """按品牌销量热度分组轮询排列，热门品牌优先出场但不同品牌交替出现。
 
-    目的：有限时间内优先爬取与 autohome 重叠度高的热门品牌车系，
-    提升双源核验率。未在热度表中的品牌排最后。
+    目的：有限时间内爬到的车系覆盖多个热门品牌，而非单品牌垄断，
+    最大化和 autohome 的多品牌双源重叠率。
     """
     if not series_list:
         return series_list
@@ -487,19 +487,40 @@ def sort_series_by_brand_heat(series_list):
     # 构建品牌→排名映射
     heat_map = {}
     for idx, brand in enumerate(BRAND_HEAT_ORDER):
-        # 规范化品牌名：去空格、统一大小写
         normalized = brand.strip().lower().replace(" ", "")
         heat_map[normalized] = idx
 
-    def sort_key(series):
-        brand = series.get("brand", "").strip().lower().replace(" ", "")
-        return heat_map.get(brand, 999)  # 未知名牌排最后
+    # 按品牌分组，组内保持原始顺序
+    groups = {}
+    for s in series_list:
+        brand = s.get("brand", "").strip().lower().replace(" ", "")
+        groups.setdefault(brand, []).append(s)
 
-    sorted_list = sorted(series_list, key=sort_key)
+    # 按品牌热度排序各组
+    sorted_brands = sorted(groups.keys(), key=lambda b: heat_map.get(b, 999))
 
-    top_brands = [s.get("brand","") for s in sorted_list[:10]]
-    print(f"车系按品牌热度重排完成，前10品牌: {top_brands}")
-    return sorted_list
+    # 轮询交错排列：每个品牌依次取一个车系
+    result = []
+    idx_map = {b: 0 for b in sorted_brands}
+    while True:
+        added = False
+        for brand in sorted_brands:
+            if idx_map[brand] < len(groups[brand]):
+                result.append(groups[brand][idx_map[brand]])
+                idx_map[brand] += 1
+                added = True
+        if not added:
+            break
+
+    top_brands = []
+    seen = set()
+    for s in result[:20]:
+        b = s.get("brand", "")
+        if b not in seen:
+            top_brands.append(b)
+            seen.add(b)
+    print(f"车系按品牌热度轮询重排完成，前10品牌: {top_brands[:10]}")
+    return result
 
 
 def _scan_all_series():
