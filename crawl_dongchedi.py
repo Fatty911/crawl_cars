@@ -457,6 +457,51 @@ def _get_existing_series_ids():
     return existing
 
 
+# 品牌销量热度排序：按中国汽车市场销量排行，热门品牌优先
+# 来源：2025-2026年乘联会批发销量排行（综合乘用车+新能源）
+BRAND_HEAT_ORDER = [
+    "比亚迪", "吉利汽车", "长安汽车", "奇瑞", "上汽大众", "一汽大众",
+    "广汽丰田", "一汽丰田", "本田", "东风日产", "五菱汽车", "别克",
+    "宝马", "奔驰", "奥迪", "特斯拉", "理想汽车", "蔚来", "问界",
+    "零跑汽车", "极氪", "小鹏汽车", "领克", "哈弗", "宝骏",
+    "红旗", "广汽传祺", "东风本田", "北京现代", "长安欧尚", "长安马自达",
+    "广汽本田", "沃尔沃", "凯迪拉克", "路虎", "保时捷", "雷克萨斯",
+    "长城炮", "坦克", "捷途", "星途", "传祺", "捷达", " smart", "MINI",
+    "埃安", "深蓝汽车", "启辰", "阿维塔", "岚图", "智己", "极狐",
+    "腾势", "方程豹", "仰望", "哪吒汽车", "北京越野", "北京汽车",
+    "北汽新能源", "东风风行", "江淮", "东风风神", "上汽大通",
+    "标致", "雪铁龙", "雪佛兰", "福特", "起亚", "马自达",
+    "斯柯达", "三菱", "斯巴鲁", "铃木", "众泰", "海马",
+]
+
+
+def sort_series_by_brand_heat(series_list):
+    """按品牌销量热度排序车系列表，热门品牌优先爬取。
+
+    目的：有限时间内优先爬取与 autohome 重叠度高的热门品牌车系，
+    提升双源核验率。未在热度表中的品牌排最后。
+    """
+    if not series_list:
+        return series_list
+
+    # 构建品牌→排名映射
+    heat_map = {}
+    for idx, brand in enumerate(BRAND_HEAT_ORDER):
+        # 规范化品牌名：去空格、统一大小写
+        normalized = brand.strip().lower().replace(" ", "")
+        heat_map[normalized] = idx
+
+    def sort_key(series):
+        brand = series.get("brand", "").strip().lower().replace(" ", "")
+        return heat_map.get(brand, 999)  # 未知名牌排最后
+
+    sorted_list = sorted(series_list, key=sort_key)
+
+    top_brands = [s.get("brand","") for s in sorted_list[:10]]
+    print(f"车系按品牌热度重排完成，前10品牌: {top_brands}")
+    return sorted_list
+
+
 def _scan_all_series():
     """全量扫描所有车系列表（仅收集基础信息，不爬详情）"""
     print("=" * 70)
@@ -695,6 +740,9 @@ def crawl_series_config(browser, series_list):
     from selenium.webdriver.support.ui import WebDriverWait
 
     print("第二步：爬取车系配置页面")
+
+    # 按品牌销量热度重排：热门品牌优先爬取，提高有限时间内与 autohome 的双源匹配率
+    series_list = sort_series_by_brand_heat(series_list)
 
     crawled = reconcile_step2_progress(series_list)
     initial_crawled_count = len(crawled)
