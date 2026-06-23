@@ -69,6 +69,19 @@ def parse_numbers(value):
     return [float(n) for n in re.findall(r"\d+(?:\.\d+)?", str(value))]
 
 
+# 品牌名归一化: 汽车之家 vs 懂车帝使用不同品牌名
+BRAND_NORMALIZE = {
+    "北京": "北京越野",
+    "广汽": "广汽传祺",
+    "北汽": "北京汽车",
+    "东风": "东风风行",
+    "长安": "长安汽车",
+    "标致": "标致",
+    "宝骏": "宝骏",
+    "别克": "别克",
+    "保时捷": "保时捷",
+}
+
 def normalize_match_text(value):
     text = str(value or "").lower()
     text = re.sub(r"\s+", "", text)
@@ -92,6 +105,7 @@ def normalize_for_match(text):
 def series_year_key(row):
     """生成车系+年款匹配键"""
     brand = normalize_match_text(row.get('品牌', ''))
+    brand = BRAND_NORMALIZE.get(brand, brand)
     series = normalize_match_text(row.get('车系', ''))
     year = ''
     year_str = str(row.get('年款', ''))
@@ -99,6 +113,14 @@ def series_year_key(row):
     if year_match:
         year = year_match.group(1)
     return f"{brand}|{series}|{year}" if brand and series else ''
+
+
+def series_key(row):
+    """生成车系匹配键（不含年款，更宽松）"""
+    brand = normalize_match_text(row.get('品牌', ''))
+    brand = BRAND_NORMALIZE.get(brand, brand)
+    series = normalize_match_text(row.get('车系', ''))
+    return f"{brand}|{series}" if brand and series else ''
 
 
 def check_numeric_condition(row, field_name, threshold, op):
@@ -500,20 +522,47 @@ def merge_rows(autohome_rows, dongchedi_rows):
                 break
             break
 
-    # 第三级: 车系级匹配
+    # 第三级: 车系级匹配（先尝试带年款，再尝试不带年款）
+    merged_by_series = {'车系': 0, '车系(无年款)': 0}
     for skey, ah_rows in autohome_by_series.items():
-        dcd_rows_list = dongchedi_by_series.get(skey, [])
+        if skey in dongchedi_by_series:
+            dcd_rows_list = dongchedi_by_series[skey]
+            ah_unused = [r for r in ah_rows if id(r) not in used_autohome]
+            dcd_unused = [r for r in dcd_rows_list if id(r) not in used_dongchedi]
+            # 全量匹配: 逐对合并，一对一配对
+            for i in range(min(len(ah_unused), len(dcd_unused))):
+                merged_row = merge_single_row(ah_unused[i], dcd_unused[i])
+                merged_row["数据来源"] = "汽车之家+懂车帝(车系级)"
+                merged.append(merged_row)
+                used_autohome.add(id(ah_unused[i]))
+                used_dongchedi.add(id(dcd_unused[i]))
+                merged_by_series['车系'] += 1
+
+    # 第四级: 车系匹配（不含年款，更宽松）
+    autohome_by_series_noyear = {}
+    for row in autohome_rows:
+        key = series_key(row)
+        if key:
+            autohome_by_series_noyear.setdefault(key, []).append(row)
+    dongchedi_by_series_noyear = {}
+    for row in dongchedi_rows:
+        key = series_key(row)
+        if key:
+            dongchedi_by_series_noyear.setdefault(key, []).append(row)
+
+    for skey, ah_rows in autohome_by_series_noyear.items():
+        dcd_rows_list = dongchedi_by_series_noyear.get(skey, [])
         if not dcd_rows_list:
             continue
         ah_unused = [r for r in ah_rows if id(r) not in used_autohome]
         dcd_unused = [r for r in dcd_rows_list if id(r) not in used_dongchedi]
-        if ah_unused and dcd_unused:
-            merged_row = merge_single_row(ah_unused[0], dcd_unused[0])
+        for i in range(min(len(ah_unused), len(dcd_unused))):
+            merged_row = merge_single_row(ah_unused[i], dcd_unused[i])
             merged_row["数据来源"] = "汽车之家+懂车帝(车系级)"
             merged.append(merged_row)
-            used_autohome.add(id(ah_unused[0]))
-            used_dongchedi.add(id(dcd_unused[0]))
-            stats['车系'] += 1
+            used_autohome.add(id(ah_unused[i]))
+            used_dongchedi.add(id(dcd_unused[i]))
+            merged_by_series['车系(无年款)'] += 1
 
     # 未匹配的车型
     for row in autohome_rows:
@@ -529,7 +578,7 @@ def merge_rows(autohome_rows, dongchedi_rows):
             merged.append(merged_row)
             stats['仅懂车帝'] += 1
 
-    print(f"合并统计: 精确{stats['精确']} 规范{stats['规范']} 车系级{stats['车系']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 合计{len(merged)}")
+    print(f"合并统计: 精确{stats['精确']} 规范{stats['规范']} 车系{merged_by_series['车系']} 车系(无年款){merged_by_series['车系(无年款)']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 合计{len(merged)}")
     return merged
 
 
