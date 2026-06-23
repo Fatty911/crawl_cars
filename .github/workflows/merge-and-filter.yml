@@ -203,7 +203,7 @@ jobs:
       - name: 创建发布
         uses: softprops/action-gh-release@master
         with:
-          tag_name: v${{ needs.merge-data.outputs.crawl_date }}
+          tag_name: v${{ needs.merge-data.outputs.crawl_date }}r${{ github.run_attempt }}
           name: 车型数据 ${{ needs.merge-data.outputs.crawl_date }}
           files: |
             release-files/merged_${{ needs.merge-data.outputs.crawl_date }}.csv
