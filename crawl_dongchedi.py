@@ -759,6 +759,7 @@ def crawl_series_config(browser, series_list):
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
     from selenium.webdriver.support.ui import WebDriverWait
+    import threading
 
     print("第二步：爬取车系配置页面")
 
@@ -774,6 +775,9 @@ def crawl_series_config(browser, series_list):
     need_crawl = len(series_list) - initial_crawled_count
 
     print(f"车系总数: {len(series_list)}，已有HTML: {initial_crawled_count}，需爬取: {need_crawl}")
+
+    # 看门狗超时（秒）：browser.get() 超过此时间无响应，强制重启浏览器
+    GET_TIMEOUT_SECONDS = int(os.getenv("DCD_GET_TIMEOUT_SECONDS", "45"))
 
     for idx, series in enumerate(series_list):
         series_id = series["id"]
@@ -793,27 +797,68 @@ def crawl_series_config(browser, series_list):
 
         config_url = f"https://www.dongchedi.com/auto/params-carIds-x-{series_id}"
         saved_html = False
-        try:
-            browser.get(config_url)
-            human_delay(f"打开{series_name}配置页")
-
-            # 等待配置表格加载
+        
+        # --- 带看门狗的 browser.get() ---
+        get_completed = False
+        get_exception = None
+        
+        def _do_get():
+            nonlocal get_completed, get_exception
             try:
-                WebDriverWait(browser, 10).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, 'table, [class*="param"], [class*="config"]')
-                    )
-                )
-            except TimeoutException:
-                print("  配置页面加载超时，跳过")
+                browser.get(config_url)
+                get_completed = True
+            except Exception as e:
+                get_exception = e
+                get_completed = True
+        
+        get_thread = threading.Thread(target=_do_get, daemon=True)
+        get_thread.start()
+        get_thread.join(timeout=GET_TIMEOUT_SECONDS)
+        
+        if not get_completed:
+            # 看门狗触发：浏览器无响应，强制重启
+            print(f"  ⚠ browser.get() 超过 {GET_TIMEOUT_SECONDS}s 无响应，强制重启浏览器...")
+            browser = restart_browser(browser, f"browser.get() 卡死 {GET_TIMEOUT_SECONDS}s")
+            # 重试一次
+            get_completed = False
+            get_exception = None
+            get_thread = threading.Thread(target=_do_get, daemon=True)
+            get_thread.start()
+            get_thread.join(timeout=GET_TIMEOUT_SECONDS)
+            if not get_completed or get_exception:
+                print(f"  重试后仍失败，跳过该车系")
                 with open(
                     os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
                 ) as f:
-                    f.write(f"{series_id} {series_name}: 配置页面加载超时\n")
-                consecutive_renderer_timeouts = 0
-                consecutive_network_errors = 0
+                    f.write(f"{series_id} {series_name}: browser.get() watchdog timeout\\n")
                 save_progress()
+                human_delay(f"跳过{series_name}")
                 continue
+            if get_exception:
+                raise get_exception
+        elif get_exception:
+            raise get_exception
+        # --- 看门狗结束 ---
+        
+        human_delay(f"打开{series_name}配置页")
+
+        # 等待配置表格加载
+        try:
+            WebDriverWait(browser, 10).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, 'table, [class*="param"], [class*="config"]')
+                )
+            )
+        except TimeoutException:
+            print("  配置页面加载超时，跳过")
+            with open(
+                os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
+            ) as f:
+                f.write(f"{series_id} {series_name}: 配置页面加载超时\\n")
+            consecutive_renderer_timeouts = 0
+            consecutive_network_errors = 0
+            save_progress()
+            continue
 
             # 模拟人类滚动浏览行为：分段下滚+随机停顿
             try:

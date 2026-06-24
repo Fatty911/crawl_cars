@@ -36,6 +36,7 @@ env:
   MAX_CARS: 0
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
+  DCD_GET_TIMEOUT_SECONDS: 45
 
 concurrency:
   group: dongchedi-crawl-${{ github.ref }}-${{ github.event.inputs.run_profile || github.event.client_payload.run_profile || github.event_name }}
@@ -169,6 +170,7 @@ jobs:
       - name: Setup environment
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
+          echo "PYTHONUNBUFFERED=1" >> $GITHUB_ENV
           echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
           echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
           echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
@@ -284,6 +286,7 @@ jobs:
           path: |
             dongchedi/json/
             dongchedi/progress.json
+            crawl_state/model_registry_dongchedi.json
           retention-days: 90
 
       - name: Classify step2 failure

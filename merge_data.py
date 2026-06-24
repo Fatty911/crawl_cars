@@ -336,6 +336,29 @@ BRAND_PREFIXES = [
 ]
 
 
+
+# 车系名→品牌映射: 当车系名不以品牌前缀开头时的兜底（与 test_autohome.py 同步）
+SERIES_TO_BRAND = {
+    "皓影": "本田", "皓影新能源": "本田", "冠道": "本田", "缤智": "本田",
+    "雅阁": "本田", "凌派": "本田", "ZR-V 致在": "本田",
+    "昂科威S": "别克", "昂科威Plus": "别克", "昂科拉PLUS": "别克",
+    "君越": "别克", "微蓝6": "别克", "昂扬": "别克",
+    "Macan新能源": "保时捷", "Taycan": "保时捷", "Cayenne": "保时捷",
+    "Macan": "保时捷",
+    "添越": "宾利", "添越插电混动": "宾利", "飞驰插电混动": "宾利",
+    "博速 G级": "博速",
+    "奔腾T77": "奔腾", "奔腾T99": "奔腾", "奔腾T90": "奔腾",
+    "奔腾T90 PHEV": "奔腾", "奔腾E01": "奔腾", "奔腾B70": "奔腾",
+    "奔腾B70S": "奔腾",
+    "悦意03": "奔腾", "悦意07": "奔腾", "悦意08": "奔腾",
+    "魔方": "北京汽车",
+    "勇士": "北京汽车制造厂",
+    "昌河北斗星": "昌河",
+    "212经典": "北京汽车制造厂",
+    "巴菲特600": "巴菲特",
+}
+
+
 def derive_brand(series_name):
     """从车系名称推导品牌，在 merge 阶段作为 brand 回填"""
     if not series_name:
@@ -343,7 +366,8 @@ def derive_brand(series_name):
     for bp in sorted(BRAND_PREFIXES, key=len, reverse=True):
         if series_name.startswith(bp) or bp in series_name:
             return bp
-    return ''
+    # 兜底: 从 SERIES_TO_BRAND 查找
+    return SERIES_TO_BRAND.get(series_name, '')
 
 
 def norm_rows(rows, source):

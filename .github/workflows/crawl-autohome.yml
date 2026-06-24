@@ -145,10 +145,11 @@ jobs:
       - name: Setup environment
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
-          echo "MINIMAX_API_KEY=${{ secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
-          echo "ZEN_API_KEY=${{ secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
-          echo "XAI_API_KEY=${{ secrets.XAI_API_KEY }}" >> $GITHUB_ENV
-          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
+          echo "PYTHONUNBUFFERED=1" >> $GITHUB_ENV
+          echo "MINIMAX_API_KEY=*** secrets.MINIMAX_API_KEY }}" >> $GITHUB_ENV
+          echo "ZEN_API_KEY=*** secrets.ZEN_API_KEY }}" >> $GITHUB_ENV
+          echo "XAI_API_KEY=*** secrets.XAI_API_KEY }}" >> $GITHUB_ENV
+          echo "OPENROUTER_API_KEY=*** secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
 
       - name: Setup proxy if configured
