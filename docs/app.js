@@ -318,8 +318,68 @@
     return true;
   }
 
+  function rowMatchesDefaultRowType(row) {
+    var config = state.config || {};
+    var allowedConfig = config.defaultAllowedLevels || null;
+    if (!allowedConfig) {
+      return true;
+    }
+    var allowed = allowedConfig.allowed_levels || [];
+    if (allowed.length === 0) {
+      // 没有指定允许集合 -> 退化兼容：如果存在 _comment/single-key 层，则取全部 values
+      allowed = [];
+      Object.keys(allowedConfig).forEach(function (k) {
+        if (k === "_comment") {
+          return;
+        }
+        var v = allowedConfig[k];
+        if (Array.isArray(v)) {
+          allowed = allowed.concat(v);
+        } else if (typeof v === "object" && v !== null) {
+          Object.keys(v).forEach(function (kk) {
+            var vv = v[kk];
+            if (Array.isArray(vv)) {
+              allowed = allowed.concat(vv);
+            }
+          });
+        }
+      });
+    }
+    if (allowed.length > 0) {
+      var level = normalizeText(row["级别"] || "");
+      if (!level) {
+        return true; // 无级别字段时的兼容：不主动剔除
+      }
+      var match = allowed.some(function (lvl) { return normalizeText(lvl) === level; });
+      if (!match) {
+        return false;
+      }
+    }
+
+    var brandPatterns = config.defaultHiddenBrandPatterns || [];
+    if (brandPatterns.length > 0) {
+      var brand = normalizeText(row["品牌"] || "");
+      if (brandPatterns.some(function (p) { return brand.indexOf(normalizeText(p)) !== -1; })) {
+        return false;
+      }
+    }
+
+    var seriesPatterns = config.defaultHiddenSeriesPatterns || [];
+    if (seriesPatterns.length > 0) {
+      var series = normalizeText(row["车系"] || "");
+      if (seriesPatterns.some(function (p) { return series.indexOf(normalizeText(p)) !== -1; })) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   function getFilteredRows() {
     var rows = state.rows.slice();
+
+    // 默认隐藏越野车/货车/皮卡/大客车等用户配置的车型分类
+    rows = rows.filter(rowMatchesDefaultRowType);
+
     var search = normalizeText(state.search);
 
     if (state.source) {
