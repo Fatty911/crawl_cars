@@ -54,6 +54,57 @@ ZERO_RATIO_FIELDS = ["零整比", "零整比来源明细", "零整比匹配方�
 IDENTITY_FIELDS = {"品牌", "车系", "车型名称", "年款", "车系ID"}
 
 
+def _split_attr_key(key):
+    """If key is '属性 - 值', return (属性, 值). Otherwise None."""
+    if " - " not in key:
+        return None
+    parts = key.split(" - ", 1)
+    if len(parts) != 2:
+        return None
+    prefix, suffix = parts
+    if not prefix or not suffix:
+        return None
+    return prefix, suffix
+
+
+def normalize_attribute_keys(rows):
+    """将 one-hot 编码的属性键（如 '辅助驾驶操作系统 - Toyota Pilot'）
+    归一化为统一的属性列名，并用后缀作为该行的值。"""
+    if not rows:
+        return rows
+
+    from collections import defaultdict
+
+    # 收集所有带 " - " 的键
+    attrs = defaultdict(list)  # prefix -> [(suffix, full_key)]
+    for row in rows:
+        for key in list(row.keys()):
+            split = _split_attr_key(key)
+            if split and (split[1], key) not in attrs[split[0]]:
+                attrs[split[0]].append((split[1], key))
+
+    # 只处理有多种后缀的组（真正的 one-hot 编码）
+    for prefix, entries in attrs.items():
+        if len(entries) <= 1:
+            continue
+        for row in rows:
+            value = None
+            for suffix, key in entries:
+                val = str(row.get(key, "-") or "-")
+                if val and val != "-":
+                    if value is None:
+                        value = suffix
+                    else:
+                        value = f"{value}|{suffix}"
+                    row.pop(key, None)
+                else:
+                    row.pop(key, None)
+            if value is not None:
+                row[prefix] = value
+
+    return rows
+
+
 def load_filter_config():
     with open(FILTER_CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -635,6 +686,10 @@ def main():
 
     autohome_rows = norm_rows(load(autohome_file), "汽车之家")
     dongchedi_rows = norm_rows(load(dongchedi_file), "懂车帝")
+
+    # 归一化 one-hot 属性键（如 "辅助驾驶操作系统 - Toyota Pilot" → "辅助驾驶操作系统": "Toyota Pilot"）
+    autohome_rows = normalize_attribute_keys(autohome_rows)
+    dongchedi_rows = normalize_attribute_keys(dongchedi_rows)
 
     if not autohome_rows and not dongchedi_rows:
         print("错误: 没有找到任何数据文件")
