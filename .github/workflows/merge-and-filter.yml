@@ -1,9 +1,6 @@
 # 多 job：合并与发版分离；合并成功但 Release 失败时，可只重跑 release。
 name: 合并分析
 on:
-  schedule:
-    # UTC 12:30 = 北京时间 20:30，等待下午爬虫窗口结束后再合并
-    - cron: '30 12 * * *'
   workflow_dispatch:
     inputs:
       force_merge:
@@ -30,6 +27,7 @@ jobs:
     outputs:
       crawl_date: ${{ steps.date.outputs.date }}
       ready: ${{ steps.validate.outputs.ready }}
+      crawl_time: ${{ steps.date.outputs.time }}
     steps:
       - name: 检出代码
         uses: actions/checkout@main
@@ -151,7 +149,9 @@ jobs:
       - name: 设置日期变量
         id: date
         if: steps.validate.outputs.ready == 'true'
-        run: echo "date=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+        run: |
+          echo "date=$(TZ=Asia/Shanghai date +%Y%m%d)" >> $GITHUB_OUTPUT
+          echo "time=$(TZ=Asia/Shanghai date +%H%M)" >> $GITHUB_OUTPUT
 
       - name: 检查合并结果
         if: steps.validate.outputs.ready == 'true'
@@ -174,7 +174,7 @@ jobs:
         if: steps.validate.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: car-data-${{ steps.date.outputs.date }}
+          name: car-data-${{ steps.date.outputs.date }}-${{ steps.date.outputs.time }}
           path: |
             merged_${{ steps.date.outputs.date }}.csv
             merged_${{ steps.date.outputs.date }}.json
@@ -197,14 +197,14 @@ jobs:
       - name: 下载合并产物
         uses: actions/download-artifact@v4
         with:
-          name: car-data-${{ needs.merge-data.outputs.crawl_date }}
+          name: car-data-${{ needs.merge-data.outputs.crawl_date }}-${{ needs.merge-data.outputs.crawl_time }}
           path: release-files
 
       - name: 创建发布
         uses: softprops/action-gh-release@master
         with:
-          tag_name: v${{ needs.merge-data.outputs.crawl_date }}r${{ github.run_attempt }}
-          name: 车型数据 ${{ needs.merge-data.outputs.crawl_date }}
+          tag_name: v${{ needs.merge-data.outputs.crawl_date }}-${{ needs.merge-data.outputs.crawl_time }}
+          name: 车型数据 ${{ needs.merge-data.outputs.crawl_date }}-${{ needs.merge-data.outputs.crawl_time }}
           files: |
             release-files/merged_${{ needs.merge-data.outputs.crawl_date }}.csv
             release-files/merged_${{ needs.merge-data.outputs.crawl_date }}.json
