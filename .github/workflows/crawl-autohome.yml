@@ -435,7 +435,7 @@ jobs:
           PY
 
       - name: Mark Autohome period complete
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true') && steps.verify_autohome.outputs.has_data == 'true'
         run: |
           mkdir -p crawl_state
           touch "$AUTOHOME_DONE_MARKER"

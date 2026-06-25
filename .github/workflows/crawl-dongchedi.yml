@@ -412,7 +412,7 @@ jobs:
           PY
 
       - name: Mark Dongchedi period complete
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true') && steps.verify_dongchedi.outputs.has_data == 'true'
         run: |
           mkdir -p crawl_state
           touch "$DONGCHEDI_DONE_MARKER"
