@@ -135,8 +135,17 @@ jobs:
         env:
           ZERO_TO_WHOLE_RATIO_URLS: ${{ vars.ZERO_TO_WHOLE_RATIO_URLS }}
 
+      - name: 设置日期变量
+        id: date
+        if: steps.validate.outputs.ready == 'true'
+        run: |
+          echo "date=$(TZ=Asia/Shanghai date +%Y%m%d)" >> $GITHUB_OUTPUT
+          echo "time=$(TZ=Asia/Shanghai date +%H%M)" >> $GITHUB_OUTPUT
+
       - name: 合并数据文件
         if: steps.validate.outputs.ready == 'true'
+        env:
+          MERGE_DATE: ${{ steps.date.outputs.date }}
         run: |
           if ls autoHome_*.json dongchedi_*.json 2>/dev/null; then
             echo "找到数据文件，开始合并..."
@@ -145,13 +154,6 @@ jobs:
             echo "没有找到数据文件，跳过合并"
             exit 0
           fi
-
-      - name: 设置日期变量
-        id: date
-        if: steps.validate.outputs.ready == 'true'
-        run: |
-          echo "date=$(TZ=Asia/Shanghai date +%Y%m%d)" >> $GITHUB_OUTPUT
-          echo "time=$(TZ=Asia/Shanghai date +%H%M)" >> $GITHUB_OUTPUT
 
       - name: 检查合并结果
         if: steps.validate.outputs.ready == 'true'

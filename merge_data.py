@@ -677,7 +677,7 @@ def write_json(path, rows):
 
 
 def main():
-    today = date.today().strftime("%Y%m%d")
+    today = os.environ.get("MERGE_DATE") or date.today().strftime("%Y%m%d")
 
     autohome_file = find_latest("autoHome_*.json")
     dongchedi_file = find_latest("dongchedi_*.json")
