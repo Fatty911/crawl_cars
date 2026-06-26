@@ -369,18 +369,18 @@ jobs:
           retention-days: 7
 
       - name: Run step3 and step4
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'false' || steps.retry_step2.outputs.failed == 'false')
         run: |
           python crawl_dongchedi.py --step 3
           python crawl_dongchedi.py --step 4
 
       - name: Set date
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'false' || steps.retry_step2.outputs.failed == 'false')
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Dongchedi output
         id: verify_dongchedi
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'false' || steps.retry_step2.outputs.failed == 'false')
         run: |
           python - <<'PY'
           import glob
@@ -412,7 +412,7 @@ jobs:
           PY
 
       - name: Mark Dongchedi period complete
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true') && steps.verify_dongchedi.outputs.has_data == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'false' || steps.retry_step2.outputs.failed == 'false') && steps.verify_dongchedi.outputs.has_data == 'true'
         run: |
           mkdir -p crawl_state
           touch "$DONGCHEDI_DONE_MARKER"
@@ -424,7 +424,7 @@ jobs:
           bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Disable proxy for Dongchedi artifact upload
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'false' || steps.retry_step2.outputs.failed == 'false')
         run: |
           {
             echo "HTTP_PROXY="
@@ -438,7 +438,7 @@ jobs:
       - name: Upload Dongchedi artifact
         id: upload_dongchedi
         uses: actions/upload-artifact@v4
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true') && steps.verify_dongchedi.outputs.has_data != 'false'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'false' || steps.retry_step2.outputs.failed == 'false') && steps.verify_dongchedi.outputs.has_data != 'false'
         with:
           name: dongchedi-data-${{ env.CRAWL_DATE }}
           path: |
