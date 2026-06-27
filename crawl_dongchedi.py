@@ -100,6 +100,10 @@ DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD = int(
 DCD_NETWORK_ERROR_RESTART_THRESHOLD = int(
     os.getenv("DCD_NETWORK_ERROR_RESTART_THRESHOLD", "5")
 )
+DCD_HEARTBEAT_INTERVAL = int(os.getenv("DCD_HEARTBEAT_INTERVAL", "30"))  # browser 心跳检测间隔
+DCD_SCROLL_STEPS = int(os.getenv("DCD_SCROLL_STEPS", "10"))  # 分段滚动步数
+DCD_SCROLL_PAUSE_MIN = float(os.getenv("DCD_SCROLL_PAUSE_MIN", "0.5"))
+DCD_SCROLL_PAUSE_MAX = float(os.getenv("DCD_SCROLL_PAUSE_MAX", "1.5"))
 if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
     CRAWL_MAX_DELAY_SECONDS = CRAWL_MIN_DELAY_SECONDS
 
@@ -367,6 +371,21 @@ def is_network_navigation_error(exc):
         "net::ERR_TIMED_OUT",
     ]
     return any(marker in text for marker in markers)
+
+
+def check_browser_heartbeat(browser, last_heartbeat, reason="心跳检测"):
+    """检测浏览器是否仍然响应，卡死则重启"""
+    import time
+    if time.time() - last_heartbeat >= DCD_HEARTBEAT_INTERVAL:
+        try:
+            # 尝试执行简单 JS，验证浏览器存活
+            browser.execute_script("return 1")
+            return browser, time.time()
+        except Exception as e:
+            print(f"  ⚠ {reason}: 浏览器无响应 ({e})，强制重启...")
+            browser = restart_browser(browser, reason)
+            return browser, time.time()
+    return browser, last_heartbeat
 
 
 def restart_browser(browser, reason):
@@ -839,37 +858,41 @@ def crawl_series_config(browser, series_list):
         elif get_exception:
             raise get_exception
         # --- 看门狗结束 ---
-        
+        last_heartbeat = time.time()
+
         human_delay(f"打开{series_name}配置页")
 
-        # 等待配置表格加载
         try:
-            WebDriverWait(browser, 10).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, 'table, [class*="param"], [class*="config"]')
+            # 等待配置表格加载
+            try:
+                WebDriverWait(browser, 10).until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, 'table, [class*="param"], [class*="config"]')
+                    )
                 )
-            )
-        except TimeoutException:
-            print("  配置页面加载超时，跳过")
-            with open(
-                os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
-            ) as f:
-                f.write(f"{series_id} {series_name}: 配置页面加载超时\\n")
-            consecutive_renderer_timeouts = 0
-            consecutive_network_errors = 0
-            save_progress()
-            continue
+            except TimeoutException:
+                print("  配置页面加载超时，跳过")
+                with open(
+                    os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
+                ) as f:
+                    f.write(f"{series_id} {series_name}: 配置页面加载超时\\n")
+                consecutive_renderer_timeouts = 0
+                consecutive_network_errors = 0
+                save_progress()
+                continue
 
             # 模拟人类滚动浏览行为：分段下滚+随机停顿
             try:
                 scroll_height = browser.execute_script("return document.body.scrollHeight")
                 viewport_height = browser.execute_script("return window.innerHeight")
                 if scroll_height and viewport_height and scroll_height > viewport_height:
-                    scroll_steps = min(5, scroll_height // viewport_height)
+                    scroll_steps = min(DCD_SCROLL_STEPS, max(1, scroll_height // viewport_height))
                     for step in range(scroll_steps):
-                        scroll_to = viewport_height * (step + 1)
+                        scroll_to = viewport_height * (step + 1) // scroll_steps * (step + 1)
                         browser.execute_script(f"window.scrollTo(0, {scroll_to})")
-                        time.sleep(random.uniform(0.5, 1.5))  # 滚动间随机停顿
+                        time.sleep(random.uniform(DCD_SCROLL_PAUSE_MIN, DCD_SCROLL_PAUSE_MAX))
+                        # 心跳检测
+                        browser, last_heartbeat = check_browser_heartbeat(browser, last_heartbeat, f"滚动步骤 {step+1}/{scroll_steps}")
                     # 滚回顶部（模拟人类回头查看）
                     browser.execute_script("window.scrollTo(0, 0)")
                     time.sleep(random.uniform(0.3, 0.8))
@@ -888,6 +911,7 @@ def crawl_series_config(browser, series_list):
                 saved_html = True
             consecutive_renderer_timeouts = 0
             consecutive_network_errors = 0
+            last_heartbeat = time.time()
         except Exception as e:
             print(f"  爬取异常: {e}")
             with open(
