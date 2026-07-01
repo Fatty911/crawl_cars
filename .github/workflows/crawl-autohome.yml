@@ -58,6 +58,9 @@ jobs:
 
       - name: Prepare crawl period
         id: period
+        env:
+          FORCE_RESTART: ${{ github.event.inputs.force_restart }}
+          DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'false' }}
         run: |
           mkdir -p crawl_state
           CN_DAY=$(TZ=Asia/Shanghai date +%d)
@@ -73,13 +76,14 @@ jobs:
           echo "CRAWL_PERIOD=$CRAWL_PERIOD" >> $GITHUB_ENV
           echo "AUTOHOME_DONE_MARKER=$DONE_MARKER" >> $GITHUB_ENV
 
-          FORCE_RESTART="${{ github.event.inputs.force_restart }}"
+          FORCE_RESTART="${FORCE_RESTART}"
+          DEBUG_MODE="${DEBUG_MODE}"
 
           if [ "$FORCE_RESTART" = "true" ]; then
             rm -f "$DONE_MARKER"
           fi
 
-          if [ -f "$DONE_MARKER" ]; then
+          if [ "$FORCE_RESTART" != "true" ] && [ "$DEBUG_MODE" != "true" ] && [ -f "$DONE_MARKER" ]; then
             echo "$CRAWL_PERIOD 已完成全量汽车之家爬取，本半月不再爬取"
             echo "SKIP_CRAWL=true" >> $GITHUB_ENV
             echo "skip=true" >> $GITHUB_OUTPUT
