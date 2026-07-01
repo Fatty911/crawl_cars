@@ -100,6 +100,7 @@ if [ -n "$autohome_done" ] && [ "$AH_ARTIFACT" != "none" ]; then
             date +%s > "$LAST_TRIGGER"
             fix_applied=true
         fi
+    fi
 fi
 
 # 修复2: 爬虫失败/取消 → 重新触发（24h防抖）
