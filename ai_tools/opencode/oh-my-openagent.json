@@ -83,161 +83,196 @@
     "max_fallback_attempts": 3,
     "cooldown_seconds": 20,
     "timeout_seconds": 10,
-    "notify_on_fallback": true
+    "notify_on_fallback": true,
+    "silent_success_detection": {
+      "enabled": true,
+      "provider_patterns": [
+        "deepseek"
+      ],
+      "min_visible_chars": 1
+    }
   },
   "agents": {
     "sisyphus": {
-      "model": "mimo-tokenplan/mimo-v2.5-pro",
+      "model": "nvidia/nvidia-deepseek-v4-pro",
       "fallback_models": [
-        "volcengine-coding/kimi-k2.6",
-        "mimo-tokenplan/mimo-v2.5-pro",
-        "nvidia/nvidia-glm-5.1",
-        "nvidia/nvidia-kimi-k2.6",
-        "deepseek/deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
         "volcengine-coding/deepseek-v4-pro",
-        "cloudflare-workers-ai/cf-kimi-k2.6",
-        "proxy_openrouter/openrouter-kimi-k2.6-free",
-        "proxy_xai/grok-4.3",
-        "deepseek/deepseek-v4-flash"
+        "volcengine-coding/glm-latest",
+        "volcengine-coding/minimax-m3",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "alibaba/qwen3.7-max",
+        "proxy_xai/grok-4.3"
       ]
-    },
-    "plan": {
-      "model": "mimo-tokenplan/mimo-v2.5-pro",
-      "fallback_models": [
-        "volcengine-coding/kimi-k2.6",
-        "mimo-tokenplan/mimo-v2.5-pro",
-        "nvidia/nvidia-glm-5.1",
-        "nvidia/nvidia-kimi-k2.6",
-        "deepseek/deepseek-v4-pro",
-        "volcengine-coding/deepseek-v4-pro",
-        "cloudflare-workers-ai/cf-kimi-k2.6",
-        "proxy_openrouter/openrouter-kimi-k2.6-free",
-        "proxy_xai/grok-4.3",
-        "deepseek/deepseek-v4-flash"
-      ]
-    },
-    "build": {
-      "fallback_models": [
-        "volcengine-coding/kimi-k2.6",
-        "mimo-tokenplan/mimo-v2.5-pro",
-        "nvidia/nvidia-glm-5.1",
-        "nvidia/nvidia-kimi-k2.6",
-        "deepseek/deepseek-v4-pro",
-        "volcengine-coding/deepseek-v4-pro",
-        "cloudflare-workers-ai/cf-kimi-k2.6",
-        "proxy_openrouter/openrouter-kimi-k2.6-free",
-        "proxy_xai/grok-4.3",
-        "deepseek/deepseek-v4-flash"
-      ],
-      "model": "volcengine-coding/glm-5.1"
     },
     "sisyphus-junior": {
+      "model": "copilot/copilot.claude-haiku-4-5",
       "fallback_models": [
+        "copilot/copilot.gpt-5-mini",
+        "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
         "volcengine-coding/deepseek-v4-pro",
-        "mimo-tokenplan/mimo-v2.5-pro",
-        "deepseek/deepseek-v4-flash",
-        "cloudflare-workers-ai/cf-kimi-k2.6",
-        "proxy_openrouter/openrouter-kimi-k2.6-free",
-        "proxy_xai/grok-4.3",
-        "copilot/copilot.gpt-4.1",
-        "opencode-zen/nemotron-3-ultra-free",
-        "proxy_openrouter/openrouter-nemotron-3-ultra-free"
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
       ]
     },
     "oracle": {
+      "model": "nvidia/nvidia-glm-5.1",
       "fallback_models": [
-        "volcengine-coding/kimi-k2.6",
-        "mimo-tokenplan/mimo-v2.5-pro",
-        "nvidia/nvidia-glm-5.1",
-        "nvidia/nvidia-kimi-k2.6",
-        "deepseek/deepseek-v4-pro",
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
         "volcengine-coding/deepseek-v4-pro",
-        "cloudflare-workers-ai/cf-kimi-k2.6",
-        "proxy_openrouter/openrouter-kimi-k2.6-free",
-        "proxy_xai/grok-4.3",
-        "deepseek/deepseek-v4-flash"
-      ],
-      "model": "volcengine-coding/glm-5.1"
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
+      ]
     }
   },
   "categories": {
     "quick": {
-      "model": "volcengine-coding/glm-5.1",
+      "model": "copilot/copilot.claude-haiku-4-5",
       "fallback_models": [
-        "nvidia/nvidia-glm-5.1",
-        "modal/zai-org/GLM-5.1-FP8",
-        "modelscope-GLM5/ZhipuAI/GLM-5"
+        "copilot/copilot.gpt-5-mini",
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
+        "volcengine-coding/deepseek-v4-pro",
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
       ]
     },
     "deep": {
-      "model": "deepseek/deepseek-v4-pro",
+      "model": "nvidia/nvidia-glm-5.1",
       "fallback_models": [
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
         "volcengine-coding/deepseek-v4-pro",
-        "deepseek/deepseek-v4-flash"
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
       ]
     },
     "ultrabrain": {
-      "model": "volcengine-coding/kimi-k2.6",
+      "model": "nvidia/nvidia-glm-5.1",
       "fallback_models": [
-        "nvidia/nvidia-kimi-k2.6",
-        "cloudflare-workers-ai/cf-kimi-k2.6",
-        "proxy_openrouter/openrouter-kimi-k2.6-free"
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
+        "volcengine-coding/deepseek-v4-pro",
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
       ]
     },
     "visual-engineering": {
-      "model": "volcengine-coding/glm-5.1",
+      "model": "nvidia/nvidia-glm-5.1",
       "fallback_models": [
-        "volcengine-coding/kimi-k2.6",
-        "deepseek/deepseek-v4-flash"
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
+        "volcengine-coding/deepseek-v4-pro",
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
       ]
     },
     "unspecified-high": {
-      "model": "volcengine-coding/glm-5.1",
+      "model": "nvidia/nvidia-glm-5.1",
       "fallback_models": [
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
         "volcengine-coding/deepseek-v4-pro",
-        "mimo-tokenplan/mimo-v2.5-pro"
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
       ]
     },
     "unspecified-low": {
-      "model": "volcengine-coding/deepseek-v4-pro",
+      "model": "copilot/copilot.claude-haiku-4-5",
       "fallback_models": [
-        "deepseek/deepseek-v4-flash",
+        "copilot/copilot.gpt-5-mini",
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
+        "volcengine-coding/deepseek-v4-pro",
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "artistry": {
-      "model": "proxy_xai/grok-4.3",
-      "fallback_models": []
+      "model": "nvidia/nvidia-glm-5.1",
+      "fallback_models": [
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
+        "volcengine-coding/deepseek-v4-pro",
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
+      ]
     },
     "writing": {
-      "model": "volcengine-coding/glm-5.1",
+      "model": "nvidia/nvidia-glm-5.1",
       "fallback_models": [
-        "volcengine-coding/kimi-k2.6",
-        "deepseek/deepseek-v4-pro"
+        "cloudflare-workers-ai/cf-glm-5.2",
+        "nvidia/nvidia-nemotron-3-ultra",
+        "nvidia/nvidia-deepseek-v4-pro",
+        "modelscope/MiniMax/MiniMax-M3",
+        "nvidia/nvidia-minimax-m3",
+        "volcengine-coding/deepseek-v4-pro",
+        "volcengine-coding/glm-latest",
+        "deepseek/deepseek-v4-pro",
+        "mimo/mimo-v2.5-pro",
+        "proxy_xai/grok-4.3"
       ]
     },
     "ReviewGLM": {
-      "model": "volcengine-coding/glm-5.1",
+      "model": "nvidia/nvidia-glm-5.1",
       "fallback_models": [
-        "nvidia/nvidia-glm-5.1",
-        "modal/zai-org/GLM-5.1-FP8",
-        "modelscope-GLM5/ZhipuAI/GLM-5"
-      ]
-    },
-    "ReviewKimi": {
-      "model": "volcengine-coding/kimi-k2.6",
-      "fallback_models": [
-        "nvidia/nvidia-kimi-k2.6",
-        "cloudflare-workers-ai/cf-kimi-k2.6",
-        "proxy_openrouter/openrouter-kimi-k2.6-free"
+        "volcengine-coding/glm-latest"
       ]
     },
     "ReviewDeepseek": {
-      "model": "deepseek/deepseek-v4-pro",
+      "model": "nvidia/nvidia-deepseek-v4-pro",
       "fallback_models": [
         "volcengine-coding/deepseek-v4-pro",
-        "deepseek/deepseek-v4-flash"
+        "deepseek/deepseek-v4-pro"
       ]
     },
     "ReviewGrok": {
@@ -248,9 +283,21 @@
       "model": "alibaba/qwen3.7-max",
       "fallback_models": []
     },
+    "ReviewMinimax": {
+      "model": "nvidia/nvidia-minimax-m3",
+      "fallback_models": [
+        "volcengine-coding/minimax-m3"
+      ]
+    },
     "ReviewMimo": {
-      "model": "mimo-tokenplan/mimo-v2.5-pro",
+      "model": "mimo/mimo-v2.5-pro",
       "fallback_models": []
+    },
+    "ReviewKimi": {
+      "model": "nvidia/nvidia-kimi-k2.6",
+      "fallback_models": [
+        "volcengine-coding/kimi-k2.6"
+      ]
     }
   },
   "model_fallback": false,
@@ -261,5 +308,5 @@
     "planner_enabled": true,
     "replace_plan": true
   },
-  "auto_update": true
+  "auto_update": false
 }

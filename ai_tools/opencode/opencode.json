@@ -1,8 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "autoupdate": false,
-  "model": "mimo-tokenplan/mimo-v2.5-pro",
-  "small_model": "mimo-tokenplan/mimo-v2.5-pro",
+  "autoupdate": true,
+  "model": "deepseek/deepseek-v4-pro",
+  "small_model": "deepseek/deepseek-v4-pro",
   "snapshot": false,
   "compaction": {
     "auto": true,
@@ -18,55 +18,20 @@
       },
       "models": {
         "glm-5.1": {
-          "id": "glm-5.1",
           "limit": {
-            "context": 200000,
+            "context": 202752,
             "output": 131072
-          }
-        },
-        "glm-5": {
-          "id": "glm-5",
-          "limit": {
-            "context": 200000,
-            "output": 131072
-          }
-        },
-        "kimi-k2.5": {
-          "id": "kimi-k2.5",
-          "limit": {
-            "context": 262144,
-            "output": 32768
-          }
-        },
-        "deepseek-v3.2": {
-          "id": "deepseek-v3.2",
-          "limit": {
-            "context": 128000,
-            "output": 12800
           }
         },
         "deepseek-v4-flash": {
-          "id": "deepseek-v4-flash",
           "limit": {
             "context": 1000000,
             "output": 384000
           }
-        },
-        "qwen3.5-397b-a17b": {
-          "id": "qwen3.5-397b-a17b",
-          "limit": {
-            "context": 262144,
-            "output": 81920
-          }
         }
       },
       "whitelist": [
-        "glm-5.1",
-        "glm-5",
-        "kimi-k2.5",
-        "deepseek-v3.2",
-        "deepseek-v4-flash",
-        "qwen3.5-397b-a17b"
+        "glm-5.1"
       ]
     },
     "proxy_anthropic": {
@@ -94,56 +59,57 @@
         "baseURL": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
       },
       "models": {
-        "qwen3.6-plus": {
-          "id": "qwen3.6-plus",
+        "qwen3.7-max": {
           "limit": {
             "context": 1000000,
-            "output": 65536
+            "output": 32000
           }
         },
         "deepseek-v4-pro": {
-          "id": "deepseek-v4-pro",
           "limit": {
             "context": 1000000,
             "output": 384000
           }
         },
         "deepseek-v4-flash": {
-          "id": "deepseek-v4-flash",
           "limit": {
             "context": 1000000,
             "output": 384000
           }
         },
-        "kimi-k2.6": {
-          "id": "kimi-k2.6",
+        "kimi-k2.7-code": {
           "limit": {
             "context": 262144,
-            "output": 98304
+            "output": 32768
           }
         },
-        "glm-5.1": {
-          "id": "glm-5.1",
+        "glm-5.2": {
           "limit": {
-            "context": 202752,
+            "context": 1048576,
             "output": 131072
           }
         },
-        "glm-5": {
-          "id": "glm-5",
+        "glm-latest": {
           "limit": {
-            "context": 202752,
+            "context": 1048576,
+            "output": 131072
+          }
+        },
+        "minimax-m3": {
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          }
+        },
+        "mimo-v2.5-pro": {
+          "limit": {
+            "context": 1048576,
             "output": 131072
           }
         }
       },
       "whitelist": [
-        "qwen3.6-plus",
-        "deepseek-v4-pro",
-        "deepseek-v4-flash",
-        "kimi-k2.6",
-        "glm-5.1",
-        "glm-5"
+        "qwen3.7-max"
       ]
     },
     "zhipu": {
@@ -187,8 +153,7 @@
         }
       },
       "whitelist": [
-        "gemini-3.1-pro-preview",
-        "gemini-3-flash"
+        "gemini-3.1-pro-preview"
       ]
     },
     "modal": {
@@ -220,7 +185,7 @@
         "baseURL": "https://api-ai.gitcode.com/v1/"
       },
       "models": {
-        "zai-org/GLM-5": {
+        "zai-org/GLM-5.1": {
           "limit": {
             "context": 200000,
             "output": 131072
@@ -232,25 +197,7 @@
         }
       },
       "whitelist": [
-        "zai-org/GLM-5"
-      ]
-    },
-    "modelscope-GLM5": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "ModelScope GLM-5",
-      "options": {
-        "baseURL": "https://api-inference.modelscope.cn/v1"
-      },
-      "models": {
-        "ZhipuAI/GLM-5": {
-          "limit": {
-            "context": 200000,
-            "output": 131072
-          }
-        }
-      },
-      "whitelist": [
-        "ZhipuAI/GLM-5"
+        "zai-org/GLM-5.1"
       ]
     },
     "proxy_openrouter": {
@@ -260,24 +207,24 @@
         "baseURL": "https://openroutergateway.jiucai.eu.org"
       },
       "models": {
-        "openrouter-kimi-k2.6-free": {
-          "id": "moonshotai/kimi-k2.6:free",
-          "limit": {
-            "context": 262144,
-            "output": 98304
-          }
-        },
         "openrouter-nemotron-3-ultra-free": {
           "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
           "limit": {
             "context": 1048576,
             "output": 32768
           }
+        },
+        "openrouter-kimi-k2.6-free": {
+          "id": "moonshotai/kimi-k2.6:free",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
         }
       },
       "whitelist": [
-        "openrouter-kimi-k2.6-free",
-        "openrouter-nemotron-3-ultra-free"
+        "openrouter-nemotron-3-ultra-free",
+        "openrouter-kimi-k2.6-free"
       ]
     },
     "bltcy": {
@@ -318,11 +265,7 @@
         }
       },
       "whitelist": [
-        "gpt-5.5",
-        "claude-sonnet-4-6",
-        "gemini-3.1-pro-preview",
-        "gemini-3-flash",
-        "grok-4.3"
+        "gpt-5.5"
       ]
     },
     "proxy_xai": {
@@ -350,27 +293,29 @@
       ]
     },
     "deepseek": {
-      "npm": "@ai-sdk/openai-compatible",
+      "npm": "@ai-sdk/anthropic",
+      "name": "DeepSeek",
       "options": {
-        "baseURL": "https://api.deepseek.com/v1"
+        "baseURL": "https://api.deepseek.com/anthropic",
+        "chunkTimeout": 15000,
+        "timeout": 600000
       },
       "models": {
         "deepseek-v4-pro": {
-          "id": "deepseek-v4-pro",
-          "options": {
-            "reasoningEffort": "max"
-          },
           "limit": {
             "context": 1000000,
-            "input": 616000,
             "output": 384000
+          },
+          "options": {
+            "thinking": {
+              "type": "enabled",
+              "budgetTokens": 32000
+            }
           }
         },
         "deepseek-v4-flash": {
-          "id": "deepseek-v4-flash",
           "limit": {
             "context": 1000000,
-            "input": 616000,
             "output": 384000
           }
         }
@@ -382,20 +327,30 @@
     },
     "copilot": {
       "whitelist": [
-        "copilot.gpt-4.1"
-      ]
+        "copilot.claude-haiku-4-5",
+        "copilot.gpt-5-mini"
+      ],
+      "models": {
+        "copilot.claude-haiku-4-5": {
+          "id": "claude-haiku-4-5",
+          "limit": {
+            "context": 200000,
+            "output": 16384
+          }
+        },
+        "copilot.gpt-5-mini": {
+          "id": "gpt-5-mini",
+          "limit": {
+            "context": 200000,
+            "output": 16384
+          }
+        }
+      }
     },
     "opencode": {
       "whitelist": [
-        "opencode-gemini-3-flash-preview",
-        "opencode-gemini-3.1-pro-preview",
         "opencode-gpt-5.5",
-        "opencode-claude-4.6-sonnet",
-        "opencode-claude-4.7-opus",
-        "opencode-grok-4.3",
-        "opencode-deepseek-v4",
-        "opencode-qwen3.6-plus",
-        "opencode-kimi-k2.6"
+        "opencode-claude-4.7-opus"
       ],
       "models": {}
     },
@@ -406,35 +361,91 @@
         "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3"
       },
       "models": {
-        "kimi-k2.5": {
-          "limit": {
-            "context": 262144,
-            "output": 32768
-          }
-        },
-        "kimi-k2.6": {
-          "limit": {
-            "context": 262144,
-            "output": 32768
-          }
-        },
-        "glm-5.1": {
-          "limit": {
-            "context": 200000,
-            "output": 131072
-          }
-        },
         "deepseek-v4-pro": {
           "limit": {
             "context": 1000000,
             "output": 384000
+          },
+          "options": {
+            "reasoningEffort": "max"
+          }
+        },
+        "glm-latest": {
+          "limit": {
+            "context": 1048576,
+            "output": 131072
+          }
+        },
+        "minimax-m3": {
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          }
+        },
+        "kimi-k2.6": {
+          "id": "kimi-k2.6",
+          "limit": {
+            "context": 262144,
+            "output": 98304
           }
         }
       },
       "whitelist": [
-        "kimi-k2.6",
         "deepseek-v4-pro",
-        "glm-5.1"
+        "glm-latest",
+        "minimax-m3",
+        "kimi-k2.6"
+      ]
+    },
+    "qiniu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Qiniu AI",
+      "options": {
+        "baseURL": "https://api.qnaigc.com/v1"
+      },
+      "models": {
+        "glm-5.2": {
+          "id": "z-ai/glm-5.2",
+          "limit": {
+            "context": 1048576,
+            "output": 131072
+          }
+        },
+        "kimi-k2.7-code": {
+          "id": "moonshotai/kimi-k2.7-code",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        },
+        "deepseek-v4-pro": {
+          "id": "deepseek/deepseek-v4-pro",
+          "limit": {
+            "context": 1048576,
+            "output": 32768
+          }
+        },
+        "minimax-m3": {
+          "id": "minimax/minimax-m3",
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          }
+        },
+        "qwen3.7-max": {
+          "id": "qwen/qwen3.7-max",
+          "limit": {
+            "context": 1048576,
+            "output": 32768
+          }
+        }
+      },
+      "whitelist": [
+        "glm-5.2",
+        "kimi-k2.7-code",
+        "deepseek-v4-pro",
+        "minimax-m3",
+        "qwen3.7-max"
       ]
     },
     "tencent-tokenplan": {
@@ -458,19 +469,12 @@
         },
         "hy3-preview": {
           "limit": {
-            "context": 256000,
-            "output": 65536
-          },
-          "variants": {
-            "thinking": {
-              "reasoning_effort": "high"
-            }
+            "context": 262144,
+            "output": 32768
           }
         }
       },
       "whitelist": [
-        "kimi-k2.6",
-        "glm-5.1",
         "hy3-preview"
       ]
     },
@@ -481,8 +485,13 @@
         "baseURL": "https://api.kimi.com/coding/v1"
       },
       "models": {
+        "kimi-k2.7-code": {
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        },
         "kimi-k2.6": {
-          "id": "kimi-k2.6",
           "limit": {
             "context": 262144,
             "output": 32768
@@ -490,7 +499,7 @@
         }
       },
       "whitelist": [
-        "kimi-k2.6"
+        "kimi-k2.7-code"
       ]
     },
     "unicom-coding-plan": {
@@ -502,15 +511,13 @@
       "models": {
         "DeepSeek-V4-Pro": {
           "limit": {
-            "context": 200000,
-            "input": 150000,
+            "context": 1000000,
             "output": 384000
           }
         },
         "DeepSeek-V4-Flash": {
           "limit": {
             "context": 1000000,
-            "input": 616000,
             "output": 384000
           }
         },
@@ -519,47 +526,10 @@
             "context": 200000,
             "output": 131072
           }
-        },
-        "glm-5": {
-          "limit": {
-            "context": 200000,
-            "output": 131072
-          }
-        },
-        "kimi-k2.5": {
-          "limit": {
-            "context": 262144,
-            "output": 32768
-          }
-        },
-        "Qwen3.5-397B-A17B": {
-          "limit": {
-            "context": 262144,
-            "output": 81920
-          }
-        },
-        "DeepSeek-V3.1": {
-          "limit": {
-            "context": 128000,
-            "output": 12800
-          }
-        },
-        "Qwen3-235B-A22B": {
-          "limit": {
-            "context": 128000,
-            "output": 8192
-          }
-        },
-        "MiniMax-M2.5": {
-          "limit": {
-            "context": 256000,
-            "output": 32768
-          }
         }
       },
       "whitelist": [
         "DeepSeek-V4-Pro",
-        "DeepSeek-V4-Flash",
         "glm-5.1"
       ]
     },
@@ -570,32 +540,61 @@
         "baseURL": "https://integrate.api.nvidia.com/v1"
       },
       "models": {
-        "nvidia-glm-5.1": {
-          "id": "z-ai/glm-5.1",
+        "nvidia-nemotron-3-ultra": {
+          "id": "nvidia/nemotron-3-ultra-550b-a55b",
           "limit": {
-            "context": 200000,
-            "output": 131072
+            "context": 1048576,
+            "output": 32768
+          },
+          "options": {
+            "reasoningEffort": "high"
+          }
+        },
+        "nvidia-minimax-m3": {
+          "id": "minimaxai/minimax-m3",
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          }
+        },
+        "nvidia-deepseek-v4-pro": {
+          "id": "deepseek-ai/deepseek-v4-pro",
+          "limit": {
+            "context": 1048576,
+            "output": 384000
+          },
+          "options": {
+            "reasoningEffort": "max"
+          }
+        },
+        "nvidia-deepseek-v4-flash": {
+          "limit": {
+            "context": 1048576,
+            "output": 384000
           }
         },
         "nvidia-kimi-k2.6": {
           "id": "moonshotai/kimi-k2.6",
           "limit": {
             "context": 262144,
-            "output": 98304
+            "output": 32768
           }
         },
-        "nvidia-nemotron-3-ultra": {
-          "id": "nvidia/nemotron-3-ultra-550b-a55b",
+        "nvidia-glm-5.1": {
+          "id": "z-ai/glm-5.1",
           "limit": {
-            "context": 262144,
-            "output": 32768
+            "context": 202752,
+            "output": 131072
           }
         }
       },
       "whitelist": [
         "nvidia-glm-5.1",
-        "nvidia-kimi-k2.6",
-        "nvidia-nemotron-3-ultra"
+        "nvidia-nemotron-3-ultra",
+        "nvidia-minimax-m3",
+        "nvidia-deepseek-v4-flash",
+        "nvidia-deepseek-v4-pro",
+        "nvidia-kimi-k2.6"
       ]
     },
     "mimo": {
@@ -610,6 +609,9 @@
           "limit": {
             "context": 1048576,
             "output": 131072
+          },
+          "options": {
+            "reasoningEffort": "high"
           }
         }
       },
@@ -628,12 +630,28 @@
           "id": "@cf/moonshotai/kimi-k2.6",
           "limit": {
             "context": 262144,
-            "output": 98304
+            "output": 32768
+          }
+        },
+        "cf-kimi-k2.7-code": {
+          "id": "@cf/moonshotai/kimi-k2.7-code",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        },
+        "cf-glm-5.2": {
+          "id": "@cf/zai-org/glm-5.2",
+          "limit": {
+            "context": 262144,
+            "output": 16384
           }
         }
       },
       "whitelist": [
-        "cf-kimi-k2.6"
+        "cf-kimi-k2.6",
+        "cf-kimi-k2.7-code",
+        "cf-glm-5.2"
       ]
     },
     "alibaba": {
@@ -682,37 +700,155 @@
       },
       "models": {
         "nemotron-3-ultra-free": {
-          "id": "nemotron-3-ultra-free",
+          "id": "nvidia/nemotron-3-ultra-free",
           "limit": {
-            "context": 1048576,
-            "output": 32768
+            "context": 131072,
+            "output": 16384
+          }
+        },
+        "mimo-v2.5-free": {
+          "id": "mimo-v2.5-free",
+          "limit": {
+            "context": 131072,
+            "output": 16384
           }
         }
       },
       "whitelist": [
-        "nemotron-3-ultra-free"
+        "nemotron-3-ultra-free",
+        "mimo-v2.5-free"
+      ]
+    },
+    "qianfan": {
+      "whitelist": []
+    },
+    "qwen": {
+      "whitelist": []
+    },
+    "xr_zhipu": {
+      "whitelist": []
+    },
+    "minimax-cn-coding-plan": {
+      "whitelist": []
+    },
+    "openrouter": {
+      "whitelist": []
+    },
+    "xai": {
+      "whitelist": []
+    },
+    "google": {
+      "whitelist": []
+    },
+    "groq": {
+      "whitelist": []
+    },
+    "modelscope": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "ModelScope",
+      "options": {
+        "baseURL": "https://api-inference.modelscope.cn/v1"
+      },
+      "models": {
+        "MiniMax/MiniMax-M3": {
+          "id": "MiniMax/MiniMax-M3",
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          }
+        }
+      },
+      "whitelist": [
+        "MiniMax/MiniMax-M3"
       ]
     }
   },
   "agent": {
-    "build": {
-      "steps": 999
-    },
     "plan": {
-      "model": "mimo-tokenplan/mimo-v2.5-pro",
-      "steps": 45
+      "model": "nvidia/nvidia-glm-5.1"
     },
     "title": {
-      "model": "mimo-tokenplan/mimo-v2.5-pro"
+      "model": "nvidia/nvidia-glm-5.1"
     },
     "summary": {
-      "model": "mimo-tokenplan/mimo-v2.5-pro"
+      "model": "nvidia/nvidia-glm-5.1"
     },
     "compaction": {
       "model": "proxy_xai/grok-4.20-0309-reasoning"
+    },
+    "atlas": {
+      "model": "nvidia/nvidia-deepseek-v4-pro"
+    },
+    "explore": {
+      "model": "nvidia/nvidia-deepseek-v4-pro"
+    },
+    "librarian": {
+      "model": "nvidia/nvidia-deepseek-v4-pro"
+    },
+    "multimodal-looker": {
+      "model": "nvidia/nvidia-glm-5.1"
+    },
+    "hephaestus": {
+      "model": "nvidia/nvidia-deepseek-v4-pro"
+    },
+    "prometheus": {
+      "model": "nvidia/nvidia-glm-5.1"
+    },
+    "metis": {
+      "model": "nvidia/nvidia-glm-5.1"
+    },
+    "momus": {
+      "model": "nvidia/nvidia-deepseek-v4-pro"
     }
   },
   "plugin": [
-    "oh-my-openagent"
+    "oh-my-openagent@latest"
+  ],
+  "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--autoConnect"
+      ],
+      "enabled": true,
+      "timeout": 20000
+    },
+    "edge-devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--browser-url=http://127.0.0.1:9419"
+      ],
+      "enabled": true,
+      "timeout": 20000
+    }
+  },
+  "disabled_providers": [
+    "alibaba-tokenplan",
+    "atomgit_glm5",
+    "bltcy",
+    "google",
+    "groq",
+    "kimi-coding-plan",
+    "mimo-tokenplan",
+    "minimax-cn-coding-plan",
+    "modal",
+    "opencode",
+    "openrouter",
+    "proxy_anthropic",
+    "qianfan",
+    "qianfan-coding-plan",
+    "qiniu",
+    "qwen",
+    "tencent-tokenplan",
+    "unicom-coding-plan",
+    "xai",
+    "xr_zhipu",
+    "zhipu"
   ]
 }
