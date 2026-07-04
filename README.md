@@ -672,6 +672,17 @@ docker compose logs -f crawl-cron
 
 **分段续爬**：爬虫脚本返回 `exit code 10` 时表示本次时间预算用完但还没全量完成。workflow 会提交进度并正常结束本次运行，不会在同一个 job 内再次重启长步骤，避免实际运行时间超过上午/下午窗口。汽车之家 step1 与懂车帝 step2 都会在长步骤启动前按 workflow 已耗时重新缩短 `RUN_TIME`，并预留提交缓冲，防止 GitHub 6 小时硬超时直接取消导致进度无法推送。
 
+**Hermes/Codex 持续调试闭环**：当用户要求“完全达到预期前持续调试”时，不能只看 `github-actions[bot]` 的进度提交，也不能只汇报 Actions 仍在运行。有效进展必须至少包含一次人工或 Hermes/Codex 产生的源码、workflow 或 Pages 修复提交，并继续完成以下闭环：
+
+1. 用 `gh run list --all`、`gh run view --log`、Release artifact 和 `https://cars.jiucai.eu.org/data/latest.json` 同时确认当前失败点。
+2. 在本地或干净临时 clone 中修改源码、workflow 或 Pages 前端，并运行适用的静态检查、脚本测试和 workflow 护栏。
+3. 提交并推送非 bot 修复提交，避免只留下进度 JSON 或 done marker 变化。
+4. 手动触发 debug 模式爬虫 workflow，样本量控制在二三十条，验证“爬虫 -> artifact -> merge-and-filter -> deploy-pages -> Pages 数据”的短链路。
+5. 若已有 schedule/外部触发 workflow 正在运行，按北京时间 08:00-12:30、13:00-22:00 窗口、GitHub Actions 6 小时限制和合并/部署预计耗时估算下一次检查时间，不要重复抢跑长任务。
+6. Pages 验证不只看 HTTP 200；要检查 `latest.json` 行数、双源/验证字段、关键字段覆盖率和前端显示是否符合预期。
+
+2026-07-04 的治理结论是：远程仓库长时间只有 `github-actions[bot]` 提交时，应视为持续调试闭环没有形成，监控器必须继续定位并修复源码或 workflow，而不是仅写状态报告。
+
 **懂车帝 HTML 缓存**：懂车帝 step2 的 HTML 页面不提交到 git，而是由 `crawl-dongchedi.yml` 在 step1 前恢复 `dongchedi/json/` Actions cache。日志中的 `已有HTML` 代表本次 runner 实际恢复到的页面数；如果缓存缺失，脚本会重置缺少 HTML 的 `crawled_series`，防止只保存进度却没有页面数据。
 
 **手动触发**：在 Actions 页面点击 "Run workflow"
