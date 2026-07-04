@@ -810,6 +810,7 @@ def crawl_series_config(browser, series_list):
     consecutive_renderer_timeouts = 0
     consecutive_network_errors = 0
     need_crawl = len(series_list) - initial_crawled_count
+    attempted_count = 0  # 调试模式：统计尝试过的车系数（含超时/失败）
 
     print(f"车系总数: {len(series_list)}，已有HTML: {initial_crawled_count}，需爬取: {need_crawl}")
 
@@ -825,8 +826,15 @@ def crawl_series_config(browser, series_list):
             continue
 
         # 增量模式和全量模式都检查时间限制和数量限制
-        if check_time_limit(start_time) or check_series_limit(len(crawled) - initial_crawled_count):
-            return browser
+        # 调试模式用 attempted_count 确保即使全部超时也能在限制数量后停止
+        if DEBUG_MODE:
+            attempted_count += 1
+            if check_time_limit(start_time) or attempted_count > MAX_SERIES_PER_RUN:
+                print(f"调试模式：已尝试 {attempted_count - 1} 个车系，达到限制 {MAX_SERIES_PER_RUN}，停止爬取")
+                break
+        else:
+            if check_time_limit(start_time) or check_series_limit(len(crawled) - initial_crawled_count):
+                return browser
 
         print(
             f"[{idx + 1}/{len(series_list)}] 正在爬取: {series_name} (ID: {series_id})"
@@ -1300,8 +1308,11 @@ def main():
             browser = create_browser()
             try:
                 browser = crawl_series_config(browser, series_list)
-                step2_done = is_debug_step2_completed() if DEBUG_MODE else is_step2_completed()
-                if AUTO_MODE and not step2_done:
+                if DEBUG_MODE:
+                    # 调试模式：无论 HTML 保存多少都进入 step3 解析
+                    # step3 的 require_non_empty_rows 会诚实地判断是否有数据
+                    print("调试模式：step2 结束，进入 step3 解析（即使部分/全部车系超时）")
+                elif AUTO_MODE and not is_step2_completed():
                     sys.exit(10)
             finally:
                 browser.quit()

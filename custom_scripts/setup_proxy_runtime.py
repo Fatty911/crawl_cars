@@ -31,6 +31,7 @@ MIHOMO_API = "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
 DEFAULT_TEST_URLS = [
     "http://www.gstatic.com/generate_204",
     "https://www.google.com/generate_204",
+    "https://www.dongchedi.com",
 ]
 
 
