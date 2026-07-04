@@ -84,9 +84,10 @@ MAX_TIME_PER_STEP = args.time_limit
 MAX_SERIES_PER_RUN = args.max_series
 AUTO_MODE = args.auto
 INCREMENTAL_MODE = args.incremental
+DEBUG_MODE = args.debug_limit > 0
 
 # 调试模式：强制开启增量扫描模式，并限制爬取数量
-if args.debug_limit > 0:
+if DEBUG_MODE:
     INCREMENTAL_MODE = True
     MAX_SERIES_PER_RUN = args.debug_limit
     print(f"调试模式：限制爬取 {args.debug_limit} 个车系，启用增量扫描模式")
@@ -343,6 +344,9 @@ def check_series_limit(crawled_count):
         print(f"已达到车系数量限制 {MAX_SERIES_PER_RUN}，保存进度并退出")
         save_progress()
         if AUTO_MODE:
+            if DEBUG_MODE:
+                print("调试模式已达到车系数量限制，准备进入后续解析")
+                return True
             print("未完成，等待下次继续")
             sys.exit(10)
         return True
@@ -449,6 +453,20 @@ def is_step2_completed():
         return False
     series_ids = {str(series["id"]) for series in series_list}
     return series_ids.issubset(crawled)
+
+
+def is_debug_step2_completed():
+    if not DEBUG_MODE or MAX_SERIES_PER_RUN <= 0:
+        return False
+    series_list = progress.get("series_list", [])
+    if not series_list:
+        return False
+    required = min(MAX_SERIES_PER_RUN, len(series_list))
+    if required <= 0:
+        return False
+    series_ids = {str(series["id"]) for series in series_list}
+    html_ids = get_existing_html_ids()
+    return len(series_ids & html_ids) >= required
 
 
 def require_non_empty_rows(all_rows, stage):
@@ -1282,7 +1300,8 @@ def main():
             browser = create_browser()
             try:
                 browser = crawl_series_config(browser, series_list)
-                if AUTO_MODE and not is_step2_completed():
+                step2_done = is_debug_step2_completed() if DEBUG_MODE else is_step2_completed()
+                if AUTO_MODE and not step2_done:
                     sys.exit(10)
             finally:
                 browser.quit()
