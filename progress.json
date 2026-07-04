@@ -1,1 +1,1 @@
-{"cars_downloaded": 30, "download_car_pages": ["A"]}
+{"download_car_pages": ["A", "B", "C", "D", "E"], "cars_downloaded": 30, "current_letter": "F", "current_car_idx": 15}
