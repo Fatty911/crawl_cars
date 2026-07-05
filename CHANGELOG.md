@@ -1,3 +1,15 @@
+## 2026-07-05
+
+### Fixed
+- mihomo 控制端口超时 15s→30s，解决 420 节点加载慢导致的代理未就绪
+- health-check URL `gstatic.com/generate_204`（被墙）→ `baidu.com`
+- 代理连通性测试增加重试机制，避免首次连接失败
+- GITHUB_TOKEN 无 workflows 权限时 push 被拒——用 temp-dir 保留本地 workflow
+
+### Changed
+- 仓库目录整理：Python 脚本→`scripts/`，配置文件→`config/`
+- 上游同步工作流：改用纯 git 方案替代第三方 action
+
 # 对话历史
 
 ## 2026-06-15
