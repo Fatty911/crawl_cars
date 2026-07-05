@@ -27,6 +27,7 @@ PROVIDER_BASE_URLS = {
     "MINIMAX": "https://api.minimax.io/v1",
     "MINIMAX_CODING_PLAN": "https://api.minimax.io/v1",
     "MOONSHOT": "https://api.moonshot.cn/v1",
+    "ZHIPU": "https://open.bigmodel.cn/api/paas/v4",
     "XAI": "https://api.x.ai/v1",
     "OPENAI": "https://api.openai.com/v1",
 }
@@ -40,7 +41,10 @@ PROVIDER_DEFAULT_MODELS = {
     "ZEN": ["nemotron-3-ultra-free", "deepseek-v4-flash-free"],
     "ATOMGIT": ["zai-org/GLM-5", "Qwen/Qwen3.5-397B-A17B"],
     # 付费 Plan（免费全部不可用时兜底）
-    "DEEPSEEK": ["deepseek-r1"],
+    "DEEPSEEK": ["deepseek-v4-pro", "deepseek-v4-flash"],
+    "ZHIPU": ["glm-5.2"],
+    "MOONSHOT": ["kimi-k2.6"],
+    "MINIMAX": ["minimax-m3"],
 }
 
 class WorkflowErrorFixer:
