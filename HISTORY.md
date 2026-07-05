@@ -1,3 +1,20 @@
+## 2026-07-05 — 代理修复 + 目录整理
+
+### 代理连通性修复
+- `custom_scripts/setup_proxy_runtime.py`: mihomo 控制端口超时 15s→30s，失败时打印日志诊断
+- `custom_scripts/generate_clash_config.py`: health-check URL 改为 `https://www.baidu.com`（原 `gstatic.com/generate_204` 被墙），interval 300→60s
+- `custom_scripts/setup_proxy_runtime.py`: `test_local_proxy` 增加重试（3次/5秒间隔），`session.trust_env=False`，timeout 12→15
+- `proxy_manager.py`: `get_clash_delay` 默认 URL 改为 `baidu.com`
+
+### 仓库目录整理
+- 19个 .py/.sh/.json 文件从根目录移入 `scripts/` 和 `config/`
+- 所有引用路径已更新（Dockerfile、workflows、deploy_vps.sh 等）
+- 根目录文件数：33→14
+
+### 上游同步工作流
+- 新增健壮的 `sync-upstream.yml`：temp-dir 方案保留本地 workflow 文件
+- 解决 GITHUB_TOKEN 无 workflows 写权限导致的 push 被拒问题
+
 # 对话历史总结
 
 > 最后更新：2026-06-15 18:35
