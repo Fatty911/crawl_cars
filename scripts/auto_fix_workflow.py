@@ -18,21 +18,26 @@ import re
 from typing import Optional, Dict, List
 
 PROVIDER_BASE_URLS = {
-    "ATOMGIT": "https://api-ai.gitcode.com/v1",
+    "NVIDIA_NIM": "https://integrate.api.nvidia.com/v1",
+    "MODELSCOPE": "https://api-inference.modelscope.cn/v1",
     "OPENROUTER": "https://openrouter.ai/api/v1",
+    "ZEN": "https://opencode.ai/zen/v1",
+    "ATOMGIT": "https://api-ai.gitcode.com/v1",
     "DEEPSEEK": "https://api.deepseek.com/v1",
     "MINIMAX": "https://api.minimax.io/v1",
     "MINIMAX_CODING_PLAN": "https://api.minimax.io/v1",
     "MOONSHOT": "https://api.moonshot.cn/v1",
     "XAI": "https://api.x.ai/v1",
-    "NVIDIA_NIM": "https://integrate.api.nvidia.com/v1",
     "OPENAI": "https://api.openai.com/v1",
 }
 
-# 只保留已确认可由仓库规则支撑的默认模型；其他 Provider 需显式配置 MODEL_LIST。
+# 免费强模型默认列表——仅限免费端点的强模型
 PROVIDER_DEFAULT_MODELS = {
+    "NVIDIA_NIM": ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free"],
+    "MODELSCOPE": ["MiniMax/MiniMax-M3"],
+    "OPENROUTER": ["nvidia/nemotron-3-ultra-550b-a55b:free"],
+    "ZEN": ["nemotron-3-ultra-free", "deepseek-v4-flash-free"],
     "ATOMGIT": ["zai-org/GLM-5", "Qwen/Qwen3.5-397B-A17B"],
-    "NVIDIA_NIM": ["nemotron-3-super"],
     "DEEPSEEK": ["deepseek-r1"],
 }
 
