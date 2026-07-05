@@ -246,67 +246,30 @@ def download_car_pages():
             for key in ("parse_js_to_html", "parse_json_data",
                         "crack_html_files", "generate_data_files"):
                 progress.pop(key, None)
-    
 
     start_time = time.time()
     cars_downloaded = progress.get("cars_downloaded", 0)
     initial_cars_downloaded = cars_downloaded
     skipped_count = 0  # 增量模式下跳过的已存在车型数
 
-    current_letter = progress.get("current_letter", None)
-    start_car_idx = progress.get("current_car_idx", 0)
-    skip_until_idx = start_car_idx if current_letter else 0
+    # === Phase 0: 快速扫描所有字母页，收集品牌热度(olr)+车系ID列表 ===
+    # 汽车之家 grade 页面每个品牌 dl 标签有 olr 属性 = 品牌热度排名
+    # olr=3 是比亚迪（最热门），olr 越小越热门，olr=200 是冷门品牌
+    series_queue_file = os.path.join(working_dir, "data", "autohome_series_queue.json")
 
-    if current_letter:
-        print(f"从字母{current_letter}的第{start_car_idx}个车型继续")
+    if os.path.exists(series_queue_file):
+        with open(series_queue_file, "r", encoding="utf-8") as f:
+            series_queue = json.load(f)
+        print(f"加载已有车系队列: {len(series_queue)} 个车系")
+    else:
+        print("=== Phase 0: 扫描所有字母页，收集品牌热度排名+车系列表 ===")
+        all_letters = [chr(i) for i in range(ord("A"), ord("Z") + 1)]
+        series_queue = []  # [(olr, car_id, brand_name, series_name), ...]
 
-    all_letters = [chr(i) for i in range(ord("A"), ord("Z") + 1)]
-
-    # 按品牌热度重排字母顺序：热门品牌首字母优先
-    # 首字母按中国汽车市场品牌热度排序，与懂车帝 brand_heat_order 对齐
-    BRAND_HEAT_FIRST_LETTERS = [
-        "B",  # 比亚迪、宝马、奔驰、保时捷、别克、本田、北京
-        "A",  # 奥迪、埃安、阿维塔
-        "L",  # 理想、零跑、领克、路虎、雷克萨斯、岚图
-        "W",  # 问界、蔚来、沃尔沃、五菱
-        "X",  # 小鹏、小米
-        "J",  # 极氪、捷途、吉利、江淮
-        "C",  # 长安、长城
-        "D",  # 大众、东风
-        "T",  # 特斯拉、腾势、坦克
-        "F",  # 丰田、福特、方程豹、法拉利
-        "K",  # 凯迪拉克
-        "H",  # 哈弗、红旗
-        "Q",  # 奇瑞、启辰
-        "G",  # 广汽
-        "R",  # 日产
-        "S",  # 斯柯达、三菱、深蓝
-        "Y",  # 仰望、英菲尼迪
-        "M",  # 马自达、名爵
-        "N",  # 哪吒
-        "Z",  # 智己、众泰
-        "O",  # 欧拉
-        "P",  # 标致
-        "E",  # 阿尔法·罗密欧
-        "U",  # 其他
-        "V",  # 沃尔沃（瑞典）
-    ]
-    # 补充不在列表中的字母
-    remaining = [l for l in all_letters if l not in BRAND_HEAT_FIRST_LETTERS]
-    sorted_letters = BRAND_HEAT_FIRST_LETTERS + sorted(remaining)
-    print(f"字母顺序（按品牌热度）: {''.join(sorted_letters)}")
-
-    for letter in sorted_letters:
-        should_process = (letter == current_letter) or (
-            letter not in letters and current_letter is None
-        )
-
-        if should_process:
+        for letter in all_letters:
             first_url = f"https://www.autohome.com.cn/grade/carhtml/{letter}.html"
-            second_url = "https://car.autohome.com.cn/config/series/{}.html"
-            print(f"正在获取{letter}开头的车型")
+            print(f"扫描字母 {letter} ...")
 
-            # SSL/Connection 错误重试（代理节点不稳定时需要）
             resp = None
             max_retries = 5
             for attempt in range(max_retries):
@@ -315,90 +278,131 @@ def download_car_pages():
                     break
                 except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
                     if attempt < max_retries - 1:
-                        wait_time = min(2 ** (attempt + 2), 20)  # 指数退避：4/8/16/20/20秒
+                        wait_time = min(2 ** (attempt + 2), 20)
                         print(f"连接错误，{wait_time}秒后重试 ({attempt+1}/{max_retries}): {e}")
                         time.sleep(wait_time)
                     else:
-                        print(f"连接错误重试 {max_retries} 次后仍然失败: {e}")
-                        raise
+                        print(f"字母{letter}扫描失败，跳过: {e}")
+                        break
 
-            if resp is None:
-                raise RuntimeError(f"请求 {first_url} 失败，未获取到响应")
+            if resp is None or resp.status_code != 200:
+                print(f"字母{letter}获取失败，跳过")
+                continue
 
-            print(f"第一步下载{letter}品牌响应码: {resp.status_code}")
-            human_delay(f"获取{letter}品牌列表")
             resp.encoding = resp.apparent_encoding
-
             soup = bs4.BeautifulSoup(resp.text, "html.parser")
-            cars = soup.find_all("li")
 
-            car_start_idx = skip_until_idx if letter == current_letter else 0
-            skip_until_idx = 0
+            # 每个品牌是一个 dl 标签，olr 属性是品牌热度排名
+            for dl in soup.find_all("dl"):
+                olr = int(dl.get("olr", "200"))
+                dt = dl.find("dt")
+                brand_name = ""
+                if dt:
+                    for div in dt.find_all("div"):
+                        txt = div.get_text(strip=True)
+                        if txt:
+                            brand_name = txt
+                            break
+                    if not brand_name:
+                        a = dt.find("a")
+                        if a:
+                            brand_name = a.get_text(strip=True)
 
-            for car_idx, car in enumerate(cars):
-                if car_idx < car_start_idx:
-                    continue
+                # 车系在 dd > ul > li > h4 > a 里
+                dd = dl.find("dd")
+                if dd:
+                    for li in dd.find_all("li"):
+                        h4 = li.find("h4")
+                        if h4 and h4.a:
+                            href = h4.a.get("href")
+                            series_name = h4.a.text.strip()
+                            if href and isinstance(href, str) and ".cn" in href:
+                                car_id = href.split("#")[0][href.index(".cn") + 3:].replace("/", "")
+                                if car_id:
+                                    series_queue.append({
+                                        "olr": olr,
+                                        "car_id": car_id,
+                                        "brand": brand_name,
+                                        "series": series_name,
+                                    })
 
-                # 增量模式和全量模式都检查时间限制和数量限制
-                if check_time_limit(start_time) or check_car_limit(cars_downloaded - initial_cars_downloaded):
-                    progress["cars_downloaded"] = cars_downloaded
-                    progress["current_letter"] = letter
-                    progress["current_car_idx"] = car_idx
-                    progress["download_car_pages"] = letters
-                    with open(progress_file, "w") as f:
-                        json.dump(progress, f)
-                    if AUTO_MODE:
-                        print(f"未完成，字母{letter}第{car_idx}个车型，等待下次继续")
-                        sys.exit(10)
-                    return
+            time.sleep(0.5)  # 字母页之间短暂间隔
 
-                h4 = car.h4
-                if h4 and h4.a:
-                    href = h4.a.get("href")
-                    if href and isinstance(href, str) and ".cn" in href:
-                        car_id = href.split("#")[0][href.index(".cn") + 3 :].replace(
-                            "/", ""
-                        )
-                        if car_id:
-                            car_file = os.path.join(html_dir, f"{car_id}")
-                            if os.path.exists(car_file):
-                                if INCREMENTAL_MODE:
-                                    skipped_count += 1
-                                continue
+        # 按品牌热度(olr)排序——热门品牌的车系优先爬
+        series_queue.sort(key=lambda x: x["olr"])
 
-                            car_url = second_url.format(car_id)
-                            print(f"正在获取{car_id}车型")
+        # 保存队列
+        os.makedirs(os.path.dirname(series_queue_file), exist_ok=True)
+        with open(series_queue_file, "w", encoding="utf-8") as f:
+            json.dump(series_queue, f, ensure_ascii=False, indent=2)
 
-                            for i in range(5):
-                                try:
-                                    resp = session.get(car_url, timeout=15)
-                                    print(f"车型{car_id}响应码: {resp.status_code}")
-                                    break
-                                except requests.exceptions.RequestException:
-                                    print(f"请求异常, 重试次数:{i + 1}")
-                                    human_delay(f"车型{car_id}请求异常")
-                            else:
-                                print(f"获取{car_id}车型失败,跳过")
-                                continue
-                            human_delay(f"获取{car_id}车型配置")
-                            resp.encoding = resp.apparent_encoding
-                            content = resp.text
-                            print(f"车型{car_id}内容长度: {len(content)}")
+        # 打印统计
+        brands_seen = {}
+        for s in series_queue:
+            brands_seen[s["brand"]] = brands_seen.get(s["brand"], 0) + 1
+        print(f"扫描完成: 共 {len(series_queue)} 个车系, {len(brands_seen)} 个品牌")
+        print(f"热度前10品牌: {list(brands_seen.items())[:10]}")
 
-                            with open(car_file, "w", encoding="utf-8") as f:
-                                f.write(content)
-                            cars_downloaded += 1
+    # === Phase 1: 按品牌热度顺序逐个爬详情页 ===
+    second_url = "https://car.autohome.com.cn/config/series/{}.html"
 
-            if letter not in letters:
-                letters.append(letter)
-            progress["download_car_pages"] = letters
+    # 从队列中恢复进度
+    queue_idx = progress.get("queue_idx", 0)
+
+    for idx in range(queue_idx, len(series_queue)):
+        item = series_queue[idx]
+        car_id = item["car_id"]
+        olr = item["olr"]
+        brand = item["brand"]
+        series = item["series"]
+
+        # 检查时间限制和数量限制
+        if check_time_limit(start_time) or check_car_limit(cars_downloaded - initial_cars_downloaded):
             progress["cars_downloaded"] = cars_downloaded
-            if "current_letter" in progress:
-                del progress["current_letter"]
-            if "current_car_idx" in progress:
-                del progress["current_car_idx"]
+            progress["queue_idx"] = idx
+            progress["download_car_pages"] = letters
             with open(progress_file, "w") as f:
                 json.dump(progress, f)
+            if AUTO_MODE:
+                print(f"未完成，队列第{idx}/{len(series_queue)}个（{brand}/{series}, olr={olr}），等待下次继续")
+                sys.exit(10)
+            return
+
+        car_file = os.path.join(html_dir, f"{car_id}")
+        if os.path.exists(car_file):
+            if INCREMENTAL_MODE:
+                skipped_count += 1
+            continue
+
+        car_url = second_url.format(car_id)
+        print(f"[{idx+1}/{len(series_queue)}] 正在获取 {brand}/{series} (car_id={car_id}, olr={olr})")
+
+        for i in range(5):
+            try:
+                resp = session.get(car_url, timeout=15)
+                print(f"车型{car_id}响应码: {resp.status_code}")
+                break
+            except requests.exceptions.RequestException:
+                print(f"请求异常, 重试次数:{i + 1}")
+                human_delay(f"车型{car_id}请求异常")
+        else:
+            print(f"获取{car_id}车型失败,跳过")
+            continue
+        human_delay(f"获取{car_id}车型配置")
+        resp.encoding = resp.apparent_encoding
+        content = resp.text
+        print(f"车型{car_id}内容长度: {len(content)}")
+
+        with open(car_file, "w", encoding="utf-8") as f:
+            f.write(content)
+        cars_downloaded += 1
+
+    # 全部队列完成
+    progress["queue_idx"] = len(series_queue)
+    progress["cars_downloaded"] = cars_downloaded
+    progress["download_car_pages"] = [chr(i) for i in range(ord("A"), ord("Z") + 1)]
+    with open(progress_file, "w") as f:
+        json.dump(progress, f)
 
     new_downloaded = cars_downloaded - initial_cars_downloaded
     if INCREMENTAL_MODE:
