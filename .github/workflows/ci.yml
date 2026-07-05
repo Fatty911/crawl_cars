@@ -40,7 +40,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compile Python files
-        run: python -m py_compile crawl_dongchedi.py scripts/crawl_zero_to_whole_ratio.py scripts/scripts/merge_data.py scripts/proxy_manager.py scripts/run_with_proxy.py scripts/test_autohome.py custom_scripts/*.py
+        run: python -m py_compile crawl_dongchedi.py scripts/crawl_zero_to_whole_ratio.py scripts/merge_data.py scripts/proxy_manager.py scripts/run_with_proxy.py scripts/test_autohome.py custom_scripts/*.py
 
       - name: Validate changed workflow and site files
         run: >
@@ -63,13 +63,13 @@ jobs:
           "$PWD/docs/styles.css"
           "$PWD/docs/app.js"
           "$PWD/docs/config.js"
-          "$PWD/docs/config/filter_conditions.json"
+          "$PWD/docs/filter_conditions.json"
           "$PWD/config/filter_conditions.json"
 
       - name: Validate workflow expectations
         run: python custom_scripts/validate_workflow_expectations.py
 
-      - name: Smoke test scripts/scripts/merge_data.py
+      - name: Smoke test scripts/merge_data.py
         run: |
           python - <<'PY'
           import json
@@ -119,7 +119,7 @@ jobs:
               json.dump(zero_ratio_rows, f, ensure_ascii=False)
           PY
 
-          python scripts/scripts/merge_data.py
+          python scripts/merge_data.py
 
           test -s "merged_$(date +%Y%m%d).json"
           test -s "merged_$(date +%Y%m%d).csv"

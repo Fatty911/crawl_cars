@@ -10,7 +10,7 @@ from typing import Dict, Iterable, List, Optional
 
 import requests
 
-DIR = Path(__file__).resolve().parent
+DIR = Path(__file__).resolve().parents[1]
 
 DEFAULT_SOURCES = [
     {

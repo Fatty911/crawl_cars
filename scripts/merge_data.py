@@ -6,9 +6,9 @@ import os
 import re
 from datetime import date
 
-DIR = os.path.dirname(os.path.abspath(__file__))
+DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-FILTER_CONFIG_PATH = os.path.join(DIR, "filter_conditions.json")
+FILTER_CONFIG_PATH = os.path.join(DIR, "config", "filter_conditions.json")
 
 HEADER_MAP = {
     "全速自适应巡航控制_ACC_": "全速自适应巡航",
