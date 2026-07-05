@@ -232,6 +232,22 @@ def human_delay(label):
 # 第一步,下载出所有车型的网页
 def download_car_pages():
     print("第一步,下载出所有车型的网页")
+
+    # 加载懂车帝目标车系清单（只爬取懂车帝已有的车系，确保双源匹配）
+    target_series = set()
+    target_norm = {}  # 标准化名→原始名
+    target_file = os.path.join(working_dir, "data", "dongchedi_series_list.json")
+    if os.path.exists(target_file):
+        with open(target_file, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        for s in raw:
+            # 标准化：去空格、去标点、小写
+            norm = re.sub(r'[\s·\-_/()（）【】\[\]]', '', s).lower()
+            target_series.add(norm)
+            target_norm[norm] = s
+        print(f"加载目标车系清单: {len(target_series)} 个（来自懂车帝）")
+    else:
+        print(f"目标清单不存在 ({target_file})，将爬取所有车系（无过滤）")
     letters = progress.get("download_car_pages", [])
 
     # 校验：Runner重启后html目录可能为空，需重置已完成字母进度
@@ -326,6 +342,25 @@ def download_car_pages():
                             "/", ""
                         )
                         if car_id:
+                            # 目标清单过滤：只爬取懂车帝已有的车系
+                            if target_series:
+                                series_name = h4.a.text.strip()
+                                series_norm = re.sub(r'[\s·\-_/()（）【】\[\]]', '', series_name).lower()
+                                # 尝试直接匹配和去品牌前缀匹配
+                                matched = series_norm in target_series
+                                if not matched:
+                                    # 去品牌前缀：例如"奥迪A4L"→"a4l"，匹配 dongchedi 的 "A4L"
+                                    for bp in sorted(BRAND_PREFIXES, key=len, reverse=True):
+                                        bp_norm = re.sub(r'[\s·\-_/()（）【】\[\]]', '', bp).lower()
+                                        if series_norm.startswith(bp_norm):
+                                            stripped = series_norm[len(bp_norm):]
+                                            if stripped and stripped in target_series:
+                                                matched = True
+                                            break
+                                if not matched:
+                                    skipped_count += 1
+                                    continue  # 跳过非目标车系
+
                             car_file = os.path.join(html_dir, f"{car_id}")
                             if os.path.exists(car_file):
                                 if INCREMENTAL_MODE:

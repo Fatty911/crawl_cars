@@ -201,10 +201,10 @@ jobs:
           set -o pipefail
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行 step1 (mihomo round-robin)"
-            python scripts/scripts/crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME" 2>&1 | tee step1_error.log
+            python scripts/crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME" 2>&1 | tee step1_error.log
           else
             echo "无代理，直接运行 step1"
-            python scripts/scripts/crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME"
+            python scripts/crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME"
           fi
           if [ -f dongchedi/progress.json ]; then
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -242,10 +242,10 @@ jobs:
           fi
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行 step2 (mihomo round-robin)"
-            python scripts/scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
+            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
           else
             echo "无代理，直接运行 step2"
-            python scripts/scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
+            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
           fi
           EXIT_CODE=$?
           set -e
@@ -312,9 +312,9 @@ jobs:
           set +e
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式重试 step2"
-            python scripts/scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
+            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
           else
-            python scripts/scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
+            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
           fi
           EXIT_CODE=$?
           set -e
@@ -372,8 +372,8 @@ jobs:
       - name: Run step3 and step4
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         run: |
-          python scripts/scripts/crawl_dongchedi.py --step 3
-          python scripts/scripts/crawl_dongchedi.py --step 4
+          python scripts/crawl_dongchedi.py --step 3
+          python scripts/crawl_dongchedi.py --step 4
 
       - name: Set date
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
