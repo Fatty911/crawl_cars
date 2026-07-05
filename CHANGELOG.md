@@ -1,3 +1,8 @@
+## 2026-07-06
+
+### Fixed
+- merge_data.py 合并逻辑改进：BRAND_NORMALIZE/SERIES_TO_BRAND 扩展，品牌为空时 derive_brand 补全，年款从车型名提取
+
 ## 2026-07-05
 
 ### Fixed
