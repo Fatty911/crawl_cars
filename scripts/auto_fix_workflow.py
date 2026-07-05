@@ -31,13 +31,15 @@ PROVIDER_BASE_URLS = {
     "OPENAI": "https://api.openai.com/v1",
 }
 
-# 免费强模型默认列表——仅限免费端点的强模型
+# 模型默认列表——免费优先，付费 Plan 兜底
 PROVIDER_DEFAULT_MODELS = {
+    # 免费端点（优先尝试）
     "NVIDIA_NIM": ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free"],
     "MODELSCOPE": ["MiniMax/MiniMax-M3"],
     "OPENROUTER": ["nvidia/nemotron-3-ultra-550b-a55b:free"],
     "ZEN": ["nemotron-3-ultra-free", "deepseek-v4-flash-free"],
     "ATOMGIT": ["zai-org/GLM-5", "Qwen/Qwen3.5-397B-A17B"],
+    # 付费 Plan（免费全部不可用时兜底）
     "DEEPSEEK": ["deepseek-r1"],
 }
 
