@@ -125,6 +125,10 @@ BRAND_NORMALIZE = {
     "北京": "北京越野",
     "广汽": "广汽传祺",
     "北汽": "北京汽车",
+    "aito": "问界",
+    "问界": "问界",
+    "奥迪audi": "奥迪",
+    "埃尚": "埃安",
 }
 
 def normalize_match_text(value):
@@ -152,11 +156,23 @@ def series_year_key(row):
     brand = normalize_match_text(row.get('品牌', ''))
     brand = BRAND_NORMALIZE.get(brand, brand)
     series = normalize_match_text(row.get('车系', ''))
+    # 品牌为空时从车系名推导
+    if not brand and series:
+        derived = derive_brand(row.get('车系', ''))
+        if derived:
+            brand = normalize_match_text(derived)
+            brand = BRAND_NORMALIZE.get(brand, brand)
     year = ''
     year_str = str(row.get('年款', ''))
     year_match = re.search(r'(\d{4})', year_str)
     if year_match:
         year = year_match.group(1)
+    else:
+        # 兜底：从车型名称中提取年款（如"问界M7 2026款 ..."）
+        model_name = str(row.get('车型名称', ''))
+        year_match2 = re.search(r'(20\d{2})款', model_name)
+        if year_match2:
+            year = year_match2.group(1)
     return f"{brand}|{series}|{year}" if brand and series else ''
 
 
@@ -165,6 +181,12 @@ def series_key(row):
     brand = normalize_match_text(row.get('品牌', ''))
     brand = BRAND_NORMALIZE.get(brand, brand)
     series = normalize_match_text(row.get('车系', ''))
+    # 品牌为空时从车系名推导
+    if not brand and series:
+        derived = derive_brand(row.get('车系', ''))
+        if derived:
+            brand = normalize_match_text(derived)
+            brand = BRAND_NORMALIZE.get(brand, brand)
     return f"{brand}|{series}" if brand and series else ''
 
 
@@ -407,6 +429,36 @@ SERIES_TO_BRAND = {
     "昌河北斗星": "昌河",
     "212经典": "北京汽车制造厂",
     "巴菲特600": "巴菲特",
+    # 比亚迪系列（汽车之家品牌字段为空，需从车系名推导）
+    "汉": "比亚迪", "汉L": "比亚迪", "大汉": "比亚迪",
+    "秦PLUS": "比亚迪", "秦L": "比亚迪", "秦新能源": "比亚迪",
+    "宋Pro新能源": "比亚迪", "宋PLUS新能源": "比亚迪", "宋L EV": "比亚迪",
+    "宋L DM-i": "比亚迪", "宋Ultra": "比亚迪", "宋PLUS EV": "比亚迪",
+    "宋PLUS DM-i": "比亚迪", "宋Pro DM-i": "比亚迪", "宋DM-i": "比亚迪",
+    "元PLUS": "比亚迪", "元UP": "比亚迪", "元Pro": "比亚迪",
+    "海豹": "比亚迪", "海豹06": "比亚迪", "海豹06GT": "比亚迪",
+    "海豹05 DM-i": "比亚迪", "海豹06 DM-i旅行版": "比亚迪",
+    "海豹07 DM-i": "比亚迪", "海豹08": "比亚迪",
+    "海狮06": "比亚迪", "海狮05 DM-i": "比亚迪", "海狮05 EV": "比亚迪",
+    "海狮07 EV": "比亚迪", "海狮07 DM-i": "比亚迪",
+    "海豚": "比亚迪", "海鸥": "比亚迪",
+    "驱逐舰05": "比亚迪", "护卫舰07": "比亚迪",
+    "唐新能源": "比亚迪", "唐L": "比亚迪", "大唐": "比亚迪",
+    "腾势N7": "腾势", "腾势D9": "腾势", "腾势Z9 GT": "腾势",
+    "腾势Z9": "腾势", "腾势N8": "腾势", "腾势N9": "腾势",
+    # 广汽埃安系列
+    "AION V": "埃安", "AION Y": "埃安", "AION LX": "埃安",
+    "AION S": "埃安", "AION S MAX": "埃安", "AION S Plus": "埃安",
+    "AION RT": "埃安", "AION UT": "埃安", "AION UT super": "埃安",
+    "AION N60": "埃安", "AION i60": "埃安",
+    # 阿斯顿·马丁
+    "阿斯顿·马丁DB12": "阿斯顿·马丁", "阿斯顿·马丁DBX": "阿斯顿·马丁",
+    "阿斯顿·马丁DBS": "阿斯顿·马丁", "阿斯顿·马丁DB11": "阿斯顿·马丁",
+    "Vanquish": "阿斯顿·马丁", "Valhalla": "阿斯顿·马丁",
+    "Valiant": "阿斯顿·马丁", "V8 Vantage": "阿斯顿·马丁",
+    # 阿尔法·罗密欧
+    "Giulia朱丽叶": "阿尔法·罗密欧", "Tonale托纳利": "阿尔法·罗密欧",
+    "Stelvio斯坦维": "阿尔法·罗密欧",
 }
 
 
