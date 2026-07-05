@@ -7,7 +7,7 @@ on:
       - master
     paths:
       - docs/**
-      - filter_conditions.json
+      - config/filter_conditions.json
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
     inputs:
@@ -53,7 +53,7 @@ jobs:
           rm -rf site release-files
           mkdir -p site/data
           cp -R docs/. site/
-          cp filter_conditions.json site/filter_conditions.json
+          cp config/filter_conditions.json site/config/filter_conditions.json
 
           FOUND_DATA=false
           for TAG in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName --jq '.[].tagName'); do

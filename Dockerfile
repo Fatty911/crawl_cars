@@ -54,4 +54,4 @@ RUN mkdir -p /app/data /app/html /app/newhtml /app/json /app/content /app/newjso
 RUN chmod +x /app/*.sh 2>/dev/null || true
 
 # 默认命令
-CMD ["python", "test_autohome.py"]
+CMD ["python", "scripts/test_autohome.py"]

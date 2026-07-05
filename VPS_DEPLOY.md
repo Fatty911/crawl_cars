@@ -34,7 +34,7 @@ git clone https://github.com/Fatty911/crawl_cars.git ~/crawl_cars
 cd ~/crawl_cars
 
 # 4. 手动运行
-python3 test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
+python3 scripts/test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
 ```
 
 ## 代理配置
@@ -43,26 +43,26 @@ python3 test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
 
 ```bash
 # 解析 V2Ray 订阅链接
-python3 proxy_manager.py --sub "https://你的订阅链接"
+python3 scripts/proxy_manager.py --sub "https://你的订阅链接"
 
 # 解析 Clash 配置文件
-python3 proxy_manager.py --clash ~/.config/clash/config.yaml
+python3 scripts/proxy_manager.py --clash ~/.config/clash/config.yaml
 
 # 测试代理
-python3 proxy_manager.py --test
+python3 scripts/proxy_manager.py --test
 
 # 查看代理列表
-python3 proxy_manager.py --list
+python3 scripts/proxy_manager.py --list
 ```
 
 ### 方式二：手动添加代理
 
 ```bash
 # 添加 HTTP 代理
-python3 proxy_manager.py --add-http "proxy1" "127.0.0.1" "7890" "user:pass"
+python3 scripts/proxy_manager.py --add-http "proxy1" "127.0.0.1" "7890" "user:pass"
 
 # 添加 SOCKS5 代理
-python3 proxy_manager.py --add-socks5 "proxy2" "127.0.0.1" "1080" ""
+python3 scripts/proxy_manager.py --add-socks5 "proxy2" "127.0.0.1" "1080" ""
 ```
 
 ### 方式三：编辑配置文件
@@ -147,12 +147,12 @@ cd ~/crawl_cars
 ./run.sh
 
 # 或分步运行
-python3 test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
-python3 test_autohome.py --step 2
-python3 test_autohome.py --step 3
-python3 test_autohome.py --step 4
-python3 test_autohome.py --step 5
-python3 test_autohome.py --step 6
+python3 scripts/test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
+python3 scripts/test_autohome.py --step 2
+python3 scripts/test_autohome.py --step 3
+python3 scripts/test_autohome.py --step 4
+python3 scripts/test_autohome.py --step 5
+python3 scripts/test_autohome.py --step 6
 ```
 
 ## 数据同步
@@ -196,7 +196,7 @@ railway init
 railway up
 
 # 5. 设置定时任务（需要Hobby Plan）
-railway run cron "0 2 * * 1,4" python test_autohome.py --auto
+railway run cron "0 2 * * 1,4" python scripts/test_autohome.py --auto
 ```
 
 ## 费用估算

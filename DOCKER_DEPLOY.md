@@ -86,14 +86,14 @@ docker compose --profile manual up -d crawl-manual
 docker compose exec crawl-manual bash
 
 # 手动运行爬虫
-python test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
+python scripts/test_autohome.py --step 1 --auto --time-limit 7200 --max-cars 500
 
 # 运行懂车帝
 python crawl_dongchedi.py --step 2 --auto --time-limit 7200 --max-series 500
 
 # 合并数据
-python crawl_zero_to_whole_ratio.py
-python merge_data.py
+python scripts/crawl_zero_to_whole_ratio.py
+python scripts/merge_data.py
 
 # 退出容器
 exit
@@ -101,7 +101,7 @@ exit
 
 ## 定时任务配置
 
-`docker-cron.sh` 定时规则：
+`scripts/docker-cron.sh` 定时规则：
 
 | 时间 | 任务 |
 |------|------|
@@ -174,16 +174,16 @@ docker compose up -d crawl-cron
 docker compose exec crawl-cron bash
 
 # 查看Clash状态
-python proxy_manager.py --clash-status
+python scripts/proxy_manager.py --clash-status
 
 # 列出所有代理节点
-python proxy_manager.py --clash-proxies
+python scripts/proxy_manager.py --clash-proxies
 
 # 自动选择最快节点
-python proxy_manager.py --auto-select
+python scripts/proxy_manager.py --auto-select
 
 # 手动选择特定节点
-python proxy_manager.py --select-proxy "节点名称"
+python scripts/proxy_manager.py --select-proxy "节点名称"
 ```
 
 ### 多订阅配置示例
@@ -206,7 +206,7 @@ python proxy_manager.py --select-proxy "节点名称"
 - `exclude_keywords` 用于排除不需要的节点
 - 容器启动时会自动选择延迟最低的节点
 
-### 代理管理器 (proxy_manager.py)
+### 代理管理器 (scripts/proxy_manager.py)
 
 **功能**：
 - ✅ 支持多个机场订阅URL
@@ -221,74 +221,74 @@ python proxy_manager.py --select-proxy "节点名称"
 **Clash管理命令**：
 ```bash
 # 启动Clash
-python proxy_manager.py --start-clash
+python scripts/proxy_manager.py --start-clash
 
 # 停止Clash
-python proxy_manager.py --stop-clash
+python scripts/proxy_manager.py --stop-clash
 
 # 查看Clash状态
-python proxy_manager.py --clash-status
+python scripts/proxy_manager.py --clash-status
 
 # 列出Clash代理节点
-python proxy_manager.py --clash-proxies
+python scripts/proxy_manager.py --clash-proxies
 
 # 选择代理节点
-python proxy_manager.py --select-proxy "节点名称"
+python scripts/proxy_manager.py --select-proxy "节点名称"
 
 # 自动选择最快节点
-python proxy_manager.py --auto-select
+python scripts/proxy_manager.py --auto-select
 
 # 测试节点延迟
-python proxy_manager.py --test-delay "节点名称"
+python scripts/proxy_manager.py --test-delay "节点名称"
 ```
 
 **订阅管理**：
 ```bash
 # 添加订阅
-python proxy_manager.py --add-sub "https://订阅1"
-python proxy_manager.py --add-sub "https://订阅2"
+python scripts/proxy_manager.py --add-sub "https://订阅1"
+python scripts/proxy_manager.py --add-sub "https://订阅2"
 
 # 列出所有订阅
-python proxy_manager.py --list-subs
+python scripts/proxy_manager.py --list-subs
 
 # 刷新所有订阅
-python proxy_manager.py --refresh
+python scripts/proxy_manager.py --refresh
 ```
 
 **排除关键字**：
 ```bash
 # 添加排除关键字（逗号分隔）
-python proxy_manager.py --exclude "过期,测试,expire,test"
+python scripts/proxy_manager.py --exclude "过期,测试,expire,test"
 
 # 列出排除关键字
-python proxy_manager.py --list-exclude
+python scripts/proxy_manager.py --list-exclude
 
 # 移除排除关键字
-python proxy_manager.py --remove-exclude "test"
+python scripts/proxy_manager.py --remove-exclude "test"
 ```
 
 **手动添加代理**：
 ```bash
 # HTTP代理
-python proxy_manager.py --add-http "节点1" "proxy.example.com" "8080" "user:pass"
+python scripts/proxy_manager.py --add-http "节点1" "proxy.example.com" "8080" "user:pass"
 
 # SOCKS5代理
-python proxy_manager.py --add-socks5 "节点2" "127.0.0.1" "1080" ""
+python scripts/proxy_manager.py --add-socks5 "节点2" "127.0.0.1" "1080" ""
 ```
 
 **查看和测试**：
 ```bash
 # 查看统计
-python proxy_manager.py --stats
+python scripts/proxy_manager.py --stats
 
 # 列出代理
-python proxy_manager.py --list
+python scripts/proxy_manager.py --list
 
 # 测试前5个代理
-python proxy_manager.py --test 5
+python scripts/proxy_manager.py --test 5
 
 # 清空所有代理
-python proxy_manager.py --clear
+python scripts/proxy_manager.py --clear
 ```
 
 **配置文件** (proxies.json)：
@@ -342,7 +342,7 @@ docker compose.yaml:
 
 ```bash
 # 添加代理
-python proxy_manager.py --add-http "proxy1" "proxy.example.com" "8080" "user:pass"
+python scripts/proxy_manager.py --add-http "proxy1" "proxy.example.com" "8080" "user:pass"
 
 # 或编辑 proxies.json
 ```
@@ -482,8 +482,8 @@ echo "停止服务: docker compose down"
 echo ""
 echo "代理管理:"
 echo "  进入容器: docker compose exec crawl-cron bash"
-echo "  查看代理: python proxy_manager.py --clash-proxies"
-echo "  选择节点: python proxy_manager.py --auto-select"
+echo "  查看代理: python scripts/proxy_manager.py --clash-proxies"
+echo "  选择节点: python scripts/proxy_manager.py --auto-select"
 ```
 
 保存为 `deploy-docker.sh`，运行：

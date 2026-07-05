@@ -67,16 +67,16 @@
 - ABS 防抱死这类若为标配或近似全量存在，就不要作为显著筛选项。
 
 ### 修改
-- 新增 `filter_conditions.json`，将默认筛选条件从 `merge_data.py` 和前端代码中抽出，支持功能条件和数值范围条件。
-- `merge_data.py` 改为读取 `filter_conditions.json` 计算默认 `filtered_cars_*` 输出。
+- 新增 `config/filter_conditions.json`，将默认筛选条件从 `scripts/merge_data.py` 和前端代码中抽出，支持功能条件和数值范围条件。
+- `scripts/merge_data.py` 改为读取 `config/filter_conditions.json` 计算默认 `filtered_cars_*` 输出。
 - 重构 `docs/app.js`：加载全量合并数据后，在前端按品牌、车系、条件栏、字段筛选、表头筛选实时计算结果。
 - 网页移除“数据来源”筛选，改为按品牌/车系筛选，并把同一品牌、车系、车型、年款的多来源记录合并为一行，展示 `交叉核验` 与 `核验来源`。
 - 表头筛选和全局搜索输入时不再整页重绘输入框，中文输入法组合输入期间保持焦点，避免输入一个字符后光标丢失。
 - 新增筛选历史区域：生成同步码、保存当前筛选、加载服务端历史、点击历史恢复筛选状态。
 - 新增 `cloudflare/filter-history-worker.js` 和 `wrangler.toml`，作为 Cloudflare Worker + KV 的筛选历史后端。
 - `docs/config.js` 默认将历史 API 指向 `/api/filter-history`，便于后续把 `cars.jiucai.eu.org/api/*` 路由到 Worker。
-- `docs/filter_conditions.json` 随静态页面发布；`deploy-pages.yml` 发布时也会复制根目录 `filter_conditions.json`，避免配置不同步。
-- `filter_conditions.json` 将 ABS/制动防抱死类字段列入默认隐藏和全量阳性时自动降噪字段。
+- `docs/config/filter_conditions.json` 随静态页面发布；`deploy-pages.yml` 发布时也会复制根目录 `config/filter_conditions.json`，避免配置不同步。
+- `config/filter_conditions.json` 将 ABS/制动防抱死类字段列入默认隐藏和全量阳性时自动降噪字段。
 - `.gitignore` 新增 `merged_*.json`，避免合并冒烟测试产物误入仓库。
 
 ### 结果
@@ -189,11 +189,11 @@
 - 部分媒体稿只给摘要，完整可落地的数据通常要从 PDF/HTML 表格抽取；因此更适合独立成零整比来源脚本，再由合并层统一给车型补字段。
 
 ### 修改
-- 新增 `crawl_zero_to_whole_ratio.py`：
+- 新增 `scripts/crawl_zero_to_whole_ratio.py`：
   - 支持默认公开 PDF 来源、`zero_to_whole_sources.json`、`ZERO_TO_WHOLE_RATIO_URLS` 和本地 `zero_to_whole_manual.csv/json`。
   - 使用 `pdfplumber` 优先抽取 PDF 表格，失败时回退文本/HTML 解析。
   - 输出 `zero_to_whole_ratios_YYYYMMDD.json` 和 `zero_to_whole_ratios.json`。
-- `merge_data.py`：
+- `scripts/merge_data.py`：
   - 新增 `零整比`、`零整比来源明细`、`零整比匹配方式`。
   - 按车型名称、车系和包含关系匹配零整比来源，同一车型多来源取算术平均。
 - `docs/app.js`：
@@ -206,7 +206,7 @@
 - README、DOCKER_DEPLOY、CHANGELOG 同步记录。
 
 ### 验证
-- 本地运行 `python crawl_zero_to_whole_ratio.py`，从两个公开 PDF 抽取 291 条零整比来源记录。
+- 本地运行 `python scripts/crawl_zero_to_whole_ratio.py`，从两个公开 PDF 抽取 291 条零整比来源记录。
 - 小型端到端合并测试确认两来源 `320.50%` 与 `340.50%` 会写成平均 `330.50%`，并保留来源明细。
 
 ---
@@ -275,7 +275,7 @@
   - 从单纯失败触发，改为监听主爬虫 completed 结果；失败时分类，成功时也检查是否出现窗口外长爬虫运行。
   - 需要修复时优先调用官方 `openai/codex-action@v1`，通过仓库 Secret `OPENAI_API_KEY` 授权。
   - Codex 修改后必须通过文件白名单、语法校验和 workflow 预期校验，才自动 commit + push 到 `main`。
-  - 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，回退旧版 `auto_fix_workflow.py` 多 Provider 修复器。
+  - 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，回退旧版 `scripts/auto_fix_workflow.py` 多 Provider 修复器。
   - 不再 rerun 原失败 run，避免旧 commit 重跑导致修复循环。
 - 新增 `custom_scripts/check_workflow_expectations.py`、`custom_scripts/ensure_codex_autofix_scope.py`、`custom_scripts/validate_workflow_expectations.py`。
 - `custom_scripts/validate_syntax.py` 在 Windows 控制台下强制使用 UTF-8/替换错误输出，并修复显式传入相对路径文件时的仓库根目录解析，避免校验脚本自身失败。
@@ -361,19 +361,19 @@
 - `main` 与 `origin/main` 没有未推送提交，当前待处理内容是 5 个未提交文件改动：`AGENTS.md`、根目录与 `ai_tools/opencode/` 下的 OpenCode/oh-my-openagent 配置。
 - 这些配置改动的大方向正确：同步新的多 Provider/多模型配置，并新增仓库配置必须对齐全局配置的长期规则。
 - 发现两类需要修正的问题：
-  - `opencode.json` 仍带有 AGENTS 明确说明不支持的 `disabled_providers` 字段。
+  - `config/opencode.json` 仍带有 AGENTS 明确说明不支持的 `disabled_providers` 字段。
   - 配置里仍包含 Copilot Haiku 模型，违反“隐藏旧模型/弱模型”的规则。
 
 ### 修改
-- 将仓库根目录与 `ai_tools/opencode/` 下的 `opencode.json`、`oh-my-openagent.json` 同步为全局 OpenCode 最新配置。
+- 将仓库根目录与 `ai_tools/opencode/` 下的 `config/opencode.json`、`config/oh-my-openagent.json` 同步为全局 OpenCode 最新配置。
 - 同步清理全局和仓库配置中的 `disabled_providers` 字段与 Haiku 模型条目，避免之后再次复制全局配置时把错误带回仓库。
-- 保留 `opencode.json` 的合法单数字段 `provider`、`agent`；`oh-my-openagent.json` 的 `agents` 属于插件自身配置结构。
+- 保留 `config/opencode.json` 的合法单数字段 `provider`、`agent`；`config/oh-my-openagent.json` 的 `agents` 属于插件自身配置结构。
 - `AGENTS.md` 保留并提交“配置对齐（关键）”规则。
 - `CHANGELOG.md` 与本文件同步记录本次配置修正。
 
 ### 结果
 - 仓库两处 OpenCode 配置与全局配置哈希一致。
-- `opencode.json` 不再包含 `disabled_providers`、Haiku 或非法复数字段。
+- `config/opencode.json` 不再包含 `disabled_providers`、Haiku 或非法复数字段。
 - 后续在本仓库开启 OpenCode 时，配置与全局源保持一致，并避开已知 schema/模型显示问题。
 
 ---
@@ -444,9 +444,9 @@
   - 新增 `auto_fix_provider_failure` 分类：自动修复 Provider 的 SSL 证书、401/403、`/chat/completions` 网络/权限异常时跳过再次自动修复。
   - 保留 `site_breakage`：未生成数据、完全解析不到车型、配置页/接口致命异常仍允许自动修复。
 - `AI_Auto_Fix_Monitor.yml`：
-  - `auto_fix_workflow.py` 没有产出可用修复时，记录为跳过并让监控工作流正常结束，不再把 Provider 失败变成新的红叉。
+  - `scripts/auto_fix_workflow.py` 没有产出可用修复时，记录为跳过并让监控工作流正常结束，不再把 Provider 失败变成新的红叉。
   - 补充各 Provider 的可选 `BASE_URL`、`MODEL_LIST`、`PROXY_URL` 环境变量透传。
-- `auto_fix_workflow.py`：
+- `scripts/auto_fix_workflow.py`：
   - 移除 OpenRouter/XAI/Zen/MiniMax 等明显过时或无权限的默认模型，避免反复调用不存在模型。
   - AtomGit 和 NVIDIA NIM 使用仓库规则中已知可用的默认模型。
   - 支持 `XXXX_BASE_URL` 覆盖、`XXXX_MODEL_LIST` 显式模型、`XXXX_PROXY_URL` Provider 代理。
@@ -518,11 +518,11 @@
   ```
   requests.exceptions.SSLError: HTTPSConnectionPool(host='www.autohome.com.cn', port=443): Max retries exceeded with url: /grade/carhtml/A.html (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)')))
   ```
-- 根因：`test_autohome.py` 第 256 行 `session.get()` 没有捕获 SSL 错误，当前重试策略只针对 HTTP 状态码 `[429, 500, 503, 504]`，不包括 SSL 连接层错误。
+- 根因：`scripts/test_autohome.py` 第 256 行 `session.get()` 没有捕获 SSL 错误，当前重试策略只针对 HTTP 状态码 `[429, 500, 503, 504]`，不包括 SSL 连接层错误。
 - mihomo 代理节点 SSL 握手失败时，程序直接崩溃。
 
 ### 修改
-- `test_autohome.py` 的 `download_car_pages()` 函数中，字母列表页请求添加 SSL/Connection 错误重试。
+- `scripts/test_autohome.py` 的 `download_car_pages()` 函数中，字母列表页请求添加 SSL/Connection 错误重试。
 - 捕获 `requests.exceptions.SSLError` 和 `requests.exceptions.ConnectionError`。
 - 使用指数退避策略（2/4/8秒），最多重试 3 次。
 - 添加 `resp = None` 初始化和 `if resp is None` 检查，消除 Pyright 警告。
@@ -546,7 +546,7 @@
 
 ### 排查
 - 两个爬虫 workflow 之前只把 secret 写入 `/tmp/proxies.json`，但后续运行判断的是仓库根目录 `proxies.json`，因此始终走“无代理”分支。
-- `run_with_proxy.py` 当前没有 workflow 传入的 `--step`、`--max-series` 参数，且底层爬虫脚本也没有 `--proxy` 参数；即使进入代理分支也不可靠。
+- `scripts/run_with_proxy.py` 当前没有 workflow 传入的 `--step`、`--max-series` 参数，且底层爬虫脚本也没有 `--proxy` 参数；即使进入代理分支也不可靠。
 - Chrome/Selenium 不一定自动继承 `HTTP_PROXY`，需要显式设置 Chrome 的 `--proxy-server`。
 - 订阅 URL 或节点链接可能包含敏感 token，日志中不能打印原始订阅地址或订阅内容。
 
@@ -559,8 +559,8 @@
   - 通过 `http://www.gstatic.com/generate_204` 等地址做连通性测试，测试通过才写入 `PROXY_ENABLED=true`。
   - 未配置、拉取失败、解析不到节点、mihomo 不可用或全部节点测试失败时，写入 `PROXY_ENABLED=false` 并直连。
 - `crawl-autohome.yml`、`crawl-dongchedi.yml` 改为根据 `PROXY_ENABLED` 决定日志和运行分支，代理启用时直接运行原爬虫脚本，由环境变量统一接管请求代理。
-- `test_autohome.py`、`crawl_dongchedi.py` 在 `PROXY_ENABLED=true` 时为 Chrome 增加 `--proxy-server=http://127.0.0.1:7890`。
-- `generate_clash_config.py` 增加订阅地址脱敏日志，并避免打印订阅内容片段。
+- `scripts/test_autohome.py`、`crawl_dongchedi.py` 在 `PROXY_ENABLED=true` 时为 Chrome 增加 `--proxy-server=http://127.0.0.1:7890`。
+- `scripts/generate_clash_config.py` 增加订阅地址脱敏日志，并避免打印订阅内容片段。
 - 更新 `README.md` 说明 `PROXY_SUBSCRIPTIONS` 支持的格式和降级逻辑。
 
 ### 结果
@@ -579,11 +579,11 @@
 - 最新手动运行已经在 `67dc86c` 上，说明不是旧 commit rerun。
 - 本地复现两行 URL：
   - 第一条订阅在当前网络环境返回 HTTP 421。
-  - 第二条订阅可下载，但内容是非 ASCII 明文 Clash YAML；`generate_clash_config.py` 尝试按 Base64 解码时抛出 `ValueError: string argument should contain only ASCII characters`，导致订阅内容被丢弃，最终节点数为 0。
+  - 第二条订阅可下载，但内容是非 ASCII 明文 Clash YAML；`scripts/generate_clash_config.py` 尝试按 Base64 解码时抛出 `ValueError: string argument should contain only ASCII characters`，导致订阅内容被丢弃，最终节点数为 0。
 - 因节点数为 0，`setup_proxy_runtime.py` 按设计降级为无代理直连。
 
 ### 修改
-- `generate_clash_config.py` 的订阅 Base64 解码失败处理增加 `ValueError` 捕获。
+- `scripts/generate_clash_config.py` 的订阅 Base64 解码失败处理增加 `ValueError` 捕获。
 - 非 Base64 内容现在会按原文继续解析，可正常识别明文 Clash YAML。
 - 取消了两个已按旧逻辑降级为直连的手动爬虫运行，避免继续无代理消耗 Actions。
 
@@ -601,12 +601,12 @@
 - 要持续监控工作流，直到看到爬虫通过代理启动。
 
 ### 排查
-- 当前 `generate_clash_config.py` 抓取订阅时使用 `ClashForWindows/0.20.39`，与服务商提示的异常客户端一致。
+- 当前 `scripts/generate_clash_config.py` 抓取订阅时使用 `ClashForWindows/0.20.39`，与服务商提示的异常客户端一致。
 - 两个最新手动爬虫 run 已经运行在代理逻辑 commit 上，但仍会因为旧 UA 抓订阅而降级直连。
 - 本地将订阅抓取 UA 改为新版客户端标识后，RioLU 订阅可成功返回明文 Clash YAML，并解析出 51 个节点。
 
 ### 修改
-- `generate_clash_config.py` 默认订阅抓取 UA 改为 `mihomo/1.19.13`。
+- `scripts/generate_clash_config.py` 默认订阅抓取 UA 改为 `mihomo/1.19.13`。
 - 支持通过 `PROXY_SUBSCRIPTION_USER_AGENT` 环境变量覆盖默认 UA。
 - 取消已用旧 UA 启动并降级直连的两个手动爬虫 run。
 
@@ -777,7 +777,7 @@
 ### 修改
 - 新增 `custom_scripts/classify_crawl_failure.py`，对爬虫日志做规则分类。
 - 分类为 `progress_exit` 时跳过 AI 修复：包括 `exit code 10`、达到时间/数量限制、保存进度、循环保护退出、已处理数百条等特征。
-- 分类为 `site_breakage` 或 `unknown` 时才允许调用 `auto_fix_workflow.py`：包括未生成数据、解析不到配置、输出行数过少、接口/页面异常等特征。
+- 分类为 `site_breakage` 或 `unknown` 时才允许调用 `scripts/auto_fix_workflow.py`：包括未生成数据、解析不到配置、输出行数过少、接口/页面异常等特征。
 - `crawl-autohome.yml` 和 `crawl-dongchedi.yml` 的内联 Auto-fix 步骤前增加分类步骤，主动分段退出不再重试修复。
 - `AI_Auto_Fix_Monitor.yml` 在下载 artifact 或读取失败 run 日志后，先调用分类脚本；若是分段退出，则直接报告跳过，不再调用大模型。
 - 两个爬虫 workflow 失败时上传 `error-log` artifact，方便监控工作流拿到更精确的日志。
@@ -802,9 +802,9 @@
 - `crawl-trigger.yml` 同步限制为北京时间 09:00-17:00 且奇数日才触发目标爬虫。
 - 新增 `crawl_state/` 半月状态目录，主爬虫完成并通过输出完整性校验后写入 `*_YYYYMM_H1.done` 或 `*_YYYYMM_H2.done`。
 - 同一个半月周期内发现完成标记时直接跳过爬虫；进入新半月周期且未完成时自动重置对应进度，从头开始本周期全量爬取。
-- `test_autohome.py` 和 `crawl_dongchedi.py` 新增车型级别过滤：输出阶段排除 MPV、房车、皮卡、微面、轻客、客车、货车、卡车、微卡、轻卡等非目标类型。
+- `scripts/test_autohome.py` 和 `crawl_dongchedi.py` 新增车型级别过滤：输出阶段排除 MPV、房车、皮卡、微面、轻客、客车、货车、卡车、微卡、轻卡等非目标类型。
 - 懂车帝列表接口如果返回明确级别字段，会在车系列表阶段先跳过非目标车系，并把跳过记录写入 `progress["excluded_series"]`。
-- 新增 `CRAWL_SCOPE.md`，记录当前目标车型、排除车型，以及源站明确链接/级别范围的处理方式。
+- 新增 `config/CRAWL_SCOPE.md`，记录当前目标车型、排除车型，以及源站明确链接/级别范围的处理方式。
 - 更新 `README.md` 中的目录、调度、半月跳过和车型范围说明。
 
 ### 结果
@@ -825,7 +825,7 @@
 - `crawl-autohome.yml` 调整为每周一、周四 UTC 02:00（北京时间 10:00）运行，避免原周四 UTC 14:00 对应北京时间 22:00。
 - `crawl-dongchedi.yml` 保持每天 UTC 05:30（北京时间 13:30）运行，并补充白天运行说明。
 - 两个主爬虫 workflow 都显式配置 `RUN_TIME=21600`、`timeout-minutes=360`，把单次运行上限控制在 6 小时内。
-- 新增 `CRAWL_MIN_DELAY_SECONDS=3`、`CRAWL_MAX_DELAY_SECONDS=8`，并在 `test_autohome.py`、`crawl_dongchedi.py` 的网络访问之间使用随机等待，模拟人工浏览节奏。
+- 新增 `CRAWL_MIN_DELAY_SECONDS=3`、`CRAWL_MAX_DELAY_SECONDS=8`，并在 `scripts/test_autohome.py`、`crawl_dongchedi.py` 的网络访问之间使用随机等待，模拟人工浏览节奏。
 - `crawl-trigger.yml` 的随机触发窗口从北京时间 8-22 点收紧到 9-17 点，避免外部随机触发在夜间拉起爬虫。
 - 更新 `README.md` 中的调度、运行上限和访问节奏说明。
 
@@ -850,7 +850,7 @@
 - 新增 `docs/CNAME`，将 GitHub Pages 自定义域名固定为 `cars.jiucai.eu.org`。
 - 网页默认打开“符合条件”数据集，并将合并的长宽高/车身尺寸字段拆成 `长度(mm)`、`宽度(mm)`、`高度(mm)` 三列展示。
 - 删除未跟踪的 `.github/workflows/pr-auto-merge.yml`，保留已有 `auto-merge.yml`，避免重复自动合并工作流和 `pull_request_target` 权限面。
-- 修复本地遗留的 `merge_data.py` 与 `.github/workflows/ci.yml` 合并冲突标记，恢复语法校验和 CI 冒烟测试可运行状态。
+- 修复本地遗留的 `scripts/merge_data.py` 与 `.github/workflows/ci.yml` 合并冲突标记，恢复语法校验和 CI 冒烟测试可运行状态。
 - 更新 `README.md`，补充网页查看器目录、功能、发布方式和本地预览方法。
 
 ### 结果
@@ -862,7 +862,7 @@
 ## 2026-05-28：修复过滤逻辑和不完整数据误发布
 
 ### 问题
-- `merge_data.py` 对数值条件统一使用 `<=`，导致 `纯电续航(km)` 被按 `<= 150` 判断，和高级筛选中常见的 `>= 150` 语义相反。
+- `scripts/merge_data.py` 对数值条件统一使用 `<=`，导致 `纯电续航(km)` 被按 `<= 150` 判断，和高级筛选中常见的 `>= 150` 语义相反。
 - 部分配置字段在源数据中叫 `手机APP远程功能`、`钥匙类型`、`电动座椅记忆功能`、`外后视镜功能`，旧过滤逻辑没有完整识别。
 - 爬虫 workflow 使用 `python ... | tee log` 时没有启用 `pipefail`，Python 返回未完成的 exit code 10 会被 `tee` 的 0 掩盖，导致不完整数据被上传并进入 Release。
 
@@ -879,7 +879,7 @@
 
 ### 问题
 - 最新 Release 的 `filtered_cars_20260527.csv` 只有表头，`filtered_cars_20260527.json` 是空数组。
-- `merge_data.py` 里的 `merged_*.csv` 实际写入的是过滤结果，不是全部合并数据；当过滤结果为空时，Release 没有可查看的 CSV。
+- `scripts/merge_data.py` 里的 `merged_*.csv` 实际写入的是过滤结果，不是全部合并数据；当过滤结果为空时，Release 没有可查看的 CSV。
 
 ### 修改
 - `merged_*.csv` 改为写入全部归一化后的汽车之家 + 懂车帝数据。
@@ -896,9 +896,9 @@
 - PR 缺少基础自动测试和自动合并入口。
 
 ### 修改
-- 新增 `ci.yml`，在 `push`、`pull_request` 和手动触发时安装依赖、编译 Python 文件、调用 `custom_scripts/validate_syntax.py` 校验变更文件，并对 `merge_data.py` 做样本冒烟测试。
+- 新增 `ci.yml`，在 `push`、`pull_request` 和手动触发时安装依赖、编译 Python 文件、调用 `custom_scripts/validate_syntax.py` 校验变更文件，并对 `scripts/merge_data.py` 做样本冒烟测试。
 - 新增 `auto-merge.yml`，当非草稿 PR 带有 `automerge` 标签时启用 GitHub 原生 squash auto-merge。
-- 修复 `merge_data.py` 过滤条件未识别归一化后的 `蓝牙/数字钥匙` 字段，避免符合条件车型被误过滤。
+- 修复 `scripts/merge_data.py` 过滤条件未识别归一化后的 `蓝牙/数字钥匙` 字段，避免符合条件车型被误过滤。
 
 ---
 
@@ -917,11 +917,11 @@
   - 计算触发时间戳，实现延迟不占用工作流分钟
 
 ### 问题3：免费模型优先逻辑
-- **修改**：`auto_fix_workflow.py` 排序算法改为免费 Provider 优先
+- **修改**：`scripts/auto_fix_workflow.py` 排序算法改为免费 Provider 优先
 - **顺序**：AtomGit → ZEN → NVIDIA NIM → Modal → OpenRouter → 其他
 
 ### 问题4：TUI 显示旧模型
-- **方案**：创建 `opencode.json` 配置文件
+- **方案**：创建 `config/opencode.json` 配置文件
 - **使用**：`provider`（单数）和 `whitelist` 控制显示的模型
 - **隐藏**：Haiku、4.5 前代、mini/low/medium 等弱模型
 
@@ -936,8 +936,8 @@
 | `crawl-autohome.yml` | 修复 PROXY_SUBSCRIPTIONS、添加 repository_dispatch 支持、延迟计算 |
 | `crawl-dongchedi.yml` | 修复 PROXY_SUBSCRIPTIONS、添加 repository_dispatch 支持、延迟计算 |
 | `crawl-trigger.yml` | **新增** 随机触发 wrapper workflow |
-| `auto_fix_workflow.py` | 免费模型优先排序算法 |
-| `opencode.json` | **新增** TUI 模型 whitelist 配置 |
+| `scripts/auto_fix_workflow.py` | 免费模型优先排序算法 |
+| `config/opencode.json` | **新增** TUI 模型 whitelist 配置 |
 | `AGENTS.md` | 添加"执行风格"全局规则 |
 
 ---
@@ -999,7 +999,7 @@
 
 ### 用户需求
 1. 将全局规则写入 `AGENTS.md`
-2. 重构 `auto_fix_workflow.py` 支持 Lobe-Chat 风格的动态 Provider 发现
+2. 重构 `scripts/auto_fix_workflow.py` 支持 Lobe-Chat 风格的动态 Provider 发现
 3. `XXXX_MODEL_LIST` 和 `XXXX_PROXY_URL` 非必填，未配置不报错
 4. 未配置 `MODEL_LIST` 则使用排行榜前10(1M+)模型，已配置则取并集
 5. 更新 README.md 和 HISTORY.md
@@ -1009,8 +1009,8 @@
 | 文件 | 修改内容 |
 |------|----------|
 | `AGENTS.md` | **新增** 全局规则文件（语言、提交、模型选择、opencode 配置等） |
-| `auto_fix_workflow.py` | 重构为通用多Provider系统，动态发现 `_API_KEY`，支持12+ Provider |
-| `README.md` | 更新 auto_fix_workflow.py 文档、Provider 列表、Secrets 列表 |
+| `scripts/auto_fix_workflow.py` | 重构为通用多Provider系统，动态发现 `_API_KEY`，支持12+ Provider |
+| `README.md` | 更新 scripts/auto_fix_workflow.py 文档、Provider 列表、Secrets 列表 |
 
 ### 新增 AGENTS.md 关键规则
 - 所有回复使用中文
@@ -1046,7 +1046,7 @@ ACTION_PAT、ATOMGIT_API_KEY、MINIMAX_API_KEY、MINIMAX_CODING_PLAN_API_KEY、M
 ## 2026-03-29 15:40：集成大模型自动修复功能
 
 ### 用户需求
-在 workflow 中集成 auto_fix_workflow.py，实现错误自动修复。
+在 workflow 中集成 scripts/auto_fix_workflow.py，实现错误自动修复。
 
 ### 完成修改
 
@@ -1054,12 +1054,12 @@ ACTION_PAT、ATOMGIT_API_KEY、MINIMAX_API_KEY、MINIMAX_CODING_PLAN_API_KEY、M
 |------|----------|
 | `crawl-autohome.yml` | 集成错误自动修复，step1 和 remaining steps 失败时自动调用大模型 |
 | `crawl-dongchedi.yml` | 集成错误自动修复，step2 失败时自动调用大模型 |
-| `README.md` | 更新目录结构、添加 auto_fix_workflow.py 说明 |
+| `README.md` | 更新目录结构、添加 scripts/auto_fix_workflow.py 说明 |
 
 ### 工作流错误处理流程
 1. 步骤执行失败，错误日志保存到 `*_error.log`
 2. 检查是否有 API Key 配置
-3. 调用 `auto_fix_workflow.py` 分析错误
+3. 调用 `scripts/auto_fix_workflow.py` 分析错误
 4. 依次尝试三个模型：Minimax m2.7 → Zen MiMo v2 pro free → Grok 4.2 beta reasoning
 5. 置信度 ≥ 0.7 时自动应用修复并提交推送
 6. 重新运行失败的步骤
@@ -1076,10 +1076,10 @@ ACTION_PAT、ATOMGIT_API_KEY、MINIMAX_API_KEY、MINIMAX_CODING_PLAN_API_KEY、M
 | 文件 | 修改内容 |
 |------|----------|
 | `.gitignore` | 添加敏感文件、临时数据忽略；保留进度文件追踪 |
-| `crawl-autohome.yml` | 添加代理配置步骤；支持 `run_with_proxy.py --proxy random` |
+| `crawl-autohome.yml` | 添加代理配置步骤；支持 `scripts/run_with_proxy.py --proxy random` |
 | `crawl-dongchedi.yml` | 添加代理配置步骤；设置 http_proxy/https_proxy |
 | `merge-and-filter.yml` | 删除重复的 checkout 和 setup-python |
-| `auto_fix_workflow.py` | **新增** 大模型自动修复工作流错误脚本 |
+| `scripts/auto_fix_workflow.py` | **新增** 大模型自动修复工作流错误脚本 |
 | `HISTORY.md` | **新增** 合并所有历史文件为单一总结 |
 
 ### 代理使用说明
@@ -1092,7 +1092,7 @@ GitHub Secrets 中添加 `PROXY_SUBSCRIPTIONS`，格式：
 ```
 
 ### 大模型自动修复功能
-新增 `auto_fix_workflow.py`，支持：
+新增 `scripts/auto_fix_workflow.py`，支持：
 - 捕获工作流错误
 - 依次尝试三个模型：Minimax m2.7 → Zen MiMo v2 pro free → Grok 4.2 beta reasoning
 - 自动生成修复代码并提交推送
@@ -1111,9 +1111,9 @@ GitHub Secrets 中添加 `PROXY_SUBSCRIPTIONS`，格式：
 - 解决action爬取测试超时问题
 
 **完成内容**：
-1. `test_autohome.py`: MIN_YEAR从3改为0
+1. `scripts/test_autohome.py`: MIN_YEAR从3改为0
 2. `crawl_dongchedi.py`: MIN_YEAR从3改为0
-3. `merge_data.py`: 添加过滤功能FILTER_CONDITIONS（8个条件）
+3. `scripts/merge_data.py`: 添加过滤功能FILTER_CONDITIONS（8个条件）
 4. `crawl.yml`: timeout改为360分钟
 
 ### 需求2：拆分Action步骤
@@ -1217,7 +1217,7 @@ parsed_data = progress.get('parsed_data')
 - 合并：每周三、六各一次
 - 总计：1920分钟/月（安全范围内）
 
-#### 2. 代理管理器 (proxy_manager.py)
+#### 2. 代理管理器 (scripts/proxy_manager.py)
 - 支持多机场订阅URL
 - 支持 V2Ray/Clash 配置解析
 - 负载均衡策略：random, round_robin, least_used, best_performance
@@ -1225,13 +1225,13 @@ parsed_data = progress.get('parsed_data')
 - 节点统计与筛选
 
 #### 3. VPS部署
-- `deploy_vps.sh`: 一键部署脚本
+- `scripts/deploy_vps.sh`: 一键部署脚本
 - `VPS_DEPLOY.md`: 部署指南
 
 #### 4. Docker部署
 - `Dockerfile`: 基于Python 3.12 Alpine + Chromium
 - `docker compose.yaml`: 服务定义、卷映射、资源限制
-- `docker-cron.sh`: 容器内定时任务
+- `scripts/docker-cron.sh`: 容器内定时任务
 - `DOCKER_DEPLOY.md`: 详细部署指南
 
 ---
@@ -1252,7 +1252,7 @@ parsed_data = progress.get('parsed_data')
 | 文件 | 修改内容 |
 |------|----------|
 | `.gitignore` | 添加敏感文件、临时数据忽略；保留进度文件追踪 |
-| `crawl-autohome.yml` | 添加代理配置步骤；支持`run_with_proxy.py --proxy random` |
+| `crawl-autohome.yml` | 添加代理配置步骤；支持`scripts/run_with_proxy.py --proxy random` |
 | `crawl-dongchedi.yml` | 添加代理配置步骤；设置http_proxy/https_proxy |
 | `merge-and-filter.yml` | 删除重复的checkout和setup-python |
 | `__pycache__/` | 从git追踪中移除 |
@@ -1273,22 +1273,22 @@ GitHub Secrets 中添加 `PROXY_SUBSCRIPTIONS`，格式：
 ### 文件结构
 ```
 crawl_cars/
-├── test_autohome.py          # 汽车之家爬虫
+├── scripts/test_autohome.py          # 汽车之家爬虫
 ├── crawl_dongchedi.py        # 懂车帝爬虫
-├── merge_data.py             # 数据合并过滤
-├── proxy_manager.py          # 代理管理器
-├── run_with_proxy.py         # 带代理启动脚本
-├── generate_clash_config.py  # Clash/Mihomo 配置生成器
-├── auto_fix_workflow.py      # 大模型自动修复工作流错误
-├── fix_files.py              # 代码修复工具
-├── deploy_vps.sh             # VPS一键部署
-├── start_with_clash.sh       # 带 Clash 代理的启动脚本
+├── scripts/merge_data.py             # 数据合并过滤
+├── scripts/proxy_manager.py          # 代理管理器
+├── scripts/run_with_proxy.py         # 带代理启动脚本
+├── scripts/generate_clash_config.py  # Clash/Mihomo 配置生成器
+├── scripts/auto_fix_workflow.py      # 大模型自动修复工作流错误
+├── scripts/fix_files.py              # 代码修复工具
+├── scripts/deploy_vps.sh             # VPS一键部署
+├── scripts/start_with_clash.sh       # 带 Clash 代理的启动脚本
 ├── docker-compose.yaml       # Docker配置
 ├── Dockerfile                # Docker镜像构建
-├── docker-cron.sh            # Docker容器定时任务
+├── scripts/docker-cron.sh            # Docker容器定时任务
 ├── docs/                     # GitHub Pages 静态网页查看器
 ├── custom_scripts/           # 辅助脚本
-├── CRAWL_SCOPE.md            # 爬取范围记录
+├── config/CRAWL_SCOPE.md            # 爬取范围记录
 ├── CHANGELOG.md              # 变更记录
 ├── AGENTS.md                 # 全局规则
 ├── HISTORY.md                # 对话历史
@@ -1336,7 +1336,7 @@ crawl_cars/
 - Release 产出的 `merged_YYYYMMDD.csv` 文件异常偏小，基本只有表头或极少数据，无法反映完整车型数据。
 
 ### 根因定位
-1. `merge_data.py` 中 `merged_YYYYMMDD.csv` 实际写入的是 `filtered_rows`，而不是 `all_rows`，导致文件只包含“满足高配筛选条件”的车型。
+1. `scripts/merge_data.py` 中 `merged_YYYYMMDD.csv` 实际写入的是 `filtered_rows`，而不是 `all_rows`，导致文件只包含“满足高配筛选条件”的车型。
 2. 过滤条件里 `纯电续航(km)` 使用了 `<= 150`，与需求“150km 以上”相反，进一步导致可入选车型数量异常减少。
 
 ### 修复内容
@@ -1357,7 +1357,7 @@ crawl_cars/
 ### 本次新增
 - 新增 `.github/workflows/ci.yml`
   - 在 `pull_request` 与 `push` 触发；
-  - 执行依赖安装、`custom_scripts/validate_syntax.py` 语法校验、`merge_data.py` 冒烟运行。
+  - 执行依赖安装、`custom_scripts/validate_syntax.py` 语法校验、`scripts/merge_data.py` 冒烟运行。
 - 新增 `.github/workflows/pr-auto-merge.yml`
   - 当 PR 打上 `automerge` 标签后，自动启用 GitHub 原生 Auto-merge（squash）。
   - 只有在必需检查（如 CI）通过后才会真正合并。
@@ -1382,13 +1382,13 @@ crawl_cars/
 ### 根因定位
 - 监控工作流在无法下载 `error-log`、也无法通过 `gh run view --log-failed` 获取失败日志时，仍因 `|| echo "AI 修复失败"` 返回成功。
 - 后续 `Re-run failed workflow` 只判断步骤成功，于是把旧失败 run 重新执行；旧 run 使用原始 commit，即使后来有修复提交也不会生效，容易形成“失败 -> AI Monitor -> rerun -> 再失败”的循环。
-- `auto_fix_workflow.py` 主程序没有根据修复结果设置退出码，导致“未修复”也可能被工作流误判为成功。
+- `scripts/auto_fix_workflow.py` 主程序没有根据修复结果设置退出码，导致“未修复”也可能被工作流误判为成功。
 
 ### 修复内容
 - 为 `AI_Auto_Fix_Monitor.yml` 增加 `concurrency`，同一爬虫/分支的 AI 修复任务只保留一个活跃运行。
 - 移除 AI 修复步骤的 `continue-on-error` 和吞错写法，拿不到日志或修复失败时直接失败退出。
 - 移除自动 `gh run rerun`，避免重新运行旧 commit 上的失败 workflow。
-- `auto_fix_workflow.py` 根据是否真正修复返回进程退出码。
+- `scripts/auto_fix_workflow.py` 根据是否真正修复返回进程退出码。
 - AI 修复脚本只有在产生实际文件改动、语法校验通过、提交和推送成功后才返回成功。
 - 已取消当时仍在运行中的两个异常链路爬虫 run，停止继续触发循环。
 

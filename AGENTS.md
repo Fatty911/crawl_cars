@@ -73,7 +73,7 @@
 ### ReviewGPT 定位
 
 - **ReviewGPT 使用 Codex ChatGPT Plan 的 `gpt-5.5`**，成本归入“单家 Plan/CodingPlan/TokenPlan”档，但它不是 OpenCode provider，也不是 OMO category。
-- OMO category schema 不支持执行外部 CLI，因此禁止在 `oh-my-openagent.json` 中添加假的 `ReviewGPT`。
+- OMO category schema 不支持执行外部 CLI，因此禁止在 `config/oh-my-openagent.json` 中添加假的 `ReviewGPT`。
 - ReviewGPT 必须通过只读非交互命令运行并保存真实输出：
   ```bash
   codex exec -c 'approval_policy="never"' -m gpt-5.5 -s read-only \
@@ -134,7 +134,7 @@
 
 ## Provider 与模型配置（关键）
 
-- **在 `opencode.json` 或 `oh-my-openagent.json` 中添加或更新任何 provider 时，必须：**
+- **在 `config/opencode.json` 或 `config/oh-my-openagent.json` 中添加或更新任何 provider 时，必须：**
   1. **验证平台确实提供该模型**——搜索 provider 官方文档/公告。禁止假设所有 provider 遵循 OpenAI 兼容的模型命名规范，即使 base URL 以 `/v1` 结尾。
   2. **验证精确的模型 ID**——搜索 provider 的 API 文档获取正确的模型名称参数值。禁止猜测或从其他 provider 推断。
   3. **验证上下文窗口、最大输出和输入限制**——查阅官方规格。禁止编造这些数字。
@@ -190,10 +190,10 @@
 
 ## 多端体验一致性（关键）
 
-- **所有设备的 OpenCode+OMO 使用体验应尽可能一致**：配置文件（opencode.json、oh-my-openagent.json、AGENTS.md、auth.json）在所有设备上保持同步
+- **所有设备的 OpenCode+OMO 使用体验应尽可能一致**：配置文件（config/opencode.json、config/oh-my-openagent.json、AGENTS.md、auth.json）在所有设备上保持同步
 - **全局要求必须同步**：AGENTS.md 中的全局要求修改后，立即同步到所有设备家目录 + GitHub 仓库
-- **仓库内配置必须对齐**：涉及 AI 调用的 git 仓库内如果有自己的 opencode.json/oh-my-openagent.json，必须与全局配置保持一致
-- **同步全局配置后必须同步所有项目目录**：如果某个项目目录有独立的 opencode.json，同步全局时必须一并更新，避免出现 TUI 中已禁用的 Provider 又出现
+- **仓库内配置必须对齐**：涉及 AI 调用的 git 仓库内如果有自己的 config/opencode.json/config/oh-my-openagent.json，必须与全局配置保持一致
+- **同步全局配置后必须同步所有项目目录**：如果某个项目目录有独立的 config/opencode.json，同步全局时必须一并更新，避免出现 TUI 中已禁用的 Provider 又出现
 - **同步全局 AGENTS.md 后必须同步所有项目目录**：`/root/crawl_cars`、`/root/.hermes` 等项目目录如果有自己的 AGENTS.md，用全局最新版本覆盖。同理 E:\Codes 下的所有 repo 也要同步
 - **项目级 AGENTS.md 不能直接覆盖**：先读取目标文件内容，有项目特有规则的部分保留，冲突处以全局为准或询问用户，无冲突处合并
 - **Windows 通过 SSH 运行 OpenCode 时，项目路径会被记录为 Windows 格式**：如 `O:/codes/billiards_tqt` 而非 Linux 路径，这些会话在 Linux 端 OpenCode 重启时会导致 Drizzle 查询错误。解决方案：定期清理 OpenCode 数据库中的无效路径会话，但不能直接删除整个数据库（违反"只改用户要求改的"规则）
@@ -402,7 +402,7 @@ SKIP_TESTS=1 git push
 | 防线 | 位置 | 强制内容 |
 |------|------|---------|
 | **OMO edit/write/multiedit 评审拦截** | `C:\Users\Administrator\node_modules\oh-my-openagent\dist\index.js` 本地补丁 | 代码文件修改前必须存在 10 分钟内的 `/tmp/.review_passed_*` 标记；`.md/.txt/.json` 豁免 |
-| **runtime_fallback 静默成功检测** | `oh-my-openagent` 本地补丁 + `oh-my-openagent.json` | DeepSeek 类 provider 如果 `finish=stop` 但无可见输出/0 output token，则转成 retryable failure 进入 fallback |
+| **runtime_fallback 静默成功检测** | `oh-my-openagent` 本地补丁 + `config/oh-my-openagent.json` | DeepSeek 类 provider 如果 `finish=stop` 但无可见输出/0 output token，则转成 retryable failure 进入 fallback |
 | **pre-commit** | `C:\Users\Administrator\.git-hooks\pre-commit` | 代码提交前必须存在 5 分钟内的评审标记 |
 | **pre-push** | `C:\Users\Administrator\.git-hooks\pre-push` | 推送前运行项目测试 |
 
@@ -427,7 +427,7 @@ DeepSeek 官方 API 便宜，继续使用；但如果它返回 `finish=stop` 且
 | 脚本 | 位置 | 用途 |
 |------|------|------|
 | **pre-edit-guard.sh** | `~/.config/opencode/hooks/` | 外部脚本版编辑检查；仅在被显式调用时生效，不能假设 OMO 官方会自动执行 |
-| **config-sync-validator.sh** | `~/.config/opencode/hooks/` | opencode.json/kilo.json/omo.json 配置同步校验 |
+| **config-sync-validator.sh** | `~/.config/opencode/hooks/` | config/opencode.json/kilo.json/omo.json 配置同步校验 |
 | **validate-model-whitelist.sh** | `~/.config/opencode/hooks/` | Provider whitelist 与 models 定义一致性校验 |
 | **pre-save-validator.sh** | `~/.config/opencode/hooks/` | JSON/YAML/Python 保存前语法自动校验 |
 | **post-edit-diagnostics.sh** | `~/.config/opencode/hooks/` | 编辑后运行 LSP 诊断（TS/JS/Python/Go/Shell） |
@@ -475,11 +475,11 @@ pre-commit hook 检查流程:
 >
 > ⚠️ **使用习惯**：用户习惯右键点击开始菜单运行终端，终端默认运行在用户家目录（`C:\Users\Administrator`）。因此用户可能在任意一个 Windows 系统的 Administrator 目录下运行 OpenCode、配置 OpenCode+OMO。配置文件实际位置取决于当前启动的系统盘符。
 
-1. **本机 opencode 配置**: `C:\Users\Administrator\.config\opencode\opencode.json`
-2. **本机 OMO 插件配置**: `C:\Users\Administrator\.config\opencode\oh-my-openagent.json`
+1. **本机 opencode 配置**: `C:\Users\Administrator\.config\opencode\config/opencode.json`
+2. **本机 OMO 插件配置**: `C:\Users\Administrator\.config\opencode\config/oh-my-openagent.json`
 3. **本机 auth 配置**: `C:\Users\Administrator\.local\share\opencode\auth.json`
-4. **另一系统 opencode 配置**: `D:\Users\Administrator\.config\opencode\opencode.json`
-5. **另一系统 OMO 插件配置**: `D:\Users\Administrator\.config\opencode\oh-my-openagent.json`
+4. **另一系统 opencode 配置**: `D:\Users\Administrator\.config\opencode\config/opencode.json`
+5. **另一系统 OMO 插件配置**: `D:\Users\Administrator\.config\opencode\config/oh-my-openagent.json`
 6. **另一系统 auth 配置**: `D:\Users\Administrator\.local\share\opencode\auth.json`
 7. **本机 KiloCode 配置**: `C:\Users\Administrator\AppData\Roaming\kilo\kilo.json`
 8. **GitHub 所有涉及 AI 调用的仓库**:
@@ -489,18 +489,18 @@ pre-commit hook 检查流程:
 
 > ⚠️ **Hermes 仓库边界**：`Fatty911/hermes-agent` 仅用于向上游提交源码 PR，禁止写入或同步任何个人 AGENT 配置、全局规则、认证或运行端配置。Hermes 个人配置的唯一 Git 版本源是私有仓库 `Fatty911/Personal_commonly_used/ai_tools/hermes-agent/`；运行端只部署到 `/root/.hermes/`，不得覆盖 `/root/.hermes/hermes-agent/` 源码 checkout 中的文件。
 9. **远程服务器 root@racknerd.jiucai.eu.org**:
-   - `/root/.config/opencode/opencode.json`
-   - `/root/.config/opencode/oh-my-openagent.json`
+   - `/root/.config/opencode/config/opencode.json`
+   - `/root/.config/opencode/config/oh-my-openagent.json`
    - `/root/.local/share/opencode/auth.json`
    - `/root/.hermes/config.yaml`
    - `/root/.hermes/auth.json`
 10. **远程服务器 root@jstq.com.cn**:
-    - `/root/.config/opencode/opencode.json`
-    - `/root/.config/opencode/oh-my-openagent.json`
+    - `/root/.config/opencode/config/opencode.json`
+    - `/root/.config/opencode/config/oh-my-openagent.json`
     - `/root/.local/share/opencode/auth.json`
 11. **远程服务器 root@dmit.jiucai.eu.org**:
-    - `/root/.config/opencode/opencode.json`
-    - `/root/.config/opencode/oh-my-openagent.json`
+    - `/root/.config/opencode/config/opencode.json`
+    - `/root/.config/opencode/config/oh-my-openagent.json`
     - `/root/.local/share/opencode/auth.json`
 
 改写时统一遵循以下原则：
@@ -768,7 +768,7 @@ C: | D: | racknerd | jstq | dmit | GitHub | E:\Codes×12 全部同步
 
 ### ModelScope 修复
 - **根因**：模型 ID 命名空间错误，`MiniMaxAI/MiniMax-M3` → **`MiniMax/MiniMax-M3`**
-- **修复范围**：opencode.json（1处）+ oh-my-openagent.json（12处）
+- **修复范围**：config/opencode.json（1处）+ config/oh-my-openagent.json（12处）
 - **验证**：ModelScope `/v1/models` 端点确认 `MiniMax/MiniMax-M3` 在线
 
 ### 新增全局规则

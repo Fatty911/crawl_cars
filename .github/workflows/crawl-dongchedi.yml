@@ -300,7 +300,7 @@ jobs:
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 step2 错误 (使用新版通用修复器)..."
-          python auto_fix_workflow.py step2_error.log crawl_dongchedi.py || echo "自动修复失败，继续运行"
+          python scripts/auto_fix_workflow.py step2_error.log crawl_dongchedi.py || echo "自动修复失败，继续运行"
 
       - name: Retry step2 after fix
         id: retry_step2

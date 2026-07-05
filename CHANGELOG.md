@@ -61,9 +61,9 @@
 ## 2026-06-08
 
 ### 修改31: 增加零整比属性、来源明细和 Pages 展示
-- 新增 `crawl_zero_to_whole_ratio.py`，可抓取中保研/中保协/中汽修协公开发布的汽车零整比 PDF/HTML，并兼容本地 `zero_to_whole_manual.csv/json` 补充数据。
+- 新增 `scripts/crawl_zero_to_whole_ratio.py`，可抓取中保研/中保协/中汽修协公开发布的汽车零整比 PDF/HTML，并兼容本地 `zero_to_whole_manual.csv/json` 补充数据。
 - 默认从中国保险行业协会/中国汽车维修行业协会公开 PDF 抽取零整比，当前本地验证可从两个 PDF 抽取 291 条来源记录。
-- `merge_data.py` 新增零整比 enrichment：按车型名称、车系和包含关系匹配；同一车型匹配到多个来源时计算平均 `零整比`，并保留 `零整比来源明细` 与 `零整比匹配方式`。
+- `scripts/merge_data.py` 新增零整比 enrichment：按车型名称、车系和包含关系匹配；同一车型匹配到多个来源时计算平均 `零整比`，并保留 `零整比来源明细` 与 `零整比匹配方式`。
 - `docs/app.js` 把 `零整比`、`零整比来源明细` 加入 Pages 常用列，下载区增加零整比来源 JSON。
 - `merge-and-filter.yml` 在合并前运行零整比抓取，并把 `zero_to_whole_ratios_YYYYMMDD.json` 纳入 artifact、Release 和 Pages 产物。
 - CI 冒烟测试增加两来源零整比平均值断言，确保 `330.50%` 这类平均结果写入筛选车型。
@@ -113,8 +113,8 @@
 
 ### 修改25: 对齐并清理 OpenCode 配置
 - 确认当前 `main` 与 `origin/main` 没有未推送提交，待处理的是本地未提交配置改动。
-- 将仓库根目录与 `ai_tools/opencode/` 下的 `opencode.json`、`oh-my-openagent.json` 同步为全局 OpenCode 最新配置。
-- 移除 `opencode.json` 中不受支持的 `disabled_providers` 字段，继续依赖自定义 Provider + whitelist 控制可见模型。
+- 将仓库根目录与 `ai_tools/opencode/` 下的 `config/opencode.json`、`config/oh-my-openagent.json` 同步为全局 OpenCode 最新配置。
+- 移除 `config/opencode.json` 中不受支持的 `disabled_providers` 字段，继续依赖自定义 Provider + whitelist 控制可见模型。
 - 移除 Copilot Haiku 相关条目，避免 TUI 显示已要求隐藏的弱模型。
 - 在 `AGENTS.md` 固化仓库 OpenCode 配置必须与全局配置对齐的规则。
 
@@ -136,8 +136,8 @@
 - README 同步更新懂车帝运行时长、页面加载超时和分段续爬说明。
 
 ### 修改22: 优化 AI 自动修复器 Provider 策略和监控工作流退出逻辑
-- `AI_Auto_Fix_Monitor.yml` 在 `auto_fix_workflow.py` 未产出可用修复时记录为跳过并正常结束，不再把 Provider 不可用、无权限或额度耗尽变成监控工作流红叉。
-- `auto_fix_workflow.py` 移除明显过时/不可用的默认模型，新增 AtomGit、NVIDIA NIM 等可靠默认 Provider，并支持 `XXXX_BASE_URL`、`XXXX_MODEL_LIST`、`XXXX_PROXY_URL`。
+- `AI_Auto_Fix_Monitor.yml` 在 `scripts/auto_fix_workflow.py` 未产出可用修复时记录为跳过并正常结束，不再把 Provider 不可用、无权限或额度耗尽变成监控工作流红叉。
+- `scripts/auto_fix_workflow.py` 移除明显过时/不可用的默认模型，新增 AtomGit、NVIDIA NIM 等可靠默认 Provider，并支持 `XXXX_BASE_URL`、`XXXX_MODEL_LIST`、`XXXX_PROXY_URL`。
 - 默认关闭 OpenRouter 动态排行榜模型抓取，修复排行榜映射中 `glm` 触发 KeyError 的问题。
 - README 同步更新 AI 自动修复 Provider、模型和跳过规则说明。
 
@@ -157,20 +157,20 @@
 - `merge-and-filter.yml` 在定时合并时如果两份爬虫数据尚未完整生成，会成功跳过 Release/Pages，不再用红叉表示“暂无完整数据”；手动强制合并仍保持严格失败保护。
 
 ### 修改19: 增加汽车之家爬虫 SSL 重试次数和超时
-- `test_autohome.py` 的 SSL 错误重试逻辑改进：
+- `scripts/test_autohome.py` 的 SSL 错误重试逻辑改进：
   - 重试次数从 3 增加到 5
   - 请求超时从 15 秒增加到 20 秒
   - 退避策略改为 `min(2^(attempt+2), 20)` 秒（4/8/16/20/20）
   - 最差耗时约 148 秒，比原方案 210 秒减少 30%
 
 ### 修改18: 修复汽车之家爬虫 SSL 错误
-- `test_autohome.py` 的 `download_car_pages()` 函数中，字母列表页请求 `session.get()` 添加 SSL/Connection 错误重试
+- `scripts/test_autohome.py` 的 `download_car_pages()` 函数中，字母列表页请求 `session.get()` 添加 SSL/Connection 错误重试
 - 捕获 `requests.exceptions.SSLError` 和 `requests.exceptions.ConnectionError`
 - 使用指数退避策略（2/4/8秒），最多重试 3 次
 - 解决 mihomo 代理节点 SSL 握手失败导致爬虫崩溃的问题
 
 ### 修改17: 更新订阅抓取 User-Agent
-- `generate_clash_config.py` 默认订阅抓取 UA 改为 `mihomo/1.19.13`
+- `scripts/generate_clash_config.py` 默认订阅抓取 UA 改为 `mihomo/1.19.13`
 - 支持通过 `PROXY_SUBSCRIPTION_USER_AGENT` 环境变量覆盖默认 UA
 - 避免旧客户端 UA 触发服务商安全拦截
 
@@ -210,10 +210,10 @@
 - 发布前检查 `merged_日期.csv` 至少包含一行数据，避免继续发布只有表头的小文件。
 
 ### 修改10: 添加CI测试和PR自动合并工作流
-- 新增 `.github/workflows/ci.yml`，在 push、pull_request 和手动触发时运行 Python 语法检查与 `merge_data.py` 冒烟测试。
+- 新增 `.github/workflows/ci.yml`，在 push、pull_request 和手动触发时运行 Python 语法检查与 `scripts/merge_data.py` 冒烟测试。
 - 新增 `.github/workflows/auto-merge.yml`，给非草稿 PR 添加 `automerge` 标签后启用 GitHub 原生自动合并。
 - 自动合并使用 squash merge，并在合并后删除源分支。
-- 修复 `merge_data.py` 过滤逻辑未识别归一化后的 `蓝牙/数字钥匙` 字段，避免符合条件车型被误过滤。
+- 修复 `scripts/merge_data.py` 过滤逻辑未识别归一化后的 `蓝牙/数字钥匙` 字段，避免符合条件车型被误过滤。
 
 ## 2026-02-23
 
@@ -254,7 +254,7 @@
 ---
 
 ### 修改3: 添加分步运行和时间限制功能
-- 为 test_autohome.py 添加命令行参数支持：
+- 为 scripts/test_autohome.py 添加命令行参数支持：
   - `--step N`: 运行指定步骤(1-6)
   - `--time-limit N`: 每步最大运行秒数
   - `--max-cars N`: 第一步最多下载车型数

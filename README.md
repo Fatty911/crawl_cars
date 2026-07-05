@@ -8,24 +8,24 @@
 
 ```
 crawl_cars/
-├── test_autohome.py          # 汽车之家爬虫脚本
+├── scripts/test_autohome.py          # 汽车之家爬虫脚本
 ├── crawl_dongchedi.py        # 懂车帝爬虫脚本
-├── crawl_zero_to_whole_ratio.py # 零整比公开数据抓取脚本
-├── merge_data.py             # 数据合并与过滤脚本
-├── proxy_manager.py          # 代理管理器
-├── run_with_proxy.py         # 带代理的启动脚本
-├── generate_clash_config.py  # Clash/Mihomo 配置生成器
-├── auto_fix_workflow.py      # 大模型自动修复工作流错误
-├── fix_files.py              # 代码修复工具
+├── scripts/crawl_zero_to_whole_ratio.py # 零整比公开数据抓取脚本
+├── scripts/merge_data.py             # 数据合并与过滤脚本
+├── scripts/proxy_manager.py          # 代理管理器
+├── scripts/run_with_proxy.py         # 带代理的启动脚本
+├── scripts/generate_clash_config.py  # Clash/Mihomo 配置生成器
+├── scripts/auto_fix_workflow.py      # 大模型自动修复工作流错误
+├── scripts/fix_files.py              # 代码修复工具
 ├── docs/                     # GitHub Pages 静态网页表格查看器
 │   ├── index.html            # 页面结构
 │   ├── styles.css            # 表格工作台样式
 │   ├── app.js                # 数据加载、搜索、筛选、排序、分页、导出逻辑
 │   ├── config.js             # Pages 前端运行配置
-│   ├── filter_conditions.json # 网页筛选条件配置副本
+│   ├── config/filter_conditions.json # 网页筛选条件配置副本
 │   ├── CNAME                 # GitHub Pages 自定义域名
 │   └── data/                 # 发布时自动生成的数据目录
-├── filter_conditions.json    # 合并脚本和网页共用筛选条件
+├── config/filter_conditions.json    # 合并脚本和网页共用筛选条件
 ├── cloudflare/
 │   └── filter-history-worker.js # Cloudflare Worker 筛选历史 API
 ├── wrangler.toml             # Cloudflare Worker 部署配置
@@ -42,9 +42,9 @@ crawl_cars/
 │   ├── validate_workflow_expectations.py # 爬虫调度与自修复静态校验
 │   └── validate_syntax.py         # 语法校验
 ├── crawl_state/              # 半月爬取完成标记目录
-├── CRAWL_SCOPE.md            # 爬取车型范围与排除类型记录
-├── deploy_vps.sh             # VPS 一键部署脚本
-├── start_with_clash.sh       # 带 Clash 代理的启动脚本
+├── config/CRAWL_SCOPE.md            # 爬取车型范围与排除类型记录
+├── scripts/deploy_vps.sh             # VPS 一键部署脚本
+├── scripts/start_with_clash.sh       # 带 Clash 代理的启动脚本
 ├── VPS_DEPLOY.md             # VPS 部署指南
 ├── DOCKER_DEPLOY.md          # Docker 部署指南
 ├── CHANGELOG.md              # 变更记录
@@ -62,7 +62,7 @@ crawl_cars/
 │   └── auto-merge.yml        # PR 自动合并
 ├── docker-compose.yaml       # Docker Compose 配置
 ├── Dockerfile                # Docker 镜像构建
-├── docker-cron.sh            # Docker 容器定时任务
+├── scripts/docker-cron.sh            # Docker 容器定时任务
 └── README.md                 # 本文件
 ```
 
@@ -70,7 +70,7 @@ crawl_cars/
 
 ## 文件详解
 
-### 1. test_autohome.py
+### 1. scripts/test_autohome.py
 
 **功能**：爬取汽车之家的车型配置数据，共6个步骤
 
@@ -192,7 +192,7 @@ crawl_cars/
 
 ---
 
-### 3. merge_data.py
+### 3. scripts/merge_data.py
 
 **功能**：合并汽车之家、懂车帝和零整比数据源，过滤符合条件的车型
 
@@ -202,10 +202,10 @@ crawl_cars/
 |--------|------|
 | `HEADER_MAP` | 字段名映射表，统一不同数据源的字段名 |
 | `FIXED` | 固定字段列表 ['车系ID', '车型名称', '年款'] |
-| `FILTER_CONFIG_PATH` | 筛选条件配置文件路径：`filter_conditions.json` |
+| `FILTER_CONFIG_PATH` | 筛选条件配置文件路径：`config/filter_conditions.json` |
 | `ZERO_RATIO_FIELDS` | 零整比输出字段：`零整比`、`零整比来源明细`、`零整比匹配方式` |
 
-**过滤条件 (`filter_conditions.json`)**：
+**过滤条件 (`config/filter_conditions.json`)**：
 
 | 条件名 | 字段 | 阈值/值 |
 |--------|------|---------|
@@ -218,7 +218,7 @@ crawl_cars/
 | `seat_memory` | 座椅记忆 | 存在任一字段 |
 | `mirror_memory` | 后视镜记忆 | 存在任一字段 |
 
-修改筛选条件时优先改 `filter_conditions.json`；网页发布时会把该文件复制到站点根目录，前端条件栏和 `merge_data.py` 默认筛选共用同一份配置。
+修改筛选条件时优先改 `config/filter_conditions.json`；网页发布时会把该文件复制到站点根目录，前端条件栏和 `scripts/merge_data.py` 默认筛选共用同一份配置。
 
 **函数**：
 
@@ -253,7 +253,7 @@ crawl_cars/
 
 ---
 
-### 4. crawl_zero_to_whole_ratio.py
+### 4. scripts/crawl_zero_to_whole_ratio.py
 
 **功能**：抓取汽车零整比公开发布数据，生成 `zero_to_whole_ratios_YYYYMMDD.json` 和 `zero_to_whole_ratios.json`。
 
@@ -300,8 +300,8 @@ crawl_cars/
 | `docs/styles.css` | 表格工作台样式 |
 | `docs/app.js` | 数据加载、搜索、筛选、排序、分页、导出逻辑 |
 | `docs/config.js` | 前端运行配置，默认优先使用 `Personal_commonly_used` 私有仓库内的历史文件，保留 `/api/filter-history` 作为 Worker 后端路径 |
-| `docs/filter_conditions.json` | 网页筛选条件配置副本 |
-| `filter_conditions.json` | 合并脚本和网页共用的筛选条件配置 |
+| `docs/config/filter_conditions.json` | 网页筛选条件配置副本 |
+| `config/filter_conditions.json` | 合并脚本和网页共用的筛选条件配置 |
 | `cloudflare/filter-history-worker.js` | Cloudflare Worker 筛选历史 API |
 
 **数据来源**：
@@ -315,7 +315,7 @@ crawl_cars/
 - 点击表头按列升序/降序排序。
 - 表头第二行支持每列关键字筛选，并优化中文输入法输入期间的光标稳定性。
 - 支持按品牌、车系快速筛选；网页不再提供数据来源筛选，改为展示 `交叉核验` 和 `核验来源`。
-- 条件筛选栏由 `filter_conditions.json` 生成，支持功能勾选和数值范围筛选，不再把筛选条件写死在前端代码里。
+- 条件筛选栏由 `config/filter_conditions.json` 生成，支持功能勾选和数值范围筛选，不再把筛选条件写死在前端代码里。
 - 筛选历史可通过同步码保存到服务端；当前默认使用私有仓库 `Fatty911/Personal_commonly_used` 的 `cars/filter-history/history.json`，浏览器端需要用户在本机保存具备该仓库 Contents 读写权限的 GitHub Token。
 - 不填写 GitHub Token 时网页仍可匿名使用，筛选历史只保存在当前浏览器本机缓存中，不会读取或覆盖已填写 Token 的远端历史。
 - 如果切回 Worker 后端，默认 API 路径为 `/api/filter-history`，需要 Cloudflare Worker 路由到该路径。
@@ -356,13 +356,13 @@ Cloudflare 需要把 `cars.jiucai.eu.org/api/filter-history` 路由到 `cars-fil
 
 ---
 
-### 6. fix_files.py
+### 6. scripts/fix_files.py
 
-**功能**：代码修复工具，用于修复test_autohome.py中的缩进问题
+**功能**：代码修复工具，用于修复scripts/test_autohome.py中的缩进问题
 
 ---
 
-### 7. generate_clash_config.py
+### 7. scripts/generate_clash_config.py
 
 **功能**：Clash/Mihomo 配置生成器，从订阅链接生成 Clash 配置文件
 
@@ -374,7 +374,7 @@ Cloudflare 需要把 `cars.jiucai.eu.org/api/filter-history` 路由到 `cars-fil
 
 ---
 
-### 8. auto_fix_workflow.py
+### 8. scripts/auto_fix_workflow.py
 
 **功能**：通用多Provider工作流错误自动修复系统（Lobe-Chat 风格配置）
 
@@ -408,7 +408,7 @@ Cloudflare 需要把 `cars.jiucai.eu.org/api/filter-history` 路由到 `cars-fil
 
 ```bash
 # 手动运行
-python auto_fix_workflow.py error.log test_autohome.py
+python scripts/auto_fix_workflow.py error.log scripts/test_autohome.py
 
 # 在 workflow 中自动调用（已集成）
 ```
@@ -422,8 +422,8 @@ python auto_fix_workflow.py error.log test_autohome.py
 - `AI_Auto_Fix_Monitor.yml` 会优先抓取完整失败日志，再静默尝试下载 `error-log` artifact 参与分类；成功的爬虫 run 通常没有该 artifact，不会因此产生红色 annotation。
 - `AI_Auto_Fix_Monitor.yml` 会先用 `custom_scripts/check_workflow_expectations.py` 判断是否需要代码修复：失败日志属于站点结构/解析异常或未知代码问题时才修，成功但长爬虫跑到允许窗口外时也会触发修复。
 - 监控工作流优先调用官方 `openai/codex-action@v1` 作为 Codex 自修复代理；需要仓库 Secret `OPENAI_API_KEY`。Codex 修完后必须通过 `ensure_codex_autofix_scope.py`、`validate_syntax.py` 和 `validate_workflow_expectations.py`，才会提交并推送到 `main`。
-- 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，监控工作流才退回 `auto_fix_workflow.py` 多 Provider 旧修复器兜底。
-- `auto_fix_workflow.py` 未能产出可用修复时，监控工作流记录为跳过并正常结束；只有真正生成改动、语法校验通过、提交并推送成功后才标记 `fixed=true`。
+- 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，监控工作流才退回 `scripts/auto_fix_workflow.py` 多 Provider 旧修复器兜底。
+- `scripts/auto_fix_workflow.py` 未能产出可用修复时，监控工作流记录为跳过并正常结束；只有真正生成改动、语法校验通过、提交并推送成功后才标记 `fixed=true`。
 - 分类逻辑位于 `custom_scripts/classify_crawl_failure.py`，两个爬虫 workflow 和 `AI_Auto_Fix_Monitor.yml` 都会调用。
 
 **当前已配置的 GitHub Secrets**：
@@ -506,11 +506,11 @@ CRON_JOB_ORG_API_KEY=... GITHUB_DISPATCH_TOKEN=... python custom_scripts/configu
 7. 懂车帝重置进度时会保留车系列表缓存，接口短暂返回非 JSON 或空响应时可回退继续爬取
 8. 懂车帝 step2 的 `dongchedi/json/*.html` 页面缓存通过 `actions/cache` 按半月周期恢复；强制重跑或进入新半月周期会清空旧 HTML，普通分段续爬会先恢复缓存再校验 `crawled_series`
 9. 每两次网络访问之间默认等待3-8秒，模拟人工浏览动作速率
-10. 合并分析通过 `custom_scripts/download_latest_crawler_artifact.py` 向前扫描当前半月内最近的有效爬虫 artifact；会跳过半月完成后的短跳过 run、空/过小 artifact 和行数少于 50 的 JSON，再运行 `crawl_zero_to_whole_ratio.py` 与 `merge_data.py`
+10. 合并分析通过 `custom_scripts/download_latest_crawler_artifact.py` 向前扫描当前半月内最近的有效爬虫 artifact；会跳过半月完成后的短跳过 run、空/过小 artifact 和行数少于 50 的 JSON，再运行 `scripts/crawl_zero_to_whole_ratio.py` 与 `scripts/merge_data.py`
 11. 合并分析会先安装 `requests`、`beautifulsoup4`、`lxml`、`pdfplumber`、`pypdf`，确保零整比 PDF/HTML 抓取脚本可运行
 12. 主爬虫 workflow 上传 error-log 或数据 artifact 前会清空代理环境，避免 GitHub artifact API 请求被本地 mihomo 代理断流影响
 
-**车型范围**：当前只保留轿车、跑车、SUV；MPV、房车、皮卡、微面、轻客、货车、卡车等会被排除。详见 `CRAWL_SCOPE.md`。
+**车型范围**：当前只保留轿车、跑车、SUV；MPV、房车、皮卡、微面、轻客、货车、卡车等会被排除。详见 `config/CRAWL_SCOPE.md`。
 
 ---
 
@@ -522,7 +522,7 @@ CRON_JOB_ORG_API_KEY=... GITHUB_DISPATCH_TOKEN=... python custom_scripts/configu
 - 分散请求来源
 - 提高爬取成功率
 
-### 代理管理器 (proxy_manager.py)
+### 代理管理器 (scripts/proxy_manager.py)
 
 **功能**：
 - ✅ 支持多个机场订阅URL
@@ -535,50 +535,50 @@ CRON_JOB_ORG_API_KEY=... GITHUB_DISPATCH_TOKEN=... python custom_scripts/configu
 **订阅管理**：
 ```bash
 # 添加订阅
-python proxy_manager.py --add-sub "https://订阅1"
-python proxy_manager.py --add-sub "https://订阅2"
+python scripts/proxy_manager.py --add-sub "https://订阅1"
+python scripts/proxy_manager.py --add-sub "https://订阅2"
 
 # 列出所有订阅
-python proxy_manager.py --list-subs
+python scripts/proxy_manager.py --list-subs
 
 # 刷新所有订阅
-python proxy_manager.py --refresh
+python scripts/proxy_manager.py --refresh
 ```
 
 **排除关键字**：
 ```bash
 # 添加排除关键字（逗号分隔）
-python proxy_manager.py --exclude "过期,测试,expire,test"
+python scripts/proxy_manager.py --exclude "过期,测试,expire,test"
 
 # 列出排除关键字
-python proxy_manager.py --list-exclude
+python scripts/proxy_manager.py --list-exclude
 
 # 移除排除关键字
-python proxy_manager.py --remove-exclude "test"
+python scripts/proxy_manager.py --remove-exclude "test"
 ```
 
 **手动添加代理**：
 ```bash
 # HTTP代理
-python proxy_manager.py --add-http "节点1" "proxy.example.com" "8080" "user:pass"
+python scripts/proxy_manager.py --add-http "节点1" "proxy.example.com" "8080" "user:pass"
 
 # SOCKS5代理
-python proxy_manager.py --add-socks5 "节点2" "127.0.0.1" "1080" ""
+python scripts/proxy_manager.py --add-socks5 "节点2" "127.0.0.1" "1080" ""
 ```
 
 **查看和测试**：
 ```bash
 # 查看统计
-python proxy_manager.py --stats
+python scripts/proxy_manager.py --stats
 
 # 列出代理
-python proxy_manager.py --list
+python scripts/proxy_manager.py --list
 
 # 测试前5个代理
-python proxy_manager.py --test 5
+python scripts/proxy_manager.py --test 5
 
 # 清空所有代理
-python proxy_manager.py --clear
+python scripts/proxy_manager.py --clear
 ```
 
 **配置文件** (proxies.json)：
@@ -609,7 +609,7 @@ python proxy_manager.py --clear
 
 ## 数据字段映射 (HEADER_MAP)
 
-汽车之家和懂车帝同一配置项的字段名不同，已在merge_data.py中统一：
+汽车之家和懂车帝同一配置项的字段名不同，已在scripts/merge_data.py中统一：
 
 | 汽车之家 | 懂车帝 | 统一后 |
 |----------|--------|--------|
@@ -751,31 +751,31 @@ railway up
 pip install requests beautifulsoup4 selenium lxml
 
 # 2. 运行汽车之家爬虫（完整流程）
-python test_autohome.py
+python scripts/test_autohome.py
 
 # 3. 运行懂车帝爬虫（完整流程）
 python crawl_dongchedi.py
 
 # 4. 合并并过滤数据
-python crawl_zero_to_whole_ratio.py
-python merge_data.py
+python scripts/crawl_zero_to_whole_ratio.py
+python scripts/merge_data.py
 ```
 
 ### 分步运行
 
 ```bash
 # 汽车之家 - 只爬取第一步（最多6小时，400个车型）
-python test_autohome.py --step 1 --time-limit 21600 --max-cars 400 --auto
+python scripts/test_autohome.py --step 1 --time-limit 21600 --max-cars 400 --auto
 
 # 汽车之家 - 从断点继续
-python test_autohome.py --step 1 --auto
+python scripts/test_autohome.py --step 1 --auto
 
 # 汽车之家 - 后续步骤
-python test_autohome.py --step 2
-python test_autohome.py --step 3
-python test_autohome.py --step 4
-python test_autohome.py --step 5
-python test_autohome.py --step 6
+python scripts/test_autohome.py --step 2
+python scripts/test_autohome.py --step 3
+python scripts/test_autohome.py --step 4
+python scripts/test_autohome.py --step 5
+python scripts/test_autohome.py --step 6
 
 # 懂车帝 - 只爬取第二步
 python crawl_dongchedi.py --step 2 --time-limit 21600 --max-series 400 --auto

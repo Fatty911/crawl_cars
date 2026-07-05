@@ -104,7 +104,7 @@ jobs:
             echo "- 直接在 main 上修复；禁止 force push。"
             echo "- 不要启动长时间爬虫；只运行语法校验、workflow 静态校验或很短的 smoke test。"
             echo "- 修改代码或 workflow 后必须同步 README.md、CHANGELOG.md、HISTORY.md；代理相关还要同步 DOCKER_DEPLOY.md。"
-            echo "- 允许修改的范围：.github/workflows/、custom_scripts/、爬虫脚本、auto_fix_workflow.py、README/CHANGELOG/HISTORY/AGENTS/部署文档。"
+            echo "- 允许修改的范围：.github/workflows/、custom_scripts/、爬虫脚本、scripts/auto_fix_workflow.py、README/CHANGELOG/HISTORY/AGENTS/部署文档。"
             echo "- 修复目标是让爬虫 workflow 符合：上午 08:00-12:30，下午 13:00-22:00；长跑自动按 Action 6 小时硬限制和当前时间窗口取更早截止，并保留提交缓冲；每半月完成后跳过。"
             echo
             echo "## Logs"
@@ -112,7 +112,7 @@ jobs:
             head -c 200000 "${LOGS[0]}"
             echo
             echo '```'
-          } > codex_auto_fix_context.md
+          } > config/codex_auto_fix_context.md
 
       - name: Check Codex secret
         id: codex_key
@@ -133,7 +133,7 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: codex_auto_fix_context.md
+          prompt-file: config/codex_auto_fix_context.md
           output-file: codex_final_message.md
           sandbox: workspace-write
           codex-args: '["--full-auto"]'
@@ -141,7 +141,7 @@ jobs:
       - name: Validate Codex changes
         if: steps.inspect.outputs.should_fix == 'true' && steps.run_codex.outcome == 'success'
         run: |
-          rm -f codex_auto_fix_context.md codex_final_message.md
+          rm -f config/codex_auto_fix_context.md codex_final_message.md
           if [ -z "$(git status --porcelain)" ]; then
             echo "Codex 没有产生文件改动，视为无需提交"
             exit 0
@@ -157,7 +157,7 @@ jobs:
           ACTION_PAT: ${{ secrets.ACTION_PAT }}
           GH_TOKEN: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          rm -f codex_auto_fix_context.md codex_final_message.md
+          rm -f config/codex_auto_fix_context.md codex_final_message.md
           if [ -z "$(git status --porcelain)" ]; then
             echo "fixed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -236,7 +236,7 @@ jobs:
             PRIMARY_LOG="workflow_full.log"
           fi
           set +e
-          python auto_fix_workflow.py "$PRIMARY_LOG"
+          python scripts/auto_fix_workflow.py "$PRIMARY_LOG"
           FIX_EXIT=$?
           set -e
 

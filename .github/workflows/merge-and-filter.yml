@@ -131,7 +131,7 @@ jobs:
 
       - name: 爬取零整比数据
         if: steps.validate.outputs.ready == 'true'
-        run: python crawl_zero_to_whole_ratio.py
+        run: python scripts/crawl_zero_to_whole_ratio.py
         env:
           ZERO_TO_WHOLE_RATIO_URLS: ${{ vars.ZERO_TO_WHOLE_RATIO_URLS }}
 
@@ -149,7 +149,7 @@ jobs:
         run: |
           if ls autoHome_*.json dongchedi_*.json 2>/dev/null; then
             echo "找到数据文件，开始合并..."
-            python merge_data.py
+            python scripts/merge_data.py
           else
             echo "没有找到数据文件，跳过合并"
             exit 0
