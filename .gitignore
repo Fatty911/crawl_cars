@@ -17,7 +17,7 @@ newhtml/
 content/
 exception/
 output/
-data/
+data/tmp/
 
 # 懂车帝数据目录（保留进度文件）
 dongchedi/json/
@@ -27,14 +27,14 @@ step1_done
 dcd_step2_done
 
 # 生成的数据文件
-autoHome_*.json
-dongchedi_*.json
-merged_*.csv
-merged_*.json
-diff_*.csv
-filtered_cars_*.csv
-filtered_cars_*.json
-zero_to_whole_ratios*.json
+/autoHome_*.json
+/dongchedi_*.json
+/merged_*.csv
+/merged_*.json
+/diff_*.csv
+/filtered_cars_*.csv
+/filtered_cars_*.json
+/zero_to_whole_ratios*.json
 
 # 日志
 *.log

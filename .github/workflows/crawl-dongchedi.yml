@@ -107,7 +107,7 @@ jobs:
             echo "DEBUG_LIMIT=30" >> "$GITHUB_ENV"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           else
-            python custom_scripts/crawl_budget.py configure
+            python scripts/crawl_budget.py configure
             echo "MAX_CARS=0" >> "$GITHUB_ENV"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
@@ -134,7 +134,7 @@ jobs:
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart == 'true'
         run: |
           rm -f dcd_step2_done "$DONGCHEDI_DONE_MARKER"
-          python custom_scripts/reset_dongchedi_progress.py
+          python scripts/reset_dongchedi_progress.py
           rm -f dongchedi/json/*.html
           echo "已重置所有进度"
 
@@ -183,7 +183,7 @@ jobs:
         env:
           PROXY_SUBSCRIPTIONS: ${{ secrets.PROXY_SUBSCRIPTIONS }}
         run: |
-          python custom_scripts/setup_proxy_runtime.py --github-env "$GITHUB_ENV"
+          python scripts/setup_proxy_runtime.py --github-env "$GITHUB_ENV"
 
       - name: Check if step2 already done
         id: check_done_dcd
@@ -201,22 +201,22 @@ jobs:
           set -o pipefail
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行 step1 (mihomo round-robin)"
-            python crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME" 2>&1 | tee step1_error.log
+            python scripts/scripts/crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME" 2>&1 | tee step1_error.log
           else
             echo "无代理，直接运行 step1"
-            python crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME"
+            python scripts/scripts/crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME"
           fi
           if [ -f dongchedi/progress.json ]; then
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
             git add -A
             git diff --staged --quiet || git commit -m "Dongchedi step1 - series list - $(date +%H:%M)"
-            bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           fi
 
       - name: Clamp step2 runtime to workflow budget
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.check_done_dcd.outputs.done != 'true' && github.event.inputs.debug_mode != 'true'
-        run: python custom_scripts/crawl_budget.py clamp --step-label step2 --skip-env STEP2_SKIP
+        run: python scripts/crawl_budget.py clamp --step-label step2 --skip-env STEP2_SKIP
 
       - name: Run step2 loop
         id: step2
@@ -242,10 +242,10 @@ jobs:
           fi
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式运行 step2 (mihomo round-robin)"
-            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
+            python scripts/scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
           else
             echo "无代理，直接运行 step2"
-            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
+            python scripts/scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" $INCREMENTAL_FLAG $DEBUG_LIMIT_FLAG 2>&1 | tee step2_error.log
           fi
           EXIT_CODE=$?
           set -e
@@ -257,7 +257,7 @@ jobs:
             git config --local user.name "github-actions[bot]"
             git add -A
             git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
-            bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
             echo "complete=false" >> "$GITHUB_OUTPUT"
             echo "failed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -276,7 +276,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add -A
           git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
-          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Upload Dongchedi HTML cache (early, after step2)
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'true' || steps.step2.outputs.complete == 'false')
@@ -294,13 +294,13 @@ jobs:
         id: classify_step2
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true'
         run: |
-          python custom_scripts/classify_crawl_failure.py step2_error.log --github-output "$GITHUB_OUTPUT"
+          python scripts/classify_crawl_failure.py step2_error.log --github-output "$GITHUB_OUTPUT"
 
       - name: Auto-fix step2 error
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true'
         run: |
           echo "尝试自动修复 step2 错误 (使用新版通用修复器)..."
-          python scripts/auto_fix_workflow.py step2_error.log crawl_dongchedi.py || echo "自动修复失败，继续运行"
+          python scripts/auto_fix_workflow.py step2_error.log scripts/crawl_dongchedi.py || echo "自动修复失败，继续运行"
 
       - name: Retry step2 after fix
         id: retry_step2
@@ -312,9 +312,9 @@ jobs:
           set +e
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式重试 step2"
-            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
+            python scripts/scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
           else
-            python crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
+            python scripts/scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
           fi
           EXIT_CODE=$?
           set -e
@@ -325,7 +325,7 @@ jobs:
             git config --local user.name "github-actions[bot]"
             git add -A
             git diff --staged --quiet || git commit -m "Update dongchedi progress after fix - $(date +%H:%M)"
-            bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
             echo "complete=false" >> "$GITHUB_OUTPUT"
             exit 0
           elif [ $EXIT_CODE -ne 0 ]; then
@@ -338,7 +338,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add -A
           git diff --staged --quiet || git commit -m "Dongchedi step2 complete after fix - $(date +%H:%M)"
-          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Fail unresolved step2 error
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix != 'true'
@@ -372,8 +372,8 @@ jobs:
       - name: Run step3 and step4
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         run: |
-          python crawl_dongchedi.py --step 3
-          python crawl_dongchedi.py --step 4
+          python scripts/scripts/crawl_dongchedi.py --step 3
+          python scripts/scripts/crawl_dongchedi.py --step 4
 
       - name: Set date
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
@@ -424,7 +424,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add crawl_state
           git diff --staged --quiet || git commit -m "Dongchedi complete for $CRAWL_PERIOD"
-          bash custom_scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Disable proxy for Dongchedi artifact upload
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')

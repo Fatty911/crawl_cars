@@ -1,0 +1,499 @@
+{
+  "proxies": [
+    {
+      "name": "剩余流量：0 GB",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16617,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "套餐到期：长期有效",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16617,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "过滤掉15条线路",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16617,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "日本-优化",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16617,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "日本-优化2",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16617,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "日本-优化3",
+      "type": "vmess",
+      "host": "t.cnmjcn.cyou",
+      "port": 16617,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "新加坡-优化-Gemini-GPT",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16618,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "新加坡-优化2-Gemini-GPT",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16618,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "新加坡-优化3-Gemini",
+      "type": "vmess",
+      "host": "t.cnmjcn.cyou",
+      "port": 16618,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "香港-优化-Gemini",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16632,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "香港-优化2-Gemini",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16632,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "香港-优化3-Gemini",
+      "type": "vmess",
+      "host": "t.cnmjcn.cyou",
+      "port": 16632,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "香港WAP-优化-Gemini",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16622,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "香港WAP-优化2-Gemini",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16622,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "香港WAP-优化3-Gemini",
+      "type": "vmess",
+      "host": "t.cnmjcn.cyou",
+      "port": 16622,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "印度-优化",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16626,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "台湾-优化",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16616,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "台湾-优化2-GPT",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16616,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "台湾-优化3",
+      "type": "vmess",
+      "host": "t.cnmjcn.cyou",
+      "port": 16616,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "美国LA-优化-GPT",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16648,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "美国LA-优化2-GPT",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16648,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "美国LA-优化3-GPT",
+      "type": "vmess",
+      "host": "t.cnmjcn.cyou",
+      "port": 16648,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "加拿大-优化",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16641,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "加拿大-优化2",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16641,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "加拿大-优化3",
+      "type": "vmess",
+      "host": "t.cnmjcn.cyou",
+      "port": 16641,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "德国-优化",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16644,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "德国-优化2",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16644,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "英国-优化-GPT",
+      "type": "vmess",
+      "host": "planb.mojcn.com",
+      "port": 16645,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "英国-优化2",
+      "type": "vmess",
+      "host": "m.cnmjin.net",
+      "port": 16645,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    },
+    {
+      "name": "英国-优化3",
+      "type": "vmess",
+      "host": "t.cnmjcn.cyou",
+      "port": 16645,
+      "uuid": "0603a636-bc58-4d5d-ac11-e18ffb6ed053",
+      "alterId": 0,
+      "cipher": "auto",
+      "network": "ws",
+      "tls": false
+    }
+  ],
+  "stats": {
+    "剩余流量：0 GB": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "套餐到期：长期有效": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "过滤掉15条线路": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "日本-优化": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "日本-优化2": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "日本-优化3": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "新加坡-优化-Gemini-GPT": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "新加坡-优化2-Gemini-GPT": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "新加坡-优化3-Gemini": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "香港-优化-Gemini": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "香港-优化2-Gemini": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "香港-优化3-Gemini": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "香港WAP-优化-Gemini": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "香港WAP-优化2-Gemini": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "香港WAP-优化3-Gemini": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "印度-优化": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "台湾-优化": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "台湾-优化2-GPT": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "台湾-优化3": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "美国LA-优化-GPT": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "美国LA-优化2-GPT": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "美国LA-优化3-GPT": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "加拿大-优化": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "加拿大-优化2": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "加拿大-优化3": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "德国-优化": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "德国-优化2": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "英国-优化-GPT": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "英国-优化2": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    },
+    "英国-优化3": {
+      "success": 0,
+      "fail": 0,
+      "last_used": 0
+    }
+  },
+  "exclude_keywords": [
+    "expire",
+    "过期",
+    "trial",
+    "测试"
+  ],
+  "subscriptions": [
+    "https://msub.xn--m7r52rosihxm.com/api/v1/client/subscribe?token=e55dd866929eed9c9b330ded5f4abde4",
+    "https://drfytjmjhggnrgergergergerg6555.saojc.xyz/api/v1/client/subscribe?token=8333497cac49269438f4fa211a70c117",
+    "https://subscription.riolu.link/RioLU/system/api/v1/client/subscribe?token=6e45820bd05a5c90542e90e6c1203b6d",
+    "https://unity3d.xn--4gq62f52gdss.plus/file/db535bd0ebfb3a1675b81c4287d3be6c/obj.fbm"
+  ],
+  "last_updated": "2026-06-26T14:05:19.838206"
+}

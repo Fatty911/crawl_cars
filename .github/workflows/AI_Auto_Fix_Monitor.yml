@@ -83,7 +83,7 @@ jobs:
             exit 0
           fi
 
-          python custom_scripts/check_workflow_expectations.py "${LOGS[@]}" --github-output "$GITHUB_OUTPUT"
+          python scripts/check_workflow_expectations.py "${LOGS[@]}" --github-output "$GITHUB_OUTPUT"
 
           {
             echo "# Codex Auto Fix Context"
@@ -104,7 +104,7 @@ jobs:
             echo "- 直接在 main 上修复；禁止 force push。"
             echo "- 不要启动长时间爬虫；只运行语法校验、workflow 静态校验或很短的 smoke test。"
             echo "- 修改代码或 workflow 后必须同步 README.md、CHANGELOG.md、HISTORY.md；代理相关还要同步 DOCKER_DEPLOY.md。"
-            echo "- 允许修改的范围：.github/workflows/、custom_scripts/、爬虫脚本、scripts/auto_fix_workflow.py、README/CHANGELOG/HISTORY/AGENTS/部署文档。"
+            echo "- 允许修改的范围：.github/workflows/、scripts/、爬虫脚本、scripts/auto_fix_workflow.py、README/CHANGELOG/HISTORY/AGENTS/部署文档。"
             echo "- 修复目标是让爬虫 workflow 符合：上午 08:00-12:30，下午 13:00-22:00；长跑自动按 Action 6 小时硬限制和当前时间窗口取更早截止，并保留提交缓冲；每半月完成后跳过。"
             echo
             echo "## Logs"
@@ -146,9 +146,9 @@ jobs:
             echo "Codex 没有产生文件改动，视为无需提交"
             exit 0
           fi
-          python custom_scripts/ensure_codex_autofix_scope.py
-          python custom_scripts/validate_syntax.py
-          python custom_scripts/validate_workflow_expectations.py
+          python scripts/ensure_codex_autofix_scope.py
+          python scripts/validate_syntax.py
+          python scripts/validate_workflow_expectations.py
 
       - name: Commit and push Codex fix
         id: codex_push

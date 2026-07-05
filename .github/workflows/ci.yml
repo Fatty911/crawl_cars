@@ -40,11 +40,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compile Python files
-        run: python -m py_compile crawl_dongchedi.py scripts/crawl_zero_to_whole_ratio.py scripts/merge_data.py scripts/proxy_manager.py scripts/run_with_proxy.py scripts/test_autohome.py custom_scripts/*.py
+        run: python -m py_compile scripts/crawl_dongchedi.py scripts/crawl_zero_to_whole_ratio.py scripts/merge_data.py scripts/proxy_manager.py scripts/run_with_proxy.py scripts/test_autohome.py scripts/*.py
 
       - name: Validate changed workflow and site files
         run: >
-          python custom_scripts/validate_syntax.py
+          python scripts/validate_syntax.py
           "$PWD/.github/workflows/AI_Auto_Fix_Monitor.yml"
           "$PWD/.github/workflows/ci.yml"
           "$PWD/.github/workflows/auto-merge.yml"
@@ -52,11 +52,11 @@ jobs:
           "$PWD/.github/workflows/crawl-dongchedi.yml"
           "$PWD/.github/workflows/deploy-pages.yml"
           "$PWD/.github/workflows/merge-and-filter.yml"
-          "$PWD/custom_scripts/check_workflow_expectations.py"
-          "$PWD/custom_scripts/configure_cron_job_org.py"
-          "$PWD/custom_scripts/crawl_budget.py"
-          "$PWD/custom_scripts/ensure_codex_autofix_scope.py"
-          "$PWD/custom_scripts/validate_workflow_expectations.py"
+          "$PWD/scripts/check_workflow_expectations.py"
+          "$PWD/scripts/configure_cron_job_org.py"
+          "$PWD/scripts/crawl_budget.py"
+          "$PWD/scripts/ensure_codex_autofix_scope.py"
+          "$PWD/scripts/validate_workflow_expectations.py"
           "$PWD/scripts/crawl_zero_to_whole_ratio.py"
           "$PWD/scripts/merge_data.py"
           "$PWD/docs/index.html"
@@ -67,7 +67,7 @@ jobs:
           "$PWD/config/filter_conditions.json"
 
       - name: Validate workflow expectations
-        run: python custom_scripts/validate_workflow_expectations.py
+        run: python scripts/validate_workflow_expectations.py
 
       - name: Smoke test scripts/merge_data.py
         run: |
