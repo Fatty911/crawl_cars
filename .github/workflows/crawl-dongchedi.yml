@@ -37,6 +37,7 @@ env:
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
   DCD_GET_TIMEOUT_SECONDS: 45
+  PYTHONPATH: ${{ github.workspace }}
 
 concurrency:
   group: dongchedi-crawl-${{ github.ref }}-${{ github.event.inputs.run_profile || github.event.client_payload.run_profile || github.event_name }}

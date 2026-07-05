@@ -428,7 +428,7 @@ jobs:
               rows = json.load(f)
 
           print(f"{path}: {len(rows)} rows")
-          min_rows = 5 if debug_mode else 50
+          min_rows = 5 if debug_mode else 500
           if incremental and len(rows) == 0:
               print("增量模式：无新增车型，跳过上传")
               with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -442,7 +442,7 @@ jobs:
           PY
 
       - name: Mark Autohome period complete
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true' || github.event.inputs.debug_mode == 'true') && steps.verify_autohome.outputs.has_data == 'true' && github.event.inputs.debug_mode != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true') && steps.verify_autohome.outputs.has_data == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           mkdir -p crawl_state
           touch "$AUTOHOME_DONE_MARKER"

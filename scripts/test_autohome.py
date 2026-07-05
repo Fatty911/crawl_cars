@@ -232,22 +232,6 @@ def human_delay(label):
 # 第一步,下载出所有车型的网页
 def download_car_pages():
     print("第一步,下载出所有车型的网页")
-
-    # 加载懂车帝目标车系清单（只爬取懂车帝已有的车系，确保双源匹配）
-    target_series = set()
-    target_norm = {}  # 标准化名→原始名
-    target_file = os.path.join(working_dir, "data", "dongchedi_series_list.json")
-    if os.path.exists(target_file):
-        with open(target_file, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-        for s in raw:
-            # 标准化：去空格、去标点、小写
-            norm = re.sub(r'[\s·\-_/()（）【】\[\]]', '', s).lower()
-            target_series.add(norm)
-            target_norm[norm] = s
-        print(f"加载目标车系清单: {len(target_series)} 个（来自懂车帝）")
-    else:
-        print(f"目标清单不存在 ({target_file})，将爬取所有车系（无过滤）")
     letters = progress.get("download_car_pages", [])
 
     # 校验：Runner重启后html目录可能为空，需重置已完成字母进度
@@ -278,7 +262,41 @@ def download_car_pages():
 
     all_letters = [chr(i) for i in range(ord("A"), ord("Z") + 1)]
 
-    for letter in all_letters:
+    # 按品牌热度重排字母顺序：热门品牌首字母优先
+    # 首字母按中国汽车市场品牌热度排序，与懂车帝 brand_heat_order 对齐
+    BRAND_HEAT_FIRST_LETTERS = [
+        "B",  # 比亚迪、宝马、奔驰、保时捷、别克、本田、北京
+        "A",  # 奥迪、埃安、阿维塔
+        "L",  # 理想、零跑、领克、路虎、雷克萨斯、岚图
+        "W",  # 问界、蔚来、沃尔沃、五菱
+        "X",  # 小鹏、小米
+        "J",  # 极氪、捷途、吉利、江淮
+        "C",  # 长安、长城
+        "D",  # 大众、东风
+        "T",  # 特斯拉、腾势、坦克
+        "F",  # 丰田、福特、方程豹、法拉利
+        "K",  # 凯迪拉克
+        "H",  # 哈弗、红旗
+        "Q",  # 奇瑞、启辰
+        "G",  # 广汽
+        "R",  # 日产
+        "S",  # 斯柯达、三菱、深蓝
+        "Y",  # 仰望、英菲尼迪
+        "M",  # 马自达、名爵
+        "N",  # 哪吒
+        "Z",  # 智己、众泰
+        "O",  # 欧拉
+        "P",  # 标致
+        "E",  # 阿尔法·罗密欧
+        "U",  # 其他
+        "V",  # 沃尔沃（瑞典）
+    ]
+    # 补充不在列表中的字母
+    remaining = [l for l in all_letters if l not in BRAND_HEAT_FIRST_LETTERS]
+    sorted_letters = BRAND_HEAT_FIRST_LETTERS + sorted(remaining)
+    print(f"字母顺序（按品牌热度）: {''.join(sorted_letters)}")
+
+    for letter in sorted_letters:
         should_process = (letter == current_letter) or (
             letter not in letters and current_letter is None
         )
@@ -342,25 +360,6 @@ def download_car_pages():
                             "/", ""
                         )
                         if car_id:
-                            # 目标清单过滤：只爬取懂车帝已有的车系
-                            if target_series:
-                                series_name = h4.a.text.strip()
-                                series_norm = re.sub(r'[\s·\-_/()（）【】\[\]]', '', series_name).lower()
-                                # 尝试直接匹配和去品牌前缀匹配
-                                matched = series_norm in target_series
-                                if not matched:
-                                    # 去品牌前缀：例如"奥迪A4L"→"a4l"，匹配 dongchedi 的 "A4L"
-                                    for bp in sorted(BRAND_PREFIXES, key=len, reverse=True):
-                                        bp_norm = re.sub(r'[\s·\-_/()（）【】\[\]]', '', bp).lower()
-                                        if series_norm.startswith(bp_norm):
-                                            stripped = series_norm[len(bp_norm):]
-                                            if stripped and stripped in target_series:
-                                                matched = True
-                                            break
-                                if not matched:
-                                    skipped_count += 1
-                                    continue  # 跳过非目标车系
-
                             car_file = os.path.join(html_dir, f"{car_id}")
                             if os.path.exists(car_file):
                                 if INCREMENTAL_MODE:
