@@ -57,7 +57,7 @@ jobs:
           "$PWD/custom_scripts/crawl_budget.py"
           "$PWD/custom_scripts/ensure_codex_autofix_scope.py"
           "$PWD/custom_scripts/validate_workflow_expectations.py"
-          "$PWD/crawl_zero_to_whole_ratio.py"
+          "$PWD/scripts/crawl_zero_to_whole_ratio.py"
           "$PWD/scripts/merge_data.py"
           "$PWD/docs/index.html"
           "$PWD/docs/styles.css"
