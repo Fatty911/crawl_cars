@@ -252,9 +252,66 @@ def download_car_pages():
     initial_cars_downloaded = cars_downloaded
     skipped_count = 0  # 增量模式下跳过的已存在车型数
 
-    # === Phase 0: 快速扫描所有字母页，收集品牌热度(olr)+车系ID列表 ===
-    # 汽车之家 grade 页面每个品牌 dl 标签有 olr 属性 = 品牌热度排名
-    # olr=3 是比亚迪（最热门），olr 越小越热门，olr=200 是冷门品牌
+    # === Phase 0: 快速扫描所有字母页，收集品牌+车系ID列表 ===
+    # 使用自建品牌热度排行榜（基于销量数据维护），不依赖汽车之家 olr
+    # （olr 将小米/问界/智界/享界等新能源品牌错误归到200=冷门）
+    AUTOHOME_BRAND_HEAT_ORDER = [
+        # 第一梯队：年销量Top品牌
+        "比亚迪", "吉利汽车", "长安汽车", "奇瑞", "上汽大众", "一汽大众",
+        "广汽丰田", "一汽丰田", "本田", "东风日产", "五菱汽车", "别克",
+        # 第二梯队：豪华+新能源头部
+        "宝马", "奔驰", "奥迪", "特斯拉", "理想汽车", "蔚来", "问界",
+        "AITO 问界", "零跑汽车", "极氪", "小鹏", "小鹏汽车", "领克",
+        # 第三梯队：主流自主品牌
+        "哈弗", "宝骏", "红旗", "广汽传祺", "东风本田", "北京现代",
+        "长安欧尚", "长安马自达", "广汽本田", "沃尔沃", "凯迪拉克",
+        "路虎", "保时捷", "雷克萨斯",
+        # 第四梯队：新能源新势力
+        "长城炮", "坦克", "捷途", "星途", "传祺", "捷达", "smart", "MINI",
+        "埃安", "深蓝汽车", "启辰", "阿维塔", "岚图", "岚图汽车", "智己",
+        "智己汽车", "极狐", "ARCFOX极狐", "腾势", "方程豹", "仰望",
+        "哪吒汽车", "小米汽车", "智界", "享界", "尚界", "尊界", "乐道",
+        "极越", "魏牌", "长安启源",
+        # 第五梯队：其他品牌
+        "北京越野", "北京汽车", "北汽新能源", "东风风行", "江淮",
+        "东风风神", "上汽大通", "荣威", "名爵", "东风",
+        "标致", "雪铁龙", "雪佛兰", "福特", "起亚", "马自达",
+        "斯柯达", "三菱", "斯巴鲁", "铃木", "众泰", "海马",
+    ]
+
+    # 品牌名标准化映射（汽车之家名 → 排行榜名）
+    BRAND_NAME_MAP = {
+        "长安": "长安汽车",
+        "小鹏": "小鹏汽车",
+        "AITO 问界": "问界",
+        "岚图汽车": "岚图",
+        "智己汽车": "智己",
+        "ARCFOX极狐": "极狐",
+        "大众": "上汽大众",
+        "丰田": "广汽丰田",
+        "日产": "东风日产",
+    }
+
+    # 构建热度查找表：品牌名 → 排名(越小越热)
+    heat_map = {}
+    for idx, brand in enumerate(AUTOHOME_BRAND_HEAT_ORDER):
+        normalized = brand.strip().lower().replace(" ", "")
+        heat_map[normalized] = idx
+
+    def get_brand_heat(brand_name):
+        """获取品牌热度排名，越小越热门。未列入的返回999。"""
+        normalized = brand_name.strip().lower().replace(" ", "")
+        # 先直接查
+        if normalized in heat_map:
+            return heat_map[normalized]
+        # 再查映射后的
+        mapped = BRAND_NAME_MAP.get(brand_name.strip())
+        if mapped:
+            mapped_norm = mapped.strip().lower().replace(" ", "")
+            if mapped_norm in heat_map:
+                return heat_map[mapped_norm]
+        return 999
+
     series_queue_file = os.path.join(working_dir, "data", "autohome_series_queue.json")
 
     if os.path.exists(series_queue_file):
@@ -262,9 +319,9 @@ def download_car_pages():
             series_queue = json.load(f)
         print(f"加载已有车系队列: {len(series_queue)} 个车系")
     else:
-        print("=== Phase 0: 扫描所有字母页，收集品牌热度排名+车系列表 ===")
+        print("=== Phase 0: 扫描所有字母页，收集品牌+车系ID列表 ===")
         all_letters = [chr(i) for i in range(ord("A"), ord("Z") + 1)]
-        series_queue = []  # [(olr, car_id, brand_name, series_name), ...]
+        series_queue = []
 
         for letter in all_letters:
             first_url = f"https://www.autohome.com.cn/grade/carhtml/{letter}.html"
@@ -292,9 +349,7 @@ def download_car_pages():
             resp.encoding = resp.apparent_encoding
             soup = bs4.BeautifulSoup(resp.text, "html.parser")
 
-            # 每个品牌是一个 dl 标签，olr 属性是品牌热度排名
             for dl in soup.find_all("dl"):
-                olr = int(dl.get("olr", "200"))
                 dt = dl.find("dt")
                 brand_name = ""
                 if dt:
@@ -319,29 +374,35 @@ def download_car_pages():
                             if href and isinstance(href, str) and ".cn" in href:
                                 car_id = href.split("#")[0][href.index(".cn") + 3:].replace("/", "")
                                 if car_id:
+                                    heat = get_brand_heat(brand_name)
                                     series_queue.append({
-                                        "olr": olr,
+                                        "heat": heat,
                                         "car_id": car_id,
                                         "brand": brand_name,
                                         "series": series_name,
                                     })
 
-            time.sleep(0.5)  # 字母页之间短暂间隔
+            time.sleep(0.5)
 
-        # 按品牌热度(olr)排序——热门品牌的车系优先爬
-        series_queue.sort(key=lambda x: x["olr"])
+        # 按品牌热度排序
+        series_queue.sort(key=lambda x: x["heat"])
 
-        # 保存队列
         os.makedirs(os.path.dirname(series_queue_file), exist_ok=True)
         with open(series_queue_file, "w", encoding="utf-8") as f:
             json.dump(series_queue, f, ensure_ascii=False, indent=2)
 
-        # 打印统计
         brands_seen = {}
         for s in series_queue:
             brands_seen[s["brand"]] = brands_seen.get(s["brand"], 0) + 1
         print(f"扫描完成: 共 {len(series_queue)} 个车系, {len(brands_seen)} 个品牌")
-        print(f"热度前10品牌: {list(brands_seen.items())[:10]}")
+        # 打印热度前20品牌
+        top_brands = []
+        seen = set()
+        for s in series_queue:
+            if s["brand"] not in seen:
+                top_brands.append((s["brand"], s["heat"]))
+                seen.add(s["brand"])
+        print(f"热度前20品牌: {top_brands[:20]}")
 
     # === Phase 1: 按品牌热度顺序逐个爬详情页 ===
     second_url = "https://car.autohome.com.cn/config/series/{}.html"
@@ -352,7 +413,7 @@ def download_car_pages():
     for idx in range(queue_idx, len(series_queue)):
         item = series_queue[idx]
         car_id = item["car_id"]
-        olr = item["olr"]
+        heat = item["heat"]
         brand = item["brand"]
         series = item["series"]
 
@@ -364,7 +425,7 @@ def download_car_pages():
             with open(progress_file, "w") as f:
                 json.dump(progress, f)
             if AUTO_MODE:
-                print(f"未完成，队列第{idx}/{len(series_queue)}个（{brand}/{series}, olr={olr}），等待下次继续")
+                print(f"未完成，队列第{idx}/{len(series_queue)}个（{brand}/{series}, heat={heat}），等待下次继续")
                 sys.exit(10)
             return
 
@@ -375,7 +436,7 @@ def download_car_pages():
             continue
 
         car_url = second_url.format(car_id)
-        print(f"[{idx+1}/{len(series_queue)}] 正在获取 {brand}/{series} (car_id={car_id}, olr={olr})")
+        print(f"[{idx+1}/{len(series_queue)}] 正在获取 {brand}/{series} (car_id={car_id}, heat={heat})")
 
         for i in range(5):
             try:
