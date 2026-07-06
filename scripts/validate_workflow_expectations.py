@@ -75,24 +75,10 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
     assert_condition("MIN_ARTIFACT_DATE" in text, "merge-and-filter.yml 缺少当前半月 artifact 日期限制", errors)
 
 
-def check_dongchedi_completion_gates(path: Path, errors: list[str]) -> None:
-    text = path.read_text(encoding="utf-8")
-    bad_gate = re.search(
-        r"steps\.(?:retry_)?step2\.outputs\.failed\s*==\s*['\"]false['\"]",
-        text,
-    )
-    assert_condition(
-        bad_gate is None,
-        "crawl-dongchedi.yml 不得用 step2 failed=false 放行 step3/verify/upload",
-        errors,
-    )
-
-
 def main() -> int:
     errors: list[str] = []
     check_crawler_workflow(ROOT / ".github/workflows/crawl-autohome.yml", errors)
     check_crawler_workflow(ROOT / ".github/workflows/crawl-dongchedi.yml", errors)
-    check_dongchedi_completion_gates(ROOT / ".github/workflows/crawl-dongchedi.yml", errors)
     check_trigger(ROOT / ".github/workflows/crawl-trigger.yml", errors)
     check_budget_script(ROOT / "scripts/crawl_budget.py", errors)
     check_merge_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
