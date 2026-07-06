@@ -541,7 +541,7 @@ rules:
     def _proxy_to_yaml(self, proxy: Dict, indent: int = 2) -> str:
         """将代理配置转为YAML格式"""
         spaces = ' ' * indent
-        lines = [f"{spaces}- name: {proxy['name']}"]
+        lines = [f"{spaces}- name: {self._yaml_quote(proxy['name'])}"]
         
         for key, value in proxy.items():
             if key == 'name':
@@ -554,22 +554,35 @@ rules:
                     if isinstance(sub_value, dict):
                         lines.append(f"{spaces}    {sub_key}:")
                         for k, v in sub_value.items():
-                            lines.append(f"{spaces}      {k}: {v}")
+                            lines.append(f"{spaces}      {k}: {self._yaml_quote(v)}")
                     else:
-                        lines.append(f"{spaces}    {sub_key}: {sub_value}")
+                        lines.append(f"{spaces}    {sub_key}: {self._yaml_quote(sub_value)}")
             elif isinstance(value, list):
                 lines.append(f"{spaces}  {key}:")
                 for item in value:
-                    lines.append(f"{spaces}    - {item}")
+                    lines.append(f"{spaces}    - {self._yaml_quote(item)}")
             else:
-                lines.append(f"{spaces}  {key}: {value}")
+                lines.append(f"{spaces}  {key}: {self._yaml_quote(value)}")
         
         return '\n'.join(lines) + '\n'
+    
+    @staticmethod
+    def _yaml_quote(value) -> str:
+        """Quote a value for YAML if it contains special characters."""
+        if value is None:
+            return 'null'
+        s = str(value)
+        # Quote if contains YAML special characters or is empty
+        if not s or any(c in s for c in [':', '#', '{', '}', '[', ']', ',', '&', '*', '?', '|', '>', '%', '@', "'", '"', '\n', '\t']):
+            # Escape single quotes by doubling them
+            escaped = s.replace("'", "''")
+            return f"'{escaped}'"
+        return s
     
     def _format_proxy_list(self, names: List[str], indent: int = 6) -> str:
         """格式化代理列表"""
         spaces = ' ' * indent
-        return '\n'.join([f"{spaces}- {name}" for name in names])
+        return '\n'.join([f"{spaces}- {self._yaml_quote(name)}" for name in names])
     
     def save_config(self, config: str, path: str = None):
         """保存配置文件"""
