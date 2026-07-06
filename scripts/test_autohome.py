@@ -253,34 +253,35 @@ def download_car_pages():
     skipped_count = 0  # 增量模式下跳过的已存在车型数
 
     # === Phase 0: 快速扫描所有字母页，收集品牌+车系ID列表 ===
-    # 使用自建品牌热度排行榜（基于销量数据维护），不依赖汽车之家 olr
-    # （olr 将小米/问界/智界/享界等新能源品牌错误归到200=冷门）
-    AUTOHOME_BRAND_HEAT_ORDER = [
-        # 第一梯队：年销量Top品牌
+    # 品牌热度排行榜和排序配置通过环境变量自定义，无需改代码
+    # 环境变量：
+    #   BRAND_HEAT_ORDER    — 逗号分隔的品牌名列表，按热度从高到低
+    #   BRAND_NAME_MAP     — 逗号分隔的 映射对，如 "长安:长安汽车,小鹏:小鹏汽车"
+    #   SORT_CONFIG         — 逗号分隔的排序字段，格式 "字段:asc|desc"，如 "heat:asc,salecount:desc,series:asc"
+    #   SALES_RANK_DATE     — 销量榜日期，格式 "YYYY-MM"，默认自动获取最新
+    #   SALES_RANK_SUBRANKS — 逗号分隔的子榜ID，默认 "1,2,3,4,5,6,7,8"
+
+    # 默认品牌热度排行榜（环境变量未设置时使用）
+    DEFAULT_BRAND_HEAT_ORDER = [
         "比亚迪", "吉利汽车", "长安汽车", "奇瑞", "上汽大众", "一汽大众",
         "广汽丰田", "一汽丰田", "本田", "东风日产", "五菱汽车", "别克",
-        # 第二梯队：豪华+新能源头部
         "宝马", "奔驰", "奥迪", "特斯拉", "理想汽车", "蔚来", "问界",
         "AITO 问界", "零跑汽车", "极氪", "小鹏", "小鹏汽车", "领克",
-        # 第三梯队：主流自主品牌
         "哈弗", "宝骏", "红旗", "广汽传祺", "东风本田", "北京现代",
         "长安欧尚", "长安马自达", "广汽本田", "沃尔沃", "凯迪拉克",
         "路虎", "保时捷", "雷克萨斯",
-        # 第四梯队：新能源新势力
         "长城炮", "坦克", "捷途", "星途", "传祺", "捷达", "smart", "MINI",
         "埃安", "深蓝汽车", "启辰", "阿维塔", "岚图", "岚图汽车", "智己",
         "智己汽车", "极狐", "ARCFOX极狐", "腾势", "方程豹", "仰望",
         "哪吒汽车", "小米汽车", "智界", "享界", "尚界", "尊界", "乐道",
         "极越", "魏牌", "长安启源",
-        # 第五梯队：其他品牌
         "北京越野", "北京汽车", "北汽新能源", "东风风行", "江淮",
         "东风风神", "上汽大通", "荣威", "名爵", "东风",
         "标致", "雪铁龙", "雪佛兰", "福特", "起亚", "马自达",
         "斯柯达", "三菱", "斯巴鲁", "铃木", "众泰", "海马",
     ]
 
-    # 品牌名标准化映射（汽车之家名 → 排行榜名）
-    BRAND_NAME_MAP = {
+    DEFAULT_BRAND_NAME_MAP = {
         "长安": "长安汽车",
         "小鹏": "小鹏汽车",
         "AITO 问界": "问界",
@@ -291,6 +292,25 @@ def download_car_pages():
         "丰田": "广汽丰田",
         "日产": "东风日产",
     }
+
+    # 从环境变量加载品牌热度排行榜
+    env_heat_order = os.environ.get("BRAND_HEAT_ORDER", "")
+    if env_heat_order:
+        AUTOHOME_BRAND_HEAT_ORDER = [b.strip() for b in env_heat_order.split(",") if b.strip()]
+        print(f"从环境变量加载品牌热度排行榜: {len(AUTOHOME_BRAND_HEAT_ORDER)} 个品牌")
+    else:
+        AUTOHOME_BRAND_HEAT_ORDER = DEFAULT_BRAND_HEAT_ORDER
+
+    # 从环境变量加载品牌名映射
+    env_name_map = os.environ.get("BRAND_NAME_MAP", "")
+    if env_name_map:
+        BRAND_NAME_MAP = {}
+        for pair in env_name_map.split(","):
+            if ":" in pair:
+                k, v = pair.split(":", 1)
+                BRAND_NAME_MAP[k.strip()] = v.strip()
+    else:
+        BRAND_NAME_MAP = DEFAULT_BRAND_NAME_MAP
 
     # 构建热度查找表：品牌名 → 排名(越小越热)
     heat_map = {}
@@ -387,12 +407,38 @@ def download_car_pages():
         # === 获取车系月销量数据 ===
         print("=== 获取汽车之家销量榜数据 ===")
         sales_map = {}  # seriesid -> salecount
-        # 汽车之家排行榜 URL: /rank/1-{subrank}-0-0_9000-x-x-x/2026-05.html
-        # 多个子榜单（销量/新能源/关注/保值等），每榜 Top 20
-        RANK_SUBRANKS = list(range(1, 9))  # typeid 1-8
+        # 销量榜日期：环境变量 SALES_RANK_DATE (格式 YYYY-MM)，默认自动获取最新月份
+        sales_rank_date = os.environ.get("SALES_RANK_DATE", "")
+        if not sales_rank_date:
+            from datetime import datetime as _dt
+            now = _dt.now()
+            # 汽车之家销量榜通常滞后1个月（每月10号更新上月数据）
+            if now.day < 10:
+                # 月初用上上月
+                month = now.month - 2
+                year = now.year
+                if month <= 0:
+                    month += 12
+                    year -= 1
+            else:
+                month = now.month - 1
+                year = now.year
+                if month <= 0:
+                    month += 12
+                    year -= 1
+            sales_rank_date = f"{year}-{month:02d}"
+        print(f"销量榜日期: {sales_rank_date}")
+
+        # 子榜ID：环境变量 SALES_RANK_SUBRANKS，默认 1-8
+        env_subranks = os.environ.get("SALES_RANK_SUBRANKS", "")
+        if env_subranks:
+            RANK_SUBRANKS = [int(x.strip()) for x in env_subranks.split(",") if x.strip()]
+        else:
+            RANK_SUBRANKS = list(range(1, 9))
+
         for subrank in RANK_SUBRANKS:
             try:
-                url = f"https://www.autohome.com.cn/rank/1-{subrank}-0-0_9000-x-x-x/2026-05.html"
+                url = f"https://www.autohome.com.cn/rank/1-{subrank}-0-0_9000-x-x-x/{sales_rank_date}.html"
                 r = session.get(url, timeout=10)
                 idx = r.text.find('"listRes"')
                 if idx == -1:
@@ -417,14 +463,25 @@ def download_car_pages():
         print(f"获取到 {len(sales_map)} 个车系的月销量数据")
 
         # === 多关键字排序（类似 Excel 自定义排序）===
-        # 排序配置：[(字段, 是否升序), ...]
-        # True=升序(小→大), False=降序(大→小)
-        # 修改此列表即可改变排序优先级和方向
-        SORT_CONFIG = [
-            ("heat", True),       # 第一关键字：品牌热度 升序（热门品牌在前）
-            ("salecount", False), # 第二关键字：月销量 降序（销量高在前）
-            ("series", True),     # 第三关键字：车系名 升序（字母序）
-        ]
+        # 排序配置：环境变量 SORT_CONFIG，格式 "字段:asc|desc,字段:asc|desc,..."
+        # 默认: 品牌热度升序 → 月销量降序 → 车系名升序
+        env_sort_config = os.environ.get("SORT_CONFIG", "")
+        if env_sort_config:
+            SORT_CONFIG = []
+            for part in env_sort_config.split(","):
+                part = part.strip()
+                if ":" in part:
+                    field, direction = part.split(":", 1)
+                    SORT_CONFIG.append((field.strip(), direction.strip().lower().startswith("asc")))
+                else:
+                    SORT_CONFIG.append((part, True))
+            print(f"从环境变量加载排序配置: {SORT_CONFIG}")
+        else:
+            SORT_CONFIG = [
+                ("heat", True),       # 第一关键字：品牌热度 升序（热门品牌在前）
+                ("salecount", False), # 第二关键字：月销量 降序（销量高在前）
+                ("series", True),     # 第三关键字：车系名 升序（字母序）
+            ]
 
         # 补充销量数据到队列
         for item in series_queue:

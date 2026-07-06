@@ -270,7 +270,26 @@ class WorkflowErrorFixer:
                 print("    ✗ 提交失败")
                 return False
 
-            push_result = subprocess.run(f"git push https://x-access-token:{token}@github.com/{repo}.git", shell=True)
+            # 安全检查：拒绝推送删除超过 50 行的提交（防止 AI 误删代码）
+            diff_stat = subprocess.run(
+                "git diff --stat HEAD~1 HEAD", shell=True, capture_output=True, text=True
+            ).stdout
+            deleted_lines = 0
+            for line in diff_stat.split("\n"):
+                if "deletion" in line or "-" in line:
+                    import re as _re
+                    m = _re.search(r'(\d+) deletion', line)
+                    if m:
+                        deleted_lines += int(m.group(1))
+            if deleted_lines > 50:
+                print(f"    ✗ 安全拦截：本次修复删除了 {deleted_lines} 行代码（超过50行阈值），拒绝推送")
+                subprocess.run("git reset HEAD~1 --soft", shell=True)
+                return False
+
+            token = os.environ.get("GITHUB_TOKEN", "")
+            repo = os.environ.get("GITHUB_REPOSITORY", "")
+            push_cmd = "git push https://x-access-token:" + token + "@github.com/" + repo + ".git"
+            push_result = subprocess.run(push_cmd, shell=True)
             if push_result.returncode != 0:
                 print("    ✗ 推送失败")
                 return False
