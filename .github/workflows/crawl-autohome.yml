@@ -108,10 +108,12 @@ jobs:
         run: |
           if [ "$DEBUG_MODE" = "true" ]; then
             echo "调试模式：跳过时间窗口限制，每次最多爬30车型"
+            echo "DEBUG_MODE=true" >> "$GITHUB_ENV"
             echo "MAX_CARS=30" >> "$GITHUB_ENV"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           else
             python scripts/crawl_budget.py configure
+            echo "DEBUG_MODE=false" >> "$GITHUB_ENV"
             echo "MAX_CARS=0" >> "$GITHUB_ENV"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
