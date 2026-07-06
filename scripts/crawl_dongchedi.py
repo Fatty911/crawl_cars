@@ -1309,9 +1309,10 @@ def main():
             try:
                 browser = crawl_series_config(browser, series_list)
                 if DEBUG_MODE:
-                    # 调试模式：无论 HTML 保存多少都进入 step3 解析
-                    # step3 的 require_non_empty_rows 会诚实地判断是否有数据
-                    print("调试模式：step2 结束，进入 step3 解析（即使部分/全部车系超时）")
+                    if not is_debug_step2_completed():
+                        print("调试模式：step2 未达到要求的 HTML 数量，等待下次继续")
+                        sys.exit(10)
+                    print("调试模式：step2 已生成足够 HTML，进入 step3 解析")
                 elif AUTO_MODE and not is_step2_completed():
                     sys.exit(10)
             finally:

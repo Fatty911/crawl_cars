@@ -34,6 +34,12 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
     assert_condition("WINDOW_END_BUFFER_SECONDS" in text, f"{path.name} 缺少窗口结束缓冲", errors)
     assert_condition("scripts/crawl_budget.py configure" in text, f"{path.name} 未使用共享窗口预算脚本", errors)
     assert_condition("scripts/crawl_budget.py clamp" in text, f"{path.name} 未按 Action 和窗口综合预算收口", errors)
+    if path.name == "crawl-dongchedi.yml":
+        assert_condition(
+            "steps.step2.outputs.failed == 'false' && steps.step2.conclusion == 'success'" not in text,
+            f"{path.name} 不得用 step2 failed=false 放行 step3/verify/upload",
+            errors,
+        )
 
 
 def check_trigger(path: Path, errors: list[str]) -> None:
