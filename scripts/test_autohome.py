@@ -465,11 +465,10 @@ def download_car_pages():
                 seen.add(s["brand"])
         print(f"前20品牌: {top_brands[:20]}")
         # 打印队列前10
-        print(f"队列前10:")
+        print("队列前10:")
         for i, s in enumerate(series_queue[:10]):
             sc = s.get("salecount", 0)
             print(f"  {i+1}. heat={s['heat']} sales={sc} {s['brand']}/{s['series']}")
-        print(f"热度前20品牌: {top_brands[:20]}")
 
     # === Phase 1: 按品牌热度顺序逐个爬详情页 ===
     second_url = "https://car.autohome.com.cn/config/series/{}.html"
