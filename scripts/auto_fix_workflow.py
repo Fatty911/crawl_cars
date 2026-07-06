@@ -39,7 +39,7 @@ PROVIDER_DEFAULT_MODELS = {
     "MODELSCOPE": ["MiniMax/MiniMax-M3"],
     "OPENROUTER": ["nvidia/nemotron-3-ultra-550b-a55b:free"],
     "ZEN": ["nemotron-3-ultra-free", "deepseek-v4-flash-free"],
-    "ATOMGIT": ["zai-org/GLM-5", "Qwen/Qwen3.5-397B-A17B"],
+    "ATOMGIT": ["zai-org/GLM-5.1", "deepseek-ai/DeepSeek-V4-Flash"],
     # 付费 Plan（免费全部不可用时兜底）
     "DEEPSEEK": ["deepseek-v4-pro", "deepseek-v4-flash"],
     "ZHIPU": ["glm-5.2"],
@@ -85,12 +85,15 @@ class WorkflowErrorFixer:
                 "proxies": {"http": proxy_url, "https": proxy_url} if proxy_url else None,
             })
 
-        # 排序：免费模型优先（AtomGit、ZEN、NVIDIA NIM、Modal），然后 OpenRouter
+        # 排序：免费模型优先（ZEN、NVIDIA NIM、Modal），AtomGit 作为小 AGENT 降级
         def sort_key(p):
             prefix = p["prefix"]
-            # 免费 Provider 优先
-            if prefix in ["ATOMGIT", "ZEN", "NVIDIA_NIM", "MODAL"]:
-                return (0, 0 if prefix == "ATOMGIT" else 1)
+            # 免费 Provider 优先（AtomGit 降为小 AGENT，排在其他免费之后）
+            if prefix in ["ZEN", "NVIDIA_NIM", "MODAL"]:
+                return (0, 0)
+            # AtomGit 小 AGENT（免费但能力/上下文有限）
+            if prefix == "ATOMGIT":
+                return (0, 5)
             # OpenRouter 排在免费之后
             if prefix == "OPENROUTER":
                 return (1, 0)
