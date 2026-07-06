@@ -208,8 +208,8 @@ jobs:
             python scripts/crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME"
           fi
           if [ -f dongchedi/progress.json ]; then
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "Hermes-Agent"
             git add -A
             git diff --staged --quiet || git commit -m "Dongchedi step1 - series list - $(date +%H:%M)"
             bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -254,8 +254,8 @@ jobs:
 
           if [ $EXIT_CODE -eq 10 ]; then
             echo "Step2 incomplete, committing progress and ending this workflow run..."
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "Hermes-Agent"
             git add -A
             git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
             bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -273,8 +273,8 @@ jobs:
           echo "complete=true" >> "$GITHUB_OUTPUT"
           echo "failed=false" >> "$GITHUB_OUTPUT"
           touch dcd_step2_done
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.email "xuerui911@gmail.com"
+          git config --local user.name "Hermes-Agent"
           git add -A
           git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
           bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -322,8 +322,8 @@ jobs:
           echo "Retry step2 exit code: $EXIT_CODE"
           if [ $EXIT_CODE -eq 10 ]; then
             echo "修复后 step2 仍未完成，提交进度并结束本次运行"
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "Hermes-Agent"
             git add -A
             git diff --staged --quiet || git commit -m "Update dongchedi progress after fix - $(date +%H:%M)"
             bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -335,8 +335,8 @@ jobs:
           fi
           echo "complete=true" >> "$GITHUB_OUTPUT"
           touch dcd_step2_done
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.email "xuerui911@gmail.com"
+          git config --local user.name "Hermes-Agent"
           git add -A
           git diff --staged --quiet || git commit -m "Dongchedi step2 complete after fix - $(date +%H:%M)"
           bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -421,8 +421,8 @@ jobs:
           mkdir -p crawl_state
           touch "$DONGCHEDI_DONE_MARKER"
           echo "$CRAWL_PERIOD" > crawl_state/dongchedi_current_period
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.email "xuerui911@gmail.com"
+          git config --local user.name "Hermes-Agent"
           git add crawl_state
           git diff --staged --quiet || git commit -m "Dongchedi complete for $CRAWL_PERIOD"
           bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"

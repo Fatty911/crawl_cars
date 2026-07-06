@@ -231,8 +231,8 @@ jobs:
           if [ $EXIT_CODE -eq 10 ]; then
             echo "Step1 incomplete, committing progress and ending this workflow run..."
             sleep $((RANDOM % 30 + 15))
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "Hermes-Agent"
             git add -A
             git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
             bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -249,8 +249,8 @@ jobs:
           echo "complete=true" >> "$GITHUB_OUTPUT"
           echo "failed=false" >> "$GITHUB_OUTPUT"
           touch step1_done
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.email "xuerui911@gmail.com"
+          git config --local user.name "Hermes-Agent"
           git add -A
           git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
           bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -298,8 +298,8 @@ jobs:
           echo "Retry step1 exit code: $EXIT_CODE"
           if [ $EXIT_CODE -eq 10 ]; then
             echo "修复后 step1 仍未完成，提交进度并结束本次运行"
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "Hermes-Agent"
             git add -A
             git diff --staged --quiet || git commit -m "Update progress after fix - $(date +%H:%M)"
             bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -311,8 +311,8 @@ jobs:
           fi
           echo "complete=true" >> "$GITHUB_OUTPUT"
           touch step1_done
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.email "xuerui911@gmail.com"
+          git config --local user.name "Hermes-Agent"
           git add -A
           git diff --staged --quiet || git commit -m "Step1 complete after fix - $(date +%H:%M)"
           bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
@@ -447,8 +447,8 @@ jobs:
           mkdir -p crawl_state
           touch "$AUTOHOME_DONE_MARKER"
           echo "$CRAWL_PERIOD" > crawl_state/autohome_current_period
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.email "xuerui911@gmail.com"
+          git config --local user.name "Hermes-Agent"
           git add crawl_state
           git diff --staged --quiet || git commit -m "Autohome complete for $CRAWL_PERIOD"
           bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
