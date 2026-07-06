@@ -164,7 +164,7 @@ jobs:
           fi
 
           git config --local user.email "xuerui911@gmail.com"
-          git config --local user.name "Hermes-Agent"
+          git config --local user.name "Codex"
           git add -A
           git diff --staged --quiet && {
             echo "fixed=false" >> "$GITHUB_OUTPUT"
