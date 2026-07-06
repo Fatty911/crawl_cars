@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf site release-files
-          mkdir -p site/data
+          mkdir -p site/data site/config
           cp -R docs/. site/
           cp config/filter_conditions.json site/config/filter_conditions.json
 
