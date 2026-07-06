@@ -1,0 +1,20 @@
+name: Test AtomGit API
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test API
+        env:
+          ATOMGIT_API_KEY: ${{ secrets.ATOMGIT_API_KEY }}
+        run: |
+          echo "Testing AtomGit API..."
+          curl -s --max-time 15 'https://api-ai.gitcode.com/v1/models' \
+            -H "Authorization: Bearer $ATOMGIT_API_KEY" \
+            -H "Content-Type: application/json" | python3 -m json.tool 2>&1 | head -100
+          echo "=== Chat test ==="
+          curl -s --max-time 30 'https://api-ai.gitcode.com/v1/chat/completions' \
+            -H "Authorization: Bearer $ATOMGIT_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"model":"zai-org/GLM-5","messages":[{"role":"user","content":"say hi"}],"max_tokens":10}' 2>&1 | head -20
