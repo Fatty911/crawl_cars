@@ -384,24 +384,91 @@ def download_car_pages():
 
             time.sleep(0.5)
 
-        # 按品牌热度排序
-        series_queue.sort(key=lambda x: x["heat"])
+        # === 获取车系月销量数据 ===
+        print("=== 获取汽车之家销量榜数据 ===")
+        sales_map = {}  # seriesid -> salecount
+        # 汽车之家排行榜 URL: /rank/1-{subrank}-0-0_9000-x-x-x/2026-05.html
+        # 多个子榜单（销量/新能源/关注/保值等），每榜 Top 20
+        RANK_SUBRANKS = list(range(1, 9))  # typeid 1-8
+        for subrank in RANK_SUBRANKS:
+            try:
+                url = f"https://www.autohome.com.cn/rank/1-{subrank}-0-0_9000-x-x-x/2026-05.html"
+                r = session.get(url, timeout=10)
+                idx = r.text.find('"listRes"')
+                if idx == -1:
+                    continue
+                obj_start = r.text.index('{', idx)
+                brace_count = 0
+                for i, c in enumerate(r.text[obj_start:], obj_start):
+                    if c == '{': brace_count += 1
+                    elif c == '}': brace_count -= 1
+                    if brace_count == 0:
+                        obj_end = i + 1
+                        break
+                list_res = json.loads(r.text[obj_start:obj_end])
+                for item in list_res.get("list", []):
+                    sid = str(item.get("seriesid", ""))
+                    sc = int(item.get("salecount", 0))
+                    if sid and sc > 0 and (sid not in sales_map or sc > sales_map[sid]):
+                        sales_map[sid] = sc
+                time.sleep(0.3)
+            except Exception:
+                pass
+        print(f"获取到 {len(sales_map)} 个车系的月销量数据")
+
+        # === 多关键字排序（类似 Excel 自定义排序）===
+        # 排序配置：[(字段, 是否升序), ...]
+        # True=升序(小→大), False=降序(大→小)
+        # 修改此列表即可改变排序优先级和方向
+        SORT_CONFIG = [
+            ("heat", True),       # 第一关键字：品牌热度 升序（热门品牌在前）
+            ("salecount", False), # 第二关键字：月销量 降序（销量高在前）
+            ("series", True),     # 第三关键字：车系名 升序（字母序）
+        ]
+
+        # 补充销量数据到队列
+        for item in series_queue:
+            item["salecount"] = sales_map.get(item["car_id"], 0)
+
+        # 多字段排序
+        def sort_key(item):
+            keys = []
+            for field, ascending in SORT_CONFIG:
+                val = item.get(field, 0)
+                if field == "series":
+                    val = val.lower()  # 不区分大小写
+                if not ascending:
+                    val = -val if isinstance(val, (int, float)) else val
+                keys.append(val)
+            return tuple(keys)
+
+        series_queue.sort(key=sort_key)
 
         os.makedirs(os.path.dirname(series_queue_file), exist_ok=True)
         with open(series_queue_file, "w", encoding="utf-8") as f:
             json.dump(series_queue, f, ensure_ascii=False, indent=2)
 
+        # 打印统计
         brands_seen = {}
+        sales_count = 0
         for s in series_queue:
             brands_seen[s["brand"]] = brands_seen.get(s["brand"], 0) + 1
-        print(f"扫描完成: 共 {len(series_queue)} 个车系, {len(brands_seen)} 个品牌")
+            if s.get("salecount", 0) > 0:
+                sales_count += 1
+        print(f"扫描完成: 共 {len(series_queue)} 个车系, {len(brands_seen)} 个品牌, {sales_count} 个有销量数据")
         # 打印热度前20品牌
         top_brands = []
         seen = set()
         for s in series_queue:
             if s["brand"] not in seen:
-                top_brands.append((s["brand"], s["heat"]))
+                top_brands.append((s["brand"], s["heat"], s.get("salecount", 0)))
                 seen.add(s["brand"])
+        print(f"前20品牌: {top_brands[:20]}")
+        # 打印队列前10
+        print(f"队列前10:")
+        for i, s in enumerate(series_queue[:10]):
+            sc = s.get("salecount", 0)
+            print(f"  {i+1}. heat={s['heat']} sales={sc} {s['brand']}/{s['series']}")
         print(f"热度前20品牌: {top_brands[:20]}")
 
     # === Phase 1: 按品牌热度顺序逐个爬详情页 ===
