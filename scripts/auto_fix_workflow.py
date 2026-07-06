@@ -222,7 +222,7 @@ class WorkflowErrorFixer:
         repo = os.environ.get("GITHUB_REPOSITORY", "")
         token = os.environ.get("ACTION_PAT", "")
         if repo and token:
-            subprocess.run('git config --local user.email "bot@users.noreply.github.com" && git config --local user.name "bot"', shell=True)
+            subprocess.run('git config --local user.email "109130780+Fatty911@users.noreply.github.com" && git config --local user.name "Hermes-Agent"', shell=True)
 
             status_result = subprocess.run(
                 ["git", "status", "--porcelain"],

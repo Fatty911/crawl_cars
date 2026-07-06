@@ -342,6 +342,7 @@ def download_car_pages():
         print("=== Phase 0: 扫描所有字母页，收集品牌+车系ID列表 ===")
         all_letters = [chr(i) for i in range(ord("A"), ord("Z") + 1)]
         series_queue = []
+        brand_id_map = {}  # brandid → brandname（用于销量榜反查）
 
         for letter in all_letters:
             first_url = f"https://www.autohome.com.cn/grade/carhtml/{letter}.html"
@@ -372,6 +373,7 @@ def download_car_pages():
             for dl in soup.find_all("dl"):
                 dt = dl.find("dt")
                 brand_name = ""
+                brand_id = dl.get("id", "")  # dl id 就是 brandid
                 if dt:
                     for div in dt.find_all("div"):
                         txt = div.get_text(strip=True)
@@ -382,6 +384,10 @@ def download_car_pages():
                         a = dt.find("a")
                         if a:
                             brand_name = a.get_text(strip=True)
+
+                # 记录 brandid → brandname 映射（用于销量榜反查品牌名）
+                if brand_id and brand_name:
+                    brand_id_map[brand_id] = brand_name
 
                 # 车系在 dd > ul > li > h4 > a 里
                 dd = dl.find("dd")
@@ -399,6 +405,7 @@ def download_car_pages():
                                         "heat": heat,
                                         "car_id": car_id,
                                         "brand": brand_name,
+                                        "brand_id": brand_id,
                                         "series": series_name,
                                     })
 
@@ -407,6 +414,7 @@ def download_car_pages():
         # === 获取车系月销量数据 ===
         print("=== 获取汽车之家销量榜数据 ===")
         sales_map = {}  # seriesid -> salecount
+        sales_rank_raw_data = []  # 保存所有子榜的原始 list，用于按 brandid 汇总品牌销量
         # 销量榜日期：环境变量 SALES_RANK_DATE (格式 YYYY-MM)，默认自动获取最新月份
         sales_rank_date = os.environ.get("SALES_RANK_DATE", "")
         if not sales_rank_date:
@@ -452,7 +460,10 @@ def download_car_pages():
                         obj_end = i + 1
                         break
                 list_res = json.loads(r.text[obj_start:obj_end])
-                for item in list_res.get("list", []):
+                rank_list = list_res.get("list", [])
+                if rank_list:
+                    sales_rank_raw_data.append(rank_list)
+                for item in rank_list:
                     sid = str(item.get("seriesid", ""))
                     sc = int(item.get("salecount", 0))
                     if sid and sc > 0 and (sid not in sales_map or sc > sales_map[sid]):
@@ -461,6 +472,46 @@ def download_car_pages():
             except Exception:
                 pass
         print(f"获取到 {len(sales_map)} 个车系的月销量数据")
+
+        # === 动态品牌热度：按品牌汇总月销量作为热度 ===
+        # 销量榜数据中有 brandid，用 brand_id_map 反查品牌名
+        # 品牌总销量越高 → 热度排名越靠前（heat 值越小）
+        brand_sales = {}  # brandname -> total_salecount
+
+        # 从销量榜原始数据中按 brandid 汇总
+        brand_sales_raw = {}  # brandid -> total_salecount
+        for subrank_url_data in sales_rank_raw_data:
+            for rank_item in subrank_url_data:
+                bid = str(rank_item.get("brandid", ""))
+                sc = int(rank_item.get("salecount", 0))
+                if bid and sc > 0:
+                    brand_sales_raw[bid] = brand_sales_raw.get(bid, 0) + sc
+
+        # brandid → brandname → 总销量
+        for bid, total_sc in brand_sales_raw.items():
+            bname = brand_id_map.get(bid, "")
+            if bname:
+                # 取映射后的标准名
+                mapped = BRAND_NAME_MAP.get(bname, bname)
+                brand_sales[mapped] = brand_sales.get(mapped, 0) + total_sc
+
+        if brand_sales:
+            # 按总销量降序排品牌，生成动态热度排行榜
+            dynamic_heat_order = sorted(brand_sales.keys(), key=lambda b: brand_sales[b], reverse=True)
+            print(f"动态品牌热度排行榜（按月销量）: 前10 = {[(b, brand_sales[b]) for b in dynamic_heat_order[:10]]}")
+
+            # 更新 heat_map：动态排名覆盖静态
+            for idx, brand in enumerate(dynamic_heat_order):
+                normalized = brand.strip().lower().replace(" ", "")
+                heat_map[normalized] = idx
+            # 未在销量榜中的品牌保持 999
+            print(f"已更新 {len(dynamic_heat_order)} 个品牌的动态热度")
+
+            # 重新计算 series_queue 中每个车系的 heat
+            for item in series_queue:
+                item["heat"] = get_brand_heat(item["brand"])
+        else:
+            print("未获取到销量榜品牌数据，保持静态热度排行榜")
 
         # === 多关键字排序（类似 Excel 自定义排序）===
         # 排序配置：环境变量 SORT_CONFIG，格式 "字段:asc|desc,字段:asc|desc,..."
