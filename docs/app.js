@@ -70,6 +70,8 @@
     totalCount: document.getElementById("totalCount"),
     columnCount: document.getElementById("columnCount"),
     verifiedCount: document.getElementById("verifiedCount"),
+    dongchediCount: document.getElementById("dongchediCount"),
+    autohomeCount: document.getElementById("autohomeCount"),
     brandFilter: document.getElementById("brandFilter"),
     seriesFilter: document.getElementById("seriesFilter"),
     pageSize: document.getElementById("pageSize"),
@@ -170,6 +172,30 @@
     return "";
   }
 
+  function atomicSources(value) {
+    var text = String(value == null ? "" : value).trim();
+    var sources = new Set();
+    var knownSources = ["懂车帝", "汽车之家"];
+    text.split(/[+＋/／|、,，;；]+/).forEach(function (part) {
+      var item = part.trim();
+      var recognized = false;
+      knownSources.forEach(function (source) {
+        if (item.indexOf(source) !== -1) {
+          sources.add(source);
+          recognized = true;
+        }
+      });
+      if (item && !recognized) {
+        sources.add(item);
+      }
+    });
+    return Array.from(sources);
+  }
+
+  function rowHasSource(row, source) {
+    return atomicSources(row["核验来源"] || row["数据来源"]).indexOf(source) !== -1;
+  }
+
   function canonicalModelName(row) {
     var name = String(row["车型名称"] || "").trim();
     var series = String(row["车系"] || "").trim();
@@ -213,9 +239,9 @@
       var sources = new Set();
 
       items.forEach(function (row) {
-        if (row["数据来源"]) {
-          sources.add(row["数据来源"]);
-        }
+        atomicSources(row["数据来源"]).forEach(function (source) {
+          sources.add(source);
+        });
         Object.keys(row).forEach(function (column) {
           var current = merged[column];
           var next = row[column];
@@ -225,7 +251,10 @@
         });
       });
 
-      var sourceList = Array.from(sources).sort();
+      var sourceList = Array.from(sources).sort(function (a, b) {
+        return a.localeCompare(b, "zh-Hans");
+      });
+      merged["数据来源"] = sourceList.join(" + ") || merged["数据来源"] || "-";
       merged["核验来源"] = sourceList.join(" + ") || "-";
       merged["交叉核验"] = sourceList.length >= 2 ? "双源核验" : "单源数据";
       return merged;
@@ -693,7 +722,9 @@
     els.visibleCount.textContent = String(filtered.length);
     els.totalCount.textContent = String(state.rows.length);
     els.columnCount.textContent = String(state.visibleColumns.size);
-    els.verifiedCount.textContent = String(filtered.filter(function (row) { return row["交叉核验"] === "双源核验"; }).length);
+    els.verifiedCount.textContent = String(state.rows.filter(function (row) { return row["交叉核验"] === "双源核验"; }).length);
+    els.dongchediCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "懂车帝"); }).length);
+    els.autohomeCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "汽车之家"); }).length);
     els.pageInfo.textContent = "第 " + state.page + " / " + pageCount + " 页";
     els.prevPage.disabled = state.page <= 1;
     els.nextPage.disabled = state.page >= pageCount;
@@ -1231,7 +1262,10 @@
   }
 
   function initializeRows(rows) {
-    state.rows = withDerivedDimensions(mergeVerifiedRows(Array.isArray(rows) ? rows : []));
+    var displayRows = mergeVerifiedRows(Array.isArray(rows) ? rows : []).filter(function (row) {
+      return Number(modelYear(row)) >= 2022;
+    });
+    state.rows = withDerivedDimensions(displayRows);
     state.columns = buildColumns(state.rows);
     state.visibleColumns = new Set();
     (state.config.defaultVisibleColumns || []).forEach(function (column) {

@@ -66,6 +66,9 @@ jobs:
           "$PWD/docs/filter_conditions.json"
           "$PWD/config/filter_conditions.json"
 
+      - name: Test Pages display data model
+        run: node --test tests/pages_ui.test.js
+
       - name: Validate workflow expectations
         run: python scripts/validate_workflow_expectations.py
 
