@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""Static checks for crawler workflow timing and self-healing rules."""
+
+from __future__ import annotations
+
+import re
+import sys
 from pathlib import Path
 
 import yaml
