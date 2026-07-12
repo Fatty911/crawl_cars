@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""Static checks for crawler workflow timing and self-healing rules."""
-
-from __future__ import annotations
-
-import re
-import sys
 from pathlib import Path
 
 import yaml
@@ -47,6 +40,12 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
         assert_condition(
             "steps.step2.outputs.failed == 'false' && steps.step2.conclusion == 'success'" not in text,
             f"{path.name} 不得用 step2 failed=false 放行 step3/verify/upload",
+            errors,
+        )
+        assert_condition(
+            "find dongchedi/json -type f -name '*.html' -size +0c" in text
+            and "steps.finalize_dongchedi.outputs.has_output == 'true'" in text,
+            f"{path.name} 未在有效 HTML 缓存存在时才执行并发布 step3/4 结果",
             errors,
         )
 

@@ -373,18 +373,25 @@ jobs:
           retention-days: 7
 
       - name: Run step3 and step4
+        id: finalize_dongchedi
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
+          if ! find dongchedi/json -type f -name '*.html' -size +0c -print -quit | grep -q .; then
+            echo "step2 尚未缓存到有效 HTML，保留进度并等待下次续跑"
+            echo "has_output=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           python scripts/crawl_dongchedi.py --step 3
           python scripts/crawl_dongchedi.py --step 4
+          echo "has_output=true" >> "$GITHUB_OUTPUT"
 
       - name: Set date
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.finalize_dongchedi.outputs.has_output == 'true'
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Verify Dongchedi output
         id: verify_dongchedi
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.finalize_dongchedi.outputs.has_output == 'true'
         run: |
           python - <<'PY'
           import glob
@@ -430,7 +437,7 @@ jobs:
           bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
       - name: Disable proxy for Dongchedi artifact upload
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.finalize_dongchedi.outputs.has_output == 'true'
         run: |
           {
             echo "HTTP_PROXY="
@@ -444,7 +451,7 @@ jobs:
       - name: Upload Dongchedi artifact
         id: upload_dongchedi
         uses: actions/upload-artifact@v4
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.verify_dongchedi.outputs.has_data != 'false'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.finalize_dongchedi.outputs.has_output == 'true' && steps.verify_dongchedi.outputs.has_data != 'false'
         with:
           name: dongchedi-data-${{ env.CRAWL_DATE }}
           path: |
@@ -462,3 +469,10 @@ jobs:
             -f force_merge=false \
             -f trigger_source=dongchedi-crawl \
             -f trigger_time=$(date +%s)
+#!/usr/bin/env python3
+"""Static checks for crawler workflow timing and self-healing rules."""
+
+from __future__ import annotations
+
+import re
+import sys
