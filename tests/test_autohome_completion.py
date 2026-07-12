@@ -76,6 +76,32 @@ class AutohomeCompletionTests(unittest.TestCase):
                 self.autohome.stop_incomplete_step1("incomplete")
         self.assertEqual(10, raised.exception.code)
 
+    def test_runtime_and_workflow_share_isolated_state_root(self) -> None:
+        expected_root = ROOT / "crawl_state/autohome"
+        self.assertEqual(expected_root, Path(self.autohome.state_dir))
+        for path in [
+            self.autohome.html_dir,
+            self.autohome.newhtml_dir,
+            self.autohome.json_dir,
+            self.autohome.content_dir,
+            self.autohome.newjson_dir,
+            self.autohome.exception_dir,
+        ]:
+            self.assertEqual(expected_root, Path(path).parent)
+        self.assertEqual(expected_root / "progress.json", Path(self.autohome.progress_file))
+        self.assertEqual(ROOT / "scripts/data/autohome_series_queue.json", Path(self.autohome.series_queue_file))
+
+        workflow = (ROOT / ".github/workflows/crawl-autohome.yml").read_text(encoding="utf-8")
+        self.assertIn("path: crawl_state/autohome", workflow)
+        self.assertIn("find crawl_state/autohome/html -type f", workflow)
+        self.assertIn("crawl_state/autohome/progress.json", workflow)
+        self.assertIn("crawl_state/model_registry_autohome.json", workflow)
+        self.assertNotIn("path: html\n", workflow)
+        self.assertNotIn("            progress.json\n", workflow)
+        gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("/crawl_state/autohome/", gitignore)
+        self.assertFalse((ROOT / "scripts/progress.json").exists())
+
     def test_workflow_separates_partial_artifacts_from_completed_data(self) -> None:
         workflow = (ROOT / ".github/workflows/crawl-autohome.yml").read_text(encoding="utf-8")
         self.assertIn("AUTOHOME_ARTIFACT_PREFIX=autohome-partial-data", workflow)

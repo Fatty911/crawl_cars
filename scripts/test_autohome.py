@@ -41,16 +41,18 @@ if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
     CRAWL_MAX_DELAY_SECONDS = CRAWL_MIN_DELAY_SECONDS
 
 
-# 设置工作目录为当前文件所在目录
+# 设置代码目录与隔离的运行状态目录
 working_dir = os.path.dirname(os.path.abspath(__file__))
+repo_dir = os.path.dirname(working_dir)
+state_dir = os.path.join(repo_dir, "crawl_state", "autohome")
 
 # 创建目录
-html_dir = os.path.join(working_dir, "html")
-newhtml_dir = os.path.join(working_dir, "newhtml")
-json_dir = os.path.join(working_dir, "json")
-content_dir = os.path.join(working_dir, "content")
-newjson_dir = os.path.join(working_dir, "newjson")
-exception_dir = os.path.join(working_dir, "exception")
+html_dir = os.path.join(state_dir, "html")
+newhtml_dir = os.path.join(state_dir, "newhtml")
+json_dir = os.path.join(state_dir, "json")
+content_dir = os.path.join(state_dir, "content")
+newjson_dir = os.path.join(state_dir, "newjson")
+exception_dir = os.path.join(state_dir, "exception")
 series_queue_file = os.path.join(working_dir, "data", "autohome_series_queue.json")
 
 for dir_path in [
@@ -191,7 +193,7 @@ session.headers.update(
 )
 
 # 检查是否存在进度文件
-progress_file = os.path.join(working_dir, "progress.json")
+progress_file = os.path.join(state_dir, "progress.json")
 if os.path.exists(progress_file):
     with open(progress_file, "r") as f:
         progress = json.load(f)
