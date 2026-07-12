@@ -479,18 +479,30 @@ jobs:
             echo "all_proxy="
           } >> "$GITHUB_ENV"
 
+      - name: Select Autohome artifact scope
+        if: steps.verify_autohome.outputs.has_data == 'true'
+        run: |
+          if [ "${{ github.event.inputs.debug_mode }}" = "true" ]; then
+            echo "AUTOHOME_ARTIFACT_PREFIX=autohome-debug-data" >> "$GITHUB_ENV"
+          elif [ "${{ steps.step1.outputs.complete }}" = "true" ] || [ "${{ steps.retry_step1.outputs.complete }}" = "true" ]; then
+            echo "AUTOHOME_ARTIFACT_PREFIX=autohome-data" >> "$GITHUB_ENV"
+          else
+            echo "AUTOHOME_ARTIFACT_PREFIX=autohome-partial-data" >> "$GITHUB_ENV"
+          fi
+
       - name: Upload Autohome artifact
         id: upload_autohome
         uses: actions/upload-artifact@v4
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true' || github.event.inputs.debug_mode == 'true' || (steps.step1.outputs.failed == 'false' && steps.step1.conclusion == 'success')) && steps.verify_autohome.outputs.has_data != 'false'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.verify_autohome.outputs.has_data == 'true'
         with:
-          name: autohome-data-${{ env.CRAWL_DATE }}
+          name: ${{ env.AUTOHOME_ARTIFACT_PREFIX }}-${{ env.CRAWL_DATE }}
           path: |
             autoHome_*.json
+          if-no-files-found: error
           retention-days: 90
 
       - name: Trigger merge-and-filter workflow
-        if: steps.upload_autohome.outcome == 'success'
+        if: steps.upload_autohome.outcome == 'success' && github.event.inputs.debug_mode != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         env:
           GH_TOKEN: ${{ secrets.ACTION_PAT }}
         run: |

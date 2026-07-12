@@ -51,6 +51,7 @@ json_dir = os.path.join(working_dir, "json")
 content_dir = os.path.join(working_dir, "content")
 newjson_dir = os.path.join(working_dir, "newjson")
 exception_dir = os.path.join(working_dir, "exception")
+series_queue_file = os.path.join(working_dir, "data", "autohome_series_queue.json")
 
 for dir_path in [
     html_dir,
@@ -229,20 +230,27 @@ def human_delay(label):
     time.sleep(delay)
 
 
+def stop_incomplete_step1(message):
+    print(message)
+    if AUTO_MODE:
+        raise SystemExit(10)
+    raise RuntimeError(message)
+
+
 # 第一步,下载出所有车型的网页
 def download_car_pages():
     print("第一步,下载出所有车型的网页")
     letters = progress.get("download_car_pages", [])
 
-    # 校验：Runner重启后html目录可能为空，需重置已完成字母进度
+    # 校验：Runner重启后缓存目录可能为空，需重置所有依赖缓存的进度。
     if letters:
-        existing_html = [f for f in os.listdir(html_dir) if f.endswith(".html")] if os.path.isdir(html_dir) else []
+        existing_html = os.listdir(html_dir) if os.path.isdir(html_dir) else []
         if not existing_html:
-            print("html目录无有效HTML文件，Runner已重建，重置所有已完成字母进度")
+            print("html目录无车型缓存，Runner已重建，重置step1及后续进度")
             letters = []
             progress["download_car_pages"] = letters
+            progress["queue_idx"] = 0
             progress.pop("cars_downloaded", None)
-            # 同时清除步骤2~5的进度，确保依赖链完整
             for key in ("parse_js_to_html", "parse_json_data",
                         "crack_html_files", "generate_data_files"):
                 progress.pop(key, None)
@@ -331,8 +339,6 @@ def download_car_pages():
             if mapped_norm in heat_map:
                 return heat_map[mapped_norm]
         return 999
-
-    series_queue_file = os.path.join(working_dir, "data", "autohome_series_queue.json")
 
     if os.path.exists(series_queue_file):
         with open(series_queue_file, "r", encoding="utf-8") as f:
@@ -578,6 +584,9 @@ def download_car_pages():
             sc = s.get("salecount", 0)
             print(f"  {i+1}. heat={s['heat']} sales={sc} {s['brand']}/{s['series']}")
 
+    if not series_queue:
+        stop_incomplete_step1("汽车之家车系列表为空，拒绝判定step1完成")
+
     # === Phase 1: 按品牌热度顺序逐个爬详情页 ===
     second_url = "https://car.autohome.com.cn/config/series/{}.html"
 
@@ -631,6 +640,21 @@ def download_car_pages():
         with open(car_file, "w", encoding="utf-8") as f:
             f.write(content)
         cars_downloaded += 1
+
+    cached_ids = set(os.listdir(html_dir)) if os.path.isdir(html_dir) else set()
+    missing_indices = [
+        idx for idx, item in enumerate(series_queue)
+        if str(item.get("car_id", "")) not in cached_ids
+    ]
+    if missing_indices:
+        retry_index = missing_indices[0]
+        progress["queue_idx"] = retry_index
+        progress["cars_downloaded"] = cars_downloaded
+        progress["download_car_pages"] = letters
+        with open(progress_file, "w") as f:
+            json.dump(progress, f)
+        message = f"step1缓存不完整：缺少 {len(missing_indices)}/{len(series_queue)} 个车系，从队列 {retry_index} 重试"
+        stop_incomplete_step1(message)
 
     # 全部队列完成
     progress["queue_idx"] = len(series_queue)
@@ -1050,10 +1074,23 @@ def generate_csv():
 
 
 def is_step1_completed():
-    if "download_car_pages" not in progress:
-        return False
     letters = progress.get("download_car_pages", [])
-    return len(letters) >= 26
+    if len(letters) < 26 or not os.path.exists(series_queue_file):
+        return False
+    try:
+        with open(series_queue_file, "r", encoding="utf-8") as f:
+            queue = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(queue, list) or not queue:
+        return False
+    cached_ids = set(os.listdir(html_dir)) if os.path.isdir(html_dir) else set()
+    expected_ids = {str(item.get("car_id", "")) for item in queue if item.get("car_id")}
+    return (
+        len(expected_ids) == len(queue)
+        and expected_ids.issubset(cached_ids)
+        and int(progress.get("queue_idx", 0)) >= len(queue)
+    )
 
 
 def check_and_continue():
@@ -1085,7 +1122,7 @@ def main():
         if args.step == 1:
             step_funcs[1]()
             if check_and_continue():
-                sys.exit(0)
+                sys.exit(10)
             if AUTO_MODE and is_step1_completed():
                 print("第一步完成，继续执行后续步骤")
         else:
@@ -1093,7 +1130,7 @@ def main():
     else:
         download_car_pages()
         if check_and_continue():
-            sys.exit(0)
+            sys.exit(10)
         parse_js_to_html()
         parse_json_data()
         crack_html_files()
