@@ -18,6 +18,7 @@ content/
 exception/
 output/
 data/tmp/
+/crawl_state/autohome/
 
 # 懂车帝数据目录（保留进度文件）
 dongchedi/json/

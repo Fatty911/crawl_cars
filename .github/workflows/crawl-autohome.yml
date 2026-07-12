@@ -93,7 +93,7 @@ jobs:
 
           if [ "$FORCE_RESTART" = "true" ] || [ ! -f "$CURRENT_PERIOD_FILE" ] || [ "$(cat "$CURRENT_PERIOD_FILE")" != "$CRAWL_PERIOD" ]; then
             echo "进入新的半月周期 $CRAWL_PERIOD，启用增量模式（保留已有HTML）"
-            rm -f progress.json step1_done
+            rm -f crawl_state/autohome/progress.json step1_done
           fi
           echo "$CRAWL_PERIOD" > "$CURRENT_PERIOD_FILE"
           echo "SKIP_CRAWL=false" >> $GITHUB_ENV
@@ -171,21 +171,21 @@ jobs:
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
         uses: actions/cache@main
         with:
-          path: html
-          key: autohome-html-${{ env.CRAWL_PERIOD }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: crawl_state/autohome
+          key: autohome-state-${{ env.CRAWL_PERIOD }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            autohome-html-${{ env.CRAWL_PERIOD }}-
+            autohome-state-${{ env.CRAWL_PERIOD }}-
 
       - name: Report Autohome HTML cache
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
         run: |
-          mkdir -p html
-          HTML_COUNT=$(find html -type f | wc -l)
+          mkdir -p crawl_state/autohome/html
+          HTML_COUNT=$(find crawl_state/autohome/html -type f | wc -l)
           echo "Autohome HTML cache files: $HTML_COUNT"
 
       - name: Restart if requested
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart == 'true'
-        run: rm -f progress.json step1_done "$AUTOHOME_DONE_MARKER"
+        run: rm -f crawl_state/autohome/progress.json step1_done "$AUTOHOME_DONE_MARKER"
 
       - name: Check if step1 already done
         id: check_done
@@ -264,8 +264,7 @@ jobs:
         with:
           name: autohome-html-early-${{ github.run_id }}
           path: |
-            html/
-            progress.json
+            crawl_state/autohome/
             crawl_state/model_registry_autohome.json
           retention-days: 90
 
