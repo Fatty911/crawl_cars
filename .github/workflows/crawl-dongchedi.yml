@@ -40,7 +40,7 @@ env:
   PYTHONPATH: ${{ github.workspace }}
 
 concurrency:
-  group: dongchedi-crawl-${{ github.ref }}-${{ github.event.inputs.run_profile || github.event.client_payload.run_profile || github.event_name }}
+  group: dongchedi-crawl-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -74,6 +74,16 @@ jobs:
 
           FORCE_RESTART="${{ github.event.inputs.force_restart }}"
           DEBUG_MODE="${{ github.event.inputs.debug_mode }}"
+
+          if [ "$DEBUG_MODE" = "true" ]; then
+            echo "INCREMENTAL_MODE=false" >> $GITHUB_ENV
+            echo "DONGCHEDI_DONE_MARKER=/tmp/dongchedi-debug.done" >> $GITHUB_ENV
+            rm -f scripts/dongchedi/progress.json dcd_step2_done
+            rm -rf scripts/dongchedi/json
+            echo "SKIP_CRAWL=false" >> $GITHUB_ENV
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           if [ "$FORCE_RESTART" = "true" ]; then
             rm -f "$DONE_MARKER"
@@ -138,24 +148,24 @@ jobs:
         run: |
           rm -f dcd_step2_done "$DONGCHEDI_DONE_MARKER"
           python scripts/reset_dongchedi_progress.py
-          rm -f dongchedi/json/*.html
+          rm -f scripts/dongchedi/json/*.html
           echo "已重置所有进度"
 
       - name: Restore Dongchedi HTML cache
         id: dongchedi_html_cache
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true' && github.event.inputs.debug_mode != 'true'
         uses: actions/cache@main
         with:
-          path: dongchedi/json
+          path: scripts/dongchedi/json
           key: dongchedi-html-${{ steps.period.outputs.crawl_period }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             dongchedi-html-${{ steps.period.outputs.crawl_period }}-
 
       - name: Report Dongchedi HTML cache
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true' && github.event.inputs.debug_mode != 'true'
         run: |
-          mkdir -p dongchedi/json
-          HTML_COUNT=$(find dongchedi/json -type f -name '*.html' | wc -l)
+          mkdir -p scripts/dongchedi/json
+          HTML_COUNT=$(find scripts/dongchedi/json -type f -name '*.html' | wc -l)
           echo "Dongchedi HTML cache files: $HTML_COUNT"
 
       - uses: actions/setup-python@main
@@ -209,7 +219,7 @@ jobs:
             echo "无代理，直接运行 step1"
             python scripts/crawl_dongchedi.py --step 1 --auto --time-limit "$RUN_TIME"
           fi
-          if [ -f dongchedi/progress.json ]; then
+          if [ -f scripts/dongchedi/progress.json ] && [ "$DEBUG_MODE" != "true" ]; then
             git config --local user.email "xuerui911@gmail.com"
             git config --local user.name "github-actions[bot]"
             git add -A
@@ -256,11 +266,13 @@ jobs:
 
           if [ $EXIT_CODE -eq 10 ]; then
             echo "Step2 incomplete, committing progress and ending this workflow run..."
-            git config --local user.email "xuerui911@gmail.com"
-            git config --local user.name "github-actions[bot]"
-            git add -A
-            git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
-            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            if [ "$DEBUG_MODE" != "true" ]; then
+              git config --local user.email "xuerui911@gmail.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
+              bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            fi
             echo "complete=false" >> "$GITHUB_OUTPUT"
             echo "failed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -275,21 +287,23 @@ jobs:
           echo "complete=true" >> "$GITHUB_OUTPUT"
           echo "failed=false" >> "$GITHUB_OUTPUT"
           touch dcd_step2_done
-          git config --local user.email "xuerui911@gmail.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
-          bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          if [ "$DEBUG_MODE" != "true" ]; then
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
+            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          fi
 
       - name: Upload Dongchedi HTML cache (early, after step2)
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'true' || steps.step2.outputs.complete == 'false')
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.debug_mode != 'true' && (steps.step2.outputs.complete == 'true' || steps.step2.outputs.failed == 'true' || steps.step2.outputs.complete == 'false')
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: dongchedi-html-early-${{ github.run_id }}
           path: |
-            dongchedi/json/
-            dongchedi/progress.json
+            scripts/dongchedi/json/
+            scripts/dongchedi/progress.json
             crawl_state/model_registry_dongchedi.json
           retention-days: 90
 
@@ -300,14 +314,14 @@ jobs:
           python scripts/classify_crawl_failure.py step2_error.log --github-output "$GITHUB_OUTPUT"
 
       - name: Auto-fix step2 error
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           echo "尝试自动修复 step2 错误 (使用新版通用修复器)..."
           python scripts/auto_fix_workflow.py step2_error.log scripts/crawl_dongchedi.py || echo "自动修复失败，继续运行"
 
       - name: Retry step2 after fix
         id: retry_step2
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           set -o pipefail
           echo "修复后重试 step2..."
@@ -315,20 +329,22 @@ jobs:
           set +e
           if [ "$PROXY_ENABLED" = "true" ]; then
             echo "使用代理模式重试 step2"
-            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
+            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" --debug-limit "${DEBUG_LIMIT:-0}" 2>&1 | tee step2_error.log
           else
-            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" 2>&1 | tee step2_error.log
+            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit "$RUN_TIME" --max-series "$MAX_CARS" --debug-limit "${DEBUG_LIMIT:-0}" 2>&1 | tee step2_error.log
           fi
           EXIT_CODE=$?
           set -e
           echo "Retry step2 exit code: $EXIT_CODE"
           if [ $EXIT_CODE -eq 10 ]; then
             echo "修复后 step2 仍未完成，提交进度并结束本次运行"
-            git config --local user.email "xuerui911@gmail.com"
-            git config --local user.name "github-actions[bot]"
-            git add -A
-            git diff --staged --quiet || git commit -m "Update dongchedi progress after fix - $(date +%H:%M)"
-            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            if [ "$DEBUG_MODE" != "true" ]; then
+              git config --local user.email "xuerui911@gmail.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              git diff --staged --quiet || git commit -m "Update dongchedi progress after fix - $(date +%H:%M)"
+              bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            fi
             echo "complete=false" >> "$GITHUB_OUTPUT"
             exit 0
           elif [ $EXIT_CODE -ne 0 ]; then
@@ -337,14 +353,16 @@ jobs:
           fi
           echo "complete=true" >> "$GITHUB_OUTPUT"
           touch dcd_step2_done
-          git config --local user.email "xuerui911@gmail.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          git diff --staged --quiet || git commit -m "Dongchedi step2 complete after fix - $(date +%H:%M)"
-          bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          if [ "$DEBUG_MODE" != "true" ]; then
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Dongchedi step2 complete after fix - $(date +%H:%M)"
+            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          fi
 
       - name: Fail unresolved step2 error
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && (github.event.inputs.debug_mode == 'true' || steps.classify_step2.outputs.should_fix != 'true')
         run: |
           echo "Step2 失败且不适合自动修复，终止工作流"
           exit 1
@@ -376,7 +394,7 @@ jobs:
         id: finalize_dongchedi
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
-          if ! find dongchedi/json -type f -name '*.html' -size +0c -print -quit | grep -q .; then
+          if ! find scripts/dongchedi/json -type f -name '*.html' -size +0c -print -quit | grep -q .; then
             echo "step2 尚未缓存到有效 HTML，保留进度并等待下次续跑"
             echo "has_output=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -411,7 +429,7 @@ jobs:
               rows = json.load(f)
 
           print(f"{path}: {len(rows)} rows")
-          min_rows = 5 if debug_mode else 50
+          min_rows = 20 if debug_mode else 50
           if incremental and len(rows) == 0:
               print("增量模式：无新增车系，跳过上传")
               with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -448,14 +466,24 @@ jobs:
             echo "all_proxy="
           } >> "$GITHUB_ENV"
 
+      - name: Select Dongchedi artifact scope
+        if: steps.finalize_dongchedi.outputs.has_output == 'true' && steps.verify_dongchedi.outputs.has_data != 'false'
+        run: |
+          if [ "${{ github.event.inputs.debug_mode }}" = "true" ]; then
+            echo "DONGCHEDI_ARTIFACT_NAME=dongchedi-debug-data-${CRAWL_DATE}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_ENV"
+          else
+            echo "DONGCHEDI_ARTIFACT_NAME=dongchedi-data-${CRAWL_DATE}" >> "$GITHUB_ENV"
+          fi
+
       - name: Upload Dongchedi artifact
         id: upload_dongchedi
         uses: actions/upload-artifact@v4
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.finalize_dongchedi.outputs.has_output == 'true' && steps.verify_dongchedi.outputs.has_data != 'false'
         with:
-          name: dongchedi-data-${{ env.CRAWL_DATE }}
+          name: ${{ env.DONGCHEDI_ARTIFACT_NAME }}
           path: |
             dongchedi_*.json
+          if-no-files-found: error
           retention-days: 90
 
       - name: Trigger merge-and-filter workflow
@@ -466,6 +494,10 @@ jobs:
           echo "懂车帝爬虫完成，触发合并分析工作流..."
           gh workflow run merge-and-filter.yml \
             --repo ${{ github.repository }} \
+            --ref "${{ github.ref_name }}" \
             -f force_merge=false \
+            -f debug_mode=${{ github.event.inputs.debug_mode || 'false' }} \
+            -f crawler_run_id=${{ github.run_id }} \
+            -f crawler_run_attempt=${{ github.run_attempt }} \
             -f trigger_source=dongchedi-crawl \
             -f trigger_time=$(date +%s)

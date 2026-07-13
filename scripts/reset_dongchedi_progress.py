@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 
-PROGRESS_PATH = Path("dongchedi/progress.json")
+PROGRESS_PATH = Path(__file__).resolve().parent / "dongchedi" / "progress.json"
 KEEP_KEYS = ("series_list", "excluded_series")
 
 

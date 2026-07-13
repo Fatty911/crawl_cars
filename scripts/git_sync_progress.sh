@@ -57,7 +57,7 @@ resolve_rebase_conflicts() {
   echo "[git-sync] 检测到冲突，尝试合并进度文件..."
   while IFS= read -r path; do
     [ -z "$path" ] && continue
-    if [[ "$path" == "progress.json" || "$path" == "dongchedi/progress.json" ]]; then
+    if [[ "$path" == "progress.json" || "$path" == "dongchedi/progress.json" || "$path" == "scripts/dongchedi/progress.json" ]]; then
       local ours theirs
       ours="$(mktemp)"
       theirs="$(mktemp)"

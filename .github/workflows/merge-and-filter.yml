@@ -15,6 +15,18 @@ on:
         description: '触发时间戳'
         required: false
         default: ''
+      debug_mode:
+        description: '是否合并指定爬虫 run 的 debug artifact'
+        required: false
+        default: 'false'
+      crawler_run_id:
+        description: 'debug 爬虫 workflow run ID'
+        required: false
+        default: ''
+      crawler_run_attempt:
+        description: 'debug 爬虫 workflow run attempt'
+        required: false
+        default: ''
 
 concurrency:
   group: merge-and-filter
@@ -28,6 +40,8 @@ jobs:
       crawl_date: ${{ steps.date.outputs.date }}
       ready: ${{ steps.validate.outputs.ready }}
       crawl_time: ${{ steps.date.outputs.time }}
+      release_tag: ${{ steps.date.outputs.release_tag }}
+      debug_mode: ${{ github.event.inputs.debug_mode || 'false' }}
     steps:
       - name: 检出代码
         uses: actions/checkout@main
@@ -50,8 +64,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'false' }}
+          CRAWLER_RUN_ID: ${{ github.event.inputs.crawler_run_id }}
+          CRAWLER_RUN_ATTEMPT: ${{ github.event.inputs.crawler_run_attempt }}
+          TRIGGER_SOURCE: ${{ github.event.inputs.trigger_source }}
         run: |
+          set -euo pipefail
           echo "尝试下载最新的爬虫数据 artifact..."
+          rm -rf merge-inputs
+          mkdir -p merge-inputs/stable/autohome merge-inputs/stable/dongchedi
 
           CN_DAY=$(TZ=Asia/Shanghai date +%d)
           CN_MONTH=$(TZ=Asia/Shanghai date +%Y%m)
@@ -68,6 +89,7 @@ jobs:
             --artifact-prefix autohome-data- \
             --json-pattern "autoHome_*.json" \
             --label "汽车之家" \
+            --output-dir merge-inputs/stable/autohome \
             --min-date "$MIN_ARTIFACT_DATE" \
             --min-rows 50
 
@@ -77,11 +99,86 @@ jobs:
             --artifact-prefix dongchedi-data- \
             --json-pattern "dongchedi_*.json" \
             --label "懂车帝" \
+            --output-dir merge-inputs/stable/dongchedi \
             --min-date "$MIN_ARTIFACT_DATE" \
             --min-rows 50
 
-          echo "当前目录数据文件:"
-          ls -la *.json 2>/dev/null || echo "没有找到数据文件"
+          mapfile -t AUTOHOME_STABLE < <(find merge-inputs/stable/autohome -maxdepth 1 -type f -name 'autoHome_*.json' -print)
+          mapfile -t DONGCHEDI_STABLE < <(find merge-inputs/stable/dongchedi -maxdepth 1 -type f -name 'dongchedi_*.json' -print)
+          if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ] || [ "${#DONGCHEDI_STABLE[@]}" -ne 1 ]; then
+            echo "必须精确找到两个来源各一份当前半月 stable artifact"
+            exit 1
+          fi
+
+          if [ "$DEBUG_MODE" = "true" ]; then
+            if ! [[ "$CRAWLER_RUN_ID" =~ ^[0-9]+$ && "$CRAWLER_RUN_ATTEMPT" =~ ^[0-9]+$ ]]; then
+              echo "debug 模式必须提供纯数字 crawler_run_id/crawler_run_attempt"
+              exit 1
+            fi
+            case "$TRIGGER_SOURCE" in
+              autohome-crawl)
+                SOURCE_DIR=autohome
+                ARTIFACT_PREFIX=autohome-debug-data
+                JSON_PATTERN='autoHome_*.json'
+                EXPECTED_WORKFLOW='.github/workflows/crawl-autohome.yml'
+                ;;
+              dongchedi-crawl)
+                SOURCE_DIR=dongchedi
+                ARTIFACT_PREFIX=dongchedi-debug-data
+                JSON_PATTERN='dongchedi_*.json'
+                EXPECTED_WORKFLOW='.github/workflows/crawl-dongchedi.yml'
+                ;;
+              *)
+                echo "debug trigger_source 必须是 autohome-crawl 或 dongchedi-crawl"
+                exit 1
+                ;;
+            esac
+
+            RUN_ATTEMPT=$(gh api "repos/${{ github.repository }}/actions/runs/$CRAWLER_RUN_ID" --jq '.run_attempt')
+            RUN_PATH=$(gh api "repos/${{ github.repository }}/actions/runs/$CRAWLER_RUN_ID" --jq '.path')
+            RUN_PATH="${RUN_PATH%%@*}"
+            if [ "$RUN_ATTEMPT" != "$CRAWLER_RUN_ATTEMPT" ] || [ "$RUN_PATH" != "$EXPECTED_WORKFLOW" ]; then
+              echo "指定 run/attempt/source 与爬虫 workflow 不匹配"
+              exit 1
+            fi
+
+            ARTIFACT_REGEX="^${ARTIFACT_PREFIX}-[0-9]{8}-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$"
+            mapfile -t DEBUG_ARTIFACTS < <(
+              gh api "repos/${{ github.repository }}/actions/runs/$CRAWLER_RUN_ID/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false) | .name' \
+                | grep -E "$ARTIFACT_REGEX" || true
+            )
+            if [ "${#DEBUG_ARTIFACTS[@]}" -ne 1 ]; then
+              echo "指定 run/attempt/source 的 debug artifact 必须精确存在一份"
+              exit 1
+            fi
+
+            mkdir -p "merge-inputs/debug/$SOURCE_DIR"
+            gh run download "$CRAWLER_RUN_ID" \
+              --repo "${{ github.repository }}" \
+              --name "${DEBUG_ARTIFACTS[0]}" \
+              --dir "merge-inputs/debug/$SOURCE_DIR"
+            mapfile -t DEBUG_JSON < <(find "merge-inputs/debug/$SOURCE_DIR" -type f -name "$JSON_PATTERN" -print)
+            if [ "${#DEBUG_JSON[@]}" -ne 1 ]; then
+              echo "debug artifact 内必须精确包含一份 $JSON_PATTERN"
+              exit 1
+            fi
+
+            if [ "$SOURCE_DIR" = "autohome" ]; then
+              python scripts/prepare_debug_merge_inputs.py \
+                --stable "${AUTOHOME_STABLE[0]}" --debug "${DEBUG_JSON[0]}" --output autoHome_debug_prepared.json
+              cp "${DONGCHEDI_STABLE[0]}" dongchedi_stable.json
+            else
+              cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
+              python scripts/prepare_debug_merge_inputs.py \
+                --stable "${DONGCHEDI_STABLE[0]}" --debug "${DEBUG_JSON[0]}" --output dongchedi_debug_prepared.json
+            fi
+          else
+            cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
+            cp "${DONGCHEDI_STABLE[0]}" dongchedi_stable.json
+          fi
+
+          echo "规范化后的合并输入:"
+          ls -la autoHome_*.json dongchedi_*.json
 
       - name: 校验爬虫数据完整性
         id: validate
@@ -139,8 +236,11 @@ jobs:
         id: date
         if: steps.validate.outputs.ready == 'true'
         run: |
-          echo "date=$(TZ=Asia/Shanghai date +%Y%m%d)" >> $GITHUB_OUTPUT
-          echo "time=$(TZ=Asia/Shanghai date +%H%M)" >> $GITHUB_OUTPUT
+          CRAWL_DATE=$(TZ=Asia/Shanghai date +%Y%m%d)
+          CRAWL_TIME=$(TZ=Asia/Shanghai date +%H%M)
+          echo "date=$CRAWL_DATE" >> "$GITHUB_OUTPUT"
+          echo "time=$CRAWL_TIME" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v${CRAWL_DATE}-${CRAWL_TIME}-${{ github.run_id }}-a${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
 
       - name: 合并数据文件
         if: steps.validate.outputs.ready == 'true'
@@ -171,6 +271,17 @@ jobs:
             echo "合并失败，未生成输出文件"
             exit 1
           fi
+
+      - name: Debug 发布防缩小校验
+        if: steps.validate.outputs.ready == 'true' && github.event.inputs.debug_mode == 'true'
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location --retry 2 --connect-timeout 15 --max-time 60 \
+            https://cars.jiucai.eu.org/data/latest.json \
+            --output /tmp/current-pages-latest.json
+          python scripts/verify_publish_superset.py \
+            --baseline /tmp/current-pages-latest.json \
+            --candidate "merged_${{ steps.date.outputs.date }}.json"
 
       - name: 上传合并产物
         if: steps.validate.outputs.ready == 'true'
@@ -205,7 +316,7 @@ jobs:
       - name: 创建发布
         uses: softprops/action-gh-release@master
         with:
-          tag_name: v${{ needs.merge-data.outputs.crawl_date }}-${{ needs.merge-data.outputs.crawl_time }}
+          tag_name: ${{ needs.merge-data.outputs.release_tag }}
           name: 车型数据 ${{ needs.merge-data.outputs.crawl_date }}-${{ needs.merge-data.outputs.crawl_time }}
           files: |
             release-files/merged_${{ needs.merge-data.outputs.crawl_date }}.csv
@@ -227,5 +338,8 @@ jobs:
           echo "Release 创建完成，触发部署 Pages 工作流..."
           gh workflow run deploy-pages.yml \
             --repo ${{ github.repository }} \
+            --ref "${{ github.ref_name }}" \
             -f trigger_source=merge-and-filter \
+            -f release_tag=${{ needs.merge-data.outputs.release_tag }} \
+            -f debug_mode=${{ needs.merge-data.outputs.debug_mode }} \
             -f trigger_time=$(date +%s)

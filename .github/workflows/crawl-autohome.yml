@@ -42,7 +42,7 @@ env:
   CRAWL_MAX_DELAY_SECONDS: 8
 
 concurrency:
-  group: autohome-crawl-${{ github.ref }}-${{ github.event.inputs.run_profile || github.event.client_payload.run_profile || github.event_name }}
+  group: autohome-crawl-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -78,6 +78,15 @@ jobs:
 
           FORCE_RESTART="${FORCE_RESTART}"
           DEBUG_MODE="${DEBUG_MODE}"
+
+          if [ "$DEBUG_MODE" = "true" ]; then
+            echo "INCREMENTAL_MODE=false" >> $GITHUB_ENV
+            echo "AUTOHOME_DONE_MARKER=/tmp/autohome-debug.done" >> $GITHUB_ENV
+            rm -rf crawl_state/autohome step1_done
+            echo "SKIP_CRAWL=false" >> $GITHUB_ENV
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           if [ "$FORCE_RESTART" = "true" ]; then
             rm -f "$DONE_MARKER"
@@ -168,7 +177,7 @@ jobs:
 
       - name: Restore Autohome HTML cache
         id: autohome_html_cache
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true' && github.event.inputs.debug_mode != 'true'
         uses: actions/cache@main
         with:
           path: crawl_state/autohome
@@ -177,7 +186,7 @@ jobs:
             autohome-state-${{ env.CRAWL_PERIOD }}-
 
       - name: Report Autohome HTML cache
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.force_restart != 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           mkdir -p crawl_state/autohome/html
           HTML_COUNT=$(find crawl_state/autohome/html -type f | wc -l)
@@ -233,11 +242,13 @@ jobs:
           if [ $EXIT_CODE -eq 10 ]; then
             echo "Step1 incomplete, committing progress and ending this workflow run..."
             sleep $((RANDOM % 30 + 15))
-            git config --local user.email "xuerui911@gmail.com"
-            git config --local user.name "github-actions[bot]"
-            git add -A
-            git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
-            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            if [ "$DEBUG_MODE" != "true" ]; then
+              git config --local user.email "xuerui911@gmail.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
+              bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            fi
             echo "complete=false" >> "$GITHUB_OUTPUT"
             echo "failed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -251,14 +262,16 @@ jobs:
           echo "complete=true" >> "$GITHUB_OUTPUT"
           echo "failed=false" >> "$GITHUB_OUTPUT"
           touch step1_done
-          git config --local user.email "xuerui911@gmail.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
-          bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          if [ "$DEBUG_MODE" != "true" ]; then
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
+            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          fi
 
       - name: Upload Autohome HTML cache (early, after step1)
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && github.event.inputs.debug_mode != 'true'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -275,14 +288,14 @@ jobs:
           python scripts/classify_crawl_failure.py step1_error.log --github-output "$GITHUB_OUTPUT"
 
       - name: Auto-fix step1 error
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           echo "尝试自动修复 step1 错误 (使用新版通用修复器)..."
           python scripts/auto_fix_workflow.py step1_error.log scripts/test_autohome.py || echo "自动修复失败，继续运行"
 
       - name: Retry step1 after fix
         id: retry_step1
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           set -o pipefail
           echo "修复后重试 step1..."
@@ -299,11 +312,13 @@ jobs:
           echo "Retry step1 exit code: $EXIT_CODE"
           if [ $EXIT_CODE -eq 10 ]; then
             echo "修复后 step1 仍未完成，提交进度并结束本次运行"
-            git config --local user.email "xuerui911@gmail.com"
-            git config --local user.name "github-actions[bot]"
-            git add -A
-            git diff --staged --quiet || git commit -m "Update progress after fix - $(date +%H:%M)"
-            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            if [ "$DEBUG_MODE" != "true" ]; then
+              git config --local user.email "xuerui911@gmail.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              git diff --staged --quiet || git commit -m "Update progress after fix - $(date +%H:%M)"
+              bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            fi
             echo "complete=false" >> "$GITHUB_OUTPUT"
             exit 0
           elif [ $EXIT_CODE -ne 0 ]; then
@@ -312,14 +327,16 @@ jobs:
           fi
           echo "complete=true" >> "$GITHUB_OUTPUT"
           touch step1_done
-          git config --local user.email "xuerui911@gmail.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          git diff --staged --quiet || git commit -m "Step1 complete after fix - $(date +%H:%M)"
-          bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          if [ "$DEBUG_MODE" != "true" ]; then
+            git config --local user.email "xuerui911@gmail.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git diff --staged --quiet || git commit -m "Step1 complete after fix - $(date +%H:%M)"
+            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          fi
 
       - name: Fail unresolved step1 error
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && (github.event.inputs.debug_mode == 'true' || steps.classify_step1.outputs.should_fix != 'true')
         run: |
           echo "Step1 失败且不适合自动修复，终止工作流"
           exit 1
@@ -356,13 +373,13 @@ jobs:
           python scripts/classify_crawl_failure.py remaining_error.log --github-output "$GITHUB_OUTPUT"
 
       - name: Auto-fix remaining error
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           echo "尝试自动修复 remaining steps 错误 (使用新版通用修复器)..."
           python scripts/auto_fix_workflow.py remaining_error.log scripts/test_autohome.py || echo "自动修复失败，继续运行"
 
       - name: Retry remaining after fix
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           echo "修复后重试 remaining steps..."
           if [ "$PROXY_ENABLED" = "true" ]; then
@@ -379,6 +396,12 @@ jobs:
             python scripts/test_autohome.py --step 5
             python scripts/test_autohome.py --step 6
           fi
+
+      - name: Fail unresolved debug remaining error
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && github.event.inputs.debug_mode == 'true'
+        run: |
+          echo "debug remaining steps 失败，禁止自动修复或发布部分结果"
+          exit 1
 
       - name: Normalize Autohome output path
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true' || github.event.inputs.retry_remaining == 'true' || github.event.inputs.debug_mode == 'true' || (steps.step1.outputs.failed == 'false' && steps.step1.conclusion == 'success'))
@@ -441,7 +464,7 @@ jobs:
               rows = json.load(f)
 
           print(f"{path}: {len(rows)} rows")
-          min_rows = 5 if debug_mode else 500
+          min_rows = 20 if debug_mode else 500
           if incremental and len(rows) == 0:
               print("增量模式：无新增车型，跳过上传")
               with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -482,11 +505,11 @@ jobs:
         if: steps.verify_autohome.outputs.has_data == 'true'
         run: |
           if [ "${{ github.event.inputs.debug_mode }}" = "true" ]; then
-            echo "AUTOHOME_ARTIFACT_PREFIX=autohome-debug-data" >> "$GITHUB_ENV"
+            echo "AUTOHOME_ARTIFACT_NAME=autohome-debug-data-${CRAWL_DATE}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_ENV"
           elif [ "${{ steps.step1.outputs.complete }}" = "true" ] || [ "${{ steps.retry_step1.outputs.complete }}" = "true" ]; then
-            echo "AUTOHOME_ARTIFACT_PREFIX=autohome-data" >> "$GITHUB_ENV"
+            echo "AUTOHOME_ARTIFACT_NAME=autohome-data-${CRAWL_DATE}" >> "$GITHUB_ENV"
           else
-            echo "AUTOHOME_ARTIFACT_PREFIX=autohome-partial-data" >> "$GITHUB_ENV"
+            echo "AUTOHOME_ARTIFACT_NAME=autohome-partial-data-${CRAWL_DATE}" >> "$GITHUB_ENV"
           fi
 
       - name: Upload Autohome artifact
@@ -494,14 +517,14 @@ jobs:
         uses: actions/upload-artifact@v4
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.verify_autohome.outputs.has_data == 'true'
         with:
-          name: ${{ env.AUTOHOME_ARTIFACT_PREFIX }}-${{ env.CRAWL_DATE }}
+          name: ${{ env.AUTOHOME_ARTIFACT_NAME }}
           path: |
             autoHome_*.json
           if-no-files-found: error
           retention-days: 90
 
       - name: Trigger merge-and-filter workflow
-        if: steps.upload_autohome.outcome == 'success' && github.event.inputs.debug_mode != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
+        if: steps.upload_autohome.outcome == 'success' && (github.event.inputs.debug_mode == 'true' || steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true')
         env:
           GH_TOKEN: ${{ secrets.ACTION_PAT }}
         run: |
@@ -512,6 +535,10 @@ jobs:
           fi
           gh workflow run merge-and-filter.yml \
             --repo ${{ github.repository }} \
+            --ref "${{ github.ref_name }}" \
             -f force_merge=false \
+            -f debug_mode=${{ github.event.inputs.debug_mode || 'false' }} \
+            -f crawler_run_id=${{ github.run_id }} \
+            -f crawler_run_attempt=${{ github.run_attempt }} \
             -f trigger_source=autohome-crawl \
             -f trigger_time=$(date +%s)
