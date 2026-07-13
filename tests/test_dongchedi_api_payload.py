@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "crawl_dongchedi.py"
@@ -105,6 +106,39 @@ class DongchediApiPayloadTest(unittest.TestCase):
             self.module.fetch_series_entity_payload(
                 {"id": "3504", "name": "测试车系", "brand": "测试"}
             )
+
+    def test_request_retries_transient_network_errors(self):
+        import requests
+
+        response = mock.Mock()
+        response.json.return_value = {"status": "success"}
+        transient_errors = [
+            requests.exceptions.SSLError("unexpected EOF"),
+            requests.exceptions.ReadTimeout("read timed out"),
+            response,
+        ]
+
+        with mock.patch("requests.get", side_effect=transient_errors) as get, mock.patch.object(
+            self.module.time, "sleep"
+        ) as sleep:
+            payload = self.module._request_dongchedi_json("https://example.test/api")
+
+        self.assertEqual({"status": "success"}, payload)
+        self.assertEqual(3, get.call_count)
+        self.assertEqual([mock.call(1), mock.call(2)], sleep.call_args_list)
+
+    def test_request_reraises_after_three_transient_failures(self):
+        import requests
+
+        error = requests.exceptions.ConnectionError("proxy unavailable")
+        with mock.patch("requests.get", side_effect=error) as get, mock.patch.object(
+            self.module.time, "sleep"
+        ) as sleep:
+            with self.assertRaises(requests.exceptions.ConnectionError):
+                self.module._request_dongchedi_json("https://example.test/api")
+
+        self.assertEqual(3, get.call_count)
+        self.assertEqual([mock.call(1), mock.call(2)], sleep.call_args_list)
 
     def test_parse_entity_api_payload_and_reject_login_shell(self):
         api_payload = {

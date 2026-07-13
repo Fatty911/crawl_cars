@@ -831,7 +831,16 @@ def _request_dongchedi_json(url, params=None):
         "Accept": "application/json, text/plain, */*",
         "Referer": "https://www.dongchedi.com/",
     }
-    response = requests.get(url, params=params, headers=headers, timeout=30)
+    for attempt in range(1, 4):
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=30)
+            break
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            if attempt == 3:
+                raise
+            delay = 2 ** (attempt - 1)
+            print(f"  API请求瞬时失败，第 {attempt}/3 次: {exc}，{delay} 秒后重试")
+            time.sleep(delay)
     response.raise_for_status()
     return response.json()
 
