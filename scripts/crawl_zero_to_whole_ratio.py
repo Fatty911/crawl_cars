@@ -4,9 +4,10 @@ import io
 import json
 import os
 import re
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -27,6 +28,8 @@ DEFAULT_SOURCES = [
 
 USER_AGENT = "Mozilla/5.0 (compatible; crawl-cars-zero-to-whole/1.0)"
 RATIO_RE = re.compile(r"^\d+(?:\.\d+)?%$")
+SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+
 BODY_MARKERS = [
     "三厢",
     "两厢",
@@ -334,6 +337,16 @@ def dedupe_rows(rows: Iterable[Dict[str, object]]) -> List[Dict[str, object]]:
     return deduped
 
 
+def shanghai_datestamp(now: Optional[datetime] = None) -> str:
+    if now is None:
+        now = datetime.now(SHANGHAI_TZ)
+    elif now.tzinfo is None:
+        now = now.replace(tzinfo=SHANGHAI_TZ)
+    else:
+        now = now.astimezone(SHANGHAI_TZ)
+    return now.strftime("%Y%m%d")
+
+
 def main() -> None:
     rows = load_local_rows()
     for source in load_sources():
@@ -346,7 +359,7 @@ def main() -> None:
             print(f"零整比来源跳过: {source['url']} ({exc})")
 
     rows = dedupe_rows(rows)
-    today = date.today().strftime("%Y%m%d")
+    today = shanghai_datestamp()
     dated_path = DIR / f"zero_to_whole_ratios_{today}.json"
     latest_path = DIR / "zero_to_whole_ratios.json"
     for path in (dated_path, latest_path):
