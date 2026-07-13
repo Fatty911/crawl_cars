@@ -197,6 +197,63 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         )
 
 
+class PreservePublishBaselineTests(unittest.TestCase):
+    def test_missing_baseline_identity_is_restored_without_overwriting_candidate(self) -> None:
+        baseline = [
+            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "published"},
+            {"车系ID": "101", "车型名称": "B", "年款": "2025", "价格": "published"},
+        ]
+        candidate = [
+            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "candidate"},
+            {"车系ID": "102", "车型名称": "C", "年款": "2026", "价格": "new"},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = {
+                "baseline": root / "baseline.json",
+                "merged_json": root / "merged.json",
+                "merged_csv": root / "merged.csv",
+                "filtered_json": root / "filtered.json",
+                "filtered_csv": root / "filtered.csv",
+            }
+            paths["baseline"].write_text(json.dumps(baseline, ensure_ascii=False), encoding="utf-8")
+            paths["merged_json"].write_text(json.dumps(candidate, ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPTS / "preserve_publish_baseline.py"),
+                    "--baseline",
+                    str(paths["baseline"]),
+                    "--merged-json",
+                    str(paths["merged_json"]),
+                    "--merged-csv",
+                    str(paths["merged_csv"]),
+                    "--filtered-json",
+                    str(paths["filtered_json"]),
+                    "--filtered-csv",
+                    str(paths["filtered_csv"]),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(candidate + [baseline[1]], json.loads(paths["merged_json"].read_text(encoding="utf-8")))
+            self.assertTrue(paths["merged_csv"].is_file())
+            self.assertTrue(paths["filtered_json"].is_file())
+            self.assertTrue(paths["filtered_csv"].is_file())
+            self.assertEqual(
+                {
+                    "baseline_rows": 2,
+                    "candidate_input_rows": 2,
+                    "candidate_output_rows": 3,
+                    "restored_rows": 1,
+                },
+                json.loads(result.stdout.strip().splitlines()[-1]),
+            )
+
+
 class WorkflowValidatorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -287,6 +344,11 @@ class WorkflowValidatorTests(unittest.TestCase):
         mutated = first + marker + middle + "scripts/removed.py" + last + f"\n# {marker}\n"
         errors = self.check_mutated_merge(mutated)
         self.assertTrue(any("先规范化" in error for error in errors))
+
+    def test_debug_publish_baseline_preservation_cannot_be_removed(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        errors = self.check_mutated_merge(text.replace("scripts/preserve_publish_baseline.py", "scripts/removed.py"))
+        self.assertTrue(any("基线保留" in error for error in errors))
 
     def test_debug_stable_baseline_can_fall_back_to_historical_artifact(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")

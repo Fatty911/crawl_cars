@@ -315,6 +315,20 @@ jobs:
             exit 0
           fi
 
+      - name: Debug 保留当前 Pages 发布基线
+        if: steps.validate.outputs.ready == 'true' && github.event.inputs.debug_mode == 'true'
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location --retry 2 --connect-timeout 15 --max-time 60 \
+            https://cars.jiucai.eu.org/data/latest.json \
+            --output /tmp/current-pages-latest.json
+          python scripts/preserve_publish_baseline.py \
+            --baseline /tmp/current-pages-latest.json \
+            --merged-json "merged_${{ steps.date.outputs.date }}.json" \
+            --merged-csv "merged_${{ steps.date.outputs.date }}.csv" \
+            --filtered-json "filtered_cars_${{ steps.date.outputs.date }}.json" \
+            --filtered-csv "filtered_cars_${{ steps.date.outputs.date }}.csv"
+
       - name: 检查合并结果
         if: steps.validate.outputs.ready == 'true'
         run: |
@@ -336,9 +350,6 @@ jobs:
         if: steps.validate.outputs.ready == 'true' && github.event.inputs.debug_mode == 'true'
         run: |
           set -euo pipefail
-          curl --fail --show-error --silent --location --retry 2 --connect-timeout 15 --max-time 60 \
-            https://cars.jiucai.eu.org/data/latest.json \
-            --output /tmp/current-pages-latest.json
           python scripts/verify_publish_superset.py \
             --baseline /tmp/current-pages-latest.json \
             --candidate "merged_${{ steps.date.outputs.date }}.json"

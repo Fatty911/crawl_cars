@@ -283,14 +283,16 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         errors,
     )
     verify_position = text.find("scripts/verify_publish_superset.py")
+    preserve_position = text.find("scripts/preserve_publish_baseline.py")
     upload_position = text.find("uses: actions/upload-artifact@v4")
     assert_condition(
         verify_position != -1
+        and preserve_position != -1
         and upload_position != -1
-        and merge_position < verify_position < upload_position
+        and merge_position < preserve_position < verify_position < upload_position
         and "https://cars.jiucai.eu.org/data/latest.json" in text
         and "github.event.inputs.debug_mode == 'true'" in text,
-        "merge-and-filter.yml 缺少 merge 后、artifact/Release 前的 debug-only 防缩小校验",
+        "merge-and-filter.yml 缺少 merge 后、artifact/Release 前的 debug-only 基线保留与防缩小校验",
         errors,
     )
     assert_condition(
@@ -349,6 +351,7 @@ def main() -> int:
         errors,
     )
     assert_condition((ROOT / "scripts/prepare_debug_merge_inputs.py").exists(), "缺少 debug stable-first 输入脚本", errors)
+    assert_condition((ROOT / "scripts/preserve_publish_baseline.py").exists(), "缺少 debug 发布基线保留脚本", errors)
     assert_condition((ROOT / "scripts/verify_publish_superset.py").exists(), "缺少发布防缩小脚本", errors)
     assert_condition((ROOT / "scripts/configure_cron_job_org.py").exists(), "缺少 cron-job.org 配置脚本", errors)
     check_ai_monitor(ROOT / ".github/workflows/AI_Auto_Fix_Monitor.yml", errors)
