@@ -122,9 +122,23 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
             errors,
         )
         assert_condition(
-            "find scripts/dongchedi/json -type f -name '*.html' -size +0c" in text
+            "find scripts/dongchedi/json -type f \\( -name '*.json' -o -name '*.html' \\) -size +0c" in text
             and "steps.finalize_dongchedi.outputs.has_output == 'true'" in text,
-            f"{path.name} 未在有效 HTML 缓存存在时才执行并发布 step3/4 结果",
+            f"{path.name} 未在有效配置 payload 缓存存在时才执行并发布 step3/4 结果",
+            errors,
+        )
+        step2_section = text.split("id: step2", 1)[1].split("name: Upload Dongchedi", 1)[0]
+        debug_incomplete_section = step2_section.split("if [ $EXIT_CODE -eq 10 ]; then", 1)[1].split(
+            "Step2 incomplete", 1
+        )[0]
+        fail_unresolved_section = text.split("name: Fail unresolved step2 error", 1)[1].split(
+            "name: Disable proxy", 1
+        )[0]
+        assert_condition(
+            'if [ "$DEBUG_MODE" = "true" ]; then' in debug_incomplete_section
+            and 'echo "failed=true" >> "$GITHUB_OUTPUT"' in debug_incomplete_section
+            and "github.event.inputs.debug_mode == 'true'" in fail_unresolved_section,
+            f"{path.name} debug step2 未完成时未失败关闭",
             errors,
         )
         required_state_paths = (
@@ -214,6 +228,14 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         errors,
     )
     assert_condition("MIN_ARTIFACT_DATE" in text, "merge-and-filter.yml 缺少当前半月 artifact 日期限制", errors)
+    assert_condition(
+        'if [ "$DEBUG_MODE" = "true" ]; then' in text
+        and "STABLE_MIN_DATE_ARGS=()" in text
+        and 'STABLE_MIN_DATE_ARGS=(--min-date "$MIN_ARTIFACT_DATE")' in text
+        and '"${STABLE_MIN_DATE_ARGS[@]}"' in text,
+        "merge-and-filter.yml debug 模式未允许 stable-first 基线回退且普通模式未继续限制当前半月",
+        errors,
+    )
     assert_condition(
         "merge-inputs/stable/autohome" in text and "merge-inputs/stable/dongchedi" in text,
         "merge-and-filter.yml 未隔离两个来源的 stable 输入",

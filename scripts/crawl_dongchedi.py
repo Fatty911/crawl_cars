@@ -103,6 +103,7 @@ DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD = int(
 DCD_NETWORK_ERROR_RESTART_THRESHOLD = int(
     os.getenv("DCD_NETWORK_ERROR_RESTART_THRESHOLD", "5")
 )
+DCD_ENTITY_BATCH_SIZE = int(os.getenv("DCD_ENTITY_BATCH_SIZE", "20"))
 DCD_HEARTBEAT_INTERVAL = int(os.getenv("DCD_HEARTBEAT_INTERVAL", "30"))  # browser 心跳检测间隔
 DCD_SCROLL_STEPS = int(os.getenv("DCD_SCROLL_STEPS", "10"))  # 分段滚动步数
 DCD_SCROLL_PAUSE_MIN = float(os.getenv("DCD_SCROLL_PAUSE_MIN", "0.5"))
@@ -403,16 +404,21 @@ def restart_browser(browser, reason):
     return create_browser()
 
 
-def get_existing_html_ids():
-    """返回当前工作区真实存在的车系 HTML 缓存 ID。"""
+def get_existing_payload_ids():
+    """返回当前工作区真实存在的车系配置缓存 ID。"""
     if not os.path.isdir(dcd_json_dir):
         return set()
     return {
         os.path.splitext(name)[0]
         for name in os.listdir(dcd_json_dir)
-        if name.endswith(".html")
+        if (name.endswith(".json") or name.endswith(".html"))
         and os.path.getsize(os.path.join(dcd_json_dir, name)) > 0
     }
+
+
+def get_existing_html_ids():
+    """兼容旧调用：返回当前工作区真实存在的车系配置缓存 ID。"""
+    return get_existing_payload_ids()
 
 
 def reconcile_step2_progress(series_list=None):
@@ -421,14 +427,14 @@ def reconcile_step2_progress(series_list=None):
     if not crawled:
         return crawled
 
-    html_ids = get_existing_html_ids()
+    payload_ids = get_existing_payload_ids()
     valid_series_ids = None
     if series_list:
         valid_series_ids = {str(series["id"]) for series in series_list}
 
     valid_crawled = []
     for sid in crawled:
-        if sid not in html_ids:
+        if sid not in payload_ids:
             continue
         if valid_series_ids is not None and sid not in valid_series_ids:
             continue
@@ -436,7 +442,7 @@ def reconcile_step2_progress(series_list=None):
 
     if len(valid_crawled) != len(crawled):
         missing = len(crawled) - len(valid_crawled)
-        print(f"发现 {missing} 条 step2 进度缺少对应 HTML，已重置为未爬取")
+        print(f"发现 {missing} 条 step2 进度缺少对应配置缓存，已重置为未爬取")
         progress["crawled_series"] = valid_crawled
         progress.pop("parsed_data", None)
         save_progress()
@@ -467,8 +473,8 @@ def is_debug_step2_completed():
     if required <= 0:
         return False
     series_ids = {str(series["id"]) for series in series_list}
-    html_ids = get_existing_html_ids()
-    return len(series_ids & html_ids) >= required
+    payload_ids = get_existing_payload_ids()
+    return len(series_ids & payload_ids) >= required
 
 
 def require_non_empty_rows(all_rows, stage):
@@ -791,16 +797,102 @@ def get_series_list(browser=None):
     return series_list
 
 
+def _extract_car_ids(value):
+    car_ids = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            for key, item in node.items():
+                if key in {"car_id", "carId", "id"} and isinstance(item, (int, str)):
+                    text = str(item)
+                    if text.isdigit():
+                        car_ids.append(text)
+                walk(item)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(value)
+    seen = set()
+    result = []
+    for car_id in car_ids:
+        if car_id not in seen:
+            seen.add(car_id)
+            result.append(car_id)
+    return result
+
+
+def _request_dongchedi_json(url, params=None):
+    import requests
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://www.dongchedi.com/",
+    }
+    response = requests.get(url, params=params, headers=headers, timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+
+def fetch_series_entity_payload(series):
+    series_id = str(series["id"])
+    garage_url = f"https://www.dongchedi.com/motor/garage/get_cars_by_series_id/{series_id}/"
+    garage_payload = _request_dongchedi_json(garage_url, {"no_sales": 1})
+    if garage_payload.get("status") not in (0, "0"):
+        raise RuntimeError(f"garage API status={garage_payload.get('status')} message={garage_payload.get('message')}")
+
+    car_ids = _extract_car_ids(garage_payload.get("data", garage_payload))
+    if not car_ids:
+        raise RuntimeError("garage API 未返回 car_id")
+
+    car_info = []
+    properties = []
+    property_keys = set()
+    entity_url = "https://www.dongchedi.com/motor/car_page/v4/get_entity_json/"
+    for start in range(0, len(car_ids), max(1, DCD_ENTITY_BATCH_SIZE)):
+        batch = car_ids[start:start + max(1, DCD_ENTITY_BATCH_SIZE)]
+        entity_payload = _request_dongchedi_json(entity_url, {"car_id_list": ",".join(batch)})
+        if entity_payload.get("status") != "success":
+            raise RuntimeError(
+                f"entity API status={entity_payload.get('status')} message={entity_payload.get('message')}"
+            )
+        data = entity_payload.get("data", {})
+        batch_car_info = data.get("car_info")
+        batch_properties = data.get("properties")
+        if not isinstance(batch_car_info, list) or not batch_car_info:
+            raise RuntimeError("entity API car_info 为空")
+        if not isinstance(batch_properties, list) or not batch_properties:
+            raise RuntimeError("entity API properties 为空")
+        car_info.extend(batch_car_info)
+        for prop in batch_properties:
+            key = prop.get("key")
+            if key and key in property_keys:
+                continue
+            if key:
+                property_keys.add(key)
+            properties.append(prop)
+
+    return {
+        "source": "dongchedi_entity_api",
+        "series_info": series,
+        "car_ids": car_ids,
+        "data": {"car_info": car_info, "properties": properties},
+    }
+
+
+def is_login_required_next_data(next_data):
+    page = next_data.get("page")
+    page_props = next_data.get("props", {}).get("pageProps", {})
+    redirect = page_props.get("redirect", "")
+    return page == "/login-required" or "/login-required" in str(redirect)
+
+
 # 第二步：爬取每个车系的配置页面
 def crawl_series_config(browser, series_list):
-    """爬取每个车系的配置参数页面"""
-    from selenium.common.exceptions import TimeoutException
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.webdriver.support.ui import WebDriverWait
-    import threading
-
-    print("第二步：爬取车系配置页面")
+    """通过懂车帝公开 JSON API 获取每个车系的配置参数。"""
+    print("第二步：通过懂车帝 API 获取车系配置")
 
     # 按品牌销量热度重排：热门品牌优先爬取，提高有限时间内与 autohome 的双源匹配率
     series_list = sort_series_by_brand_heat(series_list)
@@ -809,15 +901,10 @@ def crawl_series_config(browser, series_list):
     initial_crawled_count = len(crawled)
     start_time = time.time()
     skipped_count = 0
-    consecutive_renderer_timeouts = 0
-    consecutive_network_errors = 0
     need_crawl = len(series_list) - initial_crawled_count
     attempted_count = 0  # 调试模式：统计尝试过的车系数（含超时/失败）
 
-    print(f"车系总数: {len(series_list)}，已有HTML: {initial_crawled_count}，需爬取: {need_crawl}")
-
-    # 看门狗超时（秒）：browser.get() 超过此时间无响应，强制重启浏览器
-    GET_TIMEOUT_SECONDS = int(os.getenv("DCD_GET_TIMEOUT_SECONDS", "45"))
+    print(f"车系总数: {len(series_list)}，已有配置缓存: {initial_crawled_count}，需爬取: {need_crawl}")
 
     for idx, series in enumerate(series_list):
         series_id = series["id"]
@@ -842,143 +929,31 @@ def crawl_series_config(browser, series_list):
             f"[{idx + 1}/{len(series_list)}] 正在爬取: {series_name} (ID: {series_id})"
         )
 
-        config_url = f"https://www.dongchedi.com/auto/params-carIds-x-{series_id}"
-        saved_html = False
-        
-        # --- 带看门狗的 browser.get() ---
-        get_completed = False
-        get_exception = None
-        
-        def _do_get():
-            nonlocal get_completed, get_exception
-            try:
-                browser.get(config_url)
-                get_completed = True
-            except Exception as e:
-                get_exception = e
-                get_completed = True
-        
-        get_thread = threading.Thread(target=_do_get, daemon=True)
-        get_thread.start()
-        get_thread.join(timeout=GET_TIMEOUT_SECONDS)
-        
-        if not get_completed:
-            # 看门狗触发：浏览器无响应，强制重启
-            print(f"  ⚠ browser.get() 超过 {GET_TIMEOUT_SECONDS}s 无响应，强制重启浏览器...")
-            browser = restart_browser(browser, f"browser.get() 卡死 {GET_TIMEOUT_SECONDS}s")
-            # 重试一次
-            get_completed = False
-            get_exception = None
-            get_thread = threading.Thread(target=_do_get, daemon=True)
-            get_thread.start()
-            get_thread.join(timeout=GET_TIMEOUT_SECONDS)
-            if not get_completed or get_exception:
-                print(f"  重试后仍失败，跳过该车系")
-                with open(
-                    os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
-                ) as f:
-                    f.write(f"{series_id} {series_name}: browser.get() watchdog timeout\\n")
-                save_progress()
-                human_delay(f"跳过{series_name}")
-                continue
-            if get_exception:
-                raise get_exception
-        elif get_exception:
-            raise get_exception
-        # --- 看门狗结束 ---
-        last_heartbeat = time.time()
-
-        human_delay(f"打开{series_name}配置页")
+        saved_payload = False
 
         try:
-            # 等待配置表格加载
-            try:
-                WebDriverWait(browser, 10).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, 'table, [class*="param"], [class*="config"]')
-                    )
-                )
-            except TimeoutException:
-                print("  配置页面加载超时，跳过")
-                with open(
-                    os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
-                ) as f:
-                    f.write(f"{series_id} {series_name}: 配置页面加载超时\\n")
-                consecutive_renderer_timeouts = 0
-                consecutive_network_errors = 0
-                save_progress()
-                continue
-
-            # 模拟人类滚动浏览行为：分段下滚+随机停顿
-            try:
-                scroll_height = browser.execute_script("return document.body.scrollHeight")
-                viewport_height = browser.execute_script("return window.innerHeight")
-                if scroll_height and viewport_height and scroll_height > viewport_height:
-                    scroll_steps = min(DCD_SCROLL_STEPS, max(1, scroll_height // viewport_height))
-                    for step in range(scroll_steps):
-                        scroll_to = viewport_height * (step + 1) // scroll_steps * (step + 1)
-                        browser.execute_script(f"window.scrollTo(0, {scroll_to})")
-                        time.sleep(random.uniform(DCD_SCROLL_PAUSE_MIN, DCD_SCROLL_PAUSE_MAX))
-                        # 心跳检测
-                        browser, last_heartbeat = check_browser_heartbeat(browser, last_heartbeat, f"滚动步骤 {step+1}/{scroll_steps}")
-                    # 滚回顶部（模拟人类回头查看）
-                    browser.execute_script("window.scrollTo(0, 0)")
-                    time.sleep(random.uniform(0.3, 0.8))
-            except Exception:
-                pass  # 滚动失败不影响数据采集
-
-            # 保存页面源码用于解析
-            html_file = os.path.join(dcd_json_dir, f"{series_id}.html")
-            if os.path.exists(html_file):
-                print(f"  车型{series_id}已存在，跳过")
-                saved_html = True
+            json_file = os.path.join(dcd_json_dir, f"{series_id}.json")
+            if os.path.exists(json_file):
+                print(f"  车系{series_id} API缓存已存在，跳过")
+                saved_payload = True
             else:
-                page_source = browser.page_source
-                with open(html_file, "w", encoding="utf-8") as f:
-                    f.write(page_source)
-                saved_html = True
-            consecutive_renderer_timeouts = 0
-            consecutive_network_errors = 0
-            last_heartbeat = time.time()
+                payload = fetch_series_entity_payload(series)
+                with open(json_file, "w", encoding="utf-8") as f:
+                    json.dump(payload, f, ensure_ascii=False)
+                saved_payload = True
+                print(f"  API缓存完成：{len(payload.get('car_ids', []))} 个 car_id，{len(payload.get('data', {}).get('car_info', []))} 个车型")
         except Exception as e:
             print(f"  爬取异常: {e}")
             with open(
                 os.path.join(dcd_exception_dir, "exception.txt"), "a", encoding="utf-8"
             ) as f:
                 f.write(f"{series_id} {series_name}: {e}\n")
-            if is_renderer_timeout(e):
-                consecutive_renderer_timeouts += 1
-                consecutive_network_errors = 0
-                if (
-                    DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD > 0
-                    and consecutive_renderer_timeouts >= DCD_RENDERER_TIMEOUT_RESTART_THRESHOLD
-                ):
-                    browser = restart_browser(
-                        browser,
-                        f"连续 {consecutive_renderer_timeouts} 次 renderer 超时",
-                    )
-                    consecutive_renderer_timeouts = 0
-            elif is_network_navigation_error(e):
-                consecutive_network_errors += 1
-                consecutive_renderer_timeouts = 0
-                if (
-                    DCD_NETWORK_ERROR_RESTART_THRESHOLD > 0
-                    and consecutive_network_errors >= DCD_NETWORK_ERROR_RESTART_THRESHOLD
-                ):
-                    browser = restart_browser(
-                        browser,
-                        f"连续 {consecutive_network_errors} 次网络连接异常",
-                    )
-                    consecutive_network_errors = 0
-            else:
-                consecutive_renderer_timeouts = 0
-                consecutive_network_errors = 0
 
-        if saved_html and series_id not in crawled:
+        if saved_payload and series_id not in crawled:
             crawled.append(series_id)
         progress["crawled_series"] = crawled
         save_progress()
-        human_delay(f"保存{series_name}页面")
+        human_delay(f"保存{series_name}配置")
 
     new_crawled = len(crawled) - initial_crawled_count
     newly_registered = [sid for sid in crawled[initial_crawled_count:] if not dongchedi_registry.is_registered(sid)]
@@ -997,7 +972,10 @@ def parse_config_pages(series_list):
     """解析保存的配置页面HTML，提取配置数据"""
     print("第三步：解析配置页面")
 
-    from bs4 import BeautifulSoup
+    try:
+        from bs4 import BeautifulSoup
+    except ModuleNotFoundError:
+        BeautifulSoup = None
 
     all_rows = []
     all_headers = []
@@ -1005,10 +983,10 @@ def parse_config_pages(series_list):
     series_map = {s["id"]: s for s in series_list}
 
     for html_file in os.listdir(dcd_json_dir):
-        if not html_file.endswith(".html"):
+        if not (html_file.endswith(".html") or html_file.endswith(".json")):
             continue
 
-        series_id = html_file.replace(".html", "")
+        series_id = os.path.splitext(html_file)[0]
         series_info = series_map.get(series_id, {})
         series_name = series_info.get("name", "")
         brand_name = series_info.get("brand", "")
@@ -1016,29 +994,52 @@ def parse_config_pages(series_list):
         print(f"正在解析: {brand_name} {series_name} (ID: {series_id})")
 
         with open(os.path.join(dcd_json_dir, html_file), "r", encoding="utf-8") as f:
-            html_content = f.read()
+            file_content = f.read()
 
-        soup = BeautifulSoup(html_content, "html.parser")
+        html_content = file_content if html_file.endswith(".html") else ""
+        soup = BeautifulSoup(html_content, "html.parser") if BeautifulSoup and html_content else None
 
         # 优先尝试从__NEXT_DATA__提取数据
         car_names = []
         car_data = {}
+        raw_data = {}
+        if html_file.endswith(".json"):
+            try:
+                import json as json_mod
+
+                payload = json_mod.loads(file_content)
+                if payload.get("source") == "dongchedi_entity_api":
+                    raw_data = payload.get("data", {})
+                    payload_series_info = payload.get("series_info", {})
+                    if payload_series_info:
+                        series_info = {**payload_series_info, **series_info}
+                        series_name = series_info.get("name", series_name)
+                        brand_name = series_info.get("brand", brand_name)
+                    print("  找到懂车帝 entity API 缓存，尝试解析配置数据...")
+            except Exception as e:
+                print(f"  解析 entity API 缓存异常: {e}")
         next_data_match = re.search(
             r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html_content, re.DOTALL
         )
-        if next_data_match:
+        if next_data_match and not raw_data:
             try:
                 import json as json_mod
 
                 next_data = json_mod.loads(next_data_match.group(1))
-                print(f"  找到__NEXT_DATA__，尝试解析配置数据...")
+                if is_login_required_next_data(next_data):
+                    print("  拒绝 login-required __NEXT_DATA__ 登录壳")
+                else:
+                    print(f"  找到__NEXT_DATA__，尝试解析配置数据...")
 
-                # 尝试从props.pageProps.rawData提取数据
-                props = next_data.get("props", {})
-                page_props = props.get("pageProps", {})
-                raw_data = page_props.get("rawData", {})
+                    # 尝试从props.pageProps.rawData提取数据
+                    props = next_data.get("props", {})
+                    page_props = props.get("pageProps", {})
+                    raw_data = page_props.get("rawData", {})
+            except Exception as e:
+                print(f"  解析__NEXT_DATA__异常: {e}")
 
-                if raw_data:
+        if raw_data:
+            try:
                     # 提取车型信息
                     car_info = raw_data.get("car_info", [])
                     if car_info:
@@ -1130,10 +1131,10 @@ def parse_config_pages(series_list):
                                     all_headers.append(prop_text)
 
                         print(
-                            f"  从__NEXT_DATA__解析到 {len(car_info)} 个车型, {len(car_data)} 个配置属性"
+                            f"  从配置 payload 解析到 {len(car_info)} 个车型, {len(car_data)} 个配置属性"
                         )
             except Exception as e:
-                print(f"  解析__NEXT_DATA__异常: {e}")
+                print(f"  解析配置 payload 异常: {e}")
 
         # 如果__NEXT_DATA__解析失败，则尝试原有解析方式
         if not car_data:
@@ -1141,7 +1142,7 @@ def parse_config_pages(series_list):
             # 尝试多种选择器
 
             # 方式1: 查找表格
-            tables = soup.find_all("table")
+            tables = soup.find_all("table") if soup else []
             if tables:
                 for table in tables:
                     rows = table.find_all("tr")
@@ -1164,7 +1165,7 @@ def parse_config_pages(series_list):
                 # 新的选择器匹配懂车帝2026年页面结构
                 param_rows = soup.select(
                     '[class*="table_row"], [class*="row_"], [class*="cell_row"], [class*="param-row"], [class*="config-row"]'
-                )
+                ) if soup else []
                 for row in param_rows:
                     # 尝试多种选择器获取标签和值
                     label_elem = row.select_one(
@@ -1311,18 +1312,14 @@ def main():
                 print("无法获取车系列表，退出")
                 sys.exit(1)
 
-            browser = create_browser()
-            try:
-                browser = crawl_series_config(browser, series_list)
-                if DEBUG_MODE:
-                    if not is_debug_step2_completed():
-                        print("调试模式：step2 未达到要求的 HTML 数量，等待下次继续")
-                        sys.exit(10)
-                    print("调试模式：step2 已生成足够 HTML，进入 step3 解析")
-                elif AUTO_MODE and not is_step2_completed():
+            crawl_series_config(None, series_list)
+            if DEBUG_MODE:
+                if not is_debug_step2_completed():
+                    print("调试模式：step2 未达到要求的配置缓存数量，等待下次继续")
                     sys.exit(10)
-            finally:
-                browser.quit()
+                print("调试模式：step2 已生成足够配置缓存，进入 step3 解析")
+            elif AUTO_MODE and not is_step2_completed():
+                sys.exit(10)
         elif args.step == 3:
             series_list = progress.get("series_list", [])
             all_rows, all_headers = parse_config_pages(series_list)
@@ -1343,15 +1340,10 @@ def main():
             generate_output(all_rows, all_headers)
     else:
         series_list = get_series_list()
-        browser = create_browser()
-        try:
-            browser = crawl_series_config(browser, series_list)
-            all_rows, all_headers = parse_config_pages(series_list)
-            require_non_empty_rows(all_rows, "全流程")
-            generate_output(all_rows, all_headers)
-        finally:
-            browser.quit()
-            print("浏览器已关闭")
+        crawl_series_config(None, series_list)
+        all_rows, all_headers = parse_config_pages(series_list)
+        require_non_empty_rows(all_rows, "全流程")
+        generate_output(all_rows, all_headers)
 
 
 if __name__ == "__main__":

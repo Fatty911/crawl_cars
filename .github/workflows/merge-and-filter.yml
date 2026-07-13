@@ -81,7 +81,13 @@ jobs:
           else
             MIN_ARTIFACT_DATE="${CN_MONTH}16"
           fi
-          echo "只接受当前半月内 artifact，最早日期: $MIN_ARTIFACT_DATE"
+          if [ "$DEBUG_MODE" = "true" ]; then
+            STABLE_MIN_DATE_ARGS=()
+            echo "debug 模式允许 stable-first 基线回退到最近可用的历史 stable artifact"
+          else
+            STABLE_MIN_DATE_ARGS=(--min-date "$MIN_ARTIFACT_DATE")
+            echo "只接受当前半月内 artifact，最早日期: $MIN_ARTIFACT_DATE"
+          fi
 
           python scripts/download_latest_crawler_artifact.py \
             --repo "${{ github.repository }}" \
@@ -90,7 +96,7 @@ jobs:
             --json-pattern "autoHome_*.json" \
             --label "汽车之家" \
             --output-dir merge-inputs/stable/autohome \
-            --min-date "$MIN_ARTIFACT_DATE" \
+            "${STABLE_MIN_DATE_ARGS[@]}" \
             --min-rows 50
 
           python scripts/download_latest_crawler_artifact.py \
@@ -100,7 +106,7 @@ jobs:
             --json-pattern "dongchedi_*.json" \
             --label "懂车帝" \
             --output-dir merge-inputs/stable/dongchedi \
-            --min-date "$MIN_ARTIFACT_DATE" \
+            "${STABLE_MIN_DATE_ARGS[@]}" \
             --min-rows 50
 
           mapfile -t AUTOHOME_STABLE < <(find merge-inputs/stable/autohome -maxdepth 1 -type f -name 'autoHome_*.json' -print)

@@ -266,6 +266,12 @@ jobs:
           echo "Exit code: $EXIT_CODE"
 
           if [ $EXIT_CODE -eq 10 ]; then
+            if [ "$DEBUG_MODE" = "true" ]; then
+              echo "Debug 模式 step2 在 30 个尝试内未生成足够有效配置缓存，终止工作流"
+              echo "complete=false" >> "$GITHUB_OUTPUT"
+              echo "failed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             echo "Step2 incomplete, committing progress and ending this workflow run..."
             if [ "$DEBUG_MODE" != "true" ]; then
               git config --local user.email "xuerui911@gmail.com"
@@ -338,6 +344,11 @@ jobs:
           set -e
           echo "Retry step2 exit code: $EXIT_CODE"
           if [ $EXIT_CODE -eq 10 ]; then
+            if [ "$DEBUG_MODE" = "true" ]; then
+              echo "Debug 模式修复后 step2 仍未生成足够有效配置缓存，终止工作流"
+              echo "complete=false" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
             echo "修复后 step2 仍未完成，提交进度并结束本次运行"
             if [ "$DEBUG_MODE" != "true" ]; then
               git config --local user.email "xuerui911@gmail.com"
@@ -395,8 +406,8 @@ jobs:
         id: finalize_dongchedi
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         run: |
-          if ! find scripts/dongchedi/json -type f -name '*.html' -size +0c -print -quit | grep -q .; then
-            echo "step2 尚未缓存到有效 HTML，保留进度并等待下次续跑"
+          if ! find scripts/dongchedi/json -type f \( -name '*.json' -o -name '*.html' \) -size +0c -print -quit | grep -q .; then
+            echo "step2 尚未缓存到有效配置 payload，保留进度并等待下次续跑"
             echo "has_output=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi

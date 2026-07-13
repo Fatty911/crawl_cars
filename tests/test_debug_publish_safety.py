@@ -221,6 +221,17 @@ class WorkflowValidatorTests(unittest.TestCase):
         errors = self.check_mutated_crawler(path.name, mutated)
         self.assertTrue(any("自动修复/重试路径" in error for error in errors))
 
+    def test_dongchedi_debug_incomplete_must_fail_closed(self) -> None:
+        path = ROOT / ".github/workflows/crawl-dongchedi.yml"
+        text = path.read_text(encoding="utf-8")
+        mutated = text.replace(
+            'echo "failed=true" >> "$GITHUB_OUTPUT"',
+            'echo "failed=false" >> "$GITHUB_OUTPUT"',
+            1,
+        )
+        errors = self.check_mutated_crawler(path.name, mutated)
+        self.assertTrue(any("失败关闭" in error for error in errors))
+
     def test_actual_dongchedi_cache_and_progress_paths_are_guarded(self) -> None:
         ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
         sync = (SCRIPTS / "git_sync_progress.sh").read_text(encoding="utf-8")
@@ -256,6 +267,19 @@ class WorkflowValidatorTests(unittest.TestCase):
         mutated = first + marker + middle + "scripts/removed.py" + last + f"\n# {marker}\n"
         errors = self.check_mutated_merge(mutated)
         self.assertTrue(any("先规范化" in error for error in errors))
+
+    def test_debug_stable_baseline_can_fall_back_to_historical_artifact(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        self.assertIn('if [ "$DEBUG_MODE" = "true" ]; then', text)
+        self.assertIn("STABLE_MIN_DATE_ARGS=()", text)
+        self.assertIn('"${STABLE_MIN_DATE_ARGS[@]}"', text)
+        self.assertFalse(self.check_mutated_merge(text))
+
+    def test_normal_stable_baseline_must_keep_current_half_month_limit(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        mutated = text.replace('STABLE_MIN_DATE_ARGS=(--min-date "$MIN_ARTIFACT_DATE")', "STABLE_MIN_DATE_ARGS=()", 1)
+        errors = self.check_mutated_merge(mutated)
+        self.assertTrue(any("普通模式未继续限制当前半月" in error for error in errors))
 
 
 class MergePagesYearTests(unittest.TestCase):
