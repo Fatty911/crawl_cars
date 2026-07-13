@@ -128,6 +128,14 @@ def row_year(row):
     return None
 
 
+def backfill_year_from_model_name(row):
+    if str(row.get("年款", "") or "").strip() not in ("", "-"):
+        return
+    match = re.search(r"(?:19|20)\d{2}", str(row.get("车型名称", "") or ""))
+    if match:
+        row["年款"] = match.group(0)
+
+
 def keep_pages_year(row):
     year = row_year(row)
     return year is not None and year >= 2022
@@ -493,6 +501,7 @@ def norm_rows(rows, source):
         for key in ["品牌", "车系", "车系ID", "车型名称", "年款"]:
             if key in row:
                 normalized[key] = row[key]
+        backfill_year_from_model_name(normalized)
 
         # 品牌回填：汽车之家爬虫可能漏品牌，从车系名推导
         if (not normalized.get("品牌") or normalized.get("品牌") == "-") and source == "汽车之家":
@@ -552,6 +561,13 @@ def merge_single_row(ah_row, dcd_row):
     for key in all_keys:
         ah_val = str(ah_row.get(key, "") or "")
         dcd_val = str(dcd_row.get(key, "") or "")
+        if key == "年款":
+            ah_candidate = dict(ah_row)
+            dcd_candidate = dict(dcd_row)
+            backfill_year_from_model_name(ah_candidate)
+            backfill_year_from_model_name(dcd_candidate)
+            ah_val = str(ah_candidate.get(key, "") or "")
+            dcd_val = str(dcd_candidate.get(key, "") or "")
 
         if key in IDENTITY_FIELDS:
             # 标识字段：不拼接，优先取非空且更完整的值

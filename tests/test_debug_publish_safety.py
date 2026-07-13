@@ -129,6 +129,10 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
 
 
 class VerifyPublishSupersetTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.merge_data = load_merge_module()
+
     def run_verify(self, baseline: list[dict], candidate: list[dict]) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -169,6 +173,52 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         result = self.run_verify(baseline, candidate)
 
         self.assertEqual(0, result.returncode, result.stderr)
+
+    def test_one_stable_and_twenty_five_debug_year_fallback_rows_verify(self) -> None:
+        baseline = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026"}]
+        debug_rows = [
+            {"车系ID": str(101 + index), "车型名称": f"{chr(66 + index)} 2026款 Pro", "年款": ""}
+            for index in range(25)
+        ]
+        candidate = self.merge_data.norm_rows(baseline + debug_rows, "汽车之家")
+
+        result = self.run_verify(baseline, candidate)
+
+        self.assertEqual(26, len(candidate))
+        self.assertTrue(all(row["年款"] == "2026" for row in candidate))
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(
+            {"baseline_rows": 1, "candidate_rows": 26, "retained_rows": 1, "added_rows": 25, "missing_rows": 0},
+            json.loads(result.stdout.strip().splitlines()[-1]),
+        )
+
+    def test_norm_rows_preserves_explicit_year_when_model_name_has_other_year(self) -> None:
+        rows = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2025"}]
+
+        normalized = self.merge_data.norm_rows(rows, "汽车之家")
+
+        self.assertEqual("2025", normalized[0]["年款"])
+
+    def test_norm_rows_keeps_unparseable_missing_year_fail_closed(self) -> None:
+        rows = [{"车系ID": "100", "车型名称": "A Pro", "年款": ""}]
+
+        normalized = self.merge_data.norm_rows(rows, "汽车之家")
+        result = self.run_verify([{"车系ID": "100", "车型名称": "A Pro", "年款": "2026"}], normalized)
+
+        self.assertEqual("", normalized[0]["年款"])
+        self.assertNotEqual(0, result.returncode)
+
+    def test_merge_single_row_and_single_source_rows_backfill_model_name_year(self) -> None:
+        merged = self.merge_data.merge_single_row(
+            {"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "-"},
+            {"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": ""},
+        )
+        autohome_only = self.merge_data.norm_rows([{"车系ID": "101", "车型名称": "B 2026款 Pro", "年款": ""}], "汽车之家")
+        dongchedi_only = self.merge_data.norm_rows([{"车系ID": "102", "车型名称": "C 2026款 Pro", "年款": "-"}], "懂车帝")
+
+        self.assertEqual("2026", merged["年款"])
+        self.assertEqual("2026", autohome_only[0]["年款"])
+        self.assertEqual("2026", dongchedi_only[0]["年款"])
 
     def test_missing_identity_fails_even_when_candidate_has_more_rows(self) -> None:
         baseline = [
