@@ -1,3 +1,10 @@
+## 2026-07-13
+
+### Fixed
+- `crawl-dongchedi.yml` 仅在 step2 或修复后 retry_step2 真正完成时写入半月完成 marker；debug、full、partial 三类 artifact 使用互斥名称，未完成但有效的懂车帝输出上传为 `dongchedi-partial-data-YYYYMMDD` 并继续触发合并。
+- `merge-and-filter.yml` 在非 debug 触发中按 trigger_source、run_id、run_attempt 和 workflow path 精确匹配汽车之家/懂车帝 partial artifact；每次最多接受唯一 partial，并通过 stable-first 规范化覆盖对应来源输入，另一来源或无 partial 时继续使用 stable。
+- 同步更新 workflow validator 与定向测试，防止完成 marker 误写、partial artifact 漏合并或扩大 debug/full/partial 范围。
+
 ## 2026-07-06
 
 ### Fixed

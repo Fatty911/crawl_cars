@@ -179,41 +179,62 @@ jobs:
                 --stable "${DONGCHEDI_STABLE[0]}" --debug "${DEBUG_JSON[0]}" --output dongchedi_debug_prepared.json
             fi
           else
-            if [ "$TRIGGER_SOURCE" = "autohome-crawl" ] && [[ "$CRAWLER_RUN_ID" =~ ^[0-9]+$ && "$CRAWLER_RUN_ATTEMPT" =~ ^[0-9]+$ ]]; then
+            cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
+            cp "${DONGCHEDI_STABLE[0]}" dongchedi_stable.json
+            case "$TRIGGER_SOURCE" in
+              autohome-crawl)
+                PARTIAL_SOURCE=autohome
+                PARTIAL_WORKFLOW='.github/workflows/crawl-autohome.yml'
+                PARTIAL_REGEX='^autohome-partial-data-[0-9]{8}$'
+                PARTIAL_JSON_PATTERN='autoHome_*.json'
+                PARTIAL_STABLE="${AUTOHOME_STABLE[0]}"
+                PARTIAL_OUTPUT='autoHome_partial_prepared.json'
+                PARTIAL_TARGET='autoHome_stable.json'
+                ;;
+              dongchedi-crawl)
+                PARTIAL_SOURCE=dongchedi
+                PARTIAL_WORKFLOW='.github/workflows/crawl-dongchedi.yml'
+                PARTIAL_REGEX='^dongchedi-partial-data-[0-9]{8}$'
+                PARTIAL_JSON_PATTERN='dongchedi_*.json'
+                PARTIAL_STABLE="${DONGCHEDI_STABLE[0]}"
+                PARTIAL_OUTPUT='dongchedi_partial_prepared.json'
+                PARTIAL_TARGET='dongchedi_stable.json'
+                ;;
+              *)
+                PARTIAL_SOURCE=''
+                ;;
+            esac
+            if [ -n "${PARTIAL_SOURCE:-}" ] && [[ "$CRAWLER_RUN_ID" =~ ^[0-9]+$ && "$CRAWLER_RUN_ATTEMPT" =~ ^[0-9]+$ ]]; then
               RUN_ATTEMPT=$(gh api "repos/${{ github.repository }}/actions/runs/$CRAWLER_RUN_ID" --jq '.run_attempt')
               RUN_PATH=$(gh api "repos/${{ github.repository }}/actions/runs/$CRAWLER_RUN_ID" --jq '.path')
               RUN_PATH="${RUN_PATH%%@*}"
-              if [ "$RUN_ATTEMPT" != "$CRAWLER_RUN_ATTEMPT" ] || [ "$RUN_PATH" != ".github/workflows/crawl-autohome.yml" ]; then
-                echo "指定 run/attempt/source 与汽车之家 workflow 不匹配"
+              if [ "$RUN_ATTEMPT" != "$CRAWLER_RUN_ATTEMPT" ] || [ "$RUN_PATH" != "$PARTIAL_WORKFLOW" ]; then
+                echo "指定 run/attempt/source 与 partial workflow 不匹配"
                 exit 1
               fi
               mapfile -t PARTIAL_ARTIFACTS < <(
                 gh api "repos/${{ github.repository }}/actions/runs/$CRAWLER_RUN_ID/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false) | .name' \
-                  | grep -E '^autohome-partial-data-[0-9]{8}$' || true
+                  | grep -E "$PARTIAL_REGEX" || true
               )
               if [ "${#PARTIAL_ARTIFACTS[@]}" -gt 1 ]; then
-                echo "指定汽车之家 run 的 partial artifact 不唯一"
+                echo "指定 $PARTIAL_SOURCE run 的 partial artifact 不唯一"
                 exit 1
               elif [ "${#PARTIAL_ARTIFACTS[@]}" -eq 1 ]; then
-                mkdir -p merge-inputs/incremental/autohome
+                mkdir -p "merge-inputs/incremental/$PARTIAL_SOURCE"
                 gh run download "$CRAWLER_RUN_ID" \
                   --repo "${{ github.repository }}" \
                   --name "${PARTIAL_ARTIFACTS[0]}" \
-                  --dir merge-inputs/incremental/autohome
-                mapfile -t PARTIAL_JSON < <(find merge-inputs/incremental/autohome -type f -name 'autoHome_*.json' -print)
+                  --dir "merge-inputs/incremental/$PARTIAL_SOURCE"
+                mapfile -t PARTIAL_JSON < <(find "merge-inputs/incremental/$PARTIAL_SOURCE" -type f -name "$PARTIAL_JSON_PATTERN" -print)
                 if [ "${#PARTIAL_JSON[@]}" -ne 1 ]; then
-                  echo "partial artifact 内必须精确包含一份 autoHome_*.json"
+                  echo "partial artifact 内必须精确包含一份 $PARTIAL_JSON_PATTERN"
                   exit 1
                 fi
                 python scripts/prepare_debug_merge_inputs.py \
-                  --stable "${AUTOHOME_STABLE[0]}" --debug "${PARTIAL_JSON[0]}" --output autoHome_partial_prepared.json
-              else
-                cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
+                  --stable "$PARTIAL_STABLE" --debug "${PARTIAL_JSON[0]}" --output "$PARTIAL_OUTPUT"
+                mv "$PARTIAL_OUTPUT" "$PARTIAL_TARGET"
               fi
-            else
-              cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
             fi
-            cp "${DONGCHEDI_STABLE[0]}" dongchedi_stable.json
           fi
 
           echo "规范化后的合并输入:"

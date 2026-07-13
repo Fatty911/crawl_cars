@@ -254,6 +254,18 @@ class WorkflowValidatorTests(unittest.TestCase):
         errors = self.check_mutated_merge(text.replace("autoHome_partial_prepared.json", "autoHome_stable.json"))
         self.assertTrue(any("partial artifact" in error for error in errors))
 
+    def test_partial_dongchedi_artifact_must_enter_safe_incremental_merge(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        errors = self.check_mutated_merge(text.replace("dongchedi_partial_prepared.json", "dongchedi_stable.json"))
+        self.assertTrue(any("partial artifact" in error for error in errors))
+
+    def test_dongchedi_full_marker_requires_step2_completion(self) -> None:
+        path = ROOT / ".github/workflows/crawl-dongchedi.yml"
+        text = path.read_text(encoding="utf-8")
+        mutated = text.replace(" && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')", "", 1)
+        errors = self.check_mutated_crawler(path.name, mutated)
+        self.assertTrue(any("完成标记" in error for error in errors))
+
     def test_missing_prepare_reports_errors_without_traceback(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
         errors = self.check_mutated_merge(text.replace("scripts/prepare_debug_merge_inputs.py", "scripts/removed.py"))

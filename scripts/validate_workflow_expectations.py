@@ -141,6 +141,15 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
             f"{path.name} debug step2 未完成时未失败关闭",
             errors,
         )
+        assert_condition(
+            "Mark Dongchedi period complete" in text
+            and "steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true'" in text
+            and "dongchedi-partial-data-${CRAWL_DATE}" in text
+            and "dongchedi-debug-data-${CRAWL_DATE}-${{ github.run_id }}-${{ github.run_attempt }}" in text
+            and "dongchedi-data-${CRAWL_DATE}" in text,
+            f"{path.name} 必须仅在 step2/retry_step2 完成时写完成标记，并保持 debug/full/partial artifact 名称互斥",
+            errors,
+        )
         required_state_paths = (
             "rm -f scripts/dongchedi/progress.json dcd_step2_done",
             "rm -rf scripts/dongchedi/json",
@@ -255,14 +264,17 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
     merge_position = text.find("scripts/merge_data.py")
     assert_condition(
         len(prepare_positions) == 3,
-        "merge-and-filter.yml 未对两个 debug 来源及汽车之家 partial artifact 执行 stable-first 规范化",
+        "merge-and-filter.yml 未对两个 debug 来源及 partial artifact 执行 stable-first 规范化",
         errors,
     )
     assert_condition(
         "^autohome-partial-data-[0-9]{8}$" in text
-        and "merge-inputs/incremental/autohome" in text
-        and "autoHome_partial_prepared.json" in text,
-        "merge-and-filter.yml 未将指定汽车之家 run 的 partial artifact 纳入安全增量合并",
+        and "^dongchedi-partial-data-[0-9]{8}$" in text
+        and "merge-inputs/incremental/$PARTIAL_SOURCE" in text
+        and "autoHome_partial_prepared.json" in text
+        and "dongchedi_partial_prepared.json" in text
+        and '"$RUN_PATH" != "$PARTIAL_WORKFLOW"' in text,
+        "merge-and-filter.yml 未将指定 run/attempt/source 的汽车之家/懂车帝 partial artifact 纳入安全增量合并",
         errors,
     )
     assert_condition(
