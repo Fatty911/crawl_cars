@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,9 @@ def identity_key(row: dict[str, Any]) -> tuple[str, ...]:
         raise ValueError("each row must be a JSON object")
     model = _value(row, "车型名称")
     year = _value(row, "年款")
+    if not year:
+        match = re.search(r"(?:19|20)\d{2}", model)
+        year = match.group(0) if match else ""
     series_id = _value(row, "车系ID")
     if not model or not year:
         raise ValueError("identity requires 车型名称 and 年款")

@@ -145,6 +145,14 @@ class VerifyPublishSupersetTests(unittest.TestCase):
             json.loads(result.stdout.strip().splitlines()[-1]),
         )
 
+    def test_model_name_year_fallback_matches_explicit_baseline_year(self) -> None:
+        baseline = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026"}]
+        candidate = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": ""}]
+
+        result = self.run_verify(baseline, candidate)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+
     def test_missing_identity_fails_even_when_candidate_has_more_rows(self) -> None:
         baseline = [
             {"车系ID": "100", "车型名称": "A", "年款": "2026"},
