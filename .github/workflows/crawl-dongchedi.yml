@@ -465,7 +465,7 @@ jobs:
           PY
 
       - name: Mark Dongchedi period complete
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.verify_dongchedi.outputs.has_data == 'true' && github.event.inputs.debug_mode != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.verify_dongchedi.outputs.has_data == 'true' && github.event.inputs.debug_mode != 'true' && (steps.step2.outputs.complete == 'true' || steps.retry_step2.outputs.complete == 'true')
         run: |
           mkdir -p crawl_state
           touch "$DONGCHEDI_DONE_MARKER"
@@ -493,8 +493,10 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.debug_mode }}" = "true" ]; then
             echo "DONGCHEDI_ARTIFACT_NAME=dongchedi-debug-data-${CRAWL_DATE}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_ENV"
-          else
+          elif [ "${{ steps.step2.outputs.complete }}" = "true" ] || [ "${{ steps.retry_step2.outputs.complete }}" = "true" ]; then
             echo "DONGCHEDI_ARTIFACT_NAME=dongchedi-data-${CRAWL_DATE}" >> "$GITHUB_ENV"
+          else
+            echo "DONGCHEDI_ARTIFACT_NAME=dongchedi-partial-data-${CRAWL_DATE}" >> "$GITHUB_ENV"
           fi
 
       - name: Upload Dongchedi artifact
