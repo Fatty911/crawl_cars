@@ -34,6 +34,7 @@ env:
   PROGRESS_COMMIT_BUFFER_SECONDS: 1800
   WINDOW_END_BUFFER_SECONDS: 900
   MAX_CARS: 0
+  DEBUG_OUTPUT_MAX_ROWS: 30
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
   DCD_GET_TIMEOUT_SECONDS: 45
@@ -430,6 +431,7 @@ jobs:
 
           print(f"{path}: {len(rows)} rows")
           min_rows = 20 if debug_mode else 50
+          max_rows = int(os.environ.get("DEBUG_OUTPUT_MAX_ROWS", "30"))
           if incremental and len(rows) == 0:
               print("增量模式：无新增车系，跳过上传")
               with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -437,6 +439,8 @@ jobs:
               sys.exit(0)
           elif len(rows) < min_rows:
               raise SystemExit(f"懂车帝数据只有 {len(rows)} 行，疑似未完整爬取，拒绝上传")
+          elif debug_mode and len(rows) > max_rows:
+              raise SystemExit(f"懂车帝 debug 数据有 {len(rows)} 行，超过 {max_rows} 行上限，拒绝上传")
           else:
               with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                   f.write("has_data=true\n")

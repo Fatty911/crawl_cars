@@ -13,11 +13,13 @@ class FakeElement {
     this.dataset = {};
     this.disabled = false;
     this.hidden = false;
+    this.listeners = {};
     this.textContent = "";
     this.value = "";
+    this.validity = { valid: true };
   }
 
-  addEventListener() {}
+  addEventListener(type, listener) { this.listeners[type] = listener; }
   click() {}
   closest() { return null; }
   querySelectorAll() { return []; }
@@ -26,6 +28,10 @@ class FakeElement {
   appendChild(child) {
     this.children.push(child);
     return child;
+  }
+
+  dispatch(type, event = {}) {
+    this.listeners[type](Object.assign({ preventDefault() {}, target: this }, event));
   }
 }
 
@@ -151,6 +157,42 @@ test("Pages only uses the deduplicated 2022+ display set for source coverage and
   assert.equal(elements.get("verifiedCount").textContent, "3");
   assert.equal(elements.get("dongchediCount").textContent, "4");
   assert.equal(elements.get("autohomeCount").textContent, "2");
+});
+
+test("Pages page jump rejects invalid values and clamps valid integers", () => {
+  const { elements, hooks } = loadAppForTest();
+  const rows = Array.from({ length: 250 }, (_, index) => row("仅懂车帝", 2026, "车型" + index));
+  const pageJump = elements.get("pageJump");
+
+  hooks.initializeRows(rows);
+  hooks.renderResultsOnly();
+  assert.equal(elements.get("pageInfo").textContent, "第 1 / 3 页");
+
+  pageJump.value = "2.5";
+  pageJump.validity = { valid: false };
+  elements.get("goPage").dispatch("click");
+  assert.equal(hooks.state.page, 1);
+  assert.equal(pageJump.value, "1");
+
+  pageJump.value = "";
+  elements.get("goPage").dispatch("click");
+  assert.equal(hooks.state.page, 1);
+  assert.equal(pageJump.value, "1");
+
+  pageJump.value = "3";
+  pageJump.validity = { valid: true };
+  elements.get("goPage").dispatch("click");
+  assert.equal(hooks.state.page, 3);
+
+  pageJump.value = "99";
+  pageJump.validity = { valid: false };
+  elements.get("goPage").dispatch("click");
+  assert.equal(hooks.state.page, 3);
+
+  pageJump.value = "2";
+  pageJump.validity = { valid: true };
+  pageJump.dispatch("keydown", { key: "Enter" });
+  assert.equal(hooks.state.page, 2);
 });
 
 const liveDataPath = process.env.CARS_LIVE_DATA;

@@ -35,6 +35,8 @@ MAX_TIME_PER_STEP = args.time_limit
 MAX_CARS_PER_RUN = args.max_cars
 AUTO_MODE = args.auto
 INCREMENTAL_MODE = args.incremental
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+DEBUG_OUTPUT_MAX_ROWS = int(os.getenv("DEBUG_OUTPUT_MAX_ROWS", "30"))
 CRAWL_MIN_DELAY_SECONDS = float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "8"))
 CRAWL_MAX_DELAY_SECONDS = float(os.getenv("CRAWL_MAX_DELAY_SECONDS", "20"))
 if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
@@ -1059,6 +1061,10 @@ def generate_csv():
                 f.write(f"{file}: {e}\n")
 
     fieldnames = fixed + all_h
+    if DEBUG_MODE and DEBUG_OUTPUT_MAX_ROWS > 0 and len(rows) > DEBUG_OUTPUT_MAX_ROWS:
+        print(f"Debug模式：输出从 {len(rows)} 条截断为 {DEBUG_OUTPUT_MAX_ROWS} 条，避免缩小稳定全量 Pages")
+        rows = rows[:DEBUG_OUTPUT_MAX_ROWS]
+
     csv_path = os.path.join(working_dir, f"autoHome_{today}.csv")
     with open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)

@@ -102,14 +102,16 @@ class AutohomeCompletionTests(unittest.TestCase):
         self.assertIn("/crawl_state/autohome/", gitignore)
         self.assertFalse((ROOT / "scripts/progress.json").exists())
 
-    def test_workflow_separates_partial_artifacts_from_completed_data(self) -> None:
+    def test_workflow_publishes_partial_artifacts_and_triggers_merge(self) -> None:
         workflow = (ROOT / ".github/workflows/crawl-autohome.yml").read_text(encoding="utf-8")
-        self.assertIn("AUTOHOME_ARTIFACT_PREFIX=autohome-partial-data", workflow)
+        self.assertIn("AUTOHOME_ARTIFACT_NAME=autohome-partial-data", workflow)
         self.assertIn("if-no-files-found: error", workflow)
         self.assertIn("steps.verify_autohome.outputs.has_data == 'true'", workflow)
         trigger = workflow.split("- name: Trigger merge-and-filter workflow", 1)[1]
-        self.assertIn("steps.step1.outputs.complete == 'true'", trigger)
-        self.assertIn("steps.retry_step1.outputs.complete == 'true'", trigger)
+        condition = trigger.split("run: |", 1)[0]
+        self.assertIn("if: steps.upload_autohome.outcome == 'success'", condition)
+        self.assertNotIn("steps.step1.outputs.complete == 'true'", condition)
+        self.assertNotIn("steps.retry_step1.outputs.complete == 'true'", condition)
 
 
 if __name__ == "__main__":

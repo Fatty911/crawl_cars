@@ -85,6 +85,8 @@ MAX_SERIES_PER_RUN = args.max_series
 AUTO_MODE = args.auto
 INCREMENTAL_MODE = args.incremental
 DEBUG_MODE = args.debug_limit > 0
+WORKFLOW_DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+DEBUG_OUTPUT_MAX_ROWS = int(os.getenv("DEBUG_OUTPUT_MAX_ROWS", "30"))
 
 # 调试模式：强制开启增量扫描模式，并限制爬取数量
 if DEBUG_MODE:
@@ -1253,6 +1255,10 @@ def generate_output(all_rows, all_headers):
     """生成CSV输出文件（全部属性）"""
     print("第四步：生成输出文件")
     today = date.today().strftime("%Y%m%d")
+
+    if WORKFLOW_DEBUG_MODE and DEBUG_OUTPUT_MAX_ROWS > 0 and len(all_rows) > DEBUG_OUTPUT_MAX_ROWS:
+        print(f"Debug模式：输出从 {len(all_rows)} 条截断为 {DEBUG_OUTPUT_MAX_ROWS} 条，避免缩小稳定全量 Pages")
+        all_rows = all_rows[:DEBUG_OUTPUT_MAX_ROWS]
 
     fixed_headers = ["品牌", "车系", "车系ID", "车型名称", "年款"]
     fieldnames = fixed_headers + [h for h in all_headers if h not in fixed_headers]

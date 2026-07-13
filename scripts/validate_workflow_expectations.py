@@ -41,7 +41,9 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
         errors,
     )
     assert_condition('echo "MAX_CARS=30" >> "$GITHUB_ENV"' in text, f"{path.name} debug 上限必须固定为 30", errors)
+    assert_condition("DEBUG_OUTPUT_MAX_ROWS: 30" in text, f"{path.name} debug 输出上限必须固定为 30 行", errors)
     assert_condition("min_rows = 20 if debug_mode" in text, f"{path.name} debug 有效输出不得少于 20 行", errors)
+    assert_condition("debug_mode and len(rows) > max_rows" in text, f"{path.name} debug 有效输出不得多于 30 行", errors)
     assert_condition(
         "github.event.inputs.debug_mode != 'true'" in text.split("uses: actions/cache@main", 1)[0].rsplit("if:", 1)[-1],
         f"{path.name} debug 不得恢复正式 cache",
@@ -79,6 +81,20 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
         f"{path.name} debug artifact 未绑定 run_id/run_attempt",
         errors,
     )
+    if path.name == "crawl-autohome.yml":
+        assert_condition(
+            "fromJSON(steps.verify_autohome.outputs.row_count) >= 500" in text,
+            f"{path.name} 完成标记必须由全量行数阈值兜底",
+            errors,
+        )
+        trigger_condition = text.split("name: Trigger merge-and-filter workflow", 1)[1].split("run: |", 1)[0]
+        assert_condition(
+            "if: steps.upload_autohome.outcome == 'success'" in trigger_condition
+            and "steps.step1.outputs.complete" not in trigger_condition
+            and "steps.retry_step1.outputs.complete" not in trigger_condition,
+            f"{path.name} 任一有效 artifact 上传成功后都必须自动触发合并",
+            errors,
+        )
     for input_name in ("debug_mode", "crawler_run_id", "crawler_run_attempt", "trigger_source"):
         assert_condition(
             f"-f {input_name}=" in text,
@@ -216,8 +232,15 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
     prepare_positions = [match.start() for match in re.finditer("scripts/prepare_debug_merge_inputs.py", text)]
     merge_position = text.find("scripts/merge_data.py")
     assert_condition(
-        len(prepare_positions) == 2,
-        "merge-and-filter.yml 未对两个 debug 来源执行 stable-first 规范化",
+        len(prepare_positions) == 3,
+        "merge-and-filter.yml 未对两个 debug 来源及汽车之家 partial artifact 执行 stable-first 规范化",
+        errors,
+    )
+    assert_condition(
+        "^autohome-partial-data-[0-9]{8}$" in text
+        and "merge-inputs/incremental/autohome" in text
+        and "autoHome_partial_prepared.json" in text,
+        "merge-and-filter.yml 未将指定汽车之家 run 的 partial artifact 纳入安全增量合并",
         errors,
     )
     assert_condition(

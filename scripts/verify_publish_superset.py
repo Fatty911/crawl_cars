@@ -8,12 +8,15 @@ import json
 import sys
 from pathlib import Path
 
+from merge_data import keep_pages_year
 from prepare_debug_merge_inputs import identity_key, load_rows
 
 
 def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> dict[str, int]:
+    baseline_rows = [row for row in baseline_rows if keep_pages_year(row)]
+    candidate_rows = [row for row in candidate_rows if keep_pages_year(row)]
     if not baseline_rows or not candidate_rows:
-        raise ValueError("baseline and candidate must both be non-empty")
+        raise ValueError("2022+ baseline and candidate must both be non-empty")
     if len(candidate_rows) < len(baseline_rows):
         raise ValueError(
             f"candidate row count decreased: baseline={len(baseline_rows)} candidate={len(candidate_rows)}"

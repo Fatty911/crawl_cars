@@ -81,6 +81,8 @@
     prevPage: document.getElementById("prevPage"),
     nextPage: document.getElementById("nextPage"),
     pageInfo: document.getElementById("pageInfo"),
+    pageJump: document.getElementById("pageJump"),
+    goPage: document.getElementById("goPage"),
     conditionList: document.getElementById("conditionList"),
     fieldSelect: document.getElementById("fieldSelect"),
     fieldOperator: document.getElementById("fieldOperator"),
@@ -726,6 +728,8 @@
     els.dongchediCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "懂车帝"); }).length);
     els.autohomeCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "汽车之家"); }).length);
     els.pageInfo.textContent = "第 " + state.page + " / " + pageCount + " 页";
+    els.pageJump.max = String(pageCount);
+    els.pageJump.value = String(state.page);
     els.prevPage.disabled = state.page <= 1;
     els.nextPage.disabled = state.page >= pageCount;
     renderTableBody(filtered);
@@ -1215,6 +1219,26 @@
     els.nextPage.addEventListener("click", function () {
       state.page += 1;
       renderResultsOnly();
+    });
+
+    function jumpToPage() {
+      var pageCount = Math.max(1, Math.ceil(getFilteredRows().length / state.pageSize));
+      var rawValue = els.pageJump.value.trim();
+      var requested = Number(rawValue);
+      if (!rawValue || !Number.isInteger(requested)) {
+        els.pageJump.value = String(state.page);
+        return;
+      }
+      state.page = Math.min(pageCount, Math.max(1, requested));
+      renderResultsOnly();
+    }
+
+    els.goPage.addEventListener("click", jumpToPage);
+    els.pageJump.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        jumpToPage();
+      }
     });
 
     els.saveHistory.addEventListener("click", saveRemoteHistory);

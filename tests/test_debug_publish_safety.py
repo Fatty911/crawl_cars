@@ -23,6 +23,16 @@ def load_validator_module():
     return module
 
 
+def load_merge_module():
+    path = SCRIPTS / "merge_data.py"
+    spec = importlib.util.spec_from_file_location("merge_data_regression", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class PrepareDebugMergeInputsTests(unittest.TestCase):
     def run_prepare(self, stable: list[dict], debug: list[dict]) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
         with tempfile.TemporaryDirectory() as tmp:
@@ -163,6 +173,21 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("row count", result.stderr.lower())
 
+    def test_pre_2022_baseline_rows_do_not_block_2022_plus_publication(self) -> None:
+        baseline = [
+            {"车系ID": "old", "车型名称": "旧款", "年款": "2021"},
+            {"车系ID": "new", "车型名称": "新款", "年款": "2022"},
+        ]
+        candidate = [{"车系ID": "new", "车型名称": "新款", "年款": "2022"}]
+
+        result = self.run_verify(baseline, candidate)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(
+            {"baseline_rows": 1, "candidate_rows": 1, "retained_rows": 1, "added_rows": 0, "missing_rows": 0},
+            json.loads(result.stdout.strip().splitlines()[-1]),
+        )
+
 
 class WorkflowValidatorTests(unittest.TestCase):
     @classmethod
@@ -202,6 +227,22 @@ class WorkflowValidatorTests(unittest.TestCase):
         self.assertIn("/scripts/dongchedi/json/", ignore)
         self.assertIn('"scripts/dongchedi/progress.json"', sync)
 
+    def test_partial_autohome_upload_must_trigger_merge(self) -> None:
+        path = ROOT / ".github/workflows/crawl-autohome.yml"
+        text = path.read_text(encoding="utf-8")
+        mutated = text.replace(
+            "if: steps.upload_autohome.outcome == 'success'",
+            "if: steps.upload_autohome.outcome == 'success' && steps.step1.outputs.complete == 'true'",
+            1,
+        )
+        errors = self.check_mutated_crawler(path.name, mutated)
+        self.assertTrue(any("自动触发合并" in error for error in errors))
+
+    def test_partial_autohome_artifact_must_enter_safe_incremental_merge(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        errors = self.check_mutated_merge(text.replace("autoHome_partial_prepared.json", "autoHome_stable.json"))
+        self.assertTrue(any("partial artifact" in error for error in errors))
+
     def test_missing_prepare_reports_errors_without_traceback(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
         errors = self.check_mutated_merge(text.replace("scripts/prepare_debug_merge_inputs.py", "scripts/removed.py"))
@@ -215,6 +256,36 @@ class WorkflowValidatorTests(unittest.TestCase):
         mutated = first + marker + middle + "scripts/removed.py" + last + f"\n# {marker}\n"
         errors = self.check_mutated_merge(mutated)
         self.assertTrue(any("先规范化" in error for error in errors))
+
+
+class MergePagesYearTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.merge_data = load_merge_module()
+
+    def test_pages_year_filter_keeps_only_2022_and_newer(self) -> None:
+        rows = [
+            {"年款": "2021", "车型名称": "旧款"},
+            {"年款": "2022", "车型名称": "新款"},
+            {"年款": "-", "车型名称": "测试 2023款 Pro"},
+            {"年款": "", "车型名称": "未知年款"},
+        ]
+
+        kept = [row["车型名称"] for row in rows if self.merge_data.keep_pages_year(row)]
+
+        self.assertEqual(["新款", "测试 2023款 Pro"], kept)
+
+
+class PagesPaginationTests(unittest.TestCase):
+    def test_pages_supports_direct_page_jump(self) -> None:
+        html = (ROOT / "docs/index.html").read_text(encoding="utf-8")
+        script = (ROOT / "docs/app.js").read_text(encoding="utf-8")
+
+        self.assertIn('id="pageJump" type="number"', html)
+        self.assertIn('id="goPage"', html)
+        self.assertIn('els.goPage.addEventListener("click", jumpToPage)', script)
+        self.assertIn('els.pageJump.addEventListener("keydown"', script)
+        self.assertIn("Math.min(pageCount, Math.max(1, requested))", script)
 
 
 if __name__ == "__main__":

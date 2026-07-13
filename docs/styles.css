@@ -151,12 +151,30 @@ button {
 .field-filter input,
 .field-filter select,
 .column-search input,
-#pageSize {
+#pageSize,
+#pageJump {
   min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--text);
+  font-size: 13px;
+}
+
+#pageJump {
+  width: 64px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.page-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
   font-size: 13px;
 }
 

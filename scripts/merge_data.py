@@ -120,6 +120,19 @@ def parse_numbers(value):
     return [float(n) for n in re.findall(r"\d+(?:\.\d+)?", str(value))]
 
 
+def row_year(row):
+    for field in ("年款", "车型名称"):
+        match = re.search(r"(?:19|20)\d{2}", str(row.get(field, "") or ""))
+        if match:
+            return int(match.group(0))
+    return None
+
+
+def keep_pages_year(row):
+    year = row_year(row)
+    return year is not None and year >= 2022
+
+
 # 品牌名归一化: 汽车之家 vs 懂车帝使用不同品牌名
 BRAND_NORMALIZE = {
     "北京": "北京越野",
@@ -769,6 +782,9 @@ def main():
     # 再合并（按车型去重）
     all_rows = merge_rows(autohome_rows, dongchedi_rows)
     all_rows = enrich_zero_ratio(all_rows, load_zero_ratio_rows())
+    before_year_filter = len(all_rows)
+    all_rows = [row for row in all_rows if keep_pages_year(row)]
+    print(f"2022年及以后车型: {len(all_rows)}/{before_year_filter}")
 
     filtered_rows = [row for row in all_rows if filter_car(row)]
     print(f"过滤后符合条件的车型: {len(filtered_rows)} 辆")
