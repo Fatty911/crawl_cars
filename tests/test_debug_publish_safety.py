@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import importlib.util
 import subprocess
+from datetime import datetime, timezone
 import sys
 import tempfile
 import unittest
@@ -23,6 +24,16 @@ def load_validator_module():
     return module
 
 
+def load_zero_to_whole_module():
+    path = SCRIPTS / "crawl_zero_to_whole_ratio.py"
+    spec = importlib.util.spec_from_file_location("zero_to_whole_regression", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def load_merge_module():
     path = SCRIPTS / "merge_data.py"
     spec = importlib.util.spec_from_file_location("merge_data_regression", path)
@@ -31,6 +42,12 @@ def load_merge_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+class ZeroToWholeRatioDateTests(unittest.TestCase):
+    def test_dated_artifact_uses_shanghai_date_when_utc_is_previous_day(self) -> None:
+        module = load_zero_to_whole_module()
+        self.assertEqual("20260714", module.shanghai_datestamp(datetime(2026, 7, 13, 16, 30, tzinfo=timezone.utc)))
 
 
 class PrepareDebugMergeInputsTests(unittest.TestCase):
