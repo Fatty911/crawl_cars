@@ -415,6 +415,13 @@ jobs:
           python scripts/crawl_dongchedi.py --step 4
           echo "has_output=true" >> "$GITHUB_OUTPUT"
 
+      - name: Normalize Dongchedi output path
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.finalize_dongchedi.outputs.has_output == 'true'
+        run: |
+          shopt -s nullglob
+          files=(scripts/dongchedi_*.json)
+          cp -f "${files[@]}" .
+
       - name: Set date
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.finalize_dongchedi.outputs.has_output == 'true'
         run: echo "CRAWL_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
