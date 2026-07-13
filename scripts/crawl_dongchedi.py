@@ -183,6 +183,11 @@ CURRENT_YEAR = 2026
 MIN_YEAR = 0  # 爬取所有车型
 
 
+def extract_model_year(value):
+    match = re.search(r"((?:19|20)\d{2})", str(value or ""))
+    return match.group(1) if match else ""
+
+
 def is_pure_gas_car(row, all_headers):
     """判断是否为纯油车（非插混、非纯电、非增程）"""
     for h in all_headers:
@@ -1089,7 +1094,12 @@ def parse_config_pages(series_list):
                         car_data["车型名称"] = car_names
 
                         # 年款信息
-                        year_values = [info.get("car_year", "") for info in car_info]
+                        year_values = []
+                        for info in car_info:
+                            car_year = str(info.get("car_year", "") or "").strip()
+                            if not extract_model_year(car_year):
+                                car_year = extract_model_year(info.get("car_name", ""))
+                            year_values.append(car_year)
                         if any(year_values):
                             car_data["年款"] = year_values
 
@@ -1219,6 +1229,9 @@ def parse_config_pages(series_list):
         for i in range(num_cars):
             # 年款过滤
             year_str = year_values[i] if i < len(year_values) else ""
+            if not extract_model_year(year_str):
+                model_name_for_year = car_names[i] if i < len(car_names) else ""
+                year_str = extract_model_year(model_name_for_year)
             year_match = re.search(r"(\d{4})", year_str)
             if year_match:
                 year = int(year_match.group(1))

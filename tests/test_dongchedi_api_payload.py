@@ -176,7 +176,34 @@ class DongchediApiPayloadTest(unittest.TestCase):
         self.assertEqual(rows[0]["品牌"], "吉利银河")
         self.assertEqual(rows[0]["车系ID"], "3504")
         self.assertEqual(rows[0]["车型名称"], "银河E5 2026款 探索版")
+        self.assertEqual(rows[0]["年款"], "2026款")
         self.assertIn("CLTC纯电续航", headers)
+
+    def test_parse_entity_api_payload_fills_missing_year_from_model_name(self):
+        api_payload = {
+            "source": "dongchedi_entity_api",
+            "series_info": {"id": "3506", "name": "银河E5", "brand": "吉利银河"},
+            "car_ids": ["256891"],
+            "data": {
+                "car_info": [
+                    {
+                        "car_name": "银河E5 2026款 探索版",
+                        "car_year": "",
+                        "official_price": "10.98万",
+                        "brand_name": "吉利银河",
+                        "info": {"energy": {"value": "纯电动"}},
+                    }
+                ],
+                "properties": [{"key": "energy", "text": "能源类型"}],
+            },
+        }
+        Path(self.module.dcd_json_dir, "3506.json").write_text(json.dumps(api_payload, ensure_ascii=False), encoding="utf-8")
+
+        rows, _ = self.module.parse_config_pages([{"id": "3506", "name": "银河E5", "brand": "吉利银河"}])
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["车型名称"], "银河E5 2026款 探索版")
+        self.assertEqual(rows[0]["年款"], "2026")
 
 
 if __name__ == "__main__":
