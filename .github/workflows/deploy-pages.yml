@@ -132,6 +132,14 @@ jobs:
             DATE=$(basename "$MERGED_JSON" | sed -E 's/merged_([0-9]+)\.json/\1/')
             cp "$MERGED_JSON" site/data/latest.json
             cp "${FILTERED_JSON_FILES[0]}" site/data/filtered.json
+            python scripts/prepare_pages_payload.py \
+              --input site/data/latest.json \
+              --output site/data/latest.json \
+              --min-year 2022
+            python scripts/prepare_pages_payload.py \
+              --input site/data/filtered.json \
+              --output site/data/filtered.json \
+              --min-year 2022
             cp "${MERGED_CSV_FILES[0]}" "site/data/merged_${DATE}.csv"
             cp "${FILTERED_CSV_FILES[0]}" "site/data/filtered_cars_${DATE}.csv"
 

@@ -215,6 +215,17 @@ test("live Pages data has the expected deduplicated 2022+ source coverage", { sk
   assert.equal(Math.min(...hooks.state.rows.map((item) => Number(item["年款"]))), 2022);
 });
 
+test("Pages does not expose dedicated brand or series filters", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "docs", "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "docs", "styles.css"), "utf8");
+  assert.doesNotMatch(html, /id="(?:brandFilter|centerBrandFilter)"/);
+  assert.doesNotMatch(html, /id="(?:seriesFilter|centerSeriesFilter)"/);
+  assert.ok(html.indexOf('class="summary-strip"') < html.indexOf('id="filterCenter"'));
+  assert.match(html, /核心条件/);
+  assert.match(css, /\.summary-strip\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
+  assert.match(css, /\.center-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+});
+
 
 test("Pages custom sort supports multiple levels, keyword order, natural numeric order and snapshots", () => {
   const { hooks } = loadAppForTest();

@@ -21,7 +21,7 @@
           </div>
           <label class="search-control">
             <span>搜索</span>
-            <input id="globalSearch" type="search" placeholder="品牌、车系、配置项...">
+            <input id="globalSearch" type="search" placeholder="车型名称、功能与配置项...">
           </label>
           <button class="icon-button" id="resetFilters" type="button" title="清空筛选" aria-label="清空筛选">
             <span aria-hidden="true">↺</span>
@@ -33,23 +33,43 @@
       </header>
 
       <main class="workspace">
+        <section class="summary-strip" aria-label="数据概览">
+          <div>
+            <span class="summary-label">当前结果</span>
+            <strong id="visibleCount">0</strong>
+          </div>
+          <div>
+            <span class="summary-label">全部记录</span>
+            <strong id="totalCount">0</strong>
+          </div>
+          <div>
+            <span class="summary-label">双源核验</span>
+            <strong id="verifiedCount">0</strong>
+          </div>
+          <div>
+            <span class="summary-label">懂车帝覆盖</span>
+            <strong id="dongchediCount">0</strong>
+          </div>
+          <div>
+            <span class="summary-label">汽车之家覆盖</span>
+            <strong id="autohomeCount">0</strong>
+          </div>
+          <div>
+            <span class="summary-label">可见列</span>
+            <strong id="columnCount">0</strong>
+          </div>
+        </section>
+
         <section class="center-region" id="filterCenter" aria-label="车型筛选中心">
           <div class="center-hero">
             <div>
               <span class="eyebrow">数据源车型筛选</span>
-              <h2>按品牌、车系与核心配置快速找车</h2>
+              <h2>按功能与核心配置快速找车</h2>
               <p>条件来自筛选配置，结果与高级数据表共用同一过滤和排序。</p>
             </div>
             <div class="center-count"><strong id="centerVisibleCount">0</strong><span>匹配车型</span></div>
           </div>
           <div class="center-filters">
-            <section>
-              <h3>品牌 / 车系</h3>
-              <div class="center-inline">
-                <label><span>品牌</span><select id="centerBrandFilter"></select></label>
-                <label><span>车系</span><select id="centerSeriesFilter"></select></label>
-              </div>
-            </section>
             <section>
               <h3>核心条件</h3>
               <div class="center-condition-list" id="centerConditionList"></div>
@@ -61,42 +81,7 @@
         </section>
 
         <section class="table-region" id="tableRegion" aria-label="车型配置数据表">
-          <div class="summary-strip">
-            <div>
-              <span class="summary-label">当前结果</span>
-              <strong id="visibleCount">0</strong>
-            </div>
-            <div>
-              <span class="summary-label">全部记录</span>
-              <strong id="totalCount">0</strong>
-            </div>
-            <div>
-              <span class="summary-label">双源核验</span>
-              <strong id="verifiedCount">0</strong>
-            </div>
-            <div>
-              <span class="summary-label">懂车帝覆盖</span>
-              <strong id="dongchediCount">0</strong>
-            </div>
-            <div>
-              <span class="summary-label">汽车之家覆盖</span>
-              <strong id="autohomeCount">0</strong>
-            </div>
-            <div>
-              <span class="summary-label">可见列</span>
-              <strong id="columnCount">0</strong>
-            </div>
-          </div>
-
           <div class="quick-filters" aria-label="快速筛选">
-            <label>
-              <span>品牌</span>
-              <select id="brandFilter"></select>
-            </label>
-            <label>
-              <span>车系</span>
-              <select id="seriesFilter"></select>
-            </label>
             <label>
               <span>每页</span>
               <select id="pageSize">

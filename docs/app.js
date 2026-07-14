@@ -560,12 +560,14 @@
   }
 
   function renderFilters() {
-    renderOptions(els.brandFilter, uniqueValues(state.rows, "品牌"), "品牌");
-    renderOptions(els.seriesFilter, uniqueValues(state.brand ? state.rows.filter(function (row) {
-      return row["品牌"] === state.brand;
-    }) : state.rows, "车系"), "车系");
-    els.brandFilter.value = state.brand;
-    els.seriesFilter.value = state.series;
+    if (els.brandFilter && els.seriesFilter) {
+      renderOptions(els.brandFilter, uniqueValues(state.rows, "品牌"), "品牌");
+      renderOptions(els.seriesFilter, uniqueValues(state.brand ? state.rows.filter(function (row) {
+        return row["品牌"] === state.brand;
+      }) : state.rows, "车系"), "车系");
+      els.brandFilter.value = state.brand;
+      els.seriesFilter.value = state.series;
+    }
 
     els.fieldSelect.textContent = "";
     state.columns.forEach(function (column) {
@@ -789,10 +791,12 @@
   }
 
   function renderCenterFilters() {
-    renderOptions(els.centerBrandFilter, uniqueValues(state.rows, "品牌"), "品牌");
-    renderOptions(els.centerSeriesFilter, uniqueValues(state.brand ? state.rows.filter(function (row) { return row["品牌"] === state.brand; }) : state.rows, "车系"), "车系");
-    els.centerBrandFilter.value = state.brand;
-    els.centerSeriesFilter.value = state.series;
+    if (els.centerBrandFilter && els.centerSeriesFilter) {
+      renderOptions(els.centerBrandFilter, uniqueValues(state.rows, "品牌"), "品牌");
+      renderOptions(els.centerSeriesFilter, uniqueValues(state.brand ? state.rows.filter(function (row) { return row["品牌"] === state.brand; }) : state.rows, "车系"), "车系");
+      els.centerBrandFilter.value = state.brand;
+      els.centerSeriesFilter.value = state.series;
+    }
     els.centerConditionList.textContent = "";
     (state.config.conditions || []).forEach(function (condition) {
       var label = document.createElement("label");
@@ -1209,8 +1213,10 @@
 
     els.centerMode.addEventListener("click", function () { state.mode = "center"; renderEverything(); });
     els.tableMode.addEventListener("click", function () { state.mode = "table"; renderEverything(); });
-    els.centerBrandFilter.addEventListener("change", function (event) { state.brand = event.target.value; state.series = ""; state.page = 1; state.cardLimit = 24; renderEverything(); });
-    els.centerSeriesFilter.addEventListener("change", function (event) { state.series = event.target.value; state.page = 1; state.cardLimit = 24; renderResultsOnly(); renderCenterFilters(); });
+    if (els.centerBrandFilter && els.centerSeriesFilter) {
+      els.centerBrandFilter.addEventListener("change", function (event) { state.brand = event.target.value; state.series = ""; state.page = 1; state.cardLimit = 24; renderEverything(); });
+      els.centerSeriesFilter.addEventListener("change", function (event) { state.series = event.target.value; state.page = 1; state.cardLimit = 24; renderResultsOnly(); renderCenterFilters(); });
+    }
     els.centerConditionList.addEventListener("change", function (event) {
       if (event.target.type !== "checkbox") { return; }
       var condition = (state.config.conditions || []).find(function (item) { return item.id === event.target.dataset.conditionId; });
@@ -1262,18 +1268,20 @@
       renderResultsOnly();
     });
 
-    els.brandFilter.addEventListener("change", function (event) {
-      state.brand = event.target.value;
-      state.series = "";
-      state.page = 1;
-      renderEverything();
-    });
+    if (els.brandFilter && els.seriesFilter) {
+      els.brandFilter.addEventListener("change", function (event) {
+        state.brand = event.target.value;
+        state.series = "";
+        state.page = 1;
+        renderEverything();
+      });
 
-    els.seriesFilter.addEventListener("change", function (event) {
-      state.series = event.target.value;
-      state.page = 1;
-      renderResultsOnly();
-    });
+      els.seriesFilter.addEventListener("change", function (event) {
+        state.series = event.target.value;
+        state.page = 1;
+        renderResultsOnly();
+      });
+    }
 
     els.pageSize.addEventListener("change", function (event) {
       state.pageSize = Number(event.target.value);

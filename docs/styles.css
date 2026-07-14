@@ -196,6 +196,7 @@ button {
 
 .summary-strip {
   display: grid;
+  grid-column: 1 / -1;
   grid-template-columns: repeat(6, minmax(100px, 1fr));
   margin-bottom: 10px;
   overflow: hidden;
@@ -677,7 +678,7 @@ tbody tr:hover td {
 .center-hero p { margin: 0; color: var(--muted); }
 .center-count { text-align: right; }
 .center-count strong { display: block; font-size: 34px; color: var(--accent); }
-.center-filters { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 12px; }
+.center-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .center-inline, .sort-level { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .center-inline label, .sort-level label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .center-inline select, .sort-level select, .sort-level textarea { border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: var(--surface); color: var(--text); }
