@@ -473,15 +473,38 @@ class WorkflowValidatorTests(unittest.TestCase):
     def test_debug_stable_baseline_can_fall_back_to_historical_artifact(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
         self.assertIn('if [ "$DEBUG_MODE" = "true" ]; then', text)
-        self.assertIn("STABLE_MIN_DATE_ARGS=()", text)
-        self.assertIn('"${STABLE_MIN_DATE_ARGS[@]}"', text)
+        self.assertIn("AUTOHOME_STABLE_MIN_DATE_ARGS=()", text)
+        self.assertIn("DONGCHEDI_STABLE_MIN_DATE_ARGS=()", text)
         self.assertFalse(self.check_mutated_merge(text))
 
-    def test_normal_stable_baseline_must_keep_current_half_month_limit(self) -> None:
+    def test_normal_stable_baselines_keep_independent_current_half_month_limits(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
-        mutated = text.replace('STABLE_MIN_DATE_ARGS=(--min-date "$MIN_ARTIFACT_DATE")', "STABLE_MIN_DATE_ARGS=()", 1)
-        errors = self.check_mutated_merge(mutated)
-        self.assertTrue(any("普通模式未继续限制当前半月" in error for error in errors))
+        for source in ("AUTOHOME", "DONGCHEDI"):
+            with self.subTest(source=source):
+                mutated = text.replace(
+                    f'{source}_STABLE_MIN_DATE_ARGS=(--min-date "$MIN_ARTIFACT_DATE")',
+                    f"{source}_STABLE_MIN_DATE_ARGS=()",
+                    1,
+                )
+                errors = self.check_mutated_merge(mutated)
+                self.assertTrue(any("普通半月限制" in error for error in errors))
+
+    def test_partial_history_fallback_requires_exact_fresh_successful_attempt(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        mutations = (
+            (text.replace("/attempts/$CRAWLER_RUN_ATTEMPT", "", 1), "精确成功 attempt"),
+            (text.replace('"$RUN_CONCLUSION" != "success"', '"$RUN_CONCLUSION" != "failure"', 1), "精确成功 attempt"),
+            (text.replace('"$ARTIFACT_DATE" < "$MIN_ARTIFACT_DATE"', '"$ARTIFACT_DATE" > "$MIN_ARTIFACT_DATE"', 1), "精确成功 attempt"),
+            (text.replace('"$ARTIFACT_CREATED_AT" < "$RUN_STARTED_AT"', '"$ARTIFACT_CREATED_AT" > "$RUN_STARTED_AT"', 1), "精确成功 attempt"),
+            (text.replace('"$ARTIFACT_CREATED_AT" > "$RUN_UPDATED_AT"', '"$ARTIFACT_CREATED_AT" < "$RUN_UPDATED_AT"', 1), "精确成功 attempt"),
+            (text.replace('if [ "${#PARTIAL_ARTIFACTS[@]}" -gt 1 ]; then', 'if [ "${#PARTIAL_ARTIFACTS[@]}" -gt 2 ]; then', 1), "精确成功 attempt"),
+            (text.replace("DONGCHEDI_STABLE_MIN_DATE_ARGS=()\n                fi", "AUTOHOME_STABLE_MIN_DATE_ARGS=()\n                  DONGCHEDI_STABLE_MIN_DATE_ARGS=()\n                fi", 1), "精确成功 attempt"),
+            (text.replace("actions/artifacts/$PARTIAL_ARTIFACT_ID/zip", "actions/artifacts/by-name/zip", 1), "partial artifact"),
+        )
+        for mutated, expected_error in mutations:
+            with self.subTest(expected_error=expected_error):
+                errors = self.check_mutated_merge(mutated)
+                self.assertTrue(any(expected_error in error for error in errors))
 
 
 class MergePagesYearTests(unittest.TestCase):

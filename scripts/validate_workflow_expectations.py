@@ -239,10 +239,34 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
     assert_condition("MIN_ARTIFACT_DATE" in text, "merge-and-filter.yml 缺少当前半月 artifact 日期限制", errors)
     assert_condition(
         'if [ "$DEBUG_MODE" = "true" ]; then' in text
-        and "STABLE_MIN_DATE_ARGS=()" in text
-        and 'STABLE_MIN_DATE_ARGS=(--min-date "$MIN_ARTIFACT_DATE")' in text
-        and '"${STABLE_MIN_DATE_ARGS[@]}"' in text,
-        "merge-and-filter.yml debug 模式未允许 stable-first 基线回退且普通模式未继续限制当前半月",
+        and 'AUTOHOME_STABLE_MIN_DATE_ARGS=(--min-date "$MIN_ARTIFACT_DATE")' in text
+        and 'DONGCHEDI_STABLE_MIN_DATE_ARGS=(--min-date "$MIN_ARTIFACT_DATE")' in text
+        and "AUTOHOME_STABLE_MIN_DATE_ARGS=()" in text
+        and "DONGCHEDI_STABLE_MIN_DATE_ARGS=()" in text
+        and '"${AUTOHOME_STABLE_MIN_DATE_ARGS[@]}"' in text
+        and '"${DONGCHEDI_STABLE_MIN_DATE_ARGS[@]}"' in text,
+        "merge-and-filter.yml 未保持两来源独立的普通半月限制与 debug 历史基线回退",
+        errors,
+    )
+    partial_gate_position = text.find('PARTIAL_ARTIFACT_NAME _ <<< "${PARTIAL_ARTIFACTS[0]}"')
+    stable_download_position = text.find("python scripts/download_latest_crawler_artifact.py")
+    source_specific_fallback = """if [ "$PARTIAL_SOURCE" = "autohome" ]; then
+                  AUTOHOME_STABLE_MIN_DATE_ARGS=()
+                else
+                  DONGCHEDI_STABLE_MIN_DATE_ARGS=()
+                fi"""
+    assert_condition(
+        "/attempts/$CRAWLER_RUN_ATTEMPT" in text
+        and '"$RUN_STATUS" != "completed"' in text
+        and '"$RUN_CONCLUSION" != "success"' in text
+        and '"$ARTIFACT_DATE" < "$MIN_ARTIFACT_DATE"' in text
+        and '"$ARTIFACT_CREATED_AT" < "$RUN_STARTED_AT"' in text
+        and '"$ARTIFACT_CREATED_AT" > "$RUN_UPDATED_AT"' in text
+        and source_specific_fallback in text
+        and 'if [ "${#PARTIAL_ARTIFACTS[@]}" -gt 1 ]; then' in text
+        and partial_gate_position >= 0
+        and partial_gate_position < stable_download_position,
+        "merge-and-filter.yml 未在下载 stable 前按精确成功 attempt 和当前半月 partial 仅放宽对应来源",
         errors,
     )
     assert_condition(
@@ -273,7 +297,10 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         and "merge-inputs/incremental/$PARTIAL_SOURCE" in text
         and "autoHome_partial_prepared.json" in text
         and "dongchedi_partial_prepared.json" in text
-        and '"$RUN_PATH" != "$PARTIAL_WORKFLOW"' in text,
+        and '"$RUN_PATH" != "$PARTIAL_WORKFLOW"' in text
+        and 'actions/artifacts/$PARTIAL_ARTIFACT_ID/zip' in text
+        and 'unzip -q "$PARTIAL_ARCHIVE"' in text
+        and '--name "$PARTIAL_ARTIFACT_NAME"' not in text,
         "merge-and-filter.yml 未将指定 run/attempt/source 的汽车之家/懂车帝 partial artifact 纳入安全增量合并",
         errors,
     )
