@@ -7,25 +7,45 @@ const test = require("node:test");
 const vm = require("node:vm");
 
 class FakeElement {
-  constructor() {
+  constructor(tagName = "div") {
     this.children = [];
-    this.classList = { contains: () => false };
+    this.className = "";
+    this.classList = { contains: (name) => this.className.split(/\s+/).includes(name) };
     this.dataset = {};
     this.disabled = false;
     this.hidden = false;
     this.listeners = {};
-    this.textContent = "";
+    this._textContent = "";
     this.value = "";
     this.validity = { valid: true };
+    this.attributes = {};
+    this.parentNode = null;
+    this.tagName = String(tagName).toUpperCase();
+  }
+
+  get textContent() { return this._textContent; }
+  set textContent(value) {
+    this._textContent = String(value);
+    this.children = [];
   }
 
   addEventListener(type, listener) { this.listeners[type] = listener; }
   click() {}
-  closest() { return null; }
+  closest(selector) {
+    if (selector.startsWith(".") && this.classList.contains(selector.slice(1))) { return this; }
+    return this.parentNode ? this.parentNode.closest(selector) : null;
+  }
   querySelectorAll() { return []; }
-  remove() {}
+  remove() {
+    if (this.parentNode) {
+      this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
+    }
+  }
+  setAttribute(name, value) { this.attributes[name] = String(value); }
+  getAttribute(name) { return this.attributes[name]; }
 
   appendChild(child) {
+    child.parentNode = this;
     this.children.push(child);
     return child;
   }
@@ -40,7 +60,7 @@ function loadAppForTest() {
   const document = {
     body: new FakeElement(),
     createDocumentFragment: () => new FakeElement(),
-    createElement: () => new FakeElement(),
+    createElement: (tagName) => new FakeElement(tagName),
     createTextNode: (text) => ({ textContent: text }),
     getElementById(id) {
       if (!elements.has(id)) {
@@ -73,6 +93,7 @@ function loadAppForTest() {
     `window.CARS_TEST_HOOKS = {
       atomicSources: typeof atomicSources === "function" ? atomicSources : undefined,
       getFilteredRows: getFilteredRows,
+      groupRowsBySeries: groupRowsBySeries,
       initializeRows: initializeRows,
       renderResultsOnly: renderResultsOnly,
       snapshotFilters: snapshotFilters,
@@ -222,6 +243,7 @@ test("Pages does not expose dedicated brand or series filters", () => {
   assert.doesNotMatch(html, /id="(?:seriesFilter|centerSeriesFilter)"/);
   assert.ok(html.indexOf('class="summary-strip"') < html.indexOf('id="filterCenter"'));
   assert.match(html, /核心条件/);
+  assert.match(html, /匹配车系/);
   assert.match(css, /\.summary-strip\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
   assert.match(css, /\.center-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
 });
@@ -250,6 +272,60 @@ test("Pages custom sort supports multiple levels, keyword order, natural numeric
   hooks.state.sortLevels = [];
   hooks.applySnapshot(snap);
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.getFilteredRows().map((item) => item["车型名称"]))), JSON.parse(JSON.stringify(before)));
+});
+
+test("Pages filter center groups models by series and uses price extrema as representatives", () => {
+  const { elements, hooks } = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("仅懂车帝", 2026, "S1 高配"), { "品牌": "A", "车系": "S1", "官方指导价": "30万" }),
+    Object.assign(row("仅懂车帝", 2026, "S1 低配"), { "品牌": "A", "车系": "S1", "官方指导价": "20万" }),
+    Object.assign(row("仅懂车帝", 2026, "S2 高配"), { "品牌": "A", "车系": "S2", "官方指导价": "15万" }),
+    Object.assign(row("仅懂车帝", 2026, "S2 低配"), { "品牌": "A", "车系": "S2", "官方指导价": "10万" }),
+    Object.assign(row("仅懂车帝", 2026, "无价款"), { "品牌": "A", "车系": "S3", "官方指导价": "0万" }),
+    Object.assign(row("仅懂车帝", 2025, "独立车型"), { "品牌": "B", "车系": "", "官方指导价": "-" })
+  ]);
+
+  hooks.state.sortLevels = [{ field: "官方指导价", dir: "asc", customOrder: "" }];
+  let groups = hooks.groupRowsBySeries(hooks.getFilteredRows());
+  assert.deepEqual(Array.from(groups, (group) => group.name), ["S2", "S1", "独立车型", "S3"]);
+  assert.equal(groups[0].representative["车型名称"], "S2 低配");
+  assert.equal(groups[1].representative["车型名称"], "S1 低配");
+  assert.equal(groups[2].price, null);
+  assert.match(groups[2].key, /^model\|B\|独立车型\|2025$/);
+
+  hooks.renderResultsOnly();
+  assert.equal(elements.get("centerVisibleCount").textContent, "4");
+  assert.equal(elements.get("cardList").children.length, 4);
+  assert.equal(elements.get("tableBody").children.length, 6);
+  let firstCard = elements.get("cardList").children[0];
+  let toggle = firstCard.children[0];
+  assert.equal(toggle.children[0].textContent, "S2");
+  assert.equal(toggle.children[1].textContent, "2 款车型符合条件");
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+
+  elements.get("cardList").dispatch("click", { target: toggle });
+  firstCard = elements.get("cardList").children[0];
+  toggle = firstCard.children[0];
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(firstCard.children[2].children.length, 2);
+  assert.deepEqual(Array.from(firstCard.children[2].children, (item) => item.children[0].textContent), ["S2 低配", "S2 高配"]);
+
+  hooks.state.search = "S1";
+  hooks.renderResultsOnly();
+  assert.equal(hooks.state.expandedSeries.size, 0);
+
+  hooks.state.search = "";
+  hooks.state.sortLevels = [{ field: "官方指导价", dir: "desc", customOrder: "" }];
+  groups = hooks.groupRowsBySeries(hooks.getFilteredRows());
+  assert.deepEqual(Array.from(groups, (group) => group.name), ["S1", "S2", "独立车型", "S3"]);
+  assert.equal(groups[0].representative["车型名称"], "S1 高配");
+  assert.equal(groups[1].representative["车型名称"], "S2 高配");
+
+  hooks.renderResultsOnly();
+  hooks.state.cardLimit = 1;
+  hooks.renderResultsOnly();
+  assert.equal(elements.get("cardList").children.length, 1);
+  assert.equal(elements.get("loadMoreCards").hidden, false);
 });
 
 test("Pages defaults to filter center and shares filters with table result set", () => {

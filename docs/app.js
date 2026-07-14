@@ -53,6 +53,8 @@
     sortLevels: [],
     mode: "center",
     cardLimit: 24,
+    expandedSeries: new Set(),
+    seriesViewSignature: "",
     page: 1,
     pageSize: 100,
     columnSearch: "",
@@ -480,6 +482,112 @@
     }).map(function (item) { return item.row; });
   }
 
+  function isPriceField(field) {
+    return /(?:价格|指导价|售价|报价|落地价|裸车价|补贴价)/.test(String(field || ""));
+  }
+
+  function validPrice(row, field) {
+    var value = firstNumber(row[field]);
+    return value !== null && Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  function seriesIdentity(row) {
+    var brand = String(row["品牌"] || "").trim();
+    var series = String(row["车系"] || "").trim();
+    var model = String(row["车型名称"] || "").trim();
+    var year = String(row["年款"] || "").trim();
+    if (series) {
+      return { key: "series|" + brand + "|" + series, name: series };
+    }
+    return {
+      key: "model|" + brand + "|" + model + "|" + year,
+      name: model || "未命名车系"
+    };
+  }
+
+  function groupRowsBySeries(rows) {
+    var groups = [];
+    var groupMap = new Map();
+    rows.forEach(function (row) {
+      var identity = seriesIdentity(row);
+      var group = groupMap.get(identity.key);
+      if (!group) {
+        group = {
+          key: identity.key,
+          name: identity.name,
+          rows: [],
+          representative: row,
+          price: null,
+          order: groups.length
+        };
+        groupMap.set(identity.key, group);
+        groups.push(group);
+      }
+      group.rows.push(row);
+    });
+
+    var levels = activeSortLevels();
+    var priceLevel = levels.length && isPriceField(levels[0].field) ? levels[0] : null;
+    if (!priceLevel) {
+      return groups;
+    }
+
+    groups.forEach(function (group) {
+      group.rows.forEach(function (row) {
+        var price = validPrice(row, priceLevel.field);
+        if (price === null) {
+          return;
+        }
+        var better = group.price === null ||
+          (priceLevel.dir === "desc" ? price > group.price : price < group.price);
+        if (better) {
+          group.price = price;
+          group.representative = row;
+        }
+      });
+    });
+
+    return groups.sort(function (a, b) {
+      if (a.price === null || b.price === null) {
+        if (a.price === null && b.price !== null) { return 1; }
+        if (a.price !== null && b.price === null) { return -1; }
+      } else if (a.price !== b.price) {
+        return priceLevel.dir === "desc" ? b.price - a.price : a.price - b.price;
+      }
+      for (var i = 1; i < levels.length; i += 1) {
+        var result = compareRowsByLevel(a.representative, b.representative, levels[i]);
+        if (result !== 0) {
+          return result;
+        }
+      }
+      var nameResult = a.name.localeCompare(b.name, "zh-Hans", { numeric: true });
+      return nameResult || a.key.localeCompare(b.key, "zh-Hans", { numeric: true }) || a.order - b.order;
+    });
+  }
+
+  function currentSeriesViewSignature() {
+    return JSON.stringify({
+      search: state.search,
+      brand: state.brand,
+      series: state.series,
+      columnFilters: state.columnFilters,
+      rangeFilters: state.rangeFilters,
+      featureFilters: state.featureFilters,
+      sortField: state.sortField,
+      sortDir: state.sortDir,
+      sortLevels: state.sortLevels
+    });
+  }
+
+  function syncSeriesViewState() {
+    var signature = currentSeriesViewSignature();
+    if (signature !== state.seriesViewSignature) {
+      state.expandedSeries.clear();
+      state.cardLimit = 24;
+      state.seriesViewSignature = signature;
+    }
+  }
+
   function getFilteredRows() {
     var rows = state.rows.slice();
 
@@ -827,32 +935,75 @@
     });
   }
 
-  function renderCards(rows) {
+  function appendCardMeta(container, row, fields) {
+    fields.forEach(function (field) {
+      if (row[field] && row[field] !== "-") {
+        var chip = document.createElement("span");
+        chip.textContent = field + ": " + row[field];
+        container.appendChild(chip);
+      }
+    });
+    if (row["交叉核验"] === "双源核验" || rowHasSource(row, "汽车之家") && rowHasSource(row, "懂车帝")) {
+      var badge = document.createElement("span");
+      badge.className = "verified-badge";
+      badge.textContent = "双源核验";
+      container.appendChild(badge);
+    }
+  }
+
+  function renderCards(groups) {
     els.cardList.textContent = "";
-    rows.slice(0, state.cardLimit).forEach(function (row) {
+    groups.slice(0, state.cardLimit).forEach(function (group, index) {
       var card = document.createElement("article");
+      card.className = "series-card";
+      var expanded = state.expandedSeries.has(group.key);
+      var detailId = "series-models-" + index;
+      var toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "series-card-toggle";
+      toggle.dataset.seriesKey = group.key;
+      toggle.setAttribute("aria-expanded", String(expanded));
+      toggle.setAttribute("aria-controls", detailId);
       var title = document.createElement("h3");
-      title.textContent = row["车型名称"] || row["车系"] || "未命名车型";
+      title.textContent = group.name;
+      var count = document.createElement("small");
+      count.className = "series-match-count";
+      count.textContent = group.rows.length + " 款车型符合条件";
+      var indicator = document.createElement("span");
+      indicator.className = "series-expand-indicator";
+      indicator.setAttribute("aria-hidden", "true");
+      indicator.textContent = expanded ? "收起" : "查看型号";
+      toggle.appendChild(title);
+      toggle.appendChild(count);
+      toggle.appendChild(indicator);
+      card.appendChild(toggle);
+
       var meta = document.createElement("div");
       meta.className = "card-meta";
-      ["品牌", "车系", "年款", "级别", "能源类型", "官方指导价", "百公里加速(s)", "纯电续航(km)"].forEach(function (field) {
-        if (row[field] && row[field] !== "-") {
-          var chip = document.createElement("span");
-          chip.textContent = field + ": " + row[field];
-          meta.appendChild(chip);
-        }
-      });
-      if (row["交叉核验"] === "双源核验" || rowHasSource(row, "汽车之家") && rowHasSource(row, "懂车帝")) {
-        var badge = document.createElement("span");
-        badge.className = "verified-badge";
-        badge.textContent = "双源核验";
-        meta.appendChild(badge);
-      }
-      card.appendChild(title);
+      appendCardMeta(meta, group.representative, ["品牌", "级别", "能源类型", "官方指导价", "百公里加速(s)", "纯电续航(km)"]);
       card.appendChild(meta);
+
+      if (expanded) {
+        var details = document.createElement("div");
+        details.className = "series-model-list";
+        details.id = detailId;
+        group.rows.forEach(function (row) {
+          var model = document.createElement("div");
+          model.className = "series-model-row";
+          var modelTitle = document.createElement("h4");
+          modelTitle.textContent = row["车型名称"] || "未命名车型";
+          var modelMeta = document.createElement("div");
+          modelMeta.className = "card-meta";
+          appendCardMeta(modelMeta, row, ["年款", "级别", "能源类型", "官方指导价", "百公里加速(s)", "纯电续航(km)"]);
+          model.appendChild(modelTitle);
+          model.appendChild(modelMeta);
+          details.appendChild(model);
+        });
+        card.appendChild(details);
+      }
       els.cardList.appendChild(card);
     });
-    els.loadMoreCards.hidden = rows.length <= state.cardLimit;
+    els.loadMoreCards.hidden = groups.length <= state.cardLimit;
   }
 
   function renderCustomSortPanel() {
@@ -877,7 +1028,9 @@
   }
 
   function renderResultsOnly() {
+    syncSeriesViewState();
     var filtered = getFilteredRows();
+    var seriesGroups = groupRowsBySeries(filtered);
     var pageCount = Math.max(1, Math.ceil(filtered.length / state.pageSize));
     if (state.page > pageCount) {
       state.page = pageCount;
@@ -893,8 +1046,8 @@
     els.pageJump.value = String(state.page);
     els.prevPage.disabled = state.page <= 1;
     els.nextPage.disabled = state.page >= pageCount;
-    els.centerVisibleCount.textContent = String(filtered.length);
-    renderCards(filtered);
+    els.centerVisibleCount.textContent = String(seriesGroups.length);
+    renderCards(seriesGroups);
     renderSelectedTags();
     renderTableBody(filtered);
     renderActiveFilters();
@@ -1212,7 +1365,11 @@
   function bindEvents() {
 
     els.centerMode.addEventListener("click", function () { state.mode = "center"; renderEverything(); });
-    els.tableMode.addEventListener("click", function () { state.mode = "table"; renderEverything(); });
+    els.tableMode.addEventListener("click", function () {
+      state.mode = "table";
+      state.expandedSeries.clear();
+      renderEverything();
+    });
     if (els.centerBrandFilter && els.centerSeriesFilter) {
       els.centerBrandFilter.addEventListener("change", function (event) { state.brand = event.target.value; state.series = ""; state.page = 1; state.cardLimit = 24; renderEverything(); });
       els.centerSeriesFilter.addEventListener("change", function (event) { state.series = event.target.value; state.page = 1; state.cardLimit = 24; renderResultsOnly(); renderCenterFilters(); });
@@ -1229,6 +1386,17 @@
         if (!event.target.checked) { delete state.featureFilters[condition.id]; }
       }
       state.page = 1; state.cardLimit = 24; renderResultsOnly();
+    });
+    els.cardList.addEventListener("click", function (event) {
+      var toggle = event.target.closest(".series-card-toggle");
+      if (!toggle) { return; }
+      var key = toggle.dataset.seriesKey;
+      if (state.expandedSeries.has(key)) {
+        state.expandedSeries.delete(key);
+      } else {
+        state.expandedSeries.add(key);
+      }
+      renderResultsOnly();
     });
     els.loadMoreCards.addEventListener("click", function () { state.cardLimit += 24; renderResultsOnly(); });
     els.addSortLevel.addEventListener("click", function () { state.sortLevels.push({ field: state.columns[0] || "", dir: "asc", customOrder: "" }); state.sortField = ""; renderCustomSortPanel(); renderResultsOnly(); });
@@ -1508,6 +1676,9 @@
       return Number(modelYear(row)) >= 2022;
     });
     state.rows = withDerivedDimensions(displayRows);
+    state.expandedSeries.clear();
+    state.seriesViewSignature = "";
+    state.cardLimit = 24;
     state.columns = buildColumns(state.rows);
     state.visibleColumns = new Set();
     (state.config.defaultVisibleColumns || []).forEach(function (column) {
