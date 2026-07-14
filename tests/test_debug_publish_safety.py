@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import importlib.util
 import subprocess
@@ -265,15 +266,11 @@ class VerifyPublishSupersetTests(unittest.TestCase):
 
 
 class PreservePublishBaselineTests(unittest.TestCase):
-    def test_missing_baseline_identity_is_restored_without_overwriting_candidate(self) -> None:
-        baseline = [
-            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "published"},
-            {"车系ID": "101", "车型名称": "B", "年款": "2025", "价格": "published"},
-        ]
-        candidate = [
-            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "candidate"},
-            {"车系ID": "102", "车型名称": "C", "年款": "2026", "价格": "new"},
-        ]
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.merge_data = load_merge_module()
+
+    def run_preserve(self, baseline: list[dict], candidate: list[dict]) -> tuple[subprocess.CompletedProcess[str], dict]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             paths = {
@@ -304,21 +301,77 @@ class PreservePublishBaselineTests(unittest.TestCase):
                 text=True,
                 check=False,
             )
+            outputs = {
+                "merged_json": json.loads(paths["merged_json"].read_text(encoding="utf-8")),
+                "merged_csv": self.read_csv(paths["merged_csv"]),
+                "filtered_json": self.read_json(paths["filtered_json"]),
+                "filtered_csv": self.read_csv(paths["filtered_csv"]),
+                "temp_files": sorted(path.name for path in root.iterdir() if path.name.startswith(".")),
+            }
+            return result, outputs
 
-            self.assertEqual(0, result.returncode, result.stderr)
-            self.assertEqual(candidate + [baseline[1]], json.loads(paths["merged_json"].read_text(encoding="utf-8")))
-            self.assertTrue(paths["merged_csv"].is_file())
-            self.assertTrue(paths["filtered_json"].is_file())
-            self.assertTrue(paths["filtered_csv"].is_file())
-            self.assertEqual(
-                {
-                    "baseline_rows": 2,
-                    "candidate_input_rows": 2,
-                    "candidate_output_rows": 3,
-                    "restored_rows": 1,
-                },
-                json.loads(result.stdout.strip().splitlines()[-1]),
-            )
+    @staticmethod
+    def read_json(path: Path) -> list[dict] | None:
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+    @staticmethod
+    def read_csv(path: Path) -> list[dict] | None:
+        if not path.exists():
+            return None
+        with path.open("r", encoding="utf-8-sig", newline="") as file:
+            return list(csv.DictReader(file))
+
+    @staticmethod
+    def csv_rows(rows: list[dict], fieldnames: list[str]) -> list[dict[str, str]]:
+        return [{field: str(row.get(field, "-")) for field in fieldnames} for row in rows]
+
+    def test_baseline_wins_and_all_publish_assets_share_one_final_row_set(self) -> None:
+        baseline = [
+            {"车系ID": "old", "车型名称": "旧款", "年款": "2021", "价格": "old"},
+            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "published"},
+            {"车系ID": "101", "车型名称": "B", "年款": "2025", "价格": "published"},
+        ]
+        candidate = [
+            {"车系ID": "old-debug", "车型名称": "旧调试款", "年款": "2021", "价格": "old-debug"},
+            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "candidate"},
+            {"车系ID": "102", "车型名称": "C", "年款": "2026", "价格": "new"},
+        ]
+
+        result, outputs = self.run_preserve(baseline, candidate)
+
+        expected = baseline[1:] + [candidate[2]]
+        expected_filtered = [row for row in expected if self.merge_data.filter_car(row)]
+        header = self.merge_data.collect_fields(expected)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(expected, outputs["merged_json"])
+        self.assertEqual(self.csv_rows(expected, header), outputs["merged_csv"])
+        self.assertEqual(expected_filtered, outputs["filtered_json"])
+        self.assertEqual(self.csv_rows(expected_filtered, header), outputs["filtered_csv"])
+        self.assertEqual([], outputs["temp_files"])
+        self.assertEqual(
+            {
+                "baseline_rows": 2,
+                "candidate_input_rows": 2,
+                "overlap_kept_baseline": 1,
+                "candidate_added": 1,
+                "candidate_output_rows": 3,
+            },
+            json.loads(result.stdout.strip().splitlines()[-1]),
+        )
+
+    def test_invalid_empty_or_duplicate_inputs_fail_closed_without_temp_files(self) -> None:
+        row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
+        cases = [
+            ([{"车系ID": "100", "车型名称": "A"}], [row]),
+            ([row, row], [row]),
+            ([row], [row, row]),
+            ([row], []),
+        ]
+        for baseline, candidate in cases:
+            with self.subTest(baseline=len(baseline), candidate=len(candidate)):
+                result, outputs = self.run_preserve(baseline, candidate)
+                self.assertNotEqual(0, result.returncode)
+                self.assertEqual([], outputs["temp_files"])
 
 
 class WorkflowValidatorTests(unittest.TestCase):
