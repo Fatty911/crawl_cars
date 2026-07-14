@@ -650,3 +650,53 @@ tbody tr:hover td {
     flex: 1;
   }
 }
+
+.center-region {
+  min-width: 0;
+}
+.center-hero, .center-filters section, .card-list article, .custom-sort-panel {
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.center-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.eyebrow {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+}
+.center-hero h2 { margin: 6px 0; font-size: 26px; }
+.center-hero p { margin: 0; color: var(--muted); }
+.center-count { text-align: right; }
+.center-count strong { display: block; font-size: 34px; color: var(--accent); }
+.center-filters { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 12px; }
+.center-inline, .sort-level { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.center-inline label, .sort-level label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.center-inline select, .sort-level select, .sort-level textarea { border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: var(--surface); color: var(--text); }
+.center-condition-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.center-condition-list label { border: 1px solid var(--border); border-radius: 999px; padding: 7px 10px; background: var(--surface-soft); }
+.selected-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.selected-tags span { padding: 6px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: 12px; font-weight: 700; }
+.card-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.card-list article { margin: 0; box-shadow: none; }
+.card-list h3 { margin: 0 0 8px; font-size: 17px; }
+.card-meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: 12px; }
+.card-meta span { padding: 4px 7px; border: 1px solid var(--border); border-radius: 999px; }
+.verified-badge { color: var(--accent-strong); font-weight: 800; }
+.center-actions, .custom-sort-actions { display: flex; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.custom-sort-panel h2 { margin-top: 0; }
+.sort-level { padding: 10px 0; border-top: 1px solid var(--border); }
+.sort-level:first-of-type { border-top: 0; }
+.sort-level textarea { min-width: 220px; min-height: 38px; }
+@media (max-width: 860px) {
+  .workspace, .center-filters { grid-template-columns: 1fr; }
+  .center-hero { align-items: flex-start; flex-direction: column; }
+}

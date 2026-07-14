@@ -11,10 +11,14 @@
     <div class="app-shell">
       <header class="topbar">
         <div class="brand-block">
-          <h1>车型配置表</h1>
+          <h1>车型筛选中心</h1>
           <p id="dataMeta">正在加载最新数据...</p>
         </div>
-        <div class="toolbar" aria-label="表格工具栏">
+        <div class="toolbar" aria-label="页面工具栏">
+          <div class="segmented" role="tablist" aria-label="模式切换">
+            <button class="segment active" id="centerMode" type="button">筛选中心</button>
+            <button class="segment" id="tableMode" type="button">数据表/高级模式</button>
+          </div>
           <label class="search-control">
             <span>搜索</span>
             <input id="globalSearch" type="search" placeholder="品牌、车系、配置项...">
@@ -29,7 +33,34 @@
       </header>
 
       <main class="workspace">
-        <section class="table-region" aria-label="车型配置数据表">
+        <section class="center-region" id="filterCenter" aria-label="车型筛选中心">
+          <div class="center-hero">
+            <div>
+              <span class="eyebrow">数据源车型筛选</span>
+              <h2>按品牌、车系与核心配置快速找车</h2>
+              <p>条件来自筛选配置，结果与高级数据表共用同一过滤和排序。</p>
+            </div>
+            <div class="center-count"><strong id="centerVisibleCount">0</strong><span>匹配车型</span></div>
+          </div>
+          <div class="center-filters">
+            <section>
+              <h3>品牌 / 车系</h3>
+              <div class="center-inline">
+                <label><span>品牌</span><select id="centerBrandFilter"></select></label>
+                <label><span>车系</span><select id="centerSeriesFilter"></select></label>
+              </div>
+            </section>
+            <section>
+              <h3>核心条件</h3>
+              <div class="center-condition-list" id="centerConditionList"></div>
+            </section>
+          </div>
+          <div class="selected-tags" id="selectedTags"></div>
+          <div class="card-list" id="cardList"></div>
+          <div class="center-actions"><button class="text-button" id="loadMoreCards" type="button">加载更多</button></div>
+        </section>
+
+        <section class="table-region" id="tableRegion" aria-label="车型配置数据表">
           <div class="summary-strip">
             <div>
               <span class="summary-label">当前结果</span>
@@ -75,6 +106,16 @@
                 <option value="500">500</option>
               </select>
             </label>
+          </div>
+
+          <div class="custom-sort-panel" id="customSortPanel">
+            <h2>自定义排序</h2>
+            <p>添加多个排序级别，可为每级填写按逗号或换行分隔的关键字顺序。</p>
+            <div id="customSortLevels"></div>
+            <div class="custom-sort-actions">
+              <button class="text-button" id="addSortLevel" type="button">增加排序级别</button>
+              <button class="text-button" id="clearSortLevels" type="button">清空排序</button>
+            </div>
           </div>
 
           <div class="table-wrap" id="tableWrap">

@@ -50,6 +50,9 @@
     series: "",
     sortField: "",
     sortDir: "asc",
+    sortLevels: [],
+    mode: "center",
+    cardLimit: 24,
     page: 1,
     pageSize: 100,
     columnSearch: "",
@@ -101,7 +104,21 @@
     clearGithubToken: document.getElementById("clearGithubToken"),
     historyStatus: document.getElementById("historyStatus"),
     historyList: document.getElementById("historyList"),
-    downloadList: document.getElementById("downloadList")
+    downloadList: document.getElementById("downloadList"),
+    centerMode: document.getElementById("centerMode"),
+    tableMode: document.getElementById("tableMode"),
+    filterCenter: document.getElementById("filterCenter"),
+    tableRegion: document.getElementById("tableRegion"),
+    centerBrandFilter: document.getElementById("centerBrandFilter"),
+    centerSeriesFilter: document.getElementById("centerSeriesFilter"),
+    centerConditionList: document.getElementById("centerConditionList"),
+    selectedTags: document.getElementById("selectedTags"),
+    cardList: document.getElementById("cardList"),
+    centerVisibleCount: document.getElementById("centerVisibleCount"),
+    loadMoreCards: document.getElementById("loadMoreCards"),
+    customSortLevels: document.getElementById("customSortLevels"),
+    addSortLevel: document.getElementById("addSortLevel"),
+    clearSortLevels: document.getElementById("clearSortLevels")
   };
 
   function fetchJson(url) {
@@ -405,6 +422,64 @@
     return true;
   }
 
+
+  function parseCustomOrder(text) {
+    return String(text || "").split(/[\n,，]+/).map(function (item) { return normalizeText(item.trim()); }).filter(Boolean);
+  }
+
+  function customOrderIndex(value, orderText) {
+    var valueText = normalizeText(value);
+    var order = parseCustomOrder(orderText);
+    for (var i = 0; i < order.length; i += 1) {
+      if (valueText.indexOf(order[i]) !== -1) {
+        return i;
+      }
+    }
+    return order.length;
+  }
+
+  function compareRowsByLevel(a, b, level) {
+    var av = a[level.field];
+    var bv = b[level.field];
+    var order = parseCustomOrder(level.customOrder);
+    var result;
+    if (order.length) {
+      result = customOrderIndex(av, level.customOrder) - customOrderIndex(bv, level.customOrder);
+      if (result === 0) {
+        result = String(av || "").localeCompare(String(bv || ""), "zh-Hans", { numeric: true });
+      }
+    } else {
+      var an = firstNumber(av);
+      var bn = firstNumber(bv);
+      result = an !== null && bn !== null ? an - bn : String(av || "").localeCompare(String(bv || ""), "zh-Hans", { numeric: true });
+    }
+    return level.dir === "desc" ? -result : result;
+  }
+
+  function activeSortLevels() {
+    var levels = (state.sortLevels || []).filter(function (level) { return level && level.field; });
+    if (!levels.length && state.sortField) {
+      levels = [{ field: state.sortField, dir: state.sortDir || "asc", customOrder: "" }];
+    }
+    return levels;
+  }
+
+  function sortRows(rows) {
+    var levels = activeSortLevels();
+    if (!levels.length) {
+      return rows;
+    }
+    return rows.map(function (row, index) { return { row: row, index: index }; }).sort(function (a, b) {
+      for (var i = 0; i < levels.length; i += 1) {
+        var result = compareRowsByLevel(a.row, b.row, levels[i]);
+        if (result !== 0) {
+          return result;
+        }
+      }
+      return a.index - b.index;
+    }).map(function (item) { return item.row; });
+  }
+
   function getFilteredRows() {
     var rows = state.rows.slice();
 
@@ -467,18 +542,7 @@
       });
     });
 
-    if (state.sortField) {
-      rows.sort(function (a, b) {
-        var an = firstNumber(a[state.sortField]);
-        var bn = firstNumber(b[state.sortField]);
-        var result = an !== null && bn !== null
-          ? an - bn
-          : String(a[state.sortField] || "").localeCompare(String(b[state.sortField] || ""), "zh-Hans", { numeric: true });
-        return state.sortDir === "asc" ? result : -result;
-      });
-    }
-
-    return rows;
+    return sortRows(rows);
   }
 
   function renderOptions(select, values, label) {
@@ -715,6 +779,99 @@
     });
   }
 
+
+  function renderMode() {
+    var center = state.mode !== "table";
+    els.filterCenter.hidden = !center;
+    els.tableRegion.hidden = center;
+    els.centerMode.className = center ? "segment active" : "segment";
+    els.tableMode.className = center ? "segment" : "segment active";
+  }
+
+  function renderCenterFilters() {
+    renderOptions(els.centerBrandFilter, uniqueValues(state.rows, "品牌"), "品牌");
+    renderOptions(els.centerSeriesFilter, uniqueValues(state.brand ? state.rows.filter(function (row) { return row["品牌"] === state.brand; }) : state.rows, "车系"), "车系");
+    els.centerBrandFilter.value = state.brand;
+    els.centerSeriesFilter.value = state.series;
+    els.centerConditionList.textContent = "";
+    (state.config.conditions || []).forEach(function (condition) {
+      var label = document.createElement("label");
+      var input = document.createElement("input");
+      input.type = "checkbox";
+      input.dataset.conditionId = condition.id;
+      input.checked = condition.type === "feature" ? Boolean(state.featureFilters[condition.id]) : Boolean(state.rangeFilters[condition.id]);
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(condition.label));
+      els.centerConditionList.appendChild(label);
+    });
+  }
+
+  function renderSelectedTags() {
+    els.selectedTags.textContent = "";
+    [["品牌", state.brand], ["车系", state.series]].forEach(function (item) {
+      if (!item[1]) { return; }
+      var tag = document.createElement("span");
+      tag.textContent = item[0] + ": " + item[1];
+      els.selectedTags.appendChild(tag);
+    });
+    (state.config.conditions || []).forEach(function (condition) {
+      if (state.featureFilters[condition.id] || state.rangeFilters[condition.id]) {
+        var tag = document.createElement("span");
+        tag.textContent = condition.label;
+        els.selectedTags.appendChild(tag);
+      }
+    });
+  }
+
+  function renderCards(rows) {
+    els.cardList.textContent = "";
+    rows.slice(0, state.cardLimit).forEach(function (row) {
+      var card = document.createElement("article");
+      var title = document.createElement("h3");
+      title.textContent = row["车型名称"] || row["车系"] || "未命名车型";
+      var meta = document.createElement("div");
+      meta.className = "card-meta";
+      ["品牌", "车系", "年款", "级别", "能源类型", "官方指导价", "百公里加速(s)", "纯电续航(km)"].forEach(function (field) {
+        if (row[field] && row[field] !== "-") {
+          var chip = document.createElement("span");
+          chip.textContent = field + ": " + row[field];
+          meta.appendChild(chip);
+        }
+      });
+      if (row["交叉核验"] === "双源核验" || rowHasSource(row, "汽车之家") && rowHasSource(row, "懂车帝")) {
+        var badge = document.createElement("span");
+        badge.className = "verified-badge";
+        badge.textContent = "双源核验";
+        meta.appendChild(badge);
+      }
+      card.appendChild(title);
+      card.appendChild(meta);
+      els.cardList.appendChild(card);
+    });
+    els.loadMoreCards.hidden = rows.length <= state.cardLimit;
+  }
+
+  function renderCustomSortPanel() {
+    if (!els.customSortLevels) { return; }
+    els.customSortLevels.textContent = "";
+    (state.sortLevels || []).forEach(function (level, index) {
+      var row = document.createElement("div");
+      row.className = "sort-level";
+      row.dataset.index = String(index);
+      row.innerHTML = '<label>字段<select data-role="field"></select></label><label>方向<select data-role="dir"><option value="asc">升序</option><option value="desc">降序</option></select></label><label>自定义关键字顺序<textarea data-role="customOrder" placeholder="插混, 纯电, 增程"></textarea></label><button type="button" data-role="up">上移</button><button type="button" data-role="down">下移</button><button type="button" data-role="remove">删除</button>';
+      var select = row.querySelectorAll ? row.querySelectorAll('select[data-role="field"]')[0] : null;
+      if (select) {
+        state.columns.forEach(function (column) { var option = document.createElement("option"); option.value = column; option.textContent = column; select.appendChild(option); });
+        select.value = level.field || "";
+      }
+      var dir = row.querySelectorAll ? row.querySelectorAll('select[data-role="dir"]')[0] : null;
+      if (dir) { dir.value = level.dir || "asc"; }
+      var custom = row.querySelectorAll ? row.querySelectorAll('textarea[data-role="customOrder"]')[0] : null;
+      if (custom) { custom.value = level.customOrder || ""; }
+      els.customSortLevels.appendChild(row);
+    });
+  }
+
   function renderResultsOnly() {
     var filtered = getFilteredRows();
     var pageCount = Math.max(1, Math.ceil(filtered.length / state.pageSize));
@@ -732,17 +889,23 @@
     els.pageJump.value = String(state.page);
     els.prevPage.disabled = state.page <= 1;
     els.nextPage.disabled = state.page >= pageCount;
+    els.centerVisibleCount.textContent = String(filtered.length);
+    renderCards(filtered);
+    renderSelectedTags();
     renderTableBody(filtered);
     renderActiveFilters();
   }
 
   function renderEverything() {
+    renderMode();
     renderFilters();
+    renderCenterFilters();
     renderConditions();
     renderTableHead();
     renderColumnList();
     renderDownloads();
     renderHistory();
+    renderCustomSortPanel();
     renderResultsOnly();
   }
 
@@ -787,6 +950,8 @@
       featureFilters: state.featureFilters,
       sortField: state.sortField,
       sortDir: state.sortDir,
+      sortLevels: state.sortLevels,
+      mode: state.mode,
       visibleColumns: Array.from(state.visibleColumns)
     };
   }
@@ -800,6 +965,8 @@
     state.featureFilters = snapshot.featureFilters || {};
     state.sortField = snapshot.sortField || "";
     state.sortDir = snapshot.sortDir || "asc";
+    state.sortLevels = Array.isArray(snapshot.sortLevels) ? snapshot.sortLevels : [];
+    state.mode = snapshot.mode || state.mode || "center";
     if (Array.isArray(snapshot.visibleColumns)) {
       state.visibleColumns = new Set(snapshot.visibleColumns.filter(function (column) {
         return state.columns.indexOf(column) !== -1;
@@ -1039,6 +1206,46 @@
   }
 
   function bindEvents() {
+
+    els.centerMode.addEventListener("click", function () { state.mode = "center"; renderEverything(); });
+    els.tableMode.addEventListener("click", function () { state.mode = "table"; renderEverything(); });
+    els.centerBrandFilter.addEventListener("change", function (event) { state.brand = event.target.value; state.series = ""; state.page = 1; state.cardLimit = 24; renderEverything(); });
+    els.centerSeriesFilter.addEventListener("change", function (event) { state.series = event.target.value; state.page = 1; state.cardLimit = 24; renderResultsOnly(); renderCenterFilters(); });
+    els.centerConditionList.addEventListener("change", function (event) {
+      if (event.target.type !== "checkbox") { return; }
+      var condition = (state.config.conditions || []).find(function (item) { return item.id === event.target.dataset.conditionId; });
+      if (!condition) { return; }
+      if (condition.type === "range") {
+        if (event.target.checked) { state.rangeFilters[condition.id] = { min: condition.min || "", max: condition.max || "" }; }
+        else { delete state.rangeFilters[condition.id]; }
+      } else {
+        state.featureFilters[condition.id] = event.target.checked;
+        if (!event.target.checked) { delete state.featureFilters[condition.id]; }
+      }
+      state.page = 1; state.cardLimit = 24; renderResultsOnly();
+    });
+    els.loadMoreCards.addEventListener("click", function () { state.cardLimit += 24; renderResultsOnly(); });
+    els.addSortLevel.addEventListener("click", function () { state.sortLevels.push({ field: state.columns[0] || "", dir: "asc", customOrder: "" }); state.sortField = ""; renderCustomSortPanel(); renderResultsOnly(); });
+    els.clearSortLevels.addEventListener("click", function () { state.sortLevels = []; state.sortField = ""; state.sortDir = "asc"; renderCustomSortPanel(); renderTableHead(); renderResultsOnly(); });
+    els.customSortLevels.addEventListener("change", function (event) {
+      var row = event.target.closest(".sort-level"); if (!row) { return; }
+      var level = state.sortLevels[Number(row.dataset.index)]; if (!level) { return; }
+      level[event.target.dataset.role] = event.target.value; state.sortField = ""; renderResultsOnly();
+    });
+    els.customSortLevels.addEventListener("input", function (event) {
+      if (event.target.dataset.role !== "customOrder") { return; }
+      var row = event.target.closest(".sort-level"); var level = state.sortLevels[Number(row.dataset.index)]; if (!level) { return; }
+      level.customOrder = event.target.value; state.sortField = ""; renderResultsOnly();
+    });
+    els.customSortLevels.addEventListener("click", function (event) {
+      var role = event.target.dataset.role; if (["remove", "up", "down"].indexOf(role) === -1) { return; }
+      var row = event.target.closest(".sort-level"); var index = Number(row.dataset.index);
+      if (role === "remove") { state.sortLevels.splice(index, 1); }
+      if (role === "up" && index > 0) { var prev = state.sortLevels[index - 1]; state.sortLevels[index - 1] = state.sortLevels[index]; state.sortLevels[index] = prev; }
+      if (role === "down" && index < state.sortLevels.length - 1) { var next = state.sortLevels[index + 1]; state.sortLevels[index + 1] = state.sortLevels[index]; state.sortLevels[index] = next; }
+      renderCustomSortPanel(); renderResultsOnly();
+    });
+
     els.globalSearch.addEventListener("compositionstart", function () { state.composing = true; });
     els.globalSearch.addEventListener("compositionend", function (event) {
       state.composing = false;
@@ -1080,6 +1287,7 @@
         return;
       }
       var column = button.dataset.column;
+      state.sortLevels = [];
       if (state.sortField === column) {
         state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
       } else {
@@ -1206,6 +1414,8 @@
       state.series = "";
       state.sortField = "";
       state.sortDir = "asc";
+      state.sortLevels = [];
+      state.cardLimit = 24;
       state.page = 1;
       els.globalSearch.value = "";
       renderEverything();

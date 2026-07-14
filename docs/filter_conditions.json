@@ -252,5 +252,27 @@
         "记忆"
       ]
     }
+  ],
+  "centerConditionGroups": [
+    {
+      "id": "price",
+      "label": "价格/级别",
+      "conditionIds": [
+        "zero_to_hundred",
+        "ev_range"
+      ]
+    },
+    {
+      "id": "smart",
+      "label": "核心配置",
+      "conditionIds": [
+        "city_navigation",
+        "remote_start",
+        "remote_control",
+        "bluetooth_key",
+        "seat_memory",
+        "mirror_memory"
+      ]
+    }
   ]
 }

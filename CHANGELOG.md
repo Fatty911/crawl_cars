@@ -1,3 +1,15 @@
+## 2026-07-14
+
+### Added
+- 新增双源合并证据报告脚本与 Pages 分析报告产物，合并工作流会上传 `merge-analysis-YYYYMMDD` artifact。
+- Pages 默认入口改为筛选中心，保留数据表/高级模式，并新增 Excel 式多级自定义排序和关键字顺序。
+
+### Changed
+- `merge_data.py` 车系级匹配改为稳定排序 + token/年款/能源/级别评分，低置信与歧义候选保留单源；同义值归一，真实冲突保留来源。
+
+### Tests
+- 增加 Python 合并匹配定向测试与 Node Pages UI 排序/筛选中心测试。
+
 ## 2026-07-13
 
 ### Fixed

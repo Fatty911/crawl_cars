@@ -393,6 +393,19 @@ jobs:
             --baseline /tmp/current-pages-latest.json \
             --candidate "merged_${{ steps.date.outputs.date }}.json"
 
+      - name: 生成合并证据报告
+        if: steps.validate.outputs.ready == 'true'
+        run: python scripts/analysis/merge_evidence_report.py --input "merged_${{ steps.date.outputs.date }}.json" --output docs/analysis/merge_evidence_report.json
+
+      - name: 上传合并分析报告
+        if: steps.validate.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: merge-analysis-${{ steps.date.outputs.date }}
+          path: |
+            docs/analysis/merge_evidence_report.json
+            docs/analysis/merge_stats_${{ steps.date.outputs.date }}.json
+
       - name: 上传合并产物
         if: steps.validate.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
