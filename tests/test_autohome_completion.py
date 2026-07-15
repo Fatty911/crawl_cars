@@ -102,6 +102,90 @@ class AutohomeCompletionTests(unittest.TestCase):
         self.assertIn("/crawl_state/autohome/", gitignore)
         self.assertFalse((ROOT / "scripts/progress.json").exists())
 
+    def test_priority_loader_uses_latest_merged_intersection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data_dir = root / "data"
+            data_dir.mkdir()
+            (data_dir / "dongchedi_series_list.json").write_text(
+                json.dumps(
+                    ["雅 阁", {"车系": "汉"}, {"name": "Model 3"}, 123, {"unknown": "忽略"}],
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            (data_dir / "merged_20260713.json").write_text(
+                json.dumps(
+                    [{"数据来源": "仅懂车帝", "车系": "Model 3"}],
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            (data_dir / "merged_20260714.json").write_text(
+                json.dumps(
+                    [
+                        {"数据来源": "仅懂车帝", "车系": "雅阁"},
+                        {"数据来源": "汽车之家+懂车帝", "车系": "汉"},
+                        {"数据来源": "仅懂车帝", "车系": "不在懂车帝列表"},
+                        "忽略非字典行",
+                    ],
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            (data_dir / "merged_99999999.json.bak").write_text(
+                json.dumps([{"数据来源": "仅懂车帝", "车系": "汉"}], ensure_ascii=False),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(self.autohome, "repo_dir", str(root)):
+                self.assertEqual(
+                    {"雅阁"}, self.autohome.load_autohome_priority_series_names()
+                )
+
+    def test_priority_queue_preserves_prefix_background_and_fields(self) -> None:
+        queue = [
+            {"series": "已处理一", "salecount": 1, "heat": 1},
+            {"series": "已处理二", "salecount": 2, "heat": 2},
+            {"series": "后台热门", "salecount": 100, "heat": 3},
+            {"series": "优先车系", "salecount": 1, "heat": 99},
+            {"series": "后台冷门", "salecount": 2, "heat": 999},
+        ]
+        original_keys = [set(item) for item in queue]
+
+        with mock.patch.object(
+            self.autohome,
+            "load_autohome_priority_series_names",
+            return_value={"优先车系"},
+        ):
+            result = self.autohome.prioritize_series_queue(queue, 2)
+
+        self.assertIs(queue[0], result[0])
+        self.assertIs(queue[1], result[1])
+        self.assertEqual(["已处理一", "已处理二"], [item["series"] for item in result[:2]])
+        self.assertEqual(
+            ["优先车系", "后台热门", "后台冷门"],
+            [item["series"] for item in result[2:]],
+        )
+        self.assertEqual(original_keys, [set(item) for item in queue])
+        self.assertTrue(all("priority_source" not in item for item in result))
+        self.assertEqual(len(queue), len(result))
+
+    def test_priority_queue_missing_data_and_past_end_are_noops(self) -> None:
+        queue = [
+            {"series": "车系一", "salecount": 1, "heat": 1},
+            {"series": "车系二", "salecount": 2, "heat": 2},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(self.autohome, "repo_dir", tmp):
+                self.assertEqual(queue, self.autohome.prioritize_series_queue(queue, 0))
+        with mock.patch.object(
+            self.autohome,
+            "load_autohome_priority_series_names",
+            return_value={"车系二"},
+        ):
+            self.assertEqual(queue, self.autohome.prioritize_series_queue(queue, 99))
+
     def test_workflow_publishes_partial_artifacts_and_triggers_merge(self) -> None:
         workflow = (ROOT / ".github/workflows/crawl-autohome.yml").read_text(encoding="utf-8")
         self.assertIn("AUTOHOME_ARTIFACT_NAME=autohome-partial-data", workflow)
