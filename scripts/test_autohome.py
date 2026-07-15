@@ -241,6 +241,88 @@ def stop_incomplete_step1(message):
     raise RuntimeError(message)
 
 
+def normalize_series_name(value):
+    text = str(value or "").lower()
+    text = re.sub(r"\s+", "", text)
+    text = re.sub(r"[·・\-_()（）\[\]【】/\\.,，。:：;；]", "", text)
+    text = re.sub(r"^(19|20)\d{2}款?", "", text)
+    return text
+
+
+def _series_name_from_record(value):
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        for key in ("series", "车系", "车系名称", "name"):
+            name = value.get(key)
+            if name:
+                return name
+    return ""
+
+
+def load_autohome_priority_series_names():
+    data_root = os.path.join(repo_dir, "data")
+    dongchedi_path = os.path.join(data_root, "dongchedi_series_list.json")
+    try:
+        with open(dongchedi_path, "r", encoding="utf-8") as f:
+            dongchedi_rows = json.load(f)
+        if not isinstance(dongchedi_rows, list):
+            return set()
+
+        merged_names = [
+            name
+            for name in os.listdir(data_root)
+            if re.fullmatch(r"merged_\d{8}\.json", name)
+        ]
+        if not merged_names:
+            return set()
+        with open(
+            os.path.join(data_root, max(merged_names)), "r", encoding="utf-8"
+        ) as f:
+            merged_rows = json.load(f)
+        if not isinstance(merged_rows, list):
+            return set()
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return set()
+
+    dongchedi_names = {
+        normalize_series_name(_series_name_from_record(row))
+        for row in dongchedi_rows
+    }
+    gap_names = set()
+    for row in merged_rows:
+        if not isinstance(row, dict):
+            continue
+        source = str(row.get("数据来源", "") or "")
+        if "懂车帝" in source and "汽车之家" not in source:
+            gap_names.add(normalize_series_name(_series_name_from_record(row)))
+
+    dongchedi_names.discard("")
+    gap_names.discard("")
+    return dongchedi_names & gap_names
+
+
+def prioritize_series_queue(series_queue, queue_idx):
+    priority_names = load_autohome_priority_series_names()
+    if not priority_names:
+        return list(series_queue)
+
+    start = max(0, min(int(queue_idx or 0), len(series_queue)))
+    prefix = list(series_queue[:start])
+    tail = list(series_queue[start:])
+
+    def priority_key(item):
+        series_name = normalize_series_name(item.get("series", ""))
+        return (
+            0 if series_name in priority_names else 1,
+            -(item.get("salecount", 0) or 0),
+            item.get("heat", 999),
+            series_name,
+        )
+
+    return prefix + sorted(tail, key=priority_key)
+
+
 # 第一步,下载出所有车型的网页
 def download_car_pages():
     print("第一步,下载出所有车型的网页")
@@ -596,6 +678,13 @@ def download_car_pages():
 
     # 从队列中恢复进度
     queue_idx = progress.get("queue_idx", 0)
+
+    prioritized_queue = prioritize_series_queue(series_queue, queue_idx)
+    if prioritized_queue != series_queue:
+        series_queue = prioritized_queue
+        with open(series_queue_file, "w", encoding="utf-8") as f:
+            json.dump(series_queue, f, ensure_ascii=False, indent=2)
+        print(f"已按汽车之家缺口优先级重排未处理队列: queue_idx={queue_idx}")
 
     for idx in range(queue_idx, len(series_queue)):
         item = series_queue[idx]
