@@ -260,6 +260,129 @@ def _series_name_from_record(value):
     return ""
 
 
+
+
+def extract_model_year(spec):
+    specname = str(spec.get("specname", "") or "")
+    match = re.search(r"((?:19|20)\d{2})\s*款", specname)
+    if match:
+        return match.group(1)
+    for condition in spec.get("condition") or []:
+        text = str(condition or "")
+        if re.fullmatch(r"(?:19|20)\d{2}", text):
+            return text
+    year = spec.get("year")
+    if isinstance(year, int) and 1900 <= year <= 2100:
+        return str(year)
+    return ""
+
+
+def flatten_param_value(item):
+    value = item.get("itemname") or ""
+    sublist = item.get("sublist") or []
+    if sublist:
+        sub_values = [str(sub.get("subitemname") or sub.get("name") or "") for sub in sublist]
+        sub_values = [sub for sub in sub_values if sub]
+        if sub_values:
+            value = " / ".join(sub_values)
+    return value or "-"
+
+
+def build_value_items(api_rows, title_index, fallback_name=None):
+    values = []
+    for spec in api_rows:
+        value = "-"
+        if fallback_name == "年款":
+            value = extract_model_year(spec) or "-"
+        else:
+            paramconf = spec.get("paramconflist") or []
+            if isinstance(title_index, int) and title_index < len(paramconf):
+                value = flatten_param_value(paramconf[title_index])
+        values.append({"value": value})
+    return values
+
+
+def build_autohome_api_html(car_id, api_payload):
+    result = api_payload.get("result") or {}
+    title_list = result.get("titlelist") or []
+    data_list = result.get("datalist") or []
+    bread = result.get("bread") or {}
+    if not title_list or not data_list:
+        return None
+
+    paramtypeitems = []
+    configtypeitems = []
+    has_model_year = False
+    title_index = 0
+    for group in title_list:
+        group_name = group.get("groupname") or group.get("itemtype") or "参数信息"
+        paramitems = []
+        configitems = []
+        for title in group.get("items") or []:
+            name = title.get("itemname") or ""
+            if not name:
+                title_index += 1
+                continue
+            valueitems = build_value_items(data_list, title_index, name)
+            title_index += 1
+            target = {"name": name, "valueitems": valueitems}
+            if group_name == "参数信息":
+                paramitems.append(target)
+            else:
+                configitems.append(target)
+            if name == "年款":
+                has_model_year = True
+        if paramitems:
+            paramtypeitems.append({"name": group_name, "paramitems": paramitems})
+        if configitems:
+            configtypeitems.append({"name": group_name, "configitems": configitems})
+
+    if not has_model_year:
+        paramtypeitems.insert(0, {"name": "基本参数", "paramitems": [{"name": "年款", "valueitems": build_value_items(data_list, None, "年款")} ]})
+    if not any(
+        item.get("name") == "车型名称" and any(v.get("value") != "-" for v in item.get("valueitems", []))
+        for group in paramtypeitems
+        for item in group.get("paramitems", [])
+    ):
+        return None
+
+    config = {"returncode": 0, "message": "success", "result": {"paramtypeitems": paramtypeitems}}
+    option = {"returncode": 0, "message": "success", "result": {"configtypeitems": configtypeitems}}
+    series_name = bread.get("seriesname") or str(car_id)
+    title = f"汽车之家 | {series_name} | 参数配置"
+    return (
+        "<!DOCTYPE html><html><head>"
+        f"<title>{title}</title>"
+        "<meta charset=\"utf-8\"></head><body>"
+        f"<script>var config = {json.dumps(config, ensure_ascii=False)};"
+        f"var option = {json.dumps(option, ensure_ascii=False)};"
+        "var bag = {};"
+        "</script></body></html>"
+    )
+
+
+def fetch_autohome_api_html(car_id):
+    api_url = f"https://car-web-api.autohome.com.cn/car/param/getParamConf?mode=1&site=1&seriesid={car_id}"
+    resp = session.get(api_url, timeout=15, headers={"Referer": "https://car.autohome.com.cn/"})
+    content_type = resp.headers.get("content-type", "")
+    if resp.status_code != 200 or "application/json" not in content_type.lower():
+        print(f"车型{car_id} API不可用: status={resp.status_code}, content-type={content_type}")
+        return None
+    try:
+        payload = resp.json()
+    except ValueError:
+        print(f"车型{car_id} API返回非JSON")
+        return None
+    if payload.get("returncode") != 0:
+        print(f"车型{car_id} API返回失败: returncode={payload.get('returncode')}, message={payload.get('message')}")
+        return None
+    html = build_autohome_api_html(car_id, payload)
+    if not html:
+        print(f"车型{car_id} API缺少titlelist/datalist，回退HTML")
+        return None
+    print(f"车型{car_id} API优先成功: {api_url}, datalist={len((payload.get('result') or {}).get('datalist') or [])}")
+    return html
+
 def load_autohome_priority_series_names():
     data_root = os.path.join(repo_dir, "data")
     dongchedi_path = os.path.join(data_root, "dongchedi_series_list.json")
@@ -714,20 +837,27 @@ def download_car_pages():
         car_url = second_url.format(car_id)
         print(f"[{idx+1}/{len(series_queue)}] 正在获取 {brand}/{series} (car_id={car_id}, heat={heat})")
 
-        for i in range(5):
-            try:
-                resp = session.get(car_url, timeout=15)
-                print(f"车型{car_id}响应码: {resp.status_code}")
-                break
-            except requests.exceptions.RequestException:
-                print(f"请求异常, 重试次数:{i + 1}")
-                human_delay(f"车型{car_id}请求异常")
-        else:
-            print(f"获取{car_id}车型失败,跳过")
-            continue
+        content = None
+        try:
+            content = fetch_autohome_api_html(car_id)
+        except requests.exceptions.RequestException as e:
+            print(f"车型{car_id} API请求异常，回退HTML: {e}")
+
+        if content is None:
+            for i in range(5):
+                try:
+                    resp = session.get(car_url, timeout=15)
+                    print(f"车型{car_id}响应码: {resp.status_code}")
+                    break
+                except requests.exceptions.RequestException:
+                    print(f"请求异常, 重试次数:{i + 1}")
+                    human_delay(f"车型{car_id}请求异常")
+            else:
+                print(f"获取{car_id}车型失败,跳过")
+                continue
+            resp.encoding = resp.apparent_encoding
+            content = resp.text
         human_delay(f"获取{car_id}车型配置")
-        resp.encoding = resp.apparent_encoding
-        content = resp.text
         print(f"车型{car_id}内容长度: {len(content)}")
 
         with open(car_file, "w", encoding="utf-8") as f:
