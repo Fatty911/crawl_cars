@@ -19,6 +19,7 @@ on:
           - all
           - autohome
           - dongchedi
+          - yiche
 
 jobs:
   trigger:
@@ -86,12 +87,16 @@ jobs:
             all)
               trigger_workflow "crawl-autohome.yml"
               trigger_workflow "crawl-dongchedi.yml"
+              trigger_workflow "crawl-yiche.yml"
               ;;
             autohome)
               trigger_workflow "crawl-autohome.yml"
               ;;
             dongchedi)
               trigger_workflow "crawl-dongchedi.yml"
+              ;;
+            yiche)
+              trigger_workflow "crawl-yiche.yml"
               ;;
             *)
               echo "未知爬虫类型: $CRAWLER"

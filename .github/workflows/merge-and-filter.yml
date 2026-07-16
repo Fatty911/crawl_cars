@@ -72,7 +72,7 @@ jobs:
           set -euo pipefail
           echo "尝试下载最新的爬虫数据 artifact..."
           rm -rf merge-inputs
-          mkdir -p merge-inputs/stable/autohome merge-inputs/stable/dongchedi
+          mkdir -p merge-inputs/stable/autohome merge-inputs/stable/dongchedi merge-inputs/stable/yiche
 
           CN_DAY=$(TZ=Asia/Shanghai date +%d)
           CN_MONTH=$(TZ=Asia/Shanghai date +%Y%m)
@@ -181,8 +181,18 @@ jobs:
             "${DONGCHEDI_STABLE_MIN_DATE_ARGS[@]}" \
             --min-rows 50
 
+          python scripts/download_latest_crawler_artifact.py \
+            --repo "${{ github.repository }}" \
+            --workflow crawl-yiche.yml \
+            --artifact-prefix yiche-data- \
+            --json-pattern "yiche_*.json" \
+            --label "易车" \
+            --output-dir merge-inputs/stable/yiche \
+            --min-rows 1 || true
+
           mapfile -t AUTOHOME_STABLE < <(find merge-inputs/stable/autohome -maxdepth 1 -type f -name 'autoHome_*.json' -print)
           mapfile -t DONGCHEDI_STABLE < <(find merge-inputs/stable/dongchedi -maxdepth 1 -type f -name 'dongchedi_*.json' -print)
+          mapfile -t YICHE_STABLE < <(find merge-inputs/stable/yiche -maxdepth 1 -type f -name 'yiche_*.json' -print)
           if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ] || [ "${#DONGCHEDI_STABLE[@]}" -ne 1 ]; then
             echo "必须精确找到两个来源各一份可用 stable artifact"
             exit 1
@@ -253,6 +263,9 @@ jobs:
           else
             cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
             cp "${DONGCHEDI_STABLE[0]}" dongchedi_stable.json
+            if [ "${#YICHE_STABLE[@]}" -ge 1 ]; then
+              cp "${YICHE_STABLE[0]}" yiche_stable.json
+            fi
             if [ -n "$PARTIAL_ARTIFACT_NAME" ]; then
               mkdir -p "merge-inputs/incremental/$PARTIAL_SOURCE"
               echo "下载已确认的 partial artifact $PARTIAL_ARTIFACT_ID/$PARTIAL_ARTIFACT_NAME"
@@ -277,7 +290,7 @@ jobs:
           fi
 
           echo "规范化后的合并输入:"
-          ls -la autoHome_*.json dongchedi_*.json
+          ls -la autoHome_*.json dongchedi_*.json yiche_*.json 2>/dev/null || true
 
       - name: 校验爬虫数据完整性
         id: validate

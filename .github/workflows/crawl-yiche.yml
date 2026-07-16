@@ -1,0 +1,75 @@
+name: 易车爬虫
+on:
+  workflow_dispatch:
+    inputs:
+      trigger_source:
+        description: '触发来源'
+        required: false
+        default: 'manual'
+      trigger_time:
+        description: '触发时间戳'
+        required: false
+        default: ''
+      run_profile:
+        description: '运行时长配置：auto/morning/afternoon'
+        required: false
+        default: 'auto'
+      debug_mode:
+        description: '调试模式：只验证配置的少量易车 URL'
+        required: false
+        default: 'false'
+  repository_dispatch:
+    types: [trigger-yiche]
+
+env:
+  CRAWL_MIN_DELAY_SECONDS: 3
+
+concurrency:
+  group: yiche-crawl-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  yiche-crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@main
+
+      - uses: actions/setup-python@main
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: 运行易车爬虫
+        env:
+          YICHE_SERIES_URLS: ${{ vars.YICHE_SERIES_URLS }}
+        run: python scripts/crawl_yiche.py
+
+      - name: 校验易车输出
+        id: verify_yiche
+        run: |
+          python - <<'PY'
+          import glob
+          import json
+          import os
+          files = glob.glob("yiche_*.json")
+          if not files:
+              raise SystemExit("未生成 yiche_*.json，拒绝上传 artifact")
+          path = max(files)
+          with open(path, "r", encoding="utf-8") as f:
+              rows = json.load(f)
+          print(f"{path}: {len(rows)} rows")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"row_count={len(rows)}\n")
+          PY
+
+      - name: 上传易车 artifact
+        id: upload_yiche
+        uses: actions/upload-artifact@v4
+        with:
+          name: yiche-data-${{ github.run_id }}-${{ github.run_attempt }}
+          path: yiche_*.json
+          if-no-files-found: error
+          retention-days: 90

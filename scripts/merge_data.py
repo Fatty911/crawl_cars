@@ -1,4 +1,4 @@
-"""合并汽车之家、懂车帝和零整比数据，统一表头，对比差异，并过滤符合条件的车型。"""
+"""合并汽车之家、懂车帝、易车和零整比数据，统一表头，对比差异，并过滤符合条件的车型。"""
 import csv
 import glob
 import json
@@ -679,54 +679,43 @@ def diff(autohome_rows, dongchedi_rows, all_fields):
     return out
 
 
-def merge_single_row(ah_row, dcd_row):
-    """合并单个车型的两个数据源，标识字段优先取非空，配置字段冲突用|分隔"""
+def merge_source_rows(source_rows):
+    """合并同一车型的多个数据源，标识字段优先取非空，配置字段冲突用来源前缀保留。"""
     merged = {}
-    all_keys = set(ah_row.keys()) | set(dcd_row.keys())
+    all_keys = set()
+    for _, row in source_rows:
+        all_keys.update(row.keys())
 
     for key in all_keys:
-        ah_val = str(ah_row.get(key, "") or "")
-        dcd_val = str(dcd_row.get(key, "") or "")
-        if key == "年款":
-            ah_candidate = dict(ah_row)
-            dcd_candidate = dict(dcd_row)
-            backfill_year_from_model_name(ah_candidate)
-            backfill_year_from_model_name(dcd_candidate)
-            ah_val = str(ah_candidate.get(key, "") or "")
-            dcd_val = str(dcd_candidate.get(key, "") or "")
-
+        values = []
+        for source_name, row in source_rows:
+            raw_val = str(row.get(key, "") or "")
+            if key == "年款":
+                candidate = dict(row)
+                backfill_year_from_model_name(candidate)
+                raw_val = str(candidate.get(key, "") or "")
+            norm_val = canonical_value(raw_val)
+            if norm_val != "-":
+                values.append((source_name, raw_val, norm_val))
         if key in IDENTITY_FIELDS:
-            # 标识字段：不拼接，优先取非空且更完整的值
-            if ah_val and ah_val != "-":
-                if dcd_val and dcd_val != "-" and dcd_val != ah_val:
-                    # 两个值都非空且不同，取较长值（通常更完整）
-                    merged[key] = ah_val if len(ah_val) >= len(dcd_val) else dcd_val
-                else:
-                    merged[key] = ah_val
-            elif dcd_val and dcd_val != "-":
-                merged[key] = dcd_val
-            else:
-                merged[key] = "-"
+            merged[key] = max((raw for _, raw, _ in values), key=len, default="-")
+        elif not values:
+            merged[key] = "-"
+        elif len({norm_val for _, _, norm_val in values}) == 1:
+            merged[key] = values[0][2]
         else:
-            ah_norm = canonical_value(ah_val)
-            dcd_norm = canonical_value(dcd_val)
-            if ah_norm != "-" and dcd_norm != "-":
-                if ah_norm == dcd_norm:
-                    merged[key] = ah_norm
-                else:
-                    merged[key] = f"汽车之家:{ah_val}|懂车帝:{dcd_val}"
-            elif ah_norm != "-":
-                merged[key] = ah_norm
-            elif dcd_norm != "-":
-                merged[key] = dcd_norm
-            else:
-                merged[key] = "-"
+            merged[key] = "|".join(f"{source_name}:{raw_val}" for source_name, raw_val, _ in values)
 
     return merged
 
 
-def merge_rows(autohome_rows, dongchedi_rows):
-    """按车型名称合并两个数据源，支持多级匹配"""
+def merge_single_row(ah_row, dcd_row):
+    """合并单个车型的两个数据源，标识字段优先取非空，配置字段冲突用|分隔"""
+    return merge_source_rows([("汽车之家", ah_row), ("懂车帝", dcd_row)])
+
+
+def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
+    """按车型名称合并汽车之家、懂车帝和可选易车数据源，支持多级匹配"""
     # 第一级: 精确匹配
     autohome_index = {}
     for row in autohome_rows:
@@ -768,7 +757,7 @@ def merge_rows(autohome_rows, dongchedi_rows):
     merged = []
     used_autohome = set()
     used_dongchedi = set()
-    stats = {'精确': 0, '规范': 0, '车系': 0, '仅汽车之家': 0, '仅懂车帝': 0, '低置信拒绝': 0, '歧义拒绝': 0}
+    stats = {'精确': 0, '规范': 0, '车系': 0, '仅汽车之家': 0, '仅懂车帝': 0, '仅易车': 0, '易车补充': 0, '低置信拒绝': 0, '歧义拒绝': 0}
 
     # 第一级: 精确匹配
     for match_key, ah_rows in sorted(autohome_index.items()):
@@ -841,6 +830,9 @@ def merge_rows(autohome_rows, dongchedi_rows):
             used_dongchedi.add(id(dcd_match))
             merged_by_series['车系(无年款)'] += 1
 
+    yiche_rows = yiche_rows or []
+    used_yiche = set()
+
     # 未匹配的车型
     for row in autohome_rows:
         if id(row) not in used_autohome:
@@ -854,6 +846,13 @@ def merge_rows(autohome_rows, dongchedi_rows):
             merged_row["数据来源"] = "仅懂车帝"
             merged.append(merged_row)
             stats['仅懂车帝'] += 1
+    merged = merge_yiche_rows(merged, yiche_rows, used_yiche, stats)
+    for row in yiche_rows:
+        if id(row) not in used_yiche:
+            merged_row = dict(row)
+            merged_row["数据来源"] = "仅易车"
+            merged.append(merged_row)
+            stats['仅易车'] += 1
 
     ambiguous_a = stats.pop("_ambiguous_a", set())
     ambiguous_d = stats.pop("_ambiguous_d", set())
@@ -863,8 +862,53 @@ def merge_rows(autohome_rows, dongchedi_rows):
     stats["合计"] = len(merged)
     global MERGE_ANALYSIS_STATS
     MERGE_ANALYSIS_STATS = dict(stats)
-    print(f"合并统计: 精确{stats['精确']} 规范{stats['规范']} 车系{merged_by_series['车系']} 车系(无年款){merged_by_series['车系(无年款)']} 低置信拒绝{stats['低置信拒绝']} 歧义拒绝{stats['歧义拒绝']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 合计{len(merged)}")
+    print(f"合并统计: 精确{stats['精确']} 规范{stats['规范']} 车系{merged_by_series['车系']} 车系(无年款){merged_by_series['车系(无年款)']} 易车补充{stats['易车补充']} 低置信拒绝{stats['低置信拒绝']} 歧义拒绝{stats['歧义拒绝']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 仅易车{stats['仅易车']} 合计{len(merged)}")
     return merged
+
+
+def merge_yiche_rows(merged, yiche_rows, used_yiche, stats):
+    merged_by_key = {}
+    for idx, row in enumerate(merged):
+        for name in {row.get("车型名称", ""), normalize_for_match(row.get("车型名称", ""))}:
+            key = identity_match_key(row, str(name).replace(" ", ""))
+            if key:
+                merged_by_key.setdefault(key, []).append(idx)
+
+    for yiche_row in yiche_rows:
+        candidates = []
+        for name in {yiche_row.get("车型名称", ""), normalize_for_match(yiche_row.get("车型名称", ""))}:
+            key = identity_match_key(yiche_row, str(name).replace(" ", ""))
+            candidates.extend(merged_by_key.get(key, []))
+        if not candidates:
+            continue
+        target_idx = candidates[0]
+        current = dict(merged[target_idx])
+        current_source = current.get("数据来源", "")
+        current.pop("数据来源", None)
+        source_rows = []
+        for source_name in ("汽车之家", "懂车帝"):
+            if source_name in current_source:
+                source_rows.append((source_name, current))
+        if not source_rows:
+            source_rows.append((current_source or "已有来源", current))
+        source_rows.append(("易车", yiche_row))
+        merged_row = merge_source_rows(source_rows)
+        sources = atomic_source_names(current_source)
+        if "易车" not in sources:
+            sources.append("易车")
+        merged_row["数据来源"] = "+".join(sources)
+        merged[target_idx] = merged_row
+        used_yiche.add(id(yiche_row))
+        stats['易车补充'] += 1
+    return merged
+
+
+def atomic_source_names(value):
+    names = []
+    for source_name in ("汽车之家", "懂车帝", "易车"):
+        if source_name in str(value or ""):
+            names.append(source_name)
+    return names
 
 
 def collect_fields(rows):
@@ -897,21 +941,25 @@ def main():
 
     autohome_file = find_latest("autoHome_*.json")
     dongchedi_file = find_latest("dongchedi_*.json")
+    yiche_file = find_latest("yiche_*.json")
     print(f"汽车之家数据: {autohome_file}")
     print(f"懂车帝数据: {dongchedi_file}")
+    print(f"易车数据: {yiche_file}")
 
     autohome_rows = norm_rows(load(autohome_file), "汽车之家")
     dongchedi_rows = norm_rows(load(dongchedi_file), "懂车帝")
+    yiche_rows = norm_rows(load(yiche_file), "易车")
 
     # 归一化 one-hot 属性键（如 "辅助驾驶操作系统 - Toyota Pilot" → "辅助驾驶操作系统": "Toyota Pilot"）
     autohome_rows = normalize_attribute_keys(autohome_rows)
     dongchedi_rows = normalize_attribute_keys(dongchedi_rows)
+    yiche_rows = normalize_attribute_keys(yiche_rows)
 
     if not autohome_rows and not dongchedi_rows:
         print("错误: 没有找到任何数据文件")
         return
 
-    print(f"汽车之家:{len(autohome_rows)} 懂车帝:{len(dongchedi_rows)}")
+    print(f"汽车之家:{len(autohome_rows)} 懂车帝:{len(dongchedi_rows)} 易车:{len(yiche_rows)}")
 
     # 先diff（需要原始两源数据）
     diffs = []
@@ -931,7 +979,7 @@ def main():
         print("跳过差异比较: 只有一个数据源")
 
     # 再合并（按车型去重）
-    all_rows = merge_rows(autohome_rows, dongchedi_rows)
+    all_rows = merge_rows(autohome_rows, dongchedi_rows, yiche_rows)
     all_rows = enrich_zero_ratio(all_rows, load_zero_ratio_rows())
     before_year_filter = len(all_rows)
     all_rows = [row for row in all_rows if keep_pages_year(row)]
