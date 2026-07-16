@@ -208,6 +208,8 @@
 ## 提交推送与运行监测（关键）
 
 - **任务完成后必须自动提交并推送**：在确保代码质量、语法校验和必要测试通过后，必须自动 `commit` 并 `push`，不能只把改动留在本地。若项目要求 Pull Request，推送后创建或更新 PR，并在 CI 通过后继续合并；除非用户明确要求暂停或只做本地改动。
+- **Codex Cloud direct-main 门禁**：`crawl_cars` 的 Cloud 环境 setup 必须执行 `chmod +x .githooks/post-commit && git config --local core.hooksPath .githooks`。每次提交后由 `.githooks/post-commit` 自动测试、非 force 推送 `HEAD:main` 并核对远端 SHA；禁止用 `make_pr` 代替真实推送。
+- **门禁失败恢复**：看到 `DELIVERY_GATE_FAILED` 时必须读取失败原因；若远端 `main` 已前移，先 rebase 到最新 `origin/main`，解决冲突并创建新提交，绝不 force push。任务交付前必须运行 `python3 scripts/codex_delivery_gate.py verify`，只有输出 `DELIVERY_GATE_VERIFIED` 才能报告推送完成。
 - **推送、热更新、重启或部署容器后必须监测运行情况**：必须继续检查 CI/容器状态、健康接口和关键日志，确认服务持续运行后再交付结论。
 - **推送代码前，必须确保所有单元测试通过**：如果有测试框架，任何会导致测试失败的改动都不应推送。
 - **推送后必须监控 CI 测试**：提交推送完必须至少监控到测试成功；如果时间窗口允许修改的工作流运行，还应监控修改的工作流运行结果是否符合预期。

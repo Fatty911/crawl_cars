@@ -79,7 +79,7 @@ def write_publish_assets(
         write_json(staged[filtered_json], filtered_rows)
         write_csv(staged[filtered_csv], filtered_rows, header)
         for temp_path in staged.values():
-            with temp_path.open("rb") as file:
+            with temp_path.open("rb+") as file:
                 os.fsync(file.fileno())
         for target, temp_path in staged.items():
             os.replace(temp_path, target)
