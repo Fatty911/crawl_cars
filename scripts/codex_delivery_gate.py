@@ -32,6 +32,8 @@ def run_command(
         list(command),
         cwd=root,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         check=False,
     )

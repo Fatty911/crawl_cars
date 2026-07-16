@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -62,6 +63,16 @@ def test_deliver_pushes_main_and_verify_accepts_exact_head(tmp_path: Path) -> No
     assert GATE.deliver(work, run_checks=False) == head
     assert git(remote, "rev-parse", "refs/heads/main") == head
     assert GATE.verify(work) == head
+
+
+def test_run_command_replaces_invalid_utf8_output(tmp_path: Path) -> None:
+    result = GATE.run_command(
+        tmp_path,
+        [sys.executable, "-c", "import os; os.write(1, b'\\xad')"],
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == "\ufffd"
 
 
 def test_verify_rejects_an_unpushed_commit(tmp_path: Path) -> None:
