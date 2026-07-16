@@ -128,6 +128,46 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(stable + debug, rows)
 
+    def test_yiche_no_year_keeps_stable_and_appends_debug_only(self) -> None:
+        stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "", "价格": "stable"}]
+        debug = [
+            {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "-", "价格": "debug"},
+            {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车新增款", "年款": "", "价格": "new"},
+        ]
+
+        result, rows = self.run_prepare(stable, debug)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(stable + [debug[1]], rows)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["overlap_kept_stable"])
+        self.assertEqual(1, stats["debug_added"])
+
+    def test_yiche_no_year_still_requires_brand_and_series(self) -> None:
+        row = {"数据来源": "仅易车", "品牌": "甲", "车型名称": "易车受限款", "年款": ""}
+
+        result, _ = self.run_prepare([row], [row])
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("yiche no-year identity requires", result.stderr)
+
+    def test_non_yiche_no_year_still_fails_closed(self) -> None:
+        row = {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "A", "车型名称": "未知年款", "年款": ""}
+
+        result, _ = self.run_prepare([row], [row])
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("identity requires", result.stderr)
+
+    def test_yiche_explicit_year_uses_existing_year_identity(self) -> None:
+        stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车旧款", "年款": "2021", "价格": "stable"}]
+        debug = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车旧款", "年款": "2021", "价格": "debug"}]
+
+        result, rows = self.run_prepare(stable, debug)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(stable, rows)
+
 
 class VerifyPublishSupersetTests(unittest.TestCase):
     @classmethod
@@ -208,6 +248,18 @@ class VerifyPublishSupersetTests(unittest.TestCase):
 
         self.assertEqual("", normalized[0]["年款"])
         self.assertNotEqual(0, result.returncode)
+
+    def test_yiche_no_year_superset_can_verify(self) -> None:
+        baseline = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": ""}]
+        candidate = baseline + [{"车系ID": "100", "车型名称": "A", "年款": "2026"}]
+
+        result = self.run_verify(baseline, candidate)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(
+            {"baseline_rows": 1, "candidate_rows": 2, "retained_rows": 1, "added_rows": 1, "missing_rows": 0},
+            json.loads(result.stdout.strip().splitlines()[-1]),
+        )
 
     def test_merge_single_row_and_single_source_rows_backfill_model_name_year(self) -> None:
         merged = self.merge_data.merge_single_row(
@@ -372,6 +424,18 @@ class PreservePublishBaselineTests(unittest.TestCase):
                 result, outputs = self.run_preserve(baseline, candidate)
                 self.assertNotEqual(0, result.returncode)
                 self.assertEqual([], outputs["temp_files"])
+
+    def test_yiche_no_year_baseline_is_preserved(self) -> None:
+        baseline = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "", "价格": "published"}]
+        candidate = [
+            {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "-", "价格": "candidate"},
+            {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车新增款", "年款": "", "价格": "new"},
+        ]
+
+        result, outputs = self.run_preserve(baseline, candidate)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(baseline + [candidate[1]], outputs["merged_json"])
 
 
 class WorkflowValidatorTests(unittest.TestCase):
