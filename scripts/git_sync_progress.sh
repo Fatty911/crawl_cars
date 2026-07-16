@@ -63,7 +63,11 @@ resolve_rebase_conflicts() {
       theirs="$(mktemp)"
       git show ":2:$path" > "$ours" 2>/dev/null || echo "{}" > "$ours"
       git show ":3:$path" > "$theirs" 2>/dev/null || echo "{}" > "$theirs"
-      python custom_scripts/merge_progress_json.py "$path" "$ours" "$theirs"
+      if ! python3 scripts/merge_progress_json.py "$path" "$ours" "$theirs"; then
+        rm -f "$ours" "$theirs"
+        echo "[git-sync] 合并 $path 失败，停止 rebase 恢复" >&2
+        return 1
+      fi
       rm -f "$ours" "$theirs"
       git add "$path"
       echo "[git-sync] 已合并 $path"
@@ -146,12 +150,13 @@ try_sync() {
   fi
 
   if rebase_in_progress; then
-    finish_rebase || true
-    # 重新尝试 push
-    if run_git_with_log "push after rebase recovery" git push "$REMOTE_URL" "HEAD:$BRANCH"; then
-      git stash pop 2>/dev/null || true
-      echo "[git-sync] rebase 修复后同步成功"
-      return 0
+    if finish_rebase; then
+      # 重新尝试 push
+      if run_git_with_log "push after rebase recovery" git push "$REMOTE_URL" "HEAD:$BRANCH"; then
+        git stash pop 2>/dev/null || true
+        echo "[git-sync] rebase 修复后同步成功"
+        return 0
+      fi
     fi
   fi
 

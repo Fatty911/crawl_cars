@@ -422,6 +422,9 @@ class WorkflowValidatorTests(unittest.TestCase):
         sync = (SCRIPTS / "git_sync_progress.sh").read_text(encoding="utf-8")
         self.assertIn("/scripts/dongchedi/json/", ignore)
         self.assertIn('"scripts/dongchedi/progress.json"', sync)
+        self.assertIn("python3 scripts/merge_progress_json.py", sync)
+        self.assertIn("if finish_rebase; then", sync)
+        self.assertNotIn("finish_rebase || true", sync)
 
     def test_partial_autohome_upload_must_trigger_merge(self) -> None:
         path = ROOT / ".github/workflows/crawl-autohome.yml"
