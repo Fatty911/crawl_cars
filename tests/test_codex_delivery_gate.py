@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -73,6 +74,16 @@ def test_run_command_replaces_invalid_utf8_output(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert result.stdout == "\ufffd"
+
+
+def test_write_output_replaces_characters_the_stream_cannot_encode() -> None:
+    buffer = io.BytesIO()
+    stream = io.TextIOWrapper(buffer, encoding="ascii", errors="strict")
+
+    GATE.write_output(stream, "\U0001f50d")
+    stream.flush()
+
+    assert buffer.getvalue() == b"?"
 
 
 def test_verify_rejects_an_unpushed_commit(tmp_path: Path) -> None:

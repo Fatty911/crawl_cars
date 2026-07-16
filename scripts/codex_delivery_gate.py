@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, TextIO
 
 
 STATE_FILENAME = "codex-delivery-gate.json"
@@ -17,6 +17,11 @@ STATE_FILENAME = "codex-delivery-gate.json"
 
 class GateError(RuntimeError):
     """Raised when the direct-main delivery contract is not satisfied."""
+
+
+def write_output(stream: TextIO, value: str) -> None:
+    encoding = getattr(stream, "encoding", None) or "utf-8"
+    stream.write(value.encode(encoding, errors="replace").decode(encoding))
 
 
 def run_command(
@@ -27,7 +32,7 @@ def run_command(
     echo: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     if echo:
-        print("$ " + " ".join(command), flush=True)
+        write_output(sys.stdout, "$ " + " ".join(command) + "\n")
     result = subprocess.run(
         list(command),
         cwd=root,
@@ -38,13 +43,13 @@ def run_command(
         check=False,
     )
     if result.stdout:
-        print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+        write_output(sys.stdout, result.stdout)
+        if not result.stdout.endswith("\n"):
+            write_output(sys.stdout, "\n")
     if result.stderr:
-        print(
-            result.stderr,
-            end="" if result.stderr.endswith("\n") else "\n",
-            file=sys.stderr,
-        )
+        write_output(sys.stderr, result.stderr)
+        if not result.stderr.endswith("\n"):
+            write_output(sys.stderr, "\n")
     if check and result.returncode != 0:
         raise GateError(
             f"command failed with exit code {result.returncode}: {' '.join(command)}"
