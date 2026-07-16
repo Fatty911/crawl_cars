@@ -34,7 +34,7 @@ env:
   WINDOW_END_BUFFER_SECONDS: 900
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
-  MAX_SERIES: ${{ github.event.inputs.max_series || '0' }}
+  MAX_SERIES: ${{ github.event.inputs.max_series || '60' }}
 
 concurrency:
   group: yiche-crawl-${{ github.ref }}
@@ -67,7 +67,9 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           else
             python scripts/crawl_budget.py configure
-            echo "MAX_SERIES=${{ github.event.inputs.max_series || '0' }}" >> "$GITHUB_ENV"
+            MAX_SERIES_INPUT="${{ github.event.inputs.max_series || '0' }}"
+            if [ "$MAX_SERIES_INPUT" = "0" ]; then MAX_SERIES_INPUT=60; fi
+            echo "MAX_SERIES=$MAX_SERIES_INPUT" >> "$GITHUB_ENV"
             echo "DEBUG_MODE=false" >> "$GITHUB_ENV"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
@@ -100,6 +102,7 @@ jobs:
         if: steps.window.outputs.skip != 'true'
         env:
           YICHE_SERIES_URLS: ${{ vars.YICHE_SERIES_URLS }}
+          YICHE_DISCOVERY_URLS: ${{ vars.YICHE_DISCOVERY_URLS }}
         run: |
           if [ "${YICHE_SKIP:-false}" = "true" ]; then
             echo "易车爬虫已因剩余安全时间不足跳过"
@@ -158,7 +161,7 @@ jobs:
 
 
       - name: Trigger merge-and-filter workflow
-        if: steps.upload_yiche.outcome == 'success'
+        if: steps.upload_yiche.outcome == 'success' && (github.event.inputs.debug_mode || 'false') != 'true'
         env:
           GH_TOKEN: ${{ secrets.ACTION_PAT }}
         run: |

@@ -13,6 +13,17 @@ import bs4
 import requests
 
 
+DEFAULT_DISCOVERY_URLS = ["https://car.yiche.com/"]
+DEFAULT_SERIES_URLS = [
+    "https://car.yiche.com/hanl/peizhi/",
+    "https://car.yiche.com/modely-6224/peizhi/",
+    "https://car.yiche.com/guanzhigq3/peizhi/",
+    "https://car.yiche.com/hafub26/peizhi/",
+    "https://car.yiche.com/idera5s/peizhi/",
+    "https://car.yiche.com/teslamodelx/peizhi/",
+]
+
+
 HEADER_MAP = {
     "厂商指导价": "价格",
     "排量": "发动机排量",
@@ -50,16 +61,80 @@ def normalize_key(key):
     return HEADER_MAP.get(key, key)
 
 
+def split_urls(raw):
+    return [item.strip() for item in re.split(r"[,\n]", raw or "") if item.strip()]
+
+
 def load_urls(args):
     urls = []
     if args.url:
         urls.extend(args.url)
-    env_urls = os.getenv("YICHE_SERIES_URLS", "")
-    urls.extend(item.strip() for item in re.split(r"[,\n]", env_urls) if item.strip())
+    urls.extend(split_urls(os.getenv("YICHE_SERIES_URLS", "")))
     if args.url_file and os.path.exists(args.url_file):
         with open(args.url_file, "r", encoding="utf-8") as f:
             urls.extend(line.strip() for line in f if line.strip() and not line.startswith("#"))
     return list(dict.fromkeys(urls))
+
+
+def normalize_series_url(url):
+    page_url = url if url.endswith("/") else url + "/"
+    if not page_url.endswith("peizhi/"):
+        page_url = urljoin(page_url, "peizhi/")
+    return page_url
+
+
+def extract_candidate_urls(base_url, html):
+    pattern = re.compile(r'https?://car\.yiche\.com/[a-z0-9][a-z0-9-]*/(?:peizhi/)?|/[a-z0-9][a-z0-9-]*/(?:peizhi/)?', re.I)
+    excluded = {
+        "brand",
+        "newcar",
+        "xuanchegongju",
+        "suv",
+        "jiaoche",
+        "mpv",
+        "paoche",
+        "pika",
+    }
+    urls = []
+    for match in pattern.findall(html):
+        absolute = urljoin(base_url, match)
+        slug = absolute.rstrip("/").split("/")[-1]
+        if slug == "peizhi":
+            slug = absolute.rstrip("/").split("/")[-2]
+        if slug in excluded or len(slug) <= 1:
+            continue
+        urls.append(absolute)
+    return list(dict.fromkeys(urls))
+
+
+def discover_series_urls(session, discovery_urls, max_pages=30):
+    discovered = []
+    candidate_pages = []
+    for discovery_url in discovery_urls:
+        try:
+            print(f"发现易车车系 URL: {discovery_url}")
+            html = fetch(session, discovery_url)
+        except requests.RequestException as exc:
+            print(f"  易车发现页抓取失败，跳过: {exc}")
+            continue
+        for candidate in extract_candidate_urls(discovery_url, html):
+            if candidate.endswith("/peizhi/"):
+                discovered.append(candidate)
+            else:
+                candidate_pages.append(candidate)
+
+    for candidate in list(dict.fromkeys(candidate_pages))[:max_pages]:
+        try:
+            html = fetch(session, candidate)
+        except requests.RequestException as exc:
+            print(f"  易车候选页抓取失败，跳过: {candidate} {exc}")
+            continue
+        for nested in extract_candidate_urls(candidate, html):
+            discovered.append(normalize_series_url(nested))
+
+    deduped = list(dict.fromkeys(discovered))
+    print(f"自动发现易车车系 URL {len(deduped)} 个")
+    return deduped
 
 
 def fetch(session, url):
@@ -107,6 +182,34 @@ def extract_from_next_data(data):
     return [row for row in rows.values() if row.get("车型名称")]
 
 
+def extract_identity_from_meta(html):
+    soup = bs4.BeautifulSoup(html, "html.parser")
+    title = clean_text(soup.title.get_text(" ") if soup.title else "")
+    description_tag = soup.find("meta", attrs={"name": "description"})
+    description = clean_text(description_tag.get("content") if description_tag else "")
+    if "参数配置暂未公布" in title or "参数配置暂未公布" in description:
+        return []
+    text = title or description
+    if not text:
+        return []
+    brand = ""
+    series = ""
+    match = re.search(r"(?:【[^】]*配置】)?([^_【】]+)_([^_【】]+?)(?:详细参数|综合配置|参数配置|频道|$)", text)
+    if match:
+        brand = clean_text(match.group(1))
+        series = clean_text(match.group(2))
+    else:
+        match = re.search(r"【?([^【】_]+?)(?:配置|参数配置|详细参数)", text)
+        if match:
+            series = clean_text(match.group(1))
+    if not series:
+        return []
+    row = {"车系": series, "车型名称": series}
+    if brand and brand != series:
+        row["品牌"] = brand
+    return [row]
+
+
 def extract_from_tables(html):
     soup = bs4.BeautifulSoup(html, "html.parser")
     rows = []
@@ -127,8 +230,21 @@ def extract_from_tables(html):
     return rows
 
 
+def series_slug_from_url(url):
+    return url.rstrip("/").split("/")[-2] if url.rstrip("/").endswith("peizhi") else url.rstrip("/").split("/")[-1]
+
+
+def extract_identity_from_url(url, html):
+    if "参数配置暂未公布" in html:
+        return []
+    series_slug = series_slug_from_url(url)
+    if not series_slug:
+        return []
+    return [{"车系": series_slug, "车型名称": series_slug}]
+
+
 def enrich_identity(rows, url):
-    series_slug = url.rstrip("/").split("/")[-2] if url.rstrip("/").endswith("peizhi") else url.rstrip("/").split("/")[-1]
+    series_slug = series_slug_from_url(url)
     for row in rows:
         row.setdefault("车系", series_slug)
         row.setdefault("数据来源", "易车")
@@ -144,9 +260,7 @@ def crawl(urls, delay, time_limit=0):
         if time_limit and time.monotonic() - start >= time_limit:
             print("易车爬取时间预算已用完，停止继续抓取")
             break
-        page_url = url if url.endswith("/") else url + "/"
-        if not page_url.endswith("peizhi/"):
-            page_url = urljoin(page_url, "peizhi/")
+        page_url = normalize_series_url(url)
         print(f"抓取易车: {page_url}")
         try:
             html = fetch(session, page_url)
@@ -154,6 +268,10 @@ def crawl(urls, delay, time_limit=0):
             rows = extract_from_next_data(data) if data else []
             if not rows:
                 rows = extract_from_tables(html)
+            if not rows:
+                rows = extract_identity_from_meta(html)
+            if not rows:
+                rows = extract_identity_from_url(page_url, html)
             rows = enrich_identity(rows, page_url)
             print(f"  提取 {len(rows)} 条")
             all_rows.extend(rows)
@@ -168,17 +286,25 @@ def main():
     parser = argparse.ArgumentParser(description="易车爬虫")
     parser.add_argument("--url", action="append", help="易车车系页 URL，可重复传入")
     parser.add_argument("--url-file", default="config/yiche_series_urls.txt", help="易车车系 URL 列表")
+    parser.add_argument("--discover-url", action="append", help="未配置车系 URL 时用于自动发现的易车入口页，可重复传入")
     parser.add_argument("--output", default="", help="输出 JSON 路径")
     parser.add_argument("--delay", type=float, default=float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "8")))
     parser.add_argument("--time-limit", type=int, default=0, help="最大运行时间(秒)，0表示不限制")
     parser.add_argument("--max-series", type=int, default=0, help="最多爬取车系 URL 数，0表示不限制")
+    parser.add_argument("--max-discovery-pages", type=int, default=30, help="自动发现时最多跟进的候选页数量")
     args = parser.parse_args()
 
     urls = load_urls(args)
+    if not urls:
+        discovery_urls = args.discover_url or split_urls(os.getenv("YICHE_DISCOVERY_URLS", "")) or DEFAULT_DISCOVERY_URLS
+        session = requests.Session()
+        session.headers.update({"User-Agent": "Mozilla/5.0"})
+        urls = DEFAULT_SERIES_URLS + discover_series_urls(session, discovery_urls, args.max_discovery_pages)
+    urls = list(dict.fromkeys(normalize_series_url(url) for url in urls))
     if args.max_series > 0:
         urls = urls[:args.max_series]
     if not urls:
-        print("未配置易车车系 URL，生成空数据文件。可通过 --url、--url-file 或 YICHE_SERIES_URLS 配置。")
+        print("未配置且未发现易车车系 URL，生成空数据文件。可通过 --url、--url-file、YICHE_SERIES_URLS 或 YICHE_DISCOVERY_URLS 配置。")
     rows = crawl(urls, args.delay, args.time_limit) if urls else []
     output = args.output or f"yiche_{date.today().strftime('%Y%m%d')}.json"
     with open(output, "w", encoding="utf-8") as f:
