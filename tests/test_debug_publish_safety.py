@@ -143,13 +143,21 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(1, stats["overlap_kept_stable"])
         self.assertEqual(1, stats["debug_added"])
 
-    def test_yiche_no_year_still_requires_brand_and_series(self) -> None:
+    def test_yiche_no_year_without_brand_or_series_uses_model_identity(self) -> None:
         row = {"数据来源": "仅易车", "品牌": "甲", "车型名称": "易车受限款", "年款": ""}
+
+        result, rows = self.run_prepare([row], [row])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([row], rows)
+
+    def test_yiche_no_year_without_model_still_fails_closed(self) -> None:
+        row = {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "", "年款": ""}
 
         result, _ = self.run_prepare([row], [row])
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("yiche no-year identity requires", result.stderr)
+        self.assertIn("identity requires", result.stderr)
 
     def test_non_yiche_no_year_still_fails_closed(self) -> None:
         row = {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "A", "车型名称": "未知年款", "年款": ""}
@@ -167,6 +175,14 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(stable, rows)
+
+    def test_duplicate_yiche_no_year_minimal_identity_fails_closed(self) -> None:
+        row = {"数据来源": "仅易车", "车型名称": "易车受限款", "年款": ""}
+
+        result, _ = self.run_prepare([row, dict(row)], [row])
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("duplicate identities", result.stderr)
 
 
 class VerifyPublishSupersetTests(unittest.TestCase):
@@ -426,10 +442,10 @@ class PreservePublishBaselineTests(unittest.TestCase):
                 self.assertEqual([], outputs["temp_files"])
 
     def test_yiche_no_year_baseline_is_preserved(self) -> None:
-        baseline = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "", "价格": "published"}]
+        baseline = [{"数据来源": "仅易车", "车型名称": "易车受限款", "年款": "", "价格": "published"}]
         candidate = [
-            {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "-", "价格": "candidate"},
-            {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车新增款", "年款": "", "价格": "new"},
+            {"数据来源": "仅易车", "车型名称": "易车受限款", "年款": "-", "价格": "candidate"},
+            {"数据来源": "仅易车", "车型名称": "易车新增款", "年款": "", "价格": "new"},
         ]
 
         result, outputs = self.run_preserve(baseline, candidate)

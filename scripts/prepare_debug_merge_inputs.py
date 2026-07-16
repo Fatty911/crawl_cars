@@ -31,9 +31,7 @@ def identity_key(row: dict[str, Any]) -> tuple[str, ...]:
     brand = _value(row, "品牌")
     series = _value(row, "车系")
     if not year and "易车" in _value(row, "数据来源"):
-        if not brand or not series:
-            raise ValueError("yiche no-year identity requires 品牌 and 车系")
-        return ("yiche_no_year", brand, series, model)
+        return ("yiche_no_year", brand, series or model, model)
     if not year:
         raise ValueError("identity requires 车型名称 and 年款")
     if series_id:
