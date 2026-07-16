@@ -50,6 +50,7 @@ jobs:
           "$PWD/.github/workflows/auto-merge.yml"
           "$PWD/.github/workflows/crawl-autohome.yml"
           "$PWD/.github/workflows/crawl-dongchedi.yml"
+          "$PWD/.github/workflows/crawl-yiche.yml"
           "$PWD/.github/workflows/deploy-pages.yml"
           "$PWD/.github/workflows/merge-and-filter.yml"
           "$PWD/scripts/check_workflow_expectations.py"
