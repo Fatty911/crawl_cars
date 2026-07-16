@@ -179,6 +179,38 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
         )
 
 
+def check_yiche_workflow(path: Path, errors: list[str]) -> None:
+    text = path.read_text(encoding="utf-8")
+    assert_condition(
+        '[ "$DEBUG_LIMIT" -lt 20 ] || [ "$DEBUG_LIMIT" -gt 30 ]' in text,
+        "crawl-yiche.yml debug 范围必须限制为 20 至 30",
+        errors,
+    )
+    assert_condition(
+        'min_rows = 20 if debug_mode else 1' in text and 'debug_mode and len(rows) > 30' in text,
+        "crawl-yiche.yml debug 有效输出必须为 20 至 30 行",
+        errors,
+    )
+    assert_condition(
+        "yiche-debug-data-${CRAWL_DATE}-${{ github.run_id }}-${{ github.run_attempt }}" in text,
+        "crawl-yiche.yml debug artifact 未隔离或未绑定 run_id/run_attempt",
+        errors,
+    )
+    trigger_condition = text.split("name: Trigger merge-and-filter workflow", 1)[1].split("run: |", 1)[0]
+    assert_condition(
+        "if: steps.upload_yiche.outcome == 'success'" in trigger_condition
+        and "debug_mode" not in trigger_condition,
+        "crawl-yiche.yml debug artifact 上传后必须自动触发精确合并",
+        errors,
+    )
+    for input_name in ("debug_mode", "crawler_run_id", "crawler_run_attempt", "trigger_source"):
+        assert_condition(
+            f"-f {input_name}=" in text,
+            f"crawl-yiche.yml dispatch merge 缺少 {input_name}",
+            errors,
+        )
+
+
 def check_trigger(path: Path, errors: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     assert_condition("$((8 * 60))" in text, "crawl-trigger.yml 未使用 08:00 作为上午触发起点", errors)
@@ -270,8 +302,8 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         errors,
     )
     assert_condition(
-        "merge-inputs/stable/autohome" in text and "merge-inputs/stable/dongchedi" in text,
-        "merge-and-filter.yml 未隔离两个来源的 stable 输入",
+        all(f"merge-inputs/stable/{source}" in text for source in ("autohome", "dongchedi", "yiche")),
+        "merge-and-filter.yml 未隔离三个来源的 stable 输入",
         errors,
     )
     assert_condition(
@@ -287,8 +319,16 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
     prepare_positions = [match.start() for match in re.finditer("scripts/prepare_debug_merge_inputs.py", text)]
     merge_position = text.find("scripts/merge_data.py")
     assert_condition(
-        len(prepare_positions) == 3,
-        "merge-and-filter.yml 未对两个 debug 来源及 partial artifact 执行 stable-first 规范化",
+        len(prepare_positions) == 4,
+        "merge-and-filter.yml 未对三个 debug 来源及 partial artifact 执行 stable-first 规范化",
+        errors,
+    )
+    assert_condition(
+        "yiche-crawl)" in text
+        and "ARTIFACT_PREFIX=yiche-debug-data" in text
+        and "EXPECTED_WORKFLOW='.github/workflows/crawl-yiche.yml'" in text
+        and "yiche_debug_prepared.json" in text,
+        "merge-and-filter.yml 未按精确 run/attempt/source 纳入易车 debug artifact",
         errors,
     )
     assert_condition(
@@ -363,6 +403,7 @@ def main() -> int:
     errors: list[str] = []
     check_crawler_workflow(ROOT / ".github/workflows/crawl-autohome.yml", errors)
     check_crawler_workflow(ROOT / ".github/workflows/crawl-dongchedi.yml", errors)
+    check_yiche_workflow(ROOT / ".github/workflows/crawl-yiche.yml", errors)
     check_trigger(ROOT / ".github/workflows/crawl-trigger.yml", errors)
     check_budget_script(ROOT / "scripts/crawl_budget.py", errors)
     check_merge_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)

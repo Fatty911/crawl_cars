@@ -19,7 +19,7 @@ on:
         required: false
         default: '0'
       debug_mode:
-        description: '调试模式：只验证配置的少量易车 URL'
+        description: '调试模式：只验证20至30个易车车系'
         required: false
         default: 'false'
   repository_dispatch:
@@ -57,9 +57,9 @@ jobs:
           if [ "$DEBUG_MODE" = "true" ]; then
             echo "调试模式：跳过时间窗口检查"
             DEBUG_LIMIT="${{ github.event.inputs.max_series || '0' }}"
-            if [ "$DEBUG_LIMIT" = "0" ]; then DEBUG_LIMIT=5; fi
-            if ! [[ "$DEBUG_LIMIT" =~ ^[0-9]+$ ]] || [ "$DEBUG_LIMIT" -lt 1 ] || [ "$DEBUG_LIMIT" -gt 10 ]; then
-              echo "错误: debug max_series 必须是 1 到 10 的整数（0 表示默认 5）"
+            if [ "$DEBUG_LIMIT" = "0" ]; then DEBUG_LIMIT=20; fi
+            if ! [[ "$DEBUG_LIMIT" =~ ^[0-9]+$ ]] || [ "$DEBUG_LIMIT" -lt 20 ] || [ "$DEBUG_LIMIT" -gt 30 ]; then
+              echo "错误: debug max_series 必须是 20 到 30 的整数（0 表示默认 20）"
               exit 1
             fi
             echo "MAX_SERIES=$DEBUG_LIMIT" >> "$GITHUB_ENV"
@@ -120,6 +120,8 @@ jobs:
       - name: 校验易车输出
         id: verify_yiche
         if: steps.window.outputs.skip != 'true' && steps.crawl_yiche.outputs.skipped != 'true'
+        env:
+          DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'false' }}
         run: |
           python - <<'PY'
           import glob
@@ -132,6 +134,12 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               rows = json.load(f)
           print(f"{path}: {len(rows)} rows")
+          debug_mode = os.environ.get("DEBUG_MODE", "false") == "true"
+          min_rows = 20 if debug_mode else 1
+          if len(rows) < min_rows:
+              raise SystemExit(f"易车数据只有 {len(rows)} 行，低于当前模式最低要求 {min_rows} 行")
+          if debug_mode and len(rows) > 30:
+              raise SystemExit(f"易车 debug 数据有 {len(rows)} 行，超过 30 行上限")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write(f"row_count={len(rows)}\n")
               f.write(f"has_data={'true' if len(rows) > 0 else 'false'}\n")
@@ -149,19 +157,29 @@ jobs:
             echo "all_proxy="
           } >> "$GITHUB_ENV"
 
+      - name: Select Yiche artifact scope
+        if: steps.verify_yiche.outputs.has_data == 'true'
+        run: |
+          CRAWL_DATE=$(TZ=Asia/Shanghai date +%Y%m%d)
+          if [ "${{ github.event.inputs.debug_mode }}" = "true" ]; then
+            echo "YICHE_ARTIFACT_NAME=yiche-debug-data-${CRAWL_DATE}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_ENV"
+          else
+            echo "YICHE_ARTIFACT_NAME=yiche-data-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_ENV"
+          fi
+
       - name: 上传易车 artifact
         id: upload_yiche
         if: steps.verify_yiche.outputs.has_data == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: yiche-data-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ env.YICHE_ARTIFACT_NAME }}
           path: yiche_*.json
           if-no-files-found: error
           retention-days: 90
 
 
       - name: Trigger merge-and-filter workflow
-        if: steps.upload_yiche.outcome == 'success' && (github.event.inputs.debug_mode || 'false') != 'true'
+        if: steps.upload_yiche.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.ACTION_PAT }}
         run: |
