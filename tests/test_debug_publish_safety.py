@@ -492,6 +492,13 @@ class WorkflowValidatorTests(unittest.TestCase):
                 errors = self.check_mutated_merge(mutated)
                 self.assertTrue(any("普通半月限制" in error for error in errors))
 
+    def test_missing_stable_artifact_delegates_to_safety_validation(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            'echo "爬虫 stable artifact 尚未齐备，交由完整性校验安全跳过"\n            exit 0',
+            text,
+        )
+
     def test_partial_history_fallback_requires_exact_fresh_successful_attempt(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
         mutations = (

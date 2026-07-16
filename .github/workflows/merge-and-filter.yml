@@ -194,8 +194,8 @@ jobs:
           mapfile -t DONGCHEDI_STABLE < <(find merge-inputs/stable/dongchedi -maxdepth 1 -type f -name 'dongchedi_*.json' -print)
           mapfile -t YICHE_STABLE < <(find merge-inputs/stable/yiche -maxdepth 1 -type f -name 'yiche_*.json' -print)
           if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ] || [ "${#DONGCHEDI_STABLE[@]}" -ne 1 ]; then
-            echo "必须精确找到两个来源各一份可用 stable artifact"
-            exit 1
+            echo "爬虫 stable artifact 尚未齐备，交由完整性校验安全跳过"
+            exit 0
           fi
 
           if [ "$DEBUG_MODE" = "true" ]; then
