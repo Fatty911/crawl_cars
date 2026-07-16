@@ -188,6 +188,7 @@ jobs:
             --json-pattern "yiche_*.json" \
             --label "易车" \
             --output-dir merge-inputs/stable/yiche \
+            --min-bytes 1 \
             --min-rows 1 || true
 
           mapfile -t AUTOHOME_STABLE < <(find merge-inputs/stable/autohome -maxdepth 1 -type f -name 'autoHome_*.json' -print)

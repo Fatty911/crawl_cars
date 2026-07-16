@@ -101,6 +101,7 @@ def main() -> int:
     parser.add_argument("--output-dir", default=".")
     parser.add_argument("--limit", type=int, default=50)
     parser.add_argument("--min-rows", type=int, default=50)
+    parser.add_argument("--min-bytes", type=int, default=1024)
     parser.add_argument("--min-date", default="")
     args = parser.parse_args()
 
@@ -150,7 +151,7 @@ def main() -> int:
                 continue
 
             size = int(artifact.get("size_in_bytes") or 0)
-            if size < 1024:
+            if size < args.min_bytes:
                 print(f"{args.label}: {name} 只有 {size} bytes，跳过")
                 continue
 
