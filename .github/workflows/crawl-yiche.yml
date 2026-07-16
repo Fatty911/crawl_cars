@@ -161,7 +161,7 @@ jobs:
 
 
       - name: Trigger merge-and-filter workflow
-        if: steps.upload_yiche.outcome == 'success' && (github.event.inputs.debug_mode || 'false') != 'true'
+        if: steps.upload_yiche.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.ACTION_PAT }}
         run: |

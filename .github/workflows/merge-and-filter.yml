@@ -216,8 +216,14 @@ jobs:
                 JSON_PATTERN='dongchedi_*.json'
                 EXPECTED_WORKFLOW='.github/workflows/crawl-dongchedi.yml'
                 ;;
+              yiche-crawl)
+                SOURCE_DIR=yiche
+                ARTIFACT_PREFIX=yiche-data
+                JSON_PATTERN='yiche_*.json'
+                EXPECTED_WORKFLOW='.github/workflows/crawl-yiche.yml'
+                ;;
               *)
-                echo "debug trigger_source 必须是 autohome-crawl 或 dongchedi-crawl"
+                echo "debug trigger_source 必须是 autohome-crawl、dongchedi-crawl 或 yiche-crawl"
                 exit 1
                 ;;
             esac
@@ -230,7 +236,11 @@ jobs:
               exit 1
             fi
 
-            ARTIFACT_REGEX="^${ARTIFACT_PREFIX}-[0-9]{8}-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$"
+            if [ "$SOURCE_DIR" = "yiche" ]; then
+              ARTIFACT_REGEX="^${ARTIFACT_PREFIX}-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$"
+            else
+              ARTIFACT_REGEX="^${ARTIFACT_PREFIX}-[0-9]{8}-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$"
+            fi
             mapfile -t DEBUG_ARTIFACTS < <(
               gh api "repos/${{ github.repository }}/actions/runs/$CRAWLER_RUN_ID/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false) | .name' \
                 | grep -E "$ARTIFACT_REGEX" || true
@@ -255,10 +265,14 @@ jobs:
               python scripts/prepare_debug_merge_inputs.py \
                 --stable "${AUTOHOME_STABLE[0]}" --debug "${DEBUG_JSON[0]}" --output autoHome_debug_prepared.json
               cp "${DONGCHEDI_STABLE[0]}" dongchedi_stable.json
-            else
+            elif [ "$SOURCE_DIR" = "dongchedi" ]; then
               cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
               python scripts/prepare_debug_merge_inputs.py \
                 --stable "${DONGCHEDI_STABLE[0]}" --debug "${DEBUG_JSON[0]}" --output dongchedi_debug_prepared.json
+            else
+              cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
+              cp "${DONGCHEDI_STABLE[0]}" dongchedi_stable.json
+              cp "${DEBUG_JSON[0]}" yiche_stable.json
             fi
           else
             cp "${AUTOHOME_STABLE[0]}" autoHome_stable.json
