@@ -135,23 +135,30 @@ def enrich_identity(rows, url):
     return rows
 
 
-def crawl(urls, delay):
+def crawl(urls, delay, time_limit=0):
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0"})
     all_rows = []
+    start = time.monotonic()
     for url in urls:
+        if time_limit and time.monotonic() - start >= time_limit:
+            print("易车爬取时间预算已用完，停止继续抓取")
+            break
         page_url = url if url.endswith("/") else url + "/"
         if not page_url.endswith("peizhi/"):
             page_url = urljoin(page_url, "peizhi/")
         print(f"抓取易车: {page_url}")
-        html = fetch(session, page_url)
-        data = parse_next_data(html)
-        rows = extract_from_next_data(data) if data else []
-        if not rows:
-            rows = extract_from_tables(html)
-        rows = enrich_identity(rows, page_url)
-        print(f"  提取 {len(rows)} 条")
-        all_rows.extend(rows)
+        try:
+            html = fetch(session, page_url)
+            data = parse_next_data(html)
+            rows = extract_from_next_data(data) if data else []
+            if not rows:
+                rows = extract_from_tables(html)
+            rows = enrich_identity(rows, page_url)
+            print(f"  提取 {len(rows)} 条")
+            all_rows.extend(rows)
+        except requests.RequestException as exc:
+            print(f"  易车页面抓取失败，跳过: {exc}")
         if delay:
             time.sleep(delay)
     return all_rows
@@ -163,12 +170,16 @@ def main():
     parser.add_argument("--url-file", default="config/yiche_series_urls.txt", help="易车车系 URL 列表")
     parser.add_argument("--output", default="", help="输出 JSON 路径")
     parser.add_argument("--delay", type=float, default=float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "8")))
+    parser.add_argument("--time-limit", type=int, default=0, help="最大运行时间(秒)，0表示不限制")
+    parser.add_argument("--max-series", type=int, default=0, help="最多爬取车系 URL 数，0表示不限制")
     args = parser.parse_args()
 
     urls = load_urls(args)
+    if args.max_series > 0:
+        urls = urls[:args.max_series]
     if not urls:
         print("未配置易车车系 URL，生成空数据文件。可通过 --url、--url-file 或 YICHE_SERIES_URLS 配置。")
-    rows = crawl(urls, args.delay) if urls else []
+    rows = crawl(urls, args.delay, args.time_limit) if urls else []
     output = args.output or f"yiche_{date.today().strftime('%Y%m%d')}.json"
     with open(output, "w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=2)

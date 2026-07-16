@@ -14,6 +14,10 @@ on:
         description: '运行时长配置：auto/morning/afternoon'
         required: false
         default: 'auto'
+      max_series:
+        description: '最多爬取车系 URL 数（调试用，0=不限制）'
+        required: false
+        default: '0'
       debug_mode:
         description: '调试模式：只验证配置的少量易车 URL'
         required: false
@@ -22,7 +26,15 @@ on:
     types: [trigger-yiche]
 
 env:
+  RUN_TIME: 10800
+  MORNING_RUN_TIME: 10800
+  AFTERNOON_RUN_TIME: 21000
+  MAX_WORKFLOW_SECONDS: 21600
+  PROGRESS_COMMIT_BUFFER_SECONDS: 1800
+  WINDOW_END_BUFFER_SECONDS: 900
   CRAWL_MIN_DELAY_SECONDS: 3
+  CRAWL_MAX_DELAY_SECONDS: 8
+  MAX_SERIES: ${{ github.event.inputs.max_series || '0' }}
 
 concurrency:
   group: yiche-crawl-${{ github.ref }}
@@ -31,24 +43,80 @@ concurrency:
 jobs:
   yiche-crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 390
     steps:
       - uses: actions/checkout@main
 
+      - name: Configure crawl window
+        id: window
+        env:
+          PROFILE_INPUT: ${{ github.event.inputs.run_profile || github.event.client_payload.run_profile || 'auto' }}
+          DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'false' }}
+        run: |
+          echo "WORKFLOW_START_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+          if [ "$DEBUG_MODE" = "true" ]; then
+            echo "调试模式：跳过时间窗口检查"
+            DEBUG_LIMIT="${{ github.event.inputs.max_series || '0' }}"
+            if [ "$DEBUG_LIMIT" = "0" ]; then DEBUG_LIMIT=5; fi
+            if ! [[ "$DEBUG_LIMIT" =~ ^[0-9]+$ ]] || [ "$DEBUG_LIMIT" -lt 1 ] || [ "$DEBUG_LIMIT" -gt 10 ]; then
+              echo "错误: debug max_series 必须是 1 到 10 的整数（0 表示默认 5）"
+              exit 1
+            fi
+            echo "MAX_SERIES=$DEBUG_LIMIT" >> "$GITHUB_ENV"
+            echo "DEBUG_MODE=true" >> "$GITHUB_ENV"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/crawl_budget.py configure
+            echo "MAX_SERIES=${{ github.event.inputs.max_series || '0' }}" >> "$GITHUB_ENV"
+            echo "DEBUG_MODE=false" >> "$GITHUB_ENV"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-python@main
+        if: steps.window.outputs.skip != 'true'
         with:
           python-version: '3.12'
 
       - name: 安装依赖
-        run: pip install requests beautifulsoup4 lxml
+        if: steps.window.outputs.skip != 'true'
+        run: pip install requests beautifulsoup4 lxml PyYAML
+
+      - name: Setup environment
+        if: steps.window.outputs.skip != 'true'
+        run: echo "PYTHONUNBUFFERED=1" >> "$GITHUB_ENV"
+
+      - name: Setup proxy if configured
+        if: steps.window.outputs.skip != 'true'
+        env:
+          PROXY_SUBSCRIPTIONS: ${{ secrets.PROXY_SUBSCRIPTIONS }}
+        run: python scripts/setup_proxy_runtime.py --github-env "$GITHUB_ENV" --test-url "https://car.yiche.com/"
+
+      - name: Clamp runtime to workflow budget
+        if: steps.window.outputs.skip != 'true' && github.event.inputs.debug_mode != 'true'
+        run: python scripts/crawl_budget.py clamp --step-label yiche --skip-env YICHE_SKIP
 
       - name: 运行易车爬虫
+        id: crawl_yiche
+        if: steps.window.outputs.skip != 'true'
         env:
           YICHE_SERIES_URLS: ${{ vars.YICHE_SERIES_URLS }}
-        run: python scripts/crawl_yiche.py
+        run: |
+          if [ "${YICHE_SKIP:-false}" = "true" ]; then
+            echo "易车爬虫已因剩余安全时间不足跳过"
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${PROXY_ENABLED:-false}" = "true" ]; then
+            echo "使用代理模式运行易车爬虫 (mihomo round-robin)"
+          else
+            echo "无代理，直接运行易车爬虫"
+          fi
+          python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series "$MAX_SERIES"
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
 
       - name: 校验易车输出
         id: verify_yiche
+        if: steps.window.outputs.skip != 'true' && steps.crawl_yiche.outputs.skipped != 'true'
         run: |
           python - <<'PY'
           import glob
@@ -63,13 +131,43 @@ jobs:
           print(f"{path}: {len(rows)} rows")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write(f"row_count={len(rows)}\n")
+              f.write(f"has_data={'true' if len(rows) > 0 else 'false'}\n")
           PY
+
+      - name: Disable proxy for Yiche artifact upload
+        if: steps.verify_yiche.outputs.has_data == 'true'
+        run: |
+          {
+            echo "HTTP_PROXY="
+            echo "HTTPS_PROXY="
+            echo "ALL_PROXY="
+            echo "http_proxy="
+            echo "https_proxy="
+            echo "all_proxy="
+          } >> "$GITHUB_ENV"
 
       - name: 上传易车 artifact
         id: upload_yiche
+        if: steps.verify_yiche.outputs.has_data == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: yiche-data-${{ github.run_id }}-${{ github.run_attempt }}
           path: yiche_*.json
           if-no-files-found: error
           retention-days: 90
+
+
+      - name: Trigger merge-and-filter workflow
+        if: steps.upload_yiche.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.ACTION_PAT }}
+        run: |
+          gh workflow run merge-and-filter.yml \
+            --repo ${{ github.repository }} \
+            --ref "${{ github.ref_name }}" \
+            -f force_merge=false \
+            -f debug_mode=${{ github.event.inputs.debug_mode || 'false' }} \
+            -f crawler_run_id=${{ github.run_id }} \
+            -f crawler_run_attempt=${{ github.run_attempt }} \
+            -f trigger_source=yiche-crawl \
+            -f trigger_time=$(date +%s)
