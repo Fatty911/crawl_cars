@@ -34,7 +34,7 @@ env:
   WINDOW_END_BUFFER_SECONDS: 900
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
-  MAX_SERIES: ${{ github.event.inputs.max_series || '60' }}
+  MAX_SERIES: ${{ github.event.inputs.max_series || '0' }}
 
 concurrency:
   group: yiche-crawl-${{ github.ref }}
@@ -57,9 +57,9 @@ jobs:
           if [ "$DEBUG_MODE" = "true" ]; then
             echo "调试模式：跳过时间窗口检查"
             DEBUG_LIMIT="${{ github.event.inputs.max_series || '0' }}"
-            if [ "$DEBUG_LIMIT" = "0" ]; then DEBUG_LIMIT=5; fi
-            if ! [[ "$DEBUG_LIMIT" =~ ^[0-9]+$ ]] || [ "$DEBUG_LIMIT" -lt 1 ] || [ "$DEBUG_LIMIT" -gt 10 ]; then
-              echo "错误: debug max_series 必须是 1 到 10 的整数（0 表示默认 5）"
+            if [ "$DEBUG_LIMIT" = "0" ]; then DEBUG_LIMIT=20; fi
+            if ! [[ "$DEBUG_LIMIT" =~ ^[0-9]+$ ]] || [ "$DEBUG_LIMIT" -lt 1 ] || [ "$DEBUG_LIMIT" -gt 50 ]; then
+              echo "错误: debug max_series 必须是 1 到 50 的整数（0 表示默认 20）"
               exit 1
             fi
             echo "MAX_SERIES=$DEBUG_LIMIT" >> "$GITHUB_ENV"
@@ -68,7 +68,6 @@ jobs:
           else
             python scripts/crawl_budget.py configure
             MAX_SERIES_INPUT="${{ github.event.inputs.max_series || '0' }}"
-            if [ "$MAX_SERIES_INPUT" = "0" ]; then MAX_SERIES_INPUT=60; fi
             echo "MAX_SERIES=$MAX_SERIES_INPUT" >> "$GITHUB_ENV"
             echo "DEBUG_MODE=false" >> "$GITHUB_ENV"
             echo "skip=false" >> "$GITHUB_OUTPUT"

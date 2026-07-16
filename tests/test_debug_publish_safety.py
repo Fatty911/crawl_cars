@@ -528,11 +528,15 @@ class MergePagesYearTests(unittest.TestCase):
             {"年款": "2022", "车型名称": "新款"},
             {"年款": "-", "车型名称": "测试 2023款 Pro"},
             {"年款": "", "车型名称": "未知年款"},
+            {"年款": "", "车型名称": "易车无年款", "数据来源": "仅易车"},
+            {"年款": "", "车型名称": "易车补充无年款", "数据来源": "汽车之家+易车"},
+            {"年款": "2021", "车型名称": "易车旧款", "数据来源": "仅易车"},
+            {"年款": "", "车型名称": "懂车帝无年款", "数据来源": "仅懂车帝"},
         ]
 
         kept = [row["车型名称"] for row in rows if self.merge_data.keep_pages_year(row)]
 
-        self.assertEqual(["新款", "测试 2023款 Pro"], kept)
+        self.assertEqual(["新款", "测试 2023款 Pro", "易车无年款", "易车补充无年款"], kept)
 
 
 class PagesPaginationTests(unittest.TestCase):

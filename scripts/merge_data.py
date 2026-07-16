@@ -262,9 +262,15 @@ def backfill_year_from_model_name(row):
         row["年款"] = match.group(0)
 
 
+def is_yiche_row(row):
+    return "易车" in str(row.get("数据来源", "") or "")
+
+
 def keep_pages_year(row):
     year = row_year(row)
-    return year is not None and year >= 2022
+    if year is None:
+        return is_yiche_row(row)
+    return year >= 2022
 
 
 # 品牌名归一化: 汽车之家 vs 懂车帝使用不同品牌名

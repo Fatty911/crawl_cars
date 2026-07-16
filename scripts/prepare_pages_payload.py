@@ -27,6 +27,10 @@ def keep_value(value: Any) -> bool:
     return value is not None and (not isinstance(value, str) or value.strip() not in {"", "-"})
 
 
+def source_allows_missing_year(row: dict[str, Any]) -> bool:
+    return "易车" in str(row.get("数据来源", "") or "")
+
+
 def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
     if not isinstance(rows, list):
         raise ValueError("Pages payload input must be a JSON array")
@@ -35,7 +39,10 @@ def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
         if not isinstance(row, dict):
             continue
         year = model_year(row)
-        if year is None or year < min_year:
+        if year is None:
+            if not source_allows_missing_year(row):
+                continue
+        elif year < min_year:
             continue
         prepared.append({key: value for key, value in row.items() if keep_value(value)})
     return prepared
