@@ -1,5 +1,7 @@
 import sys
 import types
+
+import requests
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -46,3 +48,60 @@ def test_extract_identity_from_url_uses_slug_when_page_has_no_static_identity():
 def test_extract_identity_from_url_skips_unpublished_page():
     rows = yiche.extract_identity_from_url("https://car.yiche.com/hanl/peizhi/", "参数配置暂未公布")
     assert rows == []
+
+
+
+def http_error(status_code):
+    response = requests.Response()
+    response.status_code = status_code
+    response.url = "https://car.yiche.com/blocked/peizhi/"
+    return requests.HTTPError(f"{status_code} error", response=response)
+
+
+def test_crawl_uses_url_fallback_for_rate_limited_pages(monkeypatch):
+    def blocked_fetch(session, url):
+        raise http_error(403)
+
+    monkeypatch.setattr(yiche, "fetch", blocked_fetch)
+
+    rows = yiche.crawl(["https://car.yiche.com/blocked/peizhi/"], delay=0)
+
+    assert rows == [{"车系": "blocked", "车型名称": "blocked", "数据来源": "易车"}]
+
+
+def test_crawl_uses_url_fallback_for_too_many_requests(monkeypatch):
+    def limited_fetch(session, url):
+        raise http_error(429)
+
+    monkeypatch.setattr(yiche, "fetch", limited_fetch)
+
+    rows = yiche.crawl(["https://car.yiche.com/limited/peizhi/"], delay=0)
+
+    assert rows == [{"车系": "limited", "车型名称": "limited", "数据来源": "易车"}]
+
+
+def test_crawl_skips_not_found_http_errors(monkeypatch):
+    def not_found_fetch(session, url):
+        raise http_error(404)
+
+    monkeypatch.setattr(yiche, "fetch", not_found_fetch)
+
+    assert yiche.crawl(["https://car.yiche.com/missing/peizhi/"], delay=0) == []
+
+
+def test_crawl_skips_server_http_errors(monkeypatch):
+    def failed_fetch(session, url):
+        raise http_error(500)
+
+    monkeypatch.setattr(yiche, "fetch", failed_fetch)
+
+    assert yiche.crawl(["https://car.yiche.com/broken/peizhi/"], delay=0) == []
+
+
+def test_crawl_skips_connection_errors(monkeypatch):
+    def connection_error_fetch(session, url):
+        raise requests.ConnectionError("network down")
+
+    monkeypatch.setattr(yiche, "fetch", connection_error_fetch)
+
+    assert yiche.crawl(["https://car.yiche.com/offline/peizhi/"], delay=0) == []

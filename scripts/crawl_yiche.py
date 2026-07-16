@@ -275,6 +275,14 @@ def crawl(urls, delay, time_limit=0):
             rows = enrich_identity(rows, page_url)
             print(f"  提取 {len(rows)} 条")
             all_rows.extend(rows)
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code in {403, 429}:
+                rows = enrich_identity(extract_identity_from_url(page_url, ""), page_url)
+                print(f"  易车页面被限制访问({status_code})，使用 URL 兜底提取 {len(rows)} 条")
+                all_rows.extend(rows)
+            else:
+                print(f"  易车页面抓取失败，跳过: {exc}")
         except requests.RequestException as exc:
             print(f"  易车页面抓取失败，跳过: {exc}")
         if delay:
