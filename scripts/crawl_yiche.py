@@ -154,6 +154,18 @@ def extract_series_targets(base_url, html):
     return targets
 
 
+def extract_serial_id(html):
+    patterns = (
+        r'"(?:serialId|serialid)"\s*:\s*"?(\d+)"?',
+        r'(?:data-serial-id|data-serialid|data-id)=["\'](\d+)["\']',
+    )
+    for pattern in patterns:
+        match = re.search(pattern, html)
+        if match:
+            return match.group(1)
+    return ""
+
+
 def discover_series_urls(session, discovery_urls, max_pages=30):
     discovered = {}
     candidate_pages = []
@@ -378,6 +390,7 @@ def crawl(targets, delay, time_limit=0):
         print(f"抓取易车: {page_url}")
         try:
             html = fetch(session, page_url)
+            serial_id = serial_id or extract_serial_id(html)
             data = parse_next_data(html)
             rows = extract_from_next_data(data) if data else []
             if not rows:

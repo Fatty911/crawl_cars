@@ -117,6 +117,10 @@ def test_discovery_pairs_page_url_with_serial_id():
     }
 
 
+def test_extract_serial_id_from_page_state():
+    assert yiche.extract_serial_id('<script>window.state={"serialId":12345}</script>') == "12345"
+
+
 def test_workflow_quality_gate_uses_real_row_validation():
     workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/crawl-yiche.yml").read_text(encoding="utf-8")
     assert "validate_real_rows" in workflow
