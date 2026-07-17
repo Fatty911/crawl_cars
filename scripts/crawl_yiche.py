@@ -580,7 +580,7 @@ def main():
         args.delay,
         args.time_limit,
         discovery_callback=discovery_callback,
-        max_attempts=5 if args.max_series == 0 else 1,
+        max_attempts=2 if args.max_series == 0 else 1,
         start_time=started_at,
     ) if targets else []
     output = args.output or f"yiche_{date.today().strftime('%Y%m%d')}.json"
