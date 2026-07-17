@@ -83,20 +83,22 @@ def test_crawl_rejects_url_fallback_for_too_many_requests(monkeypatch):
 def test_extract_config_api_response_requires_real_model_and_configuration():
     payload = {"data": [{"items": [
         {"name": "车型名称", "paramValues": [{"value": "2026款 旗舰版"}]},
+        {"name": "厂商", "paramValues": [{"value": "测试品牌"}]},
         {"name": "厂商指导价", "paramValues": [{"value": "25.98万"}]},
         {"name": "轴距", "paramValues": [{"value": "2920"}]},
     ]}]}
     rows = yiche.extract_from_config_api(payload)
-    assert yiche.validate_real_rows(rows) == [{"车型名称": "2026款 旗舰版", "价格": "25.98万", "轴距(mm)": "2920"}]
+    assert yiche.validate_real_rows(rows) == [{"车型名称": "2026款 旗舰版", "厂商": "测试品牌", "价格": "25.98万", "轴距(mm)": "2920", "品牌": "测试品牌"}]
 
 
 def test_first_api_item_supplies_model_identity_when_label_changes():
     payload = {"data": [{"items": [
         {"name": "基本信息", "paramValues": [{"value": "2026款 长续航版"}]},
+        {"name": "厂商", "paramValues": [{"value": "测试品牌"}]},
         {"name": "厂商指导价", "paramValues": [{"value": "31.35万"}]},
     ]}]}
     assert yiche.validate_real_rows(yiche.extract_from_config_api(payload)) == [
-        {"车型名称": "2026款 长续航版", "价格": "31.35万"}
+        {"车型名称": "2026款 长续航版", "厂商": "测试品牌", "价格": "31.35万", "品牌": "测试品牌"}
     ]
 
 
@@ -104,14 +106,40 @@ def test_mixed_responses_only_count_real_configuration(monkeypatch):
     def mixed_fetch(session, url):
         if "blocked" in url:
             raise http_error(403)
-        return '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+        return '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>品牌</td><td>真实品牌</td></tr><tr><td>轴距</td><td>2900</td></tr></table>'
 
     monkeypatch.setattr(yiche, "fetch", mixed_fetch)
     rows = yiche.crawl([
         "https://car.yiche.com/blocked/peizhi/",
         "https://car.yiche.com/real/peizhi/",
     ], delay=0)
-    assert rows == [{"车型名称": "2026款 真车", "轴距(mm)": "2900", "车系": "real", "数据来源": "易车"}]
+    assert rows == [{"车型名称": "2026款 真车", "品牌": "真实品牌", "轴距(mm)": "2900", "车系": "real", "数据来源": "易车"}]
+
+
+def test_budgeted_crawl_expands_beyond_twenty_targets(monkeypatch):
+    fetched = []
+    html = '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>品牌</td><td>真实品牌</td></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: fetched.append(url) or html)
+    discovered = {f"https://car.yiche.com/series-{index}/peizhi/": "" for index in range(25)}
+    calls = iter((discovered, {}, {}))
+
+    rows = yiche.crawl(
+        {"https://car.yiche.com/seed/peizhi/": ""},
+        delay=0,
+        discovery_callback=lambda: next(calls),
+        max_attempts=1,
+    )
+
+    assert len(fetched) == 26
+    assert len(rows) == 26
+
+
+def test_deadline_stops_before_new_request_and_reports_reason(monkeypatch, capsys):
+    monkeypatch.setattr(yiche.time, "monotonic", lambda: 95)
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: (_ for _ in ()).throw(AssertionError("request after deadline")))
+
+    assert yiche.crawl(["https://car.yiche.com/seed/peizhi/"], delay=0, time_limit=100, start_time=0, finish_buffer=10) == []
+    assert "stop_reason=safety_buffer_reached" in capsys.readouterr().out
 
 
 def test_quality_gate_rejects_placeholder_rows():

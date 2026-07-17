@@ -57,9 +57,8 @@ jobs:
           if [ "$DEBUG_MODE" = "true" ]; then
             echo "调试模式：跳过时间窗口检查"
             DEBUG_LIMIT="${{ github.event.inputs.max_series || '0' }}"
-            if [ "$DEBUG_LIMIT" = "0" ]; then DEBUG_LIMIT=20; fi
-            if ! [[ "$DEBUG_LIMIT" =~ ^[0-9]+$ ]] || [ "$DEBUG_LIMIT" -lt 1 ] || [ "$DEBUG_LIMIT" -gt 50 ]; then
-              echo "错误: debug max_series 必须是 1 到 50 的整数（0 表示默认 20）"
+            if ! [[ "$DEBUG_LIMIT" =~ ^[0-9]+$ ]] || [ "$DEBUG_LIMIT" -gt 50 ]; then
+              echo "错误: debug max_series 必须是 0 到 50 的整数（0 表示不限制）"
               exit 1
             fi
             echo "MAX_SERIES=$DEBUG_LIMIT" >> "$GITHUB_ENV"
@@ -113,6 +112,8 @@ jobs:
           else
             echo "无代理，直接运行易车爬虫"
           fi
+          echo "易车运行约束: workflow_timeout=390m RUN_TIME=${RUN_TIME}s 北京时间窗口=08:00-12:30/13:00-22:00 安全收尾缓冲=${WINDOW_END_BUFFER_SECONDS}s"
+          echo "易车预计 deadline_utc=$(date -u -d "+${RUN_TIME} seconds" --iso-8601=seconds)"
           python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series "$MAX_SERIES"
           echo "skipped=false" >> "$GITHUB_OUTPUT"
 

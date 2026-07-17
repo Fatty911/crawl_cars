@@ -77,6 +77,7 @@
     verifiedCount: document.getElementById("verifiedCount"),
     dongchediCount: document.getElementById("dongchediCount"),
     autohomeCount: document.getElementById("autohomeCount"),
+    yicheCount: document.getElementById("yicheCount"),
     brandFilter: document.getElementById("brandFilter"),
     seriesFilter: document.getElementById("seriesFilter"),
     pageSize: document.getElementById("pageSize"),
@@ -196,7 +197,7 @@
   function atomicSources(value) {
     var text = String(value == null ? "" : value).trim();
     var sources = new Set();
-    var knownSources = ["懂车帝", "汽车之家"];
+    var knownSources = ["懂车帝", "汽车之家", "易车"];
     text.split(/[+＋/／|、,，;；]+/).forEach(function (part) {
       var item = part.trim();
       var recognized = false;
@@ -1041,6 +1042,7 @@
     els.verifiedCount.textContent = String(state.rows.filter(function (row) { return row["交叉核验"] === "双源核验"; }).length);
     els.dongchediCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "懂车帝"); }).length);
     els.autohomeCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "汽车之家"); }).length);
+    els.yicheCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "易车"); }).length);
     els.pageInfo.textContent = "第 " + state.page + " / " + pageCount + " 页";
     els.pageJump.max = String(pageCount);
     els.pageJump.value = String(state.page);

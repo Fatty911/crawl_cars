@@ -38,13 +38,20 @@ def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
     for row in rows:
         if not isinstance(row, dict):
             continue
+        brand = str(row.get("品牌") or "").strip()
+        model = str(row.get("车型名称") or "").strip()
+        if brand in {"", "-"} or model in {"", "-"}:
+            continue
         year = model_year(row)
         if year is None:
             if not source_allows_missing_year(row):
                 continue
         elif year < min_year:
             continue
-        prepared.append({key: value for key, value in row.items() if keep_value(value)})
+        prepared_row = {key: value for key, value in row.items() if keep_value(value)}
+        prepared_row["品牌"] = brand
+        prepared_row["车型名称"] = model
+        prepared.append(prepared_row)
     return prepared
 
 

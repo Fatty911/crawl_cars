@@ -263,24 +263,40 @@ def extract_from_config_api(payload):
                 model_name = clean_text(
                     raw_value.get("carName") or raw_value.get("carname") or raw_value.get("name")
                 )
+                brand_name = clean_text(raw_value.get("brandName") or raw_value.get("brandname"))
                 if model_name:
                     rows[index]["车型名称"] = model_name
+                if brand_name:
+                    rows[index]["品牌"] = brand_name
                 if value and value != "-":
                     if key in {"车型", "车型名称", "车款"} or (group_index == 0 and item_index == 0):
                         rows[index]["车型名称"] = value
                     else:
                         rows[index][key] = value
+    for row in rows:
+        brand = clean_text(row.get("品牌") or row.get("厂商"))
+        if brand and brand != "-":
+            row["品牌"] = brand
     return rows
 
 
 def is_real_config_row(row):
-    return bool(clean_text(row.get("车型名称"))) and any(
+    brand = clean_text(row.get("品牌"))
+    model = clean_text(row.get("车型名称"))
+    return brand not in {"", "-"} and model not in {"", "-"} and any(
         clean_text(value) for key, value in row.items() if key not in IDENTITY_FIELDS
     )
 
 
 def validate_real_rows(rows):
     return [row for row in rows if isinstance(row, dict) and is_real_config_row(row)]
+
+
+def identity_quality_counts(rows):
+    return {
+        "invalid_brand": sum(clean_text(row.get("品牌")) in {"", "-"} for row in rows if isinstance(row, dict)),
+        "invalid_model_name": sum(clean_text(row.get("车型名称")) in {"", "-"} for row in rows if isinstance(row, dict)),
+    }
 
 
 def parse_next_data(html):
@@ -393,17 +409,45 @@ def enrich_identity(rows, url):
     return rows
 
 
-def crawl(targets, delay, time_limit=0):
+def crawl(
+    targets,
+    delay,
+    time_limit=0,
+    *,
+    discovery_callback=None,
+    max_attempts=1,
+    finish_buffer=60,
+    start_time=None,
+):
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0"})
     all_rows = []
     stats = {"attempted": 0, "success": 0, "403": 0, "429": 0, "failed": 0, "degraded_identity": 0}
-    start = time.monotonic()
-    items = targets.items() if isinstance(targets, dict) else ((url, "") for url in targets)
-    for url, serial_id in items:
-        if time_limit and time.monotonic() - start >= time_limit:
-            print("易车爬取时间预算已用完，停止继续抓取")
+    start = start_time if start_time is not None else time.monotonic()
+    deadline = start + time_limit if time_limit else 0
+    known_targets = dict(targets) if isinstance(targets, dict) else {url: "" for url in targets}
+    pending = list(known_targets)
+    attempts = {}
+    completed = set()
+    idle_discovery_rounds = 0
+    stop_reason = "target_exhausted"
+    stats.update({"discovery_rounds": 0, "retry_attempted": 0, "invalid_brand": 0, "invalid_model_name": 0})
+    print(
+        f"易车预算: budget_seconds={time_limit} finish_buffer_seconds={finish_buffer} "
+        f"deadline_monotonic={deadline:.3f} targets_initial={len(known_targets)} max_attempts={max_attempts}"
+    )
+    while pending:
+        if deadline and time.monotonic() >= deadline - finish_buffer:
+            stop_reason = "safety_buffer_reached"
             break
+        url = pending.pop(0)
+        if url in completed:
+            continue
+        serial_id = known_targets.get(url, "")
+        attempts[url] = attempts.get(url, 0) + 1
+        if attempts[url] > 1:
+            stats["retry_attempted"] += 1
+        target_succeeded = False
         page_url = normalize_series_url(url)
         stats["attempted"] += 1
         print(f"抓取易车: {page_url}")
@@ -417,10 +461,18 @@ def crawl(targets, delay, time_limit=0):
             if not rows:
                 rows = extract_identity_from_meta(html)
             rows = enrich_identity(rows, page_url)
+            quality = identity_quality_counts(rows)
+            stats["invalid_brand"] += quality["invalid_brand"]
+            stats["invalid_model_name"] += quality["invalid_model_name"]
             real_rows = validate_real_rows(rows)
             if not real_rows and serial_id:
-                real_rows = validate_real_rows(enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id)), page_url))
+                api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id)), page_url)
+                quality = identity_quality_counts(api_rows)
+                stats["invalid_brand"] += quality["invalid_brand"]
+                stats["invalid_model_name"] += quality["invalid_model_name"]
+                real_rows = validate_real_rows(api_rows)
             if real_rows:
+                target_succeeded = True
                 stats["success"] += 1
                 print(f"  提取真实配置 {len(real_rows)} 条")
                 print(f"  真实配置样例: 车型名称={real_rows[0]['车型名称']!r} 配置字段={list(key for key in real_rows[0] if key not in IDENTITY_FIELDS)[:5]}")
@@ -434,11 +486,16 @@ def crawl(targets, delay, time_limit=0):
             if status_code in {403, 429}:
                 stats[str(status_code)] += 1
             try:
-                real_rows = validate_real_rows(enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id)), page_url)) if serial_id else []
+                api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id)), page_url) if serial_id else []
+                quality = identity_quality_counts(api_rows)
+                stats["invalid_brand"] += quality["invalid_brand"]
+                stats["invalid_model_name"] += quality["invalid_model_name"]
+                real_rows = validate_real_rows(api_rows)
             except requests.RequestException as api_exc:
                 real_rows = []
                 print(f"  易车配置 API 抓取失败: {api_exc}")
             if real_rows:
+                target_succeeded = True
                 stats["success"] += 1
                 print(f"  页面受限({status_code})，API 提取真实配置 {len(real_rows)} 条")
                 print(f"  真实配置样例: 车型名称={real_rows[0]['车型名称']!r} 配置字段={list(key for key in real_rows[0] if key not in IDENTITY_FIELDS)[:5]}")
@@ -451,15 +508,47 @@ def crawl(targets, delay, time_limit=0):
             print(f"  易车页面抓取失败，跳过: {exc}")
         if delay:
             time.sleep(delay)
+        if target_succeeded:
+            completed.add(url)
+        elif attempts[url] < max_attempts:
+            pending.append(url)
+        if not pending and discovery_callback and idle_discovery_rounds < 2:
+            stats["discovery_rounds"] += 1
+            discovered = discovery_callback()
+            added = 0
+            for discovered_url, discovered_id in discovered.items():
+                normalized = normalize_series_url(discovered_url)
+                previous_id = known_targets.get(normalized, "")
+                if normalized not in known_targets:
+                    known_targets[normalized] = discovered_id
+                    pending.append(normalized)
+                    added += 1
+                elif discovered_id and not previous_id:
+                    known_targets[normalized] = discovered_id
+                    if normalized not in completed and attempts.get(normalized, 0) < max_attempts:
+                        pending.append(normalized)
+                        added += 1
+            idle_discovery_rounds = 0 if added else idle_discovery_rounds + 1
+            print(f"易车增量发现: round={stats['discovery_rounds']} discovered={len(discovered)} added_or_enriched={added}")
+    deduped_rows = []
+    seen_rows = set()
+    for row in all_rows:
+        key = tuple(clean_text(row.get(field)) for field in ("品牌", "车系", "车型名称", "年款"))
+        if key not in seen_rows:
+            seen_rows.add(key)
+            deduped_rows.append(row)
     print(
         "易车抓取统计: "
         + " ".join(f"{key}={value}" for key, value in stats.items())
-        + f" real_rows={len(all_rows)}"
+        + f" targets_discovered={len(known_targets)} real_rows={len(deduped_rows)} "
+        + f"elapsed_seconds={time.monotonic() - start:.1f} remaining_seconds={max(0, deadline - time.monotonic()):.1f} "
+        + f"stop_reason={stop_reason}"
     )
-    return all_rows
+    return deduped_rows
 
 
 def main():
+    started_at = time.monotonic()
     parser = argparse.ArgumentParser(description="易车爬虫")
     parser.add_argument("--url", action="append", help="易车车系页 URL，可重复传入")
     parser.add_argument("--url-file", default="config/yiche_series_urls.txt", help="易车车系 URL 列表")
@@ -483,7 +572,17 @@ def main():
         targets = dict(list(targets.items())[:args.max_series])
     if not targets:
         print("未配置且未发现易车车系 URL，生成空数据文件。可通过 --url、--url-file、YICHE_SERIES_URLS 或 YICHE_DISCOVERY_URLS 配置。")
-    rows = crawl(targets, args.delay, args.time_limit) if targets else []
+    discovery_callback = None
+    if not urls:
+        discovery_callback = lambda: discover_series_urls(session, discovery_urls, args.max_discovery_pages)
+    rows = crawl(
+        targets,
+        args.delay,
+        args.time_limit,
+        discovery_callback=discovery_callback,
+        max_attempts=5 if args.max_series == 0 else 1,
+        start_time=started_at,
+    ) if targets else []
     output = args.output or f"yiche_{date.today().strftime('%Y%m%d')}.json"
     if not rows:
         if os.path.exists(output):

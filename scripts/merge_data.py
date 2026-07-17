@@ -942,6 +942,25 @@ def write_json(path, rows):
         json.dump(rows, f, ensure_ascii=False, indent=2)
 
 
+def partition_publishable_rows(rows):
+    kept = []
+    stats = {"invalid_brand": 0, "invalid_model_name": 0}
+    for row in rows:
+        brand = str(row.get("品牌") or "").strip()
+        model = str(row.get("车型名称") or "").strip()
+        if brand in {"", "-"}:
+            stats["invalid_brand"] += 1
+            continue
+        if model in {"", "-"}:
+            stats["invalid_model_name"] += 1
+            continue
+        normalized = dict(row)
+        normalized["品牌"] = brand
+        normalized["车型名称"] = model
+        kept.append(normalized)
+    return kept, stats
+
+
 def main():
     today = os.environ.get("MERGE_DATE") or date.today().strftime("%Y%m%d")
 
@@ -987,6 +1006,11 @@ def main():
     # 再合并（按车型去重）
     all_rows = merge_rows(autohome_rows, dongchedi_rows, yiche_rows)
     all_rows = enrich_zero_ratio(all_rows, load_zero_ratio_rows())
+    all_rows, publish_stats = partition_publishable_rows(all_rows)
+    print(
+        f"发布身份门禁: valid={len(all_rows)} invalid_brand={publish_stats['invalid_brand']} "
+        f"invalid_model_name={publish_stats['invalid_model_name']}"
+    )
     before_year_filter = len(all_rows)
     all_rows = [row for row in all_rows if keep_pages_year(row)]
     print(f"2022年及以后车型: {len(all_rows)}/{before_year_filter}")

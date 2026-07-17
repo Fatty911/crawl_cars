@@ -106,3 +106,14 @@ def test_evidence_report_counts_both_atomic_sources_and_prefixed_synonyms():
     sample = report["sampleBrands"][0]
     assert sample["sourceEvidence"] == {"汽车之家": 4, "懂车帝": 4}
     assert ("远程启动", 4) in report["synonymEvidence"]
+
+
+def test_publish_boundary_rejects_blank_brand_and_model():
+    rows = [
+        make("仅易车", "有效车型", brand="真实品牌"),
+        make("仅易车", "空品牌", brand="  "),
+        make("仅易车", "-", brand="真实品牌"),
+    ]
+    kept, stats = merge_data.partition_publishable_rows(rows)
+    assert kept == [rows[0]]
+    assert stats == {"invalid_brand": 1, "invalid_model_name": 1}

@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 
-from merge_data import keep_pages_year
+from merge_data import keep_pages_year, partition_publishable_rows
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 
@@ -43,8 +43,10 @@ def main() -> int:
     args = parser.parse_args()
     try:
         baseline_rows = [row for row in load_json_rows(args.baseline) if keep_pages_year(row)]
+        baseline_rows, baseline_publish_stats = partition_publishable_rows(baseline_rows)
         baseline_rows, invalid_baseline_rows = filter_valid_identity_rows(baseline_rows)
-        candidate_rows, invalid_candidate_rows = filter_valid_identity_rows(load_json_rows(args.candidate))
+        candidate_rows, candidate_publish_stats = partition_publishable_rows(load_json_rows(args.candidate))
+        candidate_rows, invalid_candidate_rows = filter_valid_identity_rows(candidate_rows)
         stats = verify_superset(baseline_rows, candidate_rows)
         if invalid_baseline_rows:
             stats["baseline_invalid_identity_dropped"] = len(invalid_baseline_rows)
@@ -52,6 +54,14 @@ def main() -> int:
         if invalid_candidate_rows:
             stats["candidate_invalid_identity_dropped"] = len(invalid_candidate_rows)
             print(f"warning: dropped {len(invalid_candidate_rows)} candidate rows without a verifiable identity")
+        for key, value in {
+            "baseline_invalid_brand_dropped": baseline_publish_stats["invalid_brand"],
+            "baseline_invalid_model_name_dropped": baseline_publish_stats["invalid_model_name"],
+            "candidate_invalid_brand_dropped": candidate_publish_stats["invalid_brand"],
+            "candidate_invalid_model_name_dropped": candidate_publish_stats["invalid_model_name"],
+        }.items():
+            if value:
+                stats[key] = value
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"publish superset verification failed: {exc}", file=sys.stderr)
         return 1

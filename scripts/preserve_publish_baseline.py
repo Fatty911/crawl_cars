@@ -9,7 +9,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from merge_data import collect_fields, filter_car, keep_pages_year, write_csv, write_json
+from merge_data import collect_fields, filter_car, keep_pages_year, partition_publishable_rows, write_csv, write_json
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 
@@ -98,8 +98,10 @@ def main() -> int:
     args = parser.parse_args()
 
     baseline_rows = [row for row in load_json_rows(args.baseline) if keep_pages_year(row)]
+    baseline_rows, baseline_publish_stats = partition_publishable_rows(baseline_rows)
     baseline_rows, invalid_baseline_rows = filter_valid_identity_rows(baseline_rows)
-    candidate_rows, invalid_candidate_rows = filter_valid_identity_rows(load_json_rows(args.merged_json))
+    candidate_rows, candidate_publish_stats = partition_publishable_rows(load_json_rows(args.merged_json))
+    candidate_rows, invalid_candidate_rows = filter_valid_identity_rows(candidate_rows)
     rows, stats = preserve_rows(baseline_rows, candidate_rows)
     if invalid_baseline_rows:
         stats["baseline_invalid_identity_dropped"] = len(invalid_baseline_rows)
@@ -107,6 +109,14 @@ def main() -> int:
     if invalid_candidate_rows:
         stats["candidate_invalid_identity_dropped"] = len(invalid_candidate_rows)
         print(f"warning: dropped {len(invalid_candidate_rows)} candidate rows without a verifiable identity")
+    for key, value in {
+        "baseline_invalid_brand_dropped": baseline_publish_stats["invalid_brand"],
+        "baseline_invalid_model_name_dropped": baseline_publish_stats["invalid_model_name"],
+        "candidate_invalid_brand_dropped": candidate_publish_stats["invalid_brand"],
+        "candidate_invalid_model_name_dropped": candidate_publish_stats["invalid_model_name"],
+    }.items():
+        if value:
+            stats[key] = value
     write_publish_assets(rows, args.merged_json, args.merged_csv, args.filtered_json, args.filtered_csv)
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0

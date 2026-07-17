@@ -275,6 +275,8 @@ class VerifyPublishSupersetTests(unittest.TestCase):
 
     def run_verify(self, baseline: list[dict], candidate: list[dict]) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as tmp:
+            for row in baseline + candidate:
+                row.setdefault("品牌", "测试品牌")
             root = Path(tmp)
             baseline_path = root / "baseline.json"
             candidate_path = root / "candidate.json"
@@ -429,13 +431,13 @@ class VerifyPublishSupersetTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
         stats = json.loads(result.stdout.strip().splitlines()[-1])
-        self.assertEqual(1, stats["baseline_invalid_identity_dropped"])
+        self.assertEqual(1, stats["baseline_invalid_model_name_dropped"])
         self.assertEqual(1, stats["baseline_rows"])
 
         invalid_candidate = candidate + [{"车型名称": "", "年款": ""}]
         result = self.run_verify(baseline, invalid_candidate)
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual(1, json.loads(result.stdout.strip().splitlines()[-1])["candidate_invalid_identity_dropped"])
+        self.assertEqual(1, json.loads(result.stdout.strip().splitlines()[-1])["candidate_invalid_model_name_dropped"])
 
 
 class PreservePublishBaselineTests(unittest.TestCase):
@@ -445,6 +447,8 @@ class PreservePublishBaselineTests(unittest.TestCase):
 
     def run_preserve(self, baseline: list[dict], candidate: list[dict]) -> tuple[subprocess.CompletedProcess[str], dict]:
         with tempfile.TemporaryDirectory() as tmp:
+            for row in baseline + candidate:
+                row.setdefault("品牌", "测试品牌")
             root = Path(tmp)
             paths = {
                 "baseline": root / "baseline.json",
@@ -560,7 +564,7 @@ class PreservePublishBaselineTests(unittest.TestCase):
 
     def test_invalid_published_baseline_identity_is_dropped_without_expanding_output(self) -> None:
         valid = {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "published"}
-        dirty = {"数据来源": "仅易车", "车型名称": "", "年款": "", "价格": "dirty"}
+        dirty = {"数据来源": "仅易车", "品牌": "", "车型名称": "", "年款": "", "价格": "dirty"}
         added = {"车系ID": "101", "车型名称": "B", "年款": "2026", "价格": "new"}
 
         result, outputs = self.run_preserve([valid, dirty], [valid, added])
@@ -569,22 +573,22 @@ class PreservePublishBaselineTests(unittest.TestCase):
         self.assertEqual([valid, added], outputs["merged_json"])
         self.assertNotIn(dirty, outputs["merged_json"])
         stats = json.loads(result.stdout.strip().splitlines()[-1])
-        self.assertEqual(1, stats["baseline_invalid_identity_dropped"])
+        self.assertEqual(1, stats["baseline_invalid_brand_dropped"])
         self.assertEqual(2, stats["candidate_output_rows"])
 
     def test_matching_invalid_identity_in_candidate_is_dropped_not_preserved(self) -> None:
         valid = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
-        dirty = {"车系ID": "3014", "车型名称": "", "年款": "2024"}
+        dirty = {"车系ID": "3014", "品牌": "", "车型名称": "", "年款": "2024"}
 
         result, outputs = self.run_preserve([valid, dirty], [valid, dirty])
 
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual([valid], outputs["merged_json"])
         stats = json.loads(result.stdout.strip().splitlines()[-1])
-        self.assertEqual(1, stats["candidate_invalid_identity_dropped"])
+        self.assertEqual(1, stats["candidate_invalid_brand_dropped"])
 
     def test_all_invalid_published_baseline_identities_still_fail_closed(self) -> None:
-        dirty = {"数据来源": "仅易车", "车型名称": "", "年款": ""}
+        dirty = {"数据来源": "仅易车", "品牌": "", "车型名称": "", "年款": ""}
         candidate = {"车系ID": "101", "车型名称": "B", "年款": "2026"}
 
         result, _ = self.run_preserve([dirty], [candidate])
