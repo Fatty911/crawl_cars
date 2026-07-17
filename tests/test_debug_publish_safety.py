@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import importlib.util
+import os
 import subprocess
 from datetime import datetime, timezone
 import sys
@@ -52,7 +53,14 @@ class ZeroToWholeRatioDateTests(unittest.TestCase):
 
 
 class PrepareDebugMergeInputsTests(unittest.TestCase):
-    def run_prepare(self, stable: list[dict], debug: list[dict]) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
+    def run_prepare(
+        self,
+        stable: list[dict],
+        debug: list[dict],
+        *,
+        debug_mode: str | None = None,
+        trigger_source: str | None = None,
+    ) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             stable_path = root / "stable.json"
@@ -60,8 +68,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
             output_path = root / "prepared.json"
             stable_path.write_text(json.dumps(stable, ensure_ascii=False), encoding="utf-8")
             debug_path.write_text(json.dumps(debug, ensure_ascii=False), encoding="utf-8")
-            result = subprocess.run(
-                [
+            command = [
                     sys.executable,
                     str(SCRIPTS / "prepare_debug_merge_inputs.py"),
                     "--stable",
@@ -70,8 +77,18 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
                     str(debug_path),
                     "--output",
                     str(output_path),
-                ],
+                ]
+            env = os.environ.copy()
+            env.pop("DEBUG_MODE", None)
+            env.pop("TRIGGER_SOURCE", None)
+            if debug_mode is not None:
+                env["DEBUG_MODE"] = debug_mode
+            if trigger_source is not None:
+                env["TRIGGER_SOURCE"] = trigger_source
+            result = subprocess.run(
+                command,
                 capture_output=True,
+                env=env,
                 text=True,
                 check=False,
             )
@@ -98,6 +115,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
             {
                 "stable_input": 2,
                 "debug_input": 3,
+                "debug_duplicates_dropped": 0,
                 "overlap_kept_stable": 2,
                 "debug_added": 1,
                 "output_rows": 3,
@@ -116,6 +134,71 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
             with self.subTest(stable=len(stable), debug=len(debug)):
                 result, _ = self.run_prepare(stable, debug)
                 self.assertNotEqual(0, result.returncode)
+
+    def test_dongchedi_partial_dedupes_incoming_rows_but_stable_still_wins(self) -> None:
+        stable = [{"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "stable"}]
+        first_new = {"车系ID": "101", "车型名称": "B", "年款": "2026", "价格": "first"}
+        debug = [
+            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "debug"},
+            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "debug-duplicate"},
+            first_new,
+            {"车系ID": "101", "车型名称": "B", "年款": "2026", "价格": "second"},
+        ]
+
+        result, rows = self.run_prepare(
+            stable,
+            debug,
+            debug_mode="false",
+            trigger_source="dongchedi-crawl",
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(stable + [first_new], rows)
+        self.assertEqual(
+            {
+                "stable_input": 1,
+                "debug_input": 4,
+                "debug_duplicates_dropped": 2,
+                "overlap_kept_stable": 1,
+                "debug_added": 1,
+                "output_rows": 2,
+            },
+            json.loads(result.stdout.strip().splitlines()[-1]),
+        )
+
+    def test_dongchedi_partial_dedupe_never_allows_duplicate_stable_input(self) -> None:
+        row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
+
+        result, _ = self.run_prepare(
+            [row, dict(row)],
+            [row],
+            debug_mode="false",
+            trigger_source="dongchedi-crawl",
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("stable input contains duplicate identities", result.stderr)
+
+    def test_partial_dedupe_environment_fails_closed_outside_normal_dongchedi(self) -> None:
+        row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
+        cases = [
+            (None, "dongchedi-crawl"),
+            ("", "dongchedi-crawl"),
+            ("true", "dongchedi-crawl"),
+            ("TRUE", "dongchedi-crawl"),
+            ("false", "autohome-crawl"),
+            (None, None),
+        ]
+        for debug_mode, trigger_source in cases:
+            with self.subTest(debug_mode=debug_mode, trigger_source=trigger_source):
+                result, _ = self.run_prepare(
+                    [row],
+                    [row, dict(row)],
+                    debug_mode=debug_mode,
+                    trigger_source=trigger_source,
+                )
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn("debug input contains duplicate identities", result.stderr)
 
     def test_missing_series_id_uses_fallback_and_identity_keeps_model_and_year(self) -> None:
         stable = [{"车系ID": "-", "品牌": "甲", "车系": "A", "车型名称": "A", "年款": "2025"}]
@@ -526,6 +609,24 @@ class WorkflowValidatorTests(unittest.TestCase):
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
         errors = self.check_mutated_merge(text.replace("dongchedi_partial_prepared.json", "dongchedi_stable.json"))
         self.assertTrue(any("partial artifact" in error for error in errors))
+
+    def test_partial_dedupe_environment_must_stay_on_download_step(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        debug_line = "          DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'false' }}\n"
+        missing = self.check_mutated_merge(text.replace(debug_line, "", 1))
+        self.assertTrue(any("partial 去重边界" in error for error in missing))
+
+        source_line = "          TRIGGER_SOURCE: ${{ github.event.inputs.trigger_source }}\n"
+        moved = text.replace(source_line, "", 1)
+        moved = moved.replace(
+            "      - name: 安装合并依赖\n        run: pip install requests beautifulsoup4 lxml pdfplumber pypdf\n",
+            "      - name: 安装合并依赖\n        env:\n"
+            + source_line
+            + "        run: pip install requests beautifulsoup4 lxml pdfplumber pypdf\n",
+            1,
+        )
+        moved_errors = self.check_mutated_merge(moved)
+        self.assertTrue(any("partial 去重边界" in error for error in moved_errors))
 
     def test_dongchedi_full_marker_requires_step2_completion(self) -> None:
         path = ROOT / ".github/workflows/crawl-dongchedi.yml"

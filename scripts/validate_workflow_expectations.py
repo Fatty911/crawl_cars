@@ -231,6 +231,16 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         "merge-and-filter.yml 缺少 debug 精确定位 inputs",
         errors,
     )
+    merge_steps = data.get("jobs", {}).get("merge-data", {}).get("steps", [])
+    download_steps = [step for step in merge_steps if step.get("name") == "下载最新爬虫数据"]
+    download_env = download_steps[0].get("env", {}) if len(download_steps) == 1 else {}
+    assert_condition(
+        len(download_steps) == 1
+        and download_env.get("DEBUG_MODE") == "${{ github.event.inputs.debug_mode || 'false' }}"
+        and download_env.get("TRIGGER_SOURCE") == "${{ github.event.inputs.trigger_source }}",
+        "merge-and-filter.yml 下载步骤必须精确传递 DEBUG_MODE/TRIGGER_SOURCE partial 去重边界",
+        errors,
+    )
     assert_condition(
         "download_latest_crawler_artifact.py" in text,
         "merge-and-filter.yml 不应只下载最近一次成功爬虫 run，应扫描最近有效数据 artifact",

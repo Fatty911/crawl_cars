@@ -51,27 +51,40 @@ def load_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def prepare_rows(stable_rows: list[dict[str, Any]], debug_rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+def prepare_rows(
+    stable_rows: list[dict[str, Any]],
+    debug_rows: list[dict[str, Any]],
+    *,
+    dedupe_partial: bool = False,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if not stable_rows or not debug_rows:
         raise ValueError("stable and debug inputs must both be non-empty")
-    for label, rows in (("stable", stable_rows), ("debug", debug_rows)):
-        keys = [identity_key(row) for row in rows]
-        if len(set(keys)) != len(keys):
-            raise ValueError(f"{label} input contains duplicate identities")
-    stable_keys = {identity_key(row) for row in stable_rows}
+    stable_keys_list = [identity_key(row) for row in stable_rows]
+    if len(set(stable_keys_list)) != len(stable_keys_list):
+        raise ValueError("stable input contains duplicate identities")
+    debug_keys = [identity_key(row) for row in debug_rows]
+    debug_duplicates_dropped = len(debug_keys) - len(set(debug_keys))
+    if debug_duplicates_dropped and not dedupe_partial:
+        raise ValueError("debug input contains duplicate identities")
+
+    stable_keys = set(stable_keys_list)
     output = list(stable_rows)
+    incoming_keys: set[tuple[str, ...]] = set()
     added_keys: set[tuple[str, ...]] = set()
     overlap = 0
-    for row in debug_rows:
-        key = identity_key(row)
+    for row, key in zip(debug_rows, debug_keys):
+        if key in incoming_keys:
+            continue
+        incoming_keys.add(key)
         if key in stable_keys:
             overlap += 1
-        elif key not in added_keys:
+        else:
             output.append(row)
             added_keys.add(key)
     stats = {
         "stable_input": len(stable_rows),
         "debug_input": len(debug_rows),
+        "debug_duplicates_dropped": debug_duplicates_dropped,
         "overlap_kept_stable": overlap,
         "debug_added": len(added_keys),
         "output_rows": len(output),
@@ -100,7 +113,11 @@ def main() -> int:
     args = parser.parse_args()
     stable_rows = load_rows(args.stable)
     debug_rows = load_rows(args.debug)
-    output, stats = prepare_rows(stable_rows, debug_rows)
+    dedupe_partial = (
+        os.environ.get("DEBUG_MODE") == "false"
+        and os.environ.get("TRIGGER_SOURCE") == "dongchedi-crawl"
+    )
+    output, stats = prepare_rows(stable_rows, debug_rows, dedupe_partial=dedupe_partial)
     write_json_atomic(args.output, output)
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0
