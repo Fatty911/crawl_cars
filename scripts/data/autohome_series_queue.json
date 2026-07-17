@@ -10506,10 +10506,40 @@
     "series": "长安欧尚科赛3"
   },
   {
+    "heat": 35,
+    "car_id": "5349",
+    "brand": "凯迪拉克",
+    "series": "凯迪拉克CT5"
+  },
+  {
+    "heat": 38,
+    "car_id": "403",
+    "brand": "雷克萨斯",
+    "series": "雷克萨斯ES"
+  },
+  {
+    "heat": 999,
+    "car_id": "7806",
+    "brand": "吉利银河",
+    "series": "星愿"
+  },
+  {
     "heat": 31,
-    "car_id": "5367",
+    "car_id": "4919",
     "brand": "长安欧尚",
-    "series": "长安欧尚科赛5"
+    "series": "欧诺新能源"
+  },
+  {
+    "heat": 31,
+    "car_id": "4376",
+    "brand": "长安欧尚",
+    "series": "长安欧尚A800"
+  },
+  {
+    "heat": 31,
+    "car_id": "3893",
+    "brand": "长安欧尚",
+    "series": "长安欧尚CX70"
   },
   {
     "heat": 31,
@@ -10531,6 +10561,12 @@
   },
   {
     "heat": 31,
+    "car_id": "4517",
+    "brand": "长安欧尚",
+    "series": "长安欧尚X70A"
+  },
+  {
+    "heat": 31,
     "car_id": "5439",
     "brand": "长安欧尚",
     "series": "长安欧尚X7 EV"
@@ -10540,36 +10576,6 @@
     "car_id": "6126",
     "brand": "长安欧尚",
     "series": "长安欧尚X7 PLUS"
-  },
-  {
-    "heat": 31,
-    "car_id": "4517",
-    "brand": "长安欧尚",
-    "series": "长安欧尚X70A"
-  },
-  {
-    "heat": 31,
-    "car_id": "3893",
-    "brand": "长安欧尚",
-    "series": "长安欧尚CX70"
-  },
-  {
-    "heat": 31,
-    "car_id": "4660",
-    "brand": "长安欧尚",
-    "series": "长安欧尚科赛"
-  },
-  {
-    "heat": 31,
-    "car_id": "5886",
-    "brand": "长安欧尚",
-    "series": "长安欧尚科赛Pro"
-  },
-  {
-    "heat": 31,
-    "car_id": "4376",
-    "brand": "长安欧尚",
-    "series": "长安欧尚A800"
   },
   {
     "heat": 31,
@@ -10585,33 +10591,21 @@
   },
   {
     "heat": 31,
-    "car_id": "4919",
+    "car_id": "4660",
     "brand": "长安欧尚",
-    "series": "欧诺新能源"
+    "series": "长安欧尚科赛"
   },
   {
-    "heat": 34,
-    "car_id": "7275",
-    "brand": "沃尔沃",
-    "series": "沃尔沃EX30"
+    "heat": 31,
+    "car_id": "5367",
+    "brand": "长安欧尚",
+    "series": "长安欧尚科赛5"
   },
   {
-    "heat": 35,
-    "car_id": "5349",
-    "brand": "凯迪拉克",
-    "series": "凯迪拉克CT5"
-  },
-  {
-    "heat": 38,
-    "car_id": "403",
-    "brand": "雷克萨斯",
-    "series": "雷克萨斯ES"
-  },
-  {
-    "heat": 999,
-    "car_id": "7806",
-    "brand": "吉利银河",
-    "series": "星愿"
+    "heat": 31,
+    "car_id": "5886",
+    "brand": "长安欧尚",
+    "series": "长安欧尚科赛Pro"
   },
   {
     "heat": 34,
@@ -10720,6 +10714,12 @@
     "car_id": "8032",
     "brand": "沃尔沃",
     "series": "沃尔沃ES90(海外)"
+  },
+  {
+    "heat": 34,
+    "car_id": "7275",
+    "brand": "沃尔沃",
+    "series": "沃尔沃EX30"
   },
   {
     "heat": 34,
