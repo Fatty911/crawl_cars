@@ -407,7 +407,8 @@ def crawl(targets, delay, time_limit=0):
                 all_rows.extend(real_rows)
             else:
                 stats["degraded_identity"] += len(rows) or 1
-                print("  仅获得降级身份，未计入真实配置")
+                page_title = clean_text(bs4.BeautifulSoup(html, "html.parser").title)
+                print(f"  仅获得降级身份，未计入真实配置 (html_bytes={len(html.encode())} title={page_title!r})")
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else None
             if status_code in {403, 429}:
