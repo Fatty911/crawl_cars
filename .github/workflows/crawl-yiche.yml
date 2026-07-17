@@ -130,10 +130,17 @@ jobs:
           path = max(files)
           with open(path, "r", encoding="utf-8") as f:
               rows = json.load(f)
-          print(f"{path}: {len(rows)} rows")
+          from scripts.crawl_yiche import validate_real_rows
+          real_rows = validate_real_rows(rows)
+          if len(real_rows) != len(rows) or not real_rows:
+              raise SystemExit(f"易车质量门禁失败: total={len(rows)} real_config_rows={len(real_rows)}，拒绝上传 artifact 和触发 merge")
+          config_fields = {key for row in real_rows for key in row if key not in {"车系", "车型名称", "品牌", "年款", "数据来源"}}
+          if not config_fields:
+              raise SystemExit("易车质量门禁失败: 配置字段覆盖为 0")
+          print(f"{path}: total={len(rows)} real_config_rows={len(real_rows)} config_fields={len(config_fields)}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-              f.write(f"row_count={len(rows)}\n")
-              f.write(f"has_data={'true' if len(rows) > 0 else 'false'}\n")
+              f.write(f"row_count={len(real_rows)}\n")
+              f.write("has_data=true\n")
           PY
 
       - name: Disable proxy for Yiche artifact upload

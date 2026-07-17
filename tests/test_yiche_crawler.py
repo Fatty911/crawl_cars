@@ -58,7 +58,7 @@ def http_error(status_code):
     return requests.HTTPError(f"{status_code} error", response=response)
 
 
-def test_crawl_uses_url_fallback_for_rate_limited_pages(monkeypatch):
+def test_crawl_rejects_url_fallback_for_rate_limited_pages(monkeypatch):
     def blocked_fetch(session, url):
         raise http_error(403)
 
@@ -66,10 +66,10 @@ def test_crawl_uses_url_fallback_for_rate_limited_pages(monkeypatch):
 
     rows = yiche.crawl(["https://car.yiche.com/blocked/peizhi/"], delay=0)
 
-    assert rows == [{"车系": "blocked", "车型名称": "blocked", "数据来源": "易车"}]
+    assert rows == []
 
 
-def test_crawl_uses_url_fallback_for_too_many_requests(monkeypatch):
+def test_crawl_rejects_url_fallback_for_too_many_requests(monkeypatch):
     def limited_fetch(session, url):
         raise http_error(429)
 
@@ -77,7 +77,50 @@ def test_crawl_uses_url_fallback_for_too_many_requests(monkeypatch):
 
     rows = yiche.crawl(["https://car.yiche.com/limited/peizhi/"], delay=0)
 
-    assert rows == [{"车系": "limited", "车型名称": "limited", "数据来源": "易车"}]
+    assert rows == []
+
+
+def test_extract_config_api_response_requires_real_model_and_configuration():
+    payload = {"data": [{"items": [
+        {"name": "车型名称", "paramValues": [{"value": "2026款 旗舰版"}]},
+        {"name": "厂商指导价", "paramValues": [{"value": "25.98万"}]},
+        {"name": "轴距", "paramValues": [{"value": "2920"}]},
+    ]}]}
+    rows = yiche.extract_from_config_api(payload)
+    assert yiche.validate_real_rows(rows) == [{"车型名称": "2026款 旗舰版", "价格": "25.98万", "轴距(mm)": "2920"}]
+
+
+def test_mixed_responses_only_count_real_configuration(monkeypatch):
+    def mixed_fetch(session, url):
+        if "blocked" in url:
+            raise http_error(403)
+        return '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+
+    monkeypatch.setattr(yiche, "fetch", mixed_fetch)
+    rows = yiche.crawl([
+        "https://car.yiche.com/blocked/peizhi/",
+        "https://car.yiche.com/real/peizhi/",
+    ], delay=0)
+    assert rows == [{"车型名称": "2026款 真车", "轴距(mm)": "2900", "车系": "real", "数据来源": "易车"}]
+
+
+def test_quality_gate_rejects_placeholder_rows():
+    assert yiche.validate_real_rows([
+        {"车系": "blocked", "车型名称": "blocked", "数据来源": "易车"}
+    ]) == []
+
+
+def test_discovery_pairs_page_url_with_serial_id():
+    html = '<div data-id="12345"><a href="/hanl/">汉L</a></div>'
+    assert yiche.extract_series_targets("https://car.yiche.com/", html) == {
+        "https://car.yiche.com/hanl/peizhi/": "12345"
+    }
+
+
+def test_workflow_quality_gate_uses_real_row_validation():
+    workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/crawl-yiche.yml").read_text(encoding="utf-8")
+    assert "validate_real_rows" in workflow
+    assert "real_config_rows" in workflow
 
 
 def test_crawl_skips_not_found_http_errors(monkeypatch):

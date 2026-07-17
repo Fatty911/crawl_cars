@@ -1,13 +1,14 @@
 """易车爬虫 - 从易车车型参数配置页提取车型配置数据。"""
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import time
 from datetime import date
 from html import unescape
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import bs4
 import requests
@@ -22,6 +23,11 @@ DEFAULT_SERIES_URLS = [
     "https://car.yiche.com/idera5s/peizhi/",
     "https://car.yiche.com/teslamodelx/peizhi/",
 ]
+
+YICHE_CONFIG_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/car/config_new_param"
+YICHE_API_CID = "508"
+YICHE_API_SECRET = "19DDD1FBDFF065D3A4DA777D2D7A81EC"
+IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源"}
 
 
 HEADER_MAP = {
@@ -107,8 +113,49 @@ def extract_candidate_urls(base_url, html):
     return list(dict.fromkeys(urls))
 
 
+def extract_series_targets(base_url, html):
+    """Return configuration page URLs paired with page-provided serial IDs."""
+    soup = bs4.BeautifulSoup(html, "html.parser")
+    targets = {}
+    for link in soup.find_all("a", href=True):
+        absolute = normalize_series_url(urljoin(base_url, link["href"]))
+        if urlparse(absolute).netloc != "car.yiche.com":
+            continue
+        serial_id = ""
+        node = link
+        for _ in range(4):
+            if node is None:
+                break
+            for key in ("data-id", "data-serial-id", "data-serialid"):
+                value = node.attrs.get(key)
+                if value and str(value).isdigit():
+                    serial_id = str(value)
+                    break
+            if serial_id:
+                break
+            node = node.parent
+        if serial_id:
+            targets[absolute] = serial_id
+
+    for script in soup.find_all("script"):
+        text = script.string or script.get_text()
+        for match in re.finditer(
+            r'(?s)(?:"(?:url|href|path)"\s*:\s*"(?P<url>/[^"?#]+)").{0,600}?'
+            r'"(?:serialId|serialid)"\s*:\s*"?(?P<id>\d+)"?'
+            r'|"(?:serialId|serialid)"\s*:\s*"?(?P<id_first>\d+)"?.{0,600}?'
+            r'"(?:url|href|path)"\s*:\s*"(?P<url_last>/[^"?#]+)"',
+            text,
+        ):
+            candidate = match.group("url") or match.group("url_last")
+            serial_id = match.group("id") or match.group("id_first")
+            absolute = normalize_series_url(urljoin(base_url, candidate))
+            if urlparse(absolute).netloc == "car.yiche.com":
+                targets.setdefault(absolute, serial_id)
+    return targets
+
+
 def discover_series_urls(session, discovery_urls, max_pages=30):
-    discovered = []
+    discovered = {}
     candidate_pages = []
     for discovery_url in discovery_urls:
         try:
@@ -117,9 +164,10 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
         except requests.RequestException as exc:
             print(f"  易车发现页抓取失败，跳过: {exc}")
             continue
+        discovered.update(extract_series_targets(discovery_url, html))
         for candidate in extract_candidate_urls(discovery_url, html):
             if candidate.endswith("/peizhi/"):
-                discovered.append(candidate)
+                discovered.setdefault(normalize_series_url(candidate), "")
             else:
                 candidate_pages.append(candidate)
 
@@ -129,18 +177,79 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
         except requests.RequestException as exc:
             print(f"  易车候选页抓取失败，跳过: {candidate} {exc}")
             continue
+        discovered.update(extract_series_targets(candidate, html))
         for nested in extract_candidate_urls(candidate, html):
-            discovered.append(normalize_series_url(nested))
+            discovered.setdefault(normalize_series_url(nested), "")
 
-    deduped = list(dict.fromkeys(discovered))
-    print(f"自动发现易车车系 URL {len(deduped)} 个")
-    return deduped
+    print(f"自动发现易车车系 URL {len(discovered)} 个，其中 {sum(bool(value) for value in discovered.values())} 个含 serialId")
+    return discovered
 
 
 def fetch(session, url):
     response = session.get(url, timeout=30)
     response.raise_for_status()
     return response.text
+
+
+def fetch_config_api(session, serial_id):
+    param = json.dumps({"cityId": "2401", "serialId": str(serial_id)}, separators=(",", ":"))
+    timestamp = str(int(time.time() * 1000))
+    signature = hashlib.md5(
+        f"cid={YICHE_API_CID}&param={param}{YICHE_API_SECRET}{timestamp}".encode()
+    ).hexdigest()
+    response = session.get(
+        YICHE_CONFIG_API,
+        params={"cid": YICHE_API_CID, "param": param},
+        headers={
+            "Referer": "https://car.yiche.com/",
+            "content-type": "application/json;charset=UTF-8",
+            "x-city-id": "2401",
+            "x-platform": "pc",
+            "x-sign": signature,
+            "x-timestamp": timestamp,
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def extract_from_config_api(payload):
+    rows = []
+    for group in payload.get("data") or []:
+        if not isinstance(group, dict):
+            continue
+        for item in group.get("items") or []:
+            key = normalize_key(item.get("name"))
+            if not key:
+                continue
+            for index, raw_value in enumerate(item.get("paramValues") or []):
+                while len(rows) <= index:
+                    rows.append({})
+                value = clean_text(raw_value.get("value"))
+                if (not value or value == "-") and raw_value.get("subList"):
+                    value = clean_text(raw_value["subList"][0].get("value"))
+                model_name = clean_text(
+                    raw_value.get("carName") or raw_value.get("carname") or raw_value.get("name")
+                )
+                if model_name:
+                    rows[index]["车型名称"] = model_name
+                if value and value != "-":
+                    if key in {"车型", "车型名称", "车款"}:
+                        rows[index]["车型名称"] = value
+                    else:
+                        rows[index][key] = value
+    return rows
+
+
+def is_real_config_row(row):
+    return bool(clean_text(row.get("车型名称"))) and any(
+        clean_text(value) for key, value in row.items() if key not in IDENTITY_FIELDS
+    )
+
+
+def validate_real_rows(rows):
+    return [row for row in rows if isinstance(row, dict) and is_real_config_row(row)]
 
 
 def parse_next_data(html):
@@ -224,6 +333,8 @@ def extract_from_tables(html):
         if len(cells) < 2:
             continue
         key = normalize_key(cells[0])
+        if key in {"车型", "车型名称", "车款"}:
+            continue
         for idx, value in enumerate(cells[1:len(rows) + 1]):
             if value:
                 rows[idx][key] = value
@@ -251,16 +362,19 @@ def enrich_identity(rows, url):
     return rows
 
 
-def crawl(urls, delay, time_limit=0):
+def crawl(targets, delay, time_limit=0):
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0"})
     all_rows = []
+    stats = {"attempted": 0, "success": 0, "403": 0, "429": 0, "failed": 0, "degraded_identity": 0}
     start = time.monotonic()
-    for url in urls:
+    items = targets.items() if isinstance(targets, dict) else ((url, "") for url in targets)
+    for url, serial_id in items:
         if time_limit and time.monotonic() - start >= time_limit:
             print("易车爬取时间预算已用完，停止继续抓取")
             break
         page_url = normalize_series_url(url)
+        stats["attempted"] += 1
         print(f"抓取易车: {page_url}")
         try:
             html = fetch(session, page_url)
@@ -270,23 +384,43 @@ def crawl(urls, delay, time_limit=0):
                 rows = extract_from_tables(html)
             if not rows:
                 rows = extract_identity_from_meta(html)
-            if not rows:
-                rows = extract_identity_from_url(page_url, html)
             rows = enrich_identity(rows, page_url)
-            print(f"  提取 {len(rows)} 条")
-            all_rows.extend(rows)
+            real_rows = validate_real_rows(rows)
+            if not real_rows and serial_id:
+                real_rows = validate_real_rows(enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id)), page_url))
+            if real_rows:
+                stats["success"] += 1
+                print(f"  提取真实配置 {len(real_rows)} 条")
+                all_rows.extend(real_rows)
+            else:
+                stats["degraded_identity"] += len(rows) or 1
+                print("  仅获得降级身份，未计入真实配置")
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else None
             if status_code in {403, 429}:
-                rows = enrich_identity(extract_identity_from_url(page_url, ""), page_url)
-                print(f"  易车页面被限制访问({status_code})，使用 URL 兜底提取 {len(rows)} 条")
-                all_rows.extend(rows)
+                stats[str(status_code)] += 1
+            try:
+                real_rows = validate_real_rows(enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id)), page_url)) if serial_id else []
+            except requests.RequestException as api_exc:
+                real_rows = []
+                print(f"  易车配置 API 抓取失败: {api_exc}")
+            if real_rows:
+                stats["success"] += 1
+                print(f"  页面受限({status_code})，API 提取真实配置 {len(real_rows)} 条")
+                all_rows.extend(real_rows)
             else:
-                print(f"  易车页面抓取失败，跳过: {exc}")
+                stats["failed"] += 1
+                print(f"  易车页面受限({status_code})且无可用真实配置，跳过")
         except requests.RequestException as exc:
+            stats["failed"] += 1
             print(f"  易车页面抓取失败，跳过: {exc}")
         if delay:
             time.sleep(delay)
+    print(
+        "易车抓取统计: "
+        + " ".join(f"{key}={value}" for key, value in stats.items())
+        + f" real_rows={len(all_rows)}"
+    )
     return all_rows
 
 
@@ -303,18 +437,23 @@ def main():
     args = parser.parse_args()
 
     urls = load_urls(args)
-    if not urls:
+    targets = {normalize_series_url(url): "" for url in urls}
+    if not targets:
         discovery_urls = args.discover_url or split_urls(os.getenv("YICHE_DISCOVERY_URLS", "")) or DEFAULT_DISCOVERY_URLS
         session = requests.Session()
         session.headers.update({"User-Agent": "Mozilla/5.0"})
-        urls = DEFAULT_SERIES_URLS + discover_series_urls(session, discovery_urls, args.max_discovery_pages)
-    urls = list(dict.fromkeys(normalize_series_url(url) for url in urls))
+        targets = {normalize_series_url(url): "" for url in DEFAULT_SERIES_URLS}
+        targets.update(discover_series_urls(session, discovery_urls, args.max_discovery_pages))
     if args.max_series > 0:
-        urls = urls[:args.max_series]
-    if not urls:
+        targets = dict(list(targets.items())[:args.max_series])
+    if not targets:
         print("未配置且未发现易车车系 URL，生成空数据文件。可通过 --url、--url-file、YICHE_SERIES_URLS 或 YICHE_DISCOVERY_URLS 配置。")
-    rows = crawl(urls, args.delay, args.time_limit) if urls else []
+    rows = crawl(targets, args.delay, args.time_limit) if targets else []
     output = args.output or f"yiche_{date.today().strftime('%Y%m%d')}.json"
+    if not rows:
+        if os.path.exists(output):
+            os.remove(output)
+        raise SystemExit("未抓到任何具有真实车型身份和配置字段的易车数据，拒绝生成输出")
     with open(output, "w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=2)
     print(f"易车数据已写入 {output}，共 {len(rows)} 条")
