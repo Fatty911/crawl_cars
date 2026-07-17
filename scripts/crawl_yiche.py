@@ -236,7 +236,8 @@ def fetch_config_api(session, serial_id):
     print(
         f"  易车配置 API: serialId={serial_id} status={payload.get('status') if isinstance(payload, dict) else None} "
         f"message={payload.get('message') if isinstance(payload, dict) else None!r} data_type={type(data).__name__} "
-        f"groups={len(data) if isinstance(data, list) else 0}"
+        f"groups={len(data) if isinstance(data, list) else 0} "
+        f"group_keys={sorted(data[0]) if isinstance(data, list) and data and isinstance(data[0], dict) else []}"
     )
     return payload
 
