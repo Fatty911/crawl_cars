@@ -294,20 +294,43 @@ def extract_brand_series(payload):
 
 
 class YicheDiscoveryFrontier:
-    def __init__(self, session):
+    def __init__(self, session, max_brand_attempts=3, retry_backoff=1):
         self.session = session
         self.brand_queue = []
+        self.retry_queue = []
+        self.brand_attempts = {}
+        self.max_brand_attempts = max_brand_attempts
+        self.retry_backoff = retry_backoff
         self.brands_total = 0
         self.brands_scanned = 0
-        self.brands_failed = 0
         self.pages_scanned = 0
         self.seen_serial_ids = set()
         self.duplicate_serial_ids = 0
+        self.brand_discovery_retries = 0
+        self.brand_discovery_failures = 0
+        self.last_failed_master_id = ""
         self.initialized = False
 
     @property
     def exhausted(self):
-        return self.initialized and not self.brand_queue
+        return self.initialized and not self.brand_queue and not self.retry_queue
+
+    @property
+    def remaining_brands(self):
+        return len(self.brand_queue) + len(self.retry_queue)
+
+    def _next_brand(self):
+        now = time.monotonic()
+        for index, (ready_at, master_id, brand_name) in enumerate(self.retry_queue):
+            if ready_at <= now:
+                self.retry_queue.pop(index)
+                return master_id, brand_name
+        if self.brand_queue:
+            return self.brand_queue.pop(0)
+        ready_at, master_id, brand_name = min(self.retry_queue)
+        time.sleep(max(0, ready_at - now))
+        self.retry_queue.remove((ready_at, master_id, brand_name))
+        return master_id, brand_name
 
     def discover(self):
         if not self.initialized:
@@ -318,16 +341,27 @@ class YicheDiscoveryFrontier:
             print(f"易车可信发现初始化: brands_total={self.brands_total} source={DEFAULT_DISCOVERY_URLS[0]}")
             if not self.brand_queue:
                 raise RuntimeError("易车首页未解析到结构化品牌节点，拒绝把推荐车系耗尽当作全量发现完成")
-        if not self.brand_queue:
+        if self.exhausted:
             return {}
-        master_id, brand_name = self.brand_queue.pop(0)
+        master_id, brand_name = self._next_brand()
+        attempt = self.brand_attempts.get(master_id, 0) + 1
+        self.brand_attempts[master_id] = attempt
         try:
             payload = fetch_yiche_api(self.session, YICHE_BRAND_API, {"masterId": master_id})
         except requests.RequestException as exc:
-            self.brands_failed += 1
+            self.last_failed_master_id = master_id
+            if attempt < self.max_brand_attempts:
+                delay = self.retry_backoff * (2 ** (attempt - 1))
+                self.retry_queue.append((time.monotonic() + delay, master_id, brand_name))
+                self.brand_discovery_retries += 1
+                outcome = f"retry_in={delay}s"
+            else:
+                self.brands_scanned += 1
+                self.brand_discovery_failures += 1
+                outcome = "retry_exhausted"
             print(
-                f"易车可信发现失败，跳过品牌: brand={brand_name!r} master_id={master_id} "
-                f"brands_failed={self.brands_failed} remaining_brands={len(self.brand_queue)} error={exc}"
+                f"易车品牌发现请求失败: master_id={master_id} attempt={attempt}/{self.max_brand_attempts} "
+                f"exception={type(exc).__name__} outcome={outcome} remaining_brands={self.remaining_brands}"
             )
             return {}
         self.brands_scanned += 1
@@ -342,7 +376,7 @@ class YicheDiscoveryFrontier:
         print(
             f"易车可信发现: brand={brand_name!r} master_id={master_id} brands_scanned={self.brands_scanned} "
             f"brands_total={self.brands_total} pages_scanned={self.pages_scanned} new_serial_ids={len(targets)} "
-            f"unique_serial_ids={len(self.seen_serial_ids)} remaining_brands={len(self.brand_queue)}"
+            f"unique_serial_ids={len(self.seen_serial_ids)} remaining_brands={self.remaining_brands}"
         )
         return targets
 
@@ -518,7 +552,6 @@ def crawl(
     *,
     discovery_callback=None,
     max_attempts=1,
-    max_targets=0,
     finish_buffer=60,
     start_time=None,
 ):
@@ -529,15 +562,13 @@ def crawl(
     start = start_time if start_time is not None else time.monotonic()
     deadline = start + time_limit if time_limit else 0
     known_targets = dict(targets) if isinstance(targets, dict) else {url: "" for url in targets}
-    if max_targets > 0:
-        known_targets = dict(list(known_targets.items())[:max_targets])
     pending = list(known_targets)
     known_serial_ids = {serial_id for serial_id in known_targets.values() if serial_id}
     attempts = {}
     completed = set()
     idle_discovery_rounds = 0
     stop_reason = "target_exhausted"
-    stats.update({"discovery_rounds": 0, "retry_attempted": 0, "invalid_brand": 0, "invalid_model_name": 0})
+    stats.update({"discovery_rounds": 0, "discovery_network_errors": 0, "retry_attempted": 0, "invalid_brand": 0, "invalid_model_name": 0})
     print(
         f"易车预算: budget_seconds={time_limit} finish_buffer_seconds={finish_buffer} "
         f"deadline_monotonic={deadline:.3f} targets_initial={len(known_targets)} max_attempts={max_attempts}"
@@ -552,16 +583,18 @@ def crawl(
         if deadline and time.monotonic() >= deadline - finish_buffer:
             stop_reason = "safety_buffer_reached"
             break
-        if not pending and max_targets > 0 and len(known_targets) >= max_targets:
-            stop_reason = "max_targets_reached"
-            break
         if not pending and hasattr(discovery_callback, "discover"):
             stats["discovery_rounds"] += 1
-            discovered = discovery_callback.discover()
+            try:
+                discovered = discovery_callback.discover()
+            except requests.RequestException as exc:
+                stats["discovery_network_errors"] += 1
+                print(f"易车发现回调网络异常，保留已有数据并继续: {type(exc).__name__}: {exc}")
+                if delay:
+                    time.sleep(min(delay, 1))
+                continue
             added = 0
             for discovered_url, discovered_id in discovered.items():
-                if max_targets > 0 and len(known_targets) >= max_targets:
-                    break
                 if discovered_id in known_serial_ids:
                     continue
                 normalized = normalize_series_url(discovered_url)
@@ -582,8 +615,6 @@ def crawl(
             for discovered_url, discovered_id in discovered.items():
                 normalized = normalize_series_url(discovered_url)
                 if normalized not in known_targets:
-                    if max_targets > 0 and len(known_targets) >= max_targets:
-                        break
                     known_targets[normalized] = discovered_id
                     pending.append(normalized)
                     added += 1
@@ -671,8 +702,6 @@ def crawl(
                 normalized = normalize_series_url(discovered_url)
                 previous_id = known_targets.get(normalized, "")
                 if normalized not in known_targets:
-                    if max_targets > 0 and len(known_targets) >= max_targets:
-                        break
                     known_targets[normalized] = discovered_id
                     pending.append(normalized)
                     added += 1
@@ -697,8 +726,10 @@ def crawl(
         + " ".join(f"{key}={value}" for key, value in stats.items())
         + f" targets_discovered={len(known_targets)} unique_serial_ids_attempted={len({known_targets[url] for url in attempts if known_targets.get(url)})} "
         + f"brands_total={getattr(discovery_callback, 'brands_total', 0)} brands_scanned={getattr(discovery_callback, 'brands_scanned', 0)} "
-        + f"brands_failed={getattr(discovery_callback, 'brands_failed', 0)} "
-        + f"pages_scanned={getattr(discovery_callback, 'pages_scanned', 0)} queue_depth={len(pending)} real_rows={len(deduped_rows)} "
+        + f"remaining_brands={getattr(discovery_callback, 'remaining_brands', 0)} pages_scanned={getattr(discovery_callback, 'pages_scanned', 0)} "
+        + f"brand_discovery_retries={getattr(discovery_callback, 'brand_discovery_retries', 0)} "
+        + f"brand_discovery_failures={getattr(discovery_callback, 'brand_discovery_failures', 0)} "
+        + f"last_failed_master_id={getattr(discovery_callback, 'last_failed_master_id', '') or '-'} queue_depth={len(pending)} real_rows={len(deduped_rows)} "
         + f"elapsed_seconds={time.monotonic() - start:.1f} remaining_seconds={max(0, deadline - time.monotonic()):.1f} "
         + f"stop_reason={stop_reason}"
     )
@@ -739,7 +770,6 @@ def main():
         args.time_limit,
         discovery_callback=discovery_callback,
         max_attempts=2 if args.max_series == 0 else 1,
-        max_targets=args.max_series,
         start_time=started_at,
     ) if targets else []
     output = args.output or f"yiche_{date.today().strftime('%Y%m%d')}.json"
