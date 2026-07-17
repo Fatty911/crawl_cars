@@ -25,6 +25,7 @@ DEFAULT_SERIES_URLS = [
 ]
 
 YICHE_CONFIG_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/car/config_new_param"
+YICHE_BRAND_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/brand/get_brand_list"
 YICHE_API_CID = "508"
 YICHE_API_SECRET = "19DDD1FBDFF065D3A4DA777D2D7A81EC"
 IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源"}
@@ -222,14 +223,14 @@ def fetch(session, url):
     return response.text
 
 
-def fetch_config_api(session, serial_id):
-    param = json.dumps({"cityId": "2401", "serialId": str(serial_id)}, separators=(",", ":"))
+def fetch_yiche_api(session, endpoint, parameters):
+    param = json.dumps(parameters, separators=(",", ":"))
     timestamp = str(int(time.time() * 1000))
     signature = hashlib.md5(
         f"cid={YICHE_API_CID}&param={param}{YICHE_API_SECRET}{timestamp}".encode()
     ).hexdigest()
     response = session.get(
-        YICHE_CONFIG_API,
+        endpoint,
         params={"cid": YICHE_API_CID, "param": param},
         headers={
             "Referer": "https://car.yiche.com/",
@@ -242,7 +243,11 @@ def fetch_config_api(session, serial_id):
         timeout=30,
     )
     response.raise_for_status()
-    payload = response.json()
+    return response.json()
+
+
+def fetch_config_api(session, serial_id):
+    payload = fetch_yiche_api(session, YICHE_CONFIG_API, {"cityId": "2401", "serialId": str(serial_id)})
     data = payload.get("data") if isinstance(payload, dict) else None
     first_items = data[0].get("items") if isinstance(data, list) and data and isinstance(data[0], dict) else None
     first_item = first_items[0] if isinstance(first_items, list) and first_items and isinstance(first_items[0], dict) else {}
@@ -254,6 +259,83 @@ def fetch_config_api(session, serial_id):
         f"item_keys={sorted(first_item)}"
     )
     return payload
+
+
+def extract_master_brands(html):
+    brands = []
+    seen = set()
+    soup = bs4.BeautifulSoup(html, "html.parser")
+    for node in soup.select(".brand-list .item-brand, .brand-list-content .item-brand"):
+        master_id = clean_text(node.get("data-id"))
+        name = clean_text(node.get("data-name") or node.get_text())
+        if master_id.isdigit() and name and master_id not in seen:
+            seen.add(master_id)
+            brands.append((master_id, name))
+    return brands
+
+
+def extract_brand_series(payload):
+    series = []
+    for maker in payload.get("data") or []:
+        if not isinstance(maker, dict):
+            continue
+        maker_name = clean_text(maker.get("name"))
+        for item in maker.get("serialList") or []:
+            if not isinstance(item, dict):
+                continue
+            serial_id = clean_text(item.get("id"))
+            name = clean_text(item.get("name"))
+            brand = clean_text(item.get("brandName") or item.get("masterName") or maker_name)
+            slug = clean_text(item.get("allSpell"))
+            if serial_id.isdigit() and name and brand:
+                url = f"https://car.yiche.com/{slug}/peizhi/" if re.fullmatch(r"[a-z][a-z0-9-]+", slug) else f"https://car.yiche.com/serial-{serial_id}/peizhi/"
+                series.append((url, serial_id))
+    return series
+
+
+class YicheDiscoveryFrontier:
+    def __init__(self, session):
+        self.session = session
+        self.brand_queue = []
+        self.brands_total = 0
+        self.brands_scanned = 0
+        self.pages_scanned = 0
+        self.seen_serial_ids = set()
+        self.duplicate_serial_ids = 0
+        self.initialized = False
+
+    @property
+    def exhausted(self):
+        return self.initialized and not self.brand_queue
+
+    def discover(self):
+        if not self.initialized:
+            html = fetch(self.session, DEFAULT_DISCOVERY_URLS[0])
+            self.brand_queue = extract_master_brands(html)
+            self.brands_total = len(self.brand_queue)
+            self.initialized = True
+            print(f"易车可信发现初始化: brands_total={self.brands_total} source={DEFAULT_DISCOVERY_URLS[0]}")
+            if not self.brand_queue:
+                raise RuntimeError("易车首页未解析到结构化品牌节点，拒绝把推荐车系耗尽当作全量发现完成")
+        if not self.brand_queue:
+            return {}
+        master_id, brand_name = self.brand_queue.pop(0)
+        payload = fetch_yiche_api(self.session, YICHE_BRAND_API, {"masterId": master_id})
+        self.brands_scanned += 1
+        self.pages_scanned += 1
+        targets = {}
+        for url, serial_id in extract_brand_series(payload):
+            if serial_id in self.seen_serial_ids:
+                self.duplicate_serial_ids += 1
+                continue
+            self.seen_serial_ids.add(serial_id)
+            targets[url] = serial_id
+        print(
+            f"易车可信发现: brand={brand_name!r} master_id={master_id} brands_scanned={self.brands_scanned} "
+            f"brands_total={self.brands_total} pages_scanned={self.pages_scanned} new_serial_ids={len(targets)} "
+            f"unique_serial_ids={len(self.seen_serial_ids)} remaining_brands={len(self.brand_queue)}"
+        )
+        return targets
 
 
 def extract_from_config_api(payload):
@@ -438,6 +520,7 @@ def crawl(
     deadline = start + time_limit if time_limit else 0
     known_targets = dict(targets) if isinstance(targets, dict) else {url: "" for url in targets}
     pending = list(known_targets)
+    known_serial_ids = {serial_id for serial_id in known_targets.values() if serial_id}
     attempts = {}
     completed = set()
     idle_discovery_rounds = 0
@@ -447,10 +530,48 @@ def crawl(
         f"易车预算: budget_seconds={time_limit} finish_buffer_seconds={finish_buffer} "
         f"deadline_monotonic={deadline:.3f} targets_initial={len(known_targets)} max_attempts={max_attempts}"
     )
-    while pending:
+    while pending or (
+        discovery_callback
+        and (
+            (hasattr(discovery_callback, "discover") and not discovery_callback.exhausted)
+            or (not hasattr(discovery_callback, "discover") and idle_discovery_rounds < 2)
+        )
+    ):
         if deadline and time.monotonic() >= deadline - finish_buffer:
             stop_reason = "safety_buffer_reached"
             break
+        if not pending and hasattr(discovery_callback, "discover"):
+            stats["discovery_rounds"] += 1
+            discovered = discovery_callback.discover()
+            added = 0
+            for discovered_url, discovered_id in discovered.items():
+                if discovered_id in known_serial_ids:
+                    continue
+                normalized = normalize_series_url(discovered_url)
+                known_targets[normalized] = discovered_id
+                known_serial_ids.add(discovered_id)
+                pending.append(normalized)
+                added += 1
+            print(
+                f"易车发现队列: round={stats['discovery_rounds']} new_serial_ids={added} "
+                f"queue_depth={len(pending)} unique_serial_ids={len(known_serial_ids)}"
+            )
+            if not pending:
+                continue
+        elif not pending and discovery_callback:
+            stats["discovery_rounds"] += 1
+            discovered = discovery_callback()
+            added = 0
+            for discovered_url, discovered_id in discovered.items():
+                normalized = normalize_series_url(discovered_url)
+                if normalized not in known_targets:
+                    known_targets[normalized] = discovered_id
+                    pending.append(normalized)
+                    added += 1
+            idle_discovery_rounds = 0 if added else idle_discovery_rounds + 1
+            print(f"易车增量发现: round={stats['discovery_rounds']} discovered={len(discovered)} added_or_enriched={added}")
+        if not pending:
+            continue
         url = pending.pop(0)
         if url in completed:
             continue
@@ -523,7 +644,7 @@ def crawl(
             completed.add(url)
         elif attempts[url] < max_attempts and serial_id:
             pending.append(url)
-        if not pending and discovery_callback and idle_discovery_rounds < 2:
+        if not pending and discovery_callback and not hasattr(discovery_callback, "discover") and idle_discovery_rounds < 2:
             stats["discovery_rounds"] += 1
             discovered = discovery_callback()
             added = 0
@@ -542,6 +663,8 @@ def crawl(
             idle_discovery_rounds = 0 if added else idle_discovery_rounds + 1
             print(f"易车增量发现: round={stats['discovery_rounds']} discovered={len(discovered)} added_or_enriched={added}")
     deduped_rows = []
+    if discovery_callback and hasattr(discovery_callback, "discover") and discovery_callback.exhausted and not pending:
+        stop_reason = "trusted_discovery_exhausted"
     seen_rows = set()
     for row in all_rows:
         key = tuple(clean_text(row.get(field)) for field in ("品牌", "车系", "车型名称", "年款"))
@@ -551,7 +674,9 @@ def crawl(
     print(
         "易车抓取统计: "
         + " ".join(f"{key}={value}" for key, value in stats.items())
-        + f" targets_discovered={len(known_targets)} real_rows={len(deduped_rows)} "
+        + f" targets_discovered={len(known_targets)} unique_serial_ids_attempted={len({known_targets[url] for url in attempts if known_targets.get(url)})} "
+        + f"brands_total={getattr(discovery_callback, 'brands_total', 0)} brands_scanned={getattr(discovery_callback, 'brands_scanned', 0)} "
+        + f"pages_scanned={getattr(discovery_callback, 'pages_scanned', 0)} queue_depth={len(pending)} real_rows={len(deduped_rows)} "
         + f"elapsed_seconds={time.monotonic() - start:.1f} remaining_seconds={max(0, deadline - time.monotonic()):.1f} "
         + f"stop_reason={stop_reason}"
     )
@@ -585,7 +710,7 @@ def main():
         print("未配置且未发现易车车系 URL，生成空数据文件。可通过 --url、--url-file、YICHE_SERIES_URLS 或 YICHE_DISCOVERY_URLS 配置。")
     discovery_callback = None
     if not urls:
-        discovery_callback = lambda: discover_series_urls(session, discovery_urls, args.max_discovery_pages)
+        discovery_callback = YicheDiscoveryFrontier(session)
     rows = crawl(
         targets,
         args.delay,
