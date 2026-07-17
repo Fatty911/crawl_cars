@@ -90,6 +90,16 @@ def test_extract_config_api_response_requires_real_model_and_configuration():
     assert yiche.validate_real_rows(rows) == [{"车型名称": "2026款 旗舰版", "价格": "25.98万", "轴距(mm)": "2920"}]
 
 
+def test_first_api_item_supplies_model_identity_when_label_changes():
+    payload = {"data": [{"items": [
+        {"name": "基本信息", "paramValues": [{"value": "2026款 长续航版"}]},
+        {"name": "厂商指导价", "paramValues": [{"value": "31.35万"}]},
+    ]}]}
+    assert yiche.validate_real_rows(yiche.extract_from_config_api(payload)) == [
+        {"车型名称": "2026款 长续航版", "价格": "31.35万"}
+    ]
+
+
 def test_mixed_responses_only_count_real_configuration(monkeypatch):
     def mixed_fetch(session, url):
         if "blocked" in url:

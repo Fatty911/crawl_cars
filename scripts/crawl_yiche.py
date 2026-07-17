@@ -233,21 +233,24 @@ def fetch_config_api(session, serial_id):
     response.raise_for_status()
     payload = response.json()
     data = payload.get("data") if isinstance(payload, dict) else None
+    first_items = data[0].get("items") if isinstance(data, list) and data and isinstance(data[0], dict) else None
+    first_item = first_items[0] if isinstance(first_items, list) and first_items and isinstance(first_items[0], dict) else {}
     print(
         f"  易车配置 API: serialId={serial_id} status={payload.get('status') if isinstance(payload, dict) else None} "
         f"message={payload.get('message') if isinstance(payload, dict) else None!r} data_type={type(data).__name__} "
         f"groups={len(data) if isinstance(data, list) else 0} "
-        f"group_keys={sorted(data[0]) if isinstance(data, list) and data and isinstance(data[0], dict) else []}"
+        f"group_keys={sorted(data[0]) if isinstance(data, list) and data and isinstance(data[0], dict) else []} "
+        f"item_keys={sorted(first_item)}"
     )
     return payload
 
 
 def extract_from_config_api(payload):
     rows = []
-    for group in payload.get("data") or []:
+    for group_index, group in enumerate(payload.get("data") or []):
         if not isinstance(group, dict):
             continue
-        for item in group.get("items") or []:
+        for item_index, item in enumerate(group.get("items") or []):
             key = normalize_key(item.get("name"))
             if not key:
                 continue
@@ -263,7 +266,7 @@ def extract_from_config_api(payload):
                 if model_name:
                     rows[index]["车型名称"] = model_name
                 if value and value != "-":
-                    if key in {"车型", "车型名称", "车款"}:
+                    if key in {"车型", "车型名称", "车款"} or (group_index == 0 and item_index == 0):
                         rows[index]["车型名称"] = value
                     else:
                         rows[index][key] = value
