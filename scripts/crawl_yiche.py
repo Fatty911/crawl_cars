@@ -28,6 +28,10 @@ YICHE_CONFIG_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/car/conf
 YICHE_API_CID = "508"
 YICHE_API_SECRET = "19DDD1FBDFF065D3A4DA777D2D7A81EC"
 IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源"}
+NON_SERIES_SLUGS = {
+    "api", "article", "assets", "authenservice", "citybase", "current",
+    "issue", "message", "videos",
+}
 
 
 HEADER_MAP = {
@@ -95,27 +99,30 @@ def serial_id_from_url(url):
     return match.group(1) if match else ""
 
 
+def is_series_path(url):
+    parsed = urlparse(url)
+    if parsed.netloc and parsed.netloc != "car.yiche.com":
+        return False
+    parts = [part for part in parsed.path.split("/") if part]
+    if parts and parts[-1] == "peizhi":
+        parts.pop()
+    if len(parts) != 1:
+        return False
+    slug = parts[0].lower()
+    return slug not in NON_SERIES_SLUGS and bool(re.fullmatch(r"[a-z][a-z0-9-]+", slug))
+
+
 def extract_candidate_urls(base_url, html):
-    pattern = re.compile(r'https?://car\.yiche\.com/[a-z0-9][a-z0-9-]*/(?:peizhi/)?|/[a-z0-9][a-z0-9-]*/(?:peizhi/)?', re.I)
-    excluded = {
-        "brand",
-        "newcar",
-        "xuanchegongju",
-        "suv",
-        "jiaoche",
-        "mpv",
-        "paoche",
-        "pika",
-    }
+    soup = bs4.BeautifulSoup(html, "html.parser")
     urls = []
-    for match in pattern.findall(html):
-        absolute = urljoin(base_url, match)
-        slug = absolute.rstrip("/").split("/")[-1]
-        if slug == "peizhi":
-            slug = absolute.rstrip("/").split("/")[-2]
-        if slug in excluded or len(slug) <= 1:
+    for link in soup.find_all("a", href=True):
+        absolute = urljoin(base_url, link["href"])
+        if not is_series_path(absolute):
             continue
-        urls.append(absolute)
+        serial_id = serial_id_from_url(absolute)
+        explicit_config_link = urlparse(absolute).path.rstrip("/").endswith("/peizhi")
+        if serial_id or explicit_config_link:
+            urls.append(absolute)
     return list(dict.fromkeys(urls))
 
 
@@ -124,15 +131,16 @@ def extract_series_targets(base_url, html):
     soup = bs4.BeautifulSoup(html, "html.parser")
     targets = {}
     for link in soup.find_all("a", href=True):
-        absolute = normalize_series_url(urljoin(base_url, link["href"]))
-        if urlparse(absolute).netloc != "car.yiche.com":
+        raw_url = urljoin(base_url, link["href"])
+        if not is_series_path(raw_url):
             continue
+        absolute = normalize_series_url(raw_url)
         serial_id = ""
         node = link
         for _ in range(4):
             if node is None:
                 break
-            for key in ("data-id", "data-serial-id", "data-serialid"):
+            for key in ("data-serial-id", "data-serialid"):
                 value = node.attrs.get(key)
                 if value and str(value).isdigit():
                     serial_id = str(value)
@@ -154,8 +162,9 @@ def extract_series_targets(base_url, html):
         ):
             candidate = match.group("url") or match.group("url_last")
             serial_id = match.group("id") or match.group("id_first")
-            absolute = normalize_series_url(urljoin(base_url, candidate))
-            if urlparse(absolute).netloc == "car.yiche.com":
+            raw_url = urljoin(base_url, candidate)
+            absolute = normalize_series_url(raw_url)
+            if is_series_path(raw_url):
                 targets.setdefault(absolute, serial_id)
     return targets
 
@@ -163,7 +172,7 @@ def extract_series_targets(base_url, html):
 def extract_serial_id(html):
     patterns = (
         r'"(?:serialId|serialid)"\s*:\s*"?(\d+)"?',
-        r'(?:data-serial-id|data-serialid|data-id)=["\'](\d+)["\']',
+        r'(?:data-serial-id|data-serialid)=["\'](\d+)["\']',
     )
     for pattern in patterns:
         match = re.search(pattern, html)
@@ -184,10 +193,11 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
             continue
         discovered.update(extract_series_targets(discovery_url, html))
         for candidate in extract_candidate_urls(discovery_url, html):
-            if candidate.endswith("/peizhi/"):
-                normalized = normalize_series_url(candidate)
-                discovered.setdefault(normalized, serial_id_from_url(normalized))
-            else:
+            normalized = normalize_series_url(candidate)
+            serial_id = serial_id_from_url(normalized)
+            if serial_id:
+                discovered.setdefault(normalized, serial_id)
+            elif candidate.endswith("/peizhi/"):
                 candidate_pages.append(candidate)
 
     for candidate in list(dict.fromkeys(candidate_pages))[:max_pages]:
@@ -197,12 +207,13 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
             print(f"  易车候选页抓取失败，跳过: {candidate} {exc}")
             continue
         discovered.update(extract_series_targets(candidate, html))
-        for nested in extract_candidate_urls(candidate, html):
-            normalized = normalize_series_url(nested)
-            discovered.setdefault(normalized, serial_id_from_url(normalized))
 
-    print(f"自动发现易车车系 URL {len(discovered)} 个，其中 {sum(bool(value) for value in discovered.values())} 个含 serialId")
-    return discovered
+    trusted = {url: serial_id for url, serial_id in discovered.items() if serial_id}
+    print(
+        f"自动发现易车车系 URL {len(trusted)} 个，均含 serialId; "
+        f"拒绝无 serialId 自动候选 {len(discovered) - len(trusted)} 个"
+    )
+    return trusted
 
 
 def fetch(session, url):
@@ -510,7 +521,7 @@ def crawl(
             time.sleep(delay)
         if target_succeeded:
             completed.add(url)
-        elif attempts[url] < max_attempts:
+        elif attempts[url] < max_attempts and serial_id:
             pending.append(url)
         if not pending and discovery_callback and idle_discovery_rounds < 2:
             stats["discovery_rounds"] += 1

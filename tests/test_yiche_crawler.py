@@ -20,13 +20,22 @@ def test_discovery_extracts_and_normalizes_series_candidates():
     html = '''
     <a href="/hanl/">汉L</a>
     <a href="https://car.yiche.com/modely-6224/peizhi/">Model Y参数配置</a>
-    <a href="/brand/">品牌</a>
+    <a href="/hanl/peizhi/">汉L参数配置</a>
     '''
     candidates = yiche.extract_candidate_urls("https://car.yiche.com/", html)
     normalized = [yiche.normalize_series_url(url) for url in candidates]
     assert "https://car.yiche.com/hanl/peizhi/" in normalized
     assert "https://car.yiche.com/modely-6224/peizhi/" in normalized
-    assert all("/brand/" not in url for url in normalized)
+
+
+def test_discovery_rejects_site_features_and_date_paths():
+    paths = ["authenservice", "citybase", "api", "message", "current", "assets", "issue", "article", "videos", "20230523"]
+    html = "".join(f'<a href="/{path}/">not a series</a>' for path in paths)
+    assert yiche.extract_candidate_urls("https://car.yiche.com/", html) == []
+    assert yiche.extract_series_targets(
+        "https://car.yiche.com/",
+        "".join(f'<div data-serial-id="123"><a href="/{path}/">not a series</a></div>' for path in paths),
+    ) == {}
 
 
 def test_extract_identity_from_meta_falls_back_to_series_row():
@@ -149,10 +158,33 @@ def test_quality_gate_rejects_placeholder_rows():
 
 
 def test_discovery_pairs_page_url_with_serial_id():
-    html = '<div data-id="12345"><a href="/hanl/">汉L</a></div>'
+    html = '<div data-serial-id="12345"><a href="/hanl/">汉L</a></div>'
     assert yiche.extract_series_targets("https://car.yiche.com/", html) == {
         "https://car.yiche.com/hanl/peizhi/": "12345"
     }
+
+
+def test_discovery_keeps_structured_serial_id_and_drops_untrusted_candidates(monkeypatch):
+    html = '''
+    <div data-serial-id="12345"><a href="/hanl/">汉L</a></div>
+    <a href="/article/peizhi/">文章</a>
+    '''
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: html)
+    assert yiche.discover_series_urls(requests.Session(), ["https://car.yiche.com/"], max_pages=0) == {
+        "https://car.yiche.com/hanl/peizhi/": "12345"
+    }
+
+
+def test_automatic_target_without_serial_id_is_not_retried(monkeypatch):
+    fetched = []
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: fetched.append(url) or "<html></html>")
+
+    assert yiche.crawl(
+        {"https://car.yiche.com/untrusted/peizhi/": ""},
+        delay=0,
+        max_attempts=5,
+    ) == []
+    assert fetched == ["https://car.yiche.com/untrusted/peizhi/"]
 
 
 def test_numeric_url_suffix_is_used_as_page_provided_serial_id():
