@@ -423,6 +423,7 @@ def crawl(targets, delay, time_limit=0):
             if real_rows:
                 stats["success"] += 1
                 print(f"  提取真实配置 {len(real_rows)} 条")
+                print(f"  真实配置样例: 车型名称={real_rows[0]['车型名称']!r} 配置字段={list(key for key in real_rows[0] if key not in IDENTITY_FIELDS)[:5]}")
                 all_rows.extend(real_rows)
             else:
                 stats["degraded_identity"] += len(rows) or 1
@@ -440,6 +441,7 @@ def crawl(targets, delay, time_limit=0):
             if real_rows:
                 stats["success"] += 1
                 print(f"  页面受限({status_code})，API 提取真实配置 {len(real_rows)} 条")
+                print(f"  真实配置样例: 车型名称={real_rows[0]['车型名称']!r} 配置字段={list(key for key in real_rows[0] if key not in IDENTITY_FIELDS)[:5]}")
                 all_rows.extend(real_rows)
             else:
                 stats["failed"] += 1
