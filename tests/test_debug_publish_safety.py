@@ -617,6 +617,14 @@ class WorkflowValidatorTests(unittest.TestCase):
             self.validator.check_crawler_workflow(path, errors)
             return errors
 
+    def check_mutated_yiche(self, text: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "crawl-yiche.yml"
+            path.write_text(text, encoding="utf-8")
+            errors: list[str] = []
+            self.validator.check_yiche_workflow(path, errors)
+            return errors
+
     def test_debug_self_heal_without_exclusion_is_rejected(self) -> None:
         path = ROOT / ".github/workflows/crawl-dongchedi.yml"
         text = path.read_text(encoding="utf-8")
@@ -658,6 +666,17 @@ class WorkflowValidatorTests(unittest.TestCase):
         )
         errors = self.check_mutated_crawler(path.name, mutated)
         self.assertTrue(any("自动触发合并" in error for error in errors))
+
+    def test_bounded_yiche_run_must_enter_debug_merge_path(self) -> None:
+        path = ROOT / ".github/workflows/crawl-yiche.yml"
+        text = path.read_text(encoding="utf-8")
+        mutated = text.replace(
+            "-f debug_mode=\"$MERGE_DEBUG_MODE\"",
+            "-f debug_mode=${{ github.event.inputs.debug_mode || 'false' }}",
+            1,
+        )
+        errors = self.check_mutated_yiche(mutated)
+        self.assertTrue(any("merge debug stable-first" in error for error in errors))
 
     def test_partial_autohome_artifact_must_enter_safe_incremental_merge(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")

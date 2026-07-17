@@ -172,11 +172,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.ACTION_PAT }}
         run: |
+          MERGE_DEBUG_MODE="${DEBUG_MODE:-false}"
+          if [ "$MERGE_DEBUG_MODE" != "true" ] && [ "${MAX_SERIES:-0}" != "0" ]; then
+            MERGE_DEBUG_MODE=true
+          fi
           gh workflow run merge-and-filter.yml \
             --repo ${{ github.repository }} \
             --ref "${{ github.ref_name }}" \
             -f force_merge=false \
-            -f debug_mode=${{ github.event.inputs.debug_mode || 'false' }} \
+            -f debug_mode="$MERGE_DEBUG_MODE" \
             -f crawler_run_id=${{ github.run_id }} \
             -f crawler_run_attempt=${{ github.run_attempt }} \
             -f trigger_source=yiche-crawl \

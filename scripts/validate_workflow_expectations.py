@@ -150,6 +150,7 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
             f"{path.name} 必须仅在 step2/retry_step2 完成时写完成标记，并保持 debug/full/partial artifact 名称互斥",
             errors,
         )
+
         required_state_paths = (
             "rm -f scripts/dongchedi/progress.json dcd_step2_done",
             "rm -rf scripts/dongchedi/json",
@@ -177,6 +178,49 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
             f"{path.name} 不得读写仓库根 dongchedi 状态目录",
             errors,
         )
+
+
+def check_yiche_workflow(path: Path, errors: list[str]) -> None:
+    data = load_yaml(path)
+    text = path.read_text(encoding="utf-8")
+    schedules = data.get(True, {}).get("schedule", [])
+
+    assert_condition(not schedules, f"{path.name} 不应继续依赖 GitHub Actions schedule", errors)
+    assert_condition("WINDOW_END_BUFFER_SECONDS" in text, f"{path.name} 缺少窗口结束缓冲", errors)
+    assert_condition("scripts/crawl_budget.py configure" in text, f"{path.name} 未使用共享窗口预算脚本", errors)
+    assert_condition("scripts/crawl_budget.py clamp" in text, f"{path.name} 未按 Action 和窗口综合预算收口", errors)
+    assert_condition("group: yiche-crawl-${{ github.ref }}" in text, f"{path.name} concurrency 不得按 run_profile 分组", errors)
+    assert_condition(
+        "yiche-data-${{ github.run_id }}-${{ github.run_attempt }}" in text,
+        f"{path.name} artifact 未绑定 run_id/run_attempt",
+        errors,
+    )
+    for input_name in ("debug_mode", "crawler_run_id", "crawler_run_attempt", "trigger_source"):
+        assert_condition(
+            f"-f {input_name}=" in text,
+            f"{path.name} dispatch merge 缺少 {input_name}",
+            errors,
+        )
+    assert_condition(
+        '--ref "${{ github.ref_name }}"' in text,
+        f"{path.name} dispatch merge 未透传当前 workflow ref",
+        errors,
+    )
+    configure_section = text.split("name: Configure crawl window", 1)[1].split("name: 安装依赖", 1)[0]
+    assert_condition(
+        'echo "DEBUG_MODE=true" >> "$GITHUB_ENV"' in configure_section
+        and 'echo "DEBUG_MODE=false" >> "$GITHUB_ENV"' in configure_section,
+        f"{path.name} 未将 debug_mode 持久化给后续 Verify 步骤",
+        errors,
+    )
+    trigger_section = text.split("name: Trigger merge-and-filter workflow", 1)[1]
+    assert_condition(
+        'MERGE_DEBUG_MODE="${DEBUG_MODE:-false}"' in trigger_section
+        and 'if [ "$MERGE_DEBUG_MODE" != "true" ] && [ "${MAX_SERIES:-0}" != "0" ]; then' in trigger_section
+        and "-f debug_mode=\"$MERGE_DEBUG_MODE\"" in trigger_section,
+        f"{path.name} 有界监督样本未进入 merge debug stable-first 路径",
+        errors,
+    )
 
 
 def check_trigger(path: Path, errors: list[str]) -> None:
@@ -373,6 +417,7 @@ def main() -> int:
     errors: list[str] = []
     check_crawler_workflow(ROOT / ".github/workflows/crawl-autohome.yml", errors)
     check_crawler_workflow(ROOT / ".github/workflows/crawl-dongchedi.yml", errors)
+    check_yiche_workflow(ROOT / ".github/workflows/crawl-yiche.yml", errors)
     check_trigger(ROOT / ".github/workflows/crawl-trigger.yml", errors)
     check_budget_script(ROOT / "scripts/crawl_budget.py", errors)
     check_merge_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
