@@ -430,6 +430,7 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         stats = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertEqual(1, stats["baseline_invalid_identity_dropped"])
+        self.assertEqual(0, stats["candidate_matching_invalid_identity_dropped"])
         self.assertEqual(1, stats["baseline_rows"])
 
         invalid_candidate = candidate + [{"车型名称": "", "年款": ""}]
@@ -569,7 +570,19 @@ class PreservePublishBaselineTests(unittest.TestCase):
         self.assertNotIn(dirty, outputs["merged_json"])
         stats = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertEqual(1, stats["baseline_invalid_identity_dropped"])
+        self.assertEqual(0, stats["candidate_matching_invalid_identity_dropped"])
         self.assertEqual(2, stats["candidate_output_rows"])
+
+    def test_matching_invalid_identity_in_candidate_is_dropped_not_preserved(self) -> None:
+        valid = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
+        dirty = {"车系ID": "3014", "车型名称": "", "年款": "2024"}
+
+        result, outputs = self.run_preserve([valid, dirty], [valid, dirty])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([valid], outputs["merged_json"])
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["candidate_matching_invalid_identity_dropped"])
 
     def test_all_invalid_published_baseline_identities_still_fail_closed(self) -> None:
         dirty = {"数据来源": "仅易车", "车型名称": "", "年款": ""}

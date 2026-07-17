@@ -49,17 +49,17 @@ def load_json_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def filter_valid_identity_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+def filter_valid_identity_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     valid = []
-    dropped = 0
+    invalid = []
     for row in rows:
         try:
             identity_key(row)
         except ValueError:
-            dropped += 1
+            invalid.append(row)
         else:
             valid.append(row)
-    return valid, dropped
+    return valid, invalid
 
 
 def load_rows(path: Path) -> list[dict[str, Any]]:

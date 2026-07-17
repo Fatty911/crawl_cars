@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 from merge_data import collect_fields, filter_car, keep_pages_year, write_csv, write_json
-from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows, load_rows
+from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 
 def unique_keys(label: str, rows: list[dict]) -> list[tuple[str, ...]]:
@@ -98,11 +98,16 @@ def main() -> int:
     args = parser.parse_args()
 
     baseline_rows = [row for row in load_json_rows(args.baseline) if keep_pages_year(row)]
-    baseline_rows, invalid_dropped = filter_valid_identity_rows(baseline_rows)
-    rows, stats = preserve_rows(baseline_rows, load_rows(args.merged_json))
-    if invalid_dropped:
-        stats["baseline_invalid_identity_dropped"] = invalid_dropped
-        print(f"warning: dropped {invalid_dropped} published baseline rows without a verifiable identity")
+    baseline_rows, invalid_baseline_rows = filter_valid_identity_rows(baseline_rows)
+    candidate_rows, invalid_candidate_rows = filter_valid_identity_rows(load_json_rows(args.merged_json))
+    unmatched_invalid = [row for row in invalid_candidate_rows if row not in invalid_baseline_rows]
+    if unmatched_invalid:
+        raise ValueError("candidate contains invalid identities not present in the published baseline")
+    rows, stats = preserve_rows(baseline_rows, candidate_rows)
+    if invalid_baseline_rows:
+        stats["baseline_invalid_identity_dropped"] = len(invalid_baseline_rows)
+        stats["candidate_matching_invalid_identity_dropped"] = len(invalid_candidate_rows)
+        print(f"warning: dropped {len(invalid_baseline_rows)} published baseline rows without a verifiable identity")
     write_publish_assets(rows, args.merged_json, args.merged_csv, args.filtered_json, args.filtered_csv)
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0

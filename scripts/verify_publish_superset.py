@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from merge_data import keep_pages_year
-from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows, load_rows
+from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 
 def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> dict[str, int]:
@@ -43,11 +43,16 @@ def main() -> int:
     args = parser.parse_args()
     try:
         baseline_rows = [row for row in load_json_rows(args.baseline) if keep_pages_year(row)]
-        baseline_rows, invalid_dropped = filter_valid_identity_rows(baseline_rows)
-        stats = verify_superset(baseline_rows, load_rows(args.candidate))
-        if invalid_dropped:
-            stats["baseline_invalid_identity_dropped"] = invalid_dropped
-            print(f"warning: dropped {invalid_dropped} published baseline rows without a verifiable identity")
+        baseline_rows, invalid_baseline_rows = filter_valid_identity_rows(baseline_rows)
+        candidate_rows, invalid_candidate_rows = filter_valid_identity_rows(load_json_rows(args.candidate))
+        unmatched_invalid = [row for row in invalid_candidate_rows if row not in invalid_baseline_rows]
+        if unmatched_invalid:
+            raise ValueError("candidate contains invalid identities not present in the published baseline")
+        stats = verify_superset(baseline_rows, candidate_rows)
+        if invalid_baseline_rows:
+            stats["baseline_invalid_identity_dropped"] = len(invalid_baseline_rows)
+            stats["candidate_matching_invalid_identity_dropped"] = len(invalid_candidate_rows)
+            print(f"warning: dropped {len(invalid_baseline_rows)} published baseline rows without a verifiable identity")
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"publish superset verification failed: {exc}", file=sys.stderr)
         return 1
