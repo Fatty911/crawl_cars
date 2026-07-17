@@ -231,7 +231,14 @@ def fetch_config_api(session, serial_id):
         timeout=30,
     )
     response.raise_for_status()
-    return response.json()
+    payload = response.json()
+    data = payload.get("data") if isinstance(payload, dict) else None
+    print(
+        f"  易车配置 API: serialId={serial_id} status={payload.get('status') if isinstance(payload, dict) else None} "
+        f"message={payload.get('message') if isinstance(payload, dict) else None!r} data_type={type(data).__name__} "
+        f"groups={len(data) if isinstance(data, list) else 0}"
+    )
+    return payload
 
 
 def extract_from_config_api(payload):
