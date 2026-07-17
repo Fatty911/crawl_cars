@@ -552,6 +552,7 @@ def crawl(
     *,
     discovery_callback=None,
     max_attempts=1,
+    max_targets=0,
     finish_buffer=60,
     start_time=None,
 ):
@@ -562,6 +563,8 @@ def crawl(
     start = start_time if start_time is not None else time.monotonic()
     deadline = start + time_limit if time_limit else 0
     known_targets = dict(targets) if isinstance(targets, dict) else {url: "" for url in targets}
+    if max_targets > 0:
+        known_targets = dict(list(known_targets.items())[:max_targets])
     pending = list(known_targets)
     known_serial_ids = {serial_id for serial_id in known_targets.values() if serial_id}
     attempts = {}
@@ -583,6 +586,9 @@ def crawl(
         if deadline and time.monotonic() >= deadline - finish_buffer:
             stop_reason = "safety_buffer_reached"
             break
+        if not pending and max_targets > 0 and len(known_targets) >= max_targets:
+            stop_reason = "max_targets_reached"
+            break
         if not pending and hasattr(discovery_callback, "discover"):
             stats["discovery_rounds"] += 1
             try:
@@ -595,6 +601,8 @@ def crawl(
                 continue
             added = 0
             for discovered_url, discovered_id in discovered.items():
+                if max_targets > 0 and len(known_targets) >= max_targets:
+                    break
                 if discovered_id in known_serial_ids:
                     continue
                 normalized = normalize_series_url(discovered_url)
@@ -615,6 +623,8 @@ def crawl(
             for discovered_url, discovered_id in discovered.items():
                 normalized = normalize_series_url(discovered_url)
                 if normalized not in known_targets:
+                    if max_targets > 0 and len(known_targets) >= max_targets:
+                        break
                     known_targets[normalized] = discovered_id
                     pending.append(normalized)
                     added += 1
@@ -702,6 +712,8 @@ def crawl(
                 normalized = normalize_series_url(discovered_url)
                 previous_id = known_targets.get(normalized, "")
                 if normalized not in known_targets:
+                    if max_targets > 0 and len(known_targets) >= max_targets:
+                        break
                     known_targets[normalized] = discovered_id
                     pending.append(normalized)
                     added += 1
@@ -770,6 +782,7 @@ def main():
         args.time_limit,
         discovery_callback=discovery_callback,
         max_attempts=2 if args.max_series == 0 else 1,
+        max_targets=args.max_series,
         start_time=started_at,
     ) if targets else []
     output = args.output or f"yiche_{date.today().strftime('%Y%m%d')}.json"

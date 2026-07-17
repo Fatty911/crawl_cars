@@ -340,6 +340,49 @@ def test_crawl_does_not_hide_discovery_programming_errors(monkeypatch):
         yiche.crawl({"https://car.yiche.com/seed-99/peizhi/": "99"}, 0, discovery_callback=Frontier())
 
 
+def test_crawl_limits_initial_and_structured_discovery_targets(monkeypatch):
+    html = '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>品牌</td><td>真实品牌</td></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+    fetched = []
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: fetched.append(url) or html)
+
+    class Frontier:
+        exhausted = False
+
+        def discover(self):
+            return {f"https://car.yiche.com/series-{index}/peizhi/": str(index) for index in range(100, 125)}
+
+    rows = yiche.crawl(
+        {
+            "https://car.yiche.com/seed-98/peizhi/": "98",
+            "https://car.yiche.com/seed-99/peizhi/": "99",
+        },
+        0,
+        discovery_callback=Frontier(),
+        max_targets=3,
+    )
+    assert len(fetched) == len(rows) == 3
+
+
+def test_crawl_limits_initial_targets_without_calling_discovery(monkeypatch):
+    html = '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>品牌</td><td>真实品牌</td></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+    fetched = []
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: fetched.append(url) or html)
+
+    class Frontier:
+        exhausted = False
+
+        def discover(self):
+            raise AssertionError("discovery called after target limit")
+
+    rows = yiche.crawl(
+        {f"https://car.yiche.com/seed-{index}/peizhi/": str(index) for index in range(5)},
+        0,
+        discovery_callback=Frontier(),
+        max_targets=3,
+    )
+    assert len(fetched) == len(rows) == 3
+
+
 def test_workflow_quality_gate_uses_real_row_validation():
     workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/crawl-yiche.yml").read_text(encoding="utf-8")
     assert "validate_real_rows" in workflow
