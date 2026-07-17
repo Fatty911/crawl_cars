@@ -599,6 +599,12 @@ def crawl(
                 if delay:
                     time.sleep(min(delay, 1))
                 continue
+            except RuntimeError as exc:
+                if max_targets > 0 and all_rows:
+                    stop_reason = "discovery_unavailable_after_seed_rows"
+                    print(f"易车结构化发现不可用，保留有界样本已有真实配置: stop_reason={stop_reason} error={exc}")
+                    break
+                raise
             added = 0
             for discovered_url, discovered_id in discovered.items():
                 if max_targets > 0 and len(known_targets) >= max_targets:

@@ -327,6 +327,41 @@ def test_crawl_discovery_network_error_preserves_existing_rows(monkeypatch):
     assert len(rows) == 1
 
 
+def test_bounded_crawl_preserves_seed_rows_when_structured_discovery_unavailable(monkeypatch, capsys):
+    html = '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>品牌</td><td>真实品牌</td></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: html)
+
+    class Frontier:
+        exhausted = False
+
+        def discover(self):
+            raise RuntimeError("brand nodes missing")
+
+    rows = yiche.crawl(
+        {"https://car.yiche.com/seed-99/peizhi/": "99"},
+        0,
+        discovery_callback=Frontier(),
+        max_targets=25,
+    )
+
+    assert len(rows) == 1
+    assert "discovery_unavailable_after_seed_rows" in capsys.readouterr().out
+
+
+def test_unbounded_crawl_still_fails_when_structured_discovery_unavailable(monkeypatch):
+    html = '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>品牌</td><td>真实品牌</td></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: html)
+
+    class Frontier:
+        exhausted = False
+
+        def discover(self):
+            raise RuntimeError("brand nodes missing")
+
+    with pytest.raises(RuntimeError, match="brand nodes missing"):
+        yiche.crawl({"https://car.yiche.com/seed-99/peizhi/": "99"}, 0, discovery_callback=Frontier())
+
+
 def test_crawl_does_not_hide_discovery_programming_errors(monkeypatch):
     monkeypatch.setattr(yiche, "fetch", lambda session, url: "<html></html>")
 
