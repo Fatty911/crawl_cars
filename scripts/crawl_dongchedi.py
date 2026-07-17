@@ -859,11 +859,19 @@ def fetch_series_entity_payload(series):
 
     car_ids = _extract_car_ids(garage_payload.get("data", garage_payload))
     if not car_ids:
-        raise RuntimeError("garage API 未返回 car_id")
+        return {
+            "source": "dongchedi_entity_api",
+            "series_info": series,
+            "car_ids": [],
+            "terminal_empty": True,
+            "empty_reason": "garage_no_car_ids",
+            "data": {"car_info": [], "properties": []},
+        }
 
     car_info = []
     properties = []
     property_keys = set()
+    empty_car_ids = []
     entity_url = "https://www.dongchedi.com/motor/car_page/v4/get_entity_json/"
     for start in range(0, len(car_ids), max(1, DCD_ENTITY_BATCH_SIZE)):
         batch = car_ids[start:start + max(1, DCD_ENTITY_BATCH_SIZE)]
@@ -873,12 +881,17 @@ def fetch_series_entity_payload(series):
                 f"entity API status={entity_payload.get('status')} message={entity_payload.get('message')}"
             )
         data = entity_payload.get("data", {})
+        if not isinstance(data, dict):
+            raise RuntimeError("entity API data 类型异常")
         batch_car_info = data.get("car_info")
         batch_properties = data.get("properties")
-        if not isinstance(batch_car_info, list) or not batch_car_info:
-            raise RuntimeError("entity API car_info 为空")
-        if not isinstance(batch_properties, list) or not batch_properties:
-            raise RuntimeError("entity API properties 为空")
+        if not isinstance(batch_car_info, list):
+            raise RuntimeError("entity API car_info 类型异常")
+        if not isinstance(batch_properties, list):
+            raise RuntimeError("entity API properties 类型异常")
+        if not batch_car_info:
+            empty_car_ids.extend(batch)
+            continue
         car_info.extend(batch_car_info)
         for prop in batch_properties:
             key = prop.get("key")
@@ -888,12 +901,18 @@ def fetch_series_entity_payload(series):
                 property_keys.add(key)
             properties.append(prop)
 
-    return {
+    payload = {
         "source": "dongchedi_entity_api",
         "series_info": series,
         "car_ids": car_ids,
         "data": {"car_info": car_info, "properties": properties},
     }
+    if empty_car_ids:
+        payload["empty_car_ids"] = empty_car_ids
+    if not car_info:
+        payload["terminal_empty"] = True
+        payload["empty_reason"] = "entity_no_car_info"
+    return payload
 
 
 def is_login_required_next_data(next_data):

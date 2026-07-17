@@ -85,7 +85,7 @@ class DongchediApiPayloadTest(unittest.TestCase):
         self.assertEqual(calls[0][1], {"no_sales": 1})
         self.assertEqual(calls[1][1], {"car_id_list": "256890,256891"})
 
-    def test_fetch_series_entity_payload_rejects_empty_entity_data(self):
+    def test_fetch_series_entity_payload_accepts_successful_empty_entity_data(self):
         responses = iter(
             [
                 {
@@ -102,7 +102,69 @@ class DongchediApiPayloadTest(unittest.TestCase):
         )
         self.module._request_dongchedi_json = lambda url, params=None: next(responses)
 
-        with self.assertRaisesRegex(RuntimeError, "car_info 为空"):
+        payload = self.module.fetch_series_entity_payload(
+            {"id": "3504", "name": "测试车系", "brand": "测试"}
+        )
+
+        self.assertTrue(payload["terminal_empty"])
+        self.assertEqual(payload["empty_reason"], "entity_no_car_info")
+        self.assertEqual(payload["empty_car_ids"], ["256890"])
+
+    def test_fetch_series_entity_payload_accepts_successful_empty_garage(self):
+        self.module._request_dongchedi_json = lambda url, params=None: {
+            "status": 0,
+            "message": "success",
+            "data": {"list": []},
+        }
+
+        payload = self.module.fetch_series_entity_payload(
+            {"id": "24972", "name": "测试空车系", "brand": "测试"}
+        )
+
+        self.assertTrue(payload["terminal_empty"])
+        self.assertEqual(payload["empty_reason"], "garage_no_car_ids")
+        self.assertEqual(payload["data"], {"car_info": [], "properties": []})
+
+    def test_fetch_series_entity_payload_keeps_valid_batches_and_empty_properties(self):
+        self.module.DCD_ENTITY_BATCH_SIZE = 1
+        responses = iter(
+            [
+                {
+                    "status": 0,
+                    "message": "success",
+                    "data": {"list": [{"car_id": 256890}, {"car_id": 256891}]},
+                },
+                {
+                    "status": "success",
+                    "data": {"car_info": [], "properties": []},
+                },
+                {
+                    "status": "success",
+                    "data": {"car_info": [{"car_name": "A"}], "properties": []},
+                },
+            ]
+        )
+        self.module._request_dongchedi_json = lambda url, params=None: next(responses)
+
+        payload = self.module.fetch_series_entity_payload(
+            {"id": "3504", "name": "测试车系", "brand": "测试"}
+        )
+
+        self.assertNotIn("terminal_empty", payload)
+        self.assertEqual(payload["empty_car_ids"], ["256890"])
+        self.assertEqual(payload["data"]["car_info"], [{"car_name": "A"}])
+        self.assertEqual(payload["data"]["properties"], [])
+
+    def test_fetch_series_entity_payload_rejects_malformed_entity_data(self):
+        responses = iter(
+            [
+                {"status": 0, "data": {"list": [{"car_id": 256890}]}},
+                {"status": "success", "data": {"car_info": {}, "properties": []}},
+            ]
+        )
+        self.module._request_dongchedi_json = lambda url, params=None: next(responses)
+
+        with self.assertRaisesRegex(RuntimeError, "car_info 类型异常"):
             self.module.fetch_series_entity_payload(
                 {"id": "3504", "name": "测试车系", "brand": "测试"}
             )
