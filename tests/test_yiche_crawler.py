@@ -223,6 +223,33 @@ def test_structured_brand_frontier_discovers_hundreds_and_deduplicates(monkeypat
     assert all(yiche.is_series_path(url) for url in discovered)
 
 
+def test_structured_brand_frontier_skips_request_error_and_continues(monkeypatch):
+    master_html = '''
+    <div class="brand-list">
+      <div class="item-brand" data-id="1" data-name="失败品牌"></div>
+      <div class="item-brand" data-id="2" data-name="成功品牌"></div>
+    </div>
+    '''
+
+    def fake_api(session, endpoint, parameters):
+        if parameters["masterId"] == "1":
+            raise requests.ConnectionError("network down")
+        return {"data": [{"name": "成功厂商", "serialList": [
+            {"id": "201", "name": "成功车系", "brandName": "成功品牌", "allSpell": "success-series"}
+        ]}]}
+
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: master_html)
+    monkeypatch.setattr(yiche, "fetch_yiche_api", fake_api)
+    frontier = yiche.YicheDiscoveryFrontier(requests.Session())
+
+    assert frontier.discover() == {}
+    assert frontier.discover() == {"https://car.yiche.com/success-series/peizhi/": "201"}
+    assert frontier.exhausted
+    assert frontier.brands_failed == 1
+    assert frontier.brands_scanned == frontier.pages_scanned == 1
+    assert frontier.brands_failed + frontier.brands_scanned == frontier.brands_total == 2
+
+
 def test_brand_series_requires_structured_identity_and_ignores_garbage_paths():
     payload = {"data": [{"name": "可信厂商", "serialList": [
         {"id": "101", "name": "可信车系", "brandName": "可信品牌", "allSpell": "trusted-series"},
@@ -251,6 +278,57 @@ def test_crawl_continues_structured_discovery_after_initial_targets(monkeypatch)
     rows = yiche.crawl({"https://car.yiche.com/seed-99/peizhi/": "99"}, 0, discovery_callback=Frontier())
     assert len(fetched) == 26
     assert len(rows) == 26
+
+
+def test_crawl_limits_initial_and_structured_discovery_targets(monkeypatch):
+    html = '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>品牌</td><td>真实品牌</td></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+    fetched = []
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: fetched.append(url) or html)
+
+    class Frontier:
+        exhausted = False
+
+        def __init__(self):
+            self.calls = 0
+
+        def discover(self):
+            self.calls += 1
+            return {f"https://car.yiche.com/series-{index}/peizhi/": str(index) for index in range(100, 125)}
+
+    frontier = Frontier()
+    rows = yiche.crawl(
+        {
+            "https://car.yiche.com/seed-98/peizhi/": "98",
+            "https://car.yiche.com/seed-99/peizhi/": "99",
+        },
+        0,
+        discovery_callback=frontier,
+        max_targets=3,
+    )
+
+    assert len(fetched) == len(rows) == 3
+    assert frontier.calls == 1
+
+
+def test_crawl_limits_initial_targets_without_calling_discovery(monkeypatch):
+    html = '<table><tr><th>车型</th><th>2026款 真车</th></tr><tr><td>品牌</td><td>真实品牌</td></tr><tr><td>轴距</td><td>2900</td></tr></table>'
+    fetched = []
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: fetched.append(url) or html)
+
+    class Frontier:
+        exhausted = False
+
+        def discover(self):
+            raise AssertionError("discovery called after target limit")
+
+    rows = yiche.crawl(
+        {f"https://car.yiche.com/seed-{index}/peizhi/": str(index) for index in range(5)},
+        0,
+        discovery_callback=Frontier(),
+        max_targets=3,
+    )
+
+    assert len(fetched) == len(rows) == 3
 
 
 def test_workflow_quality_gate_uses_real_row_validation():
