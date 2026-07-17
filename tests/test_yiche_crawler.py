@@ -117,6 +117,11 @@ def test_discovery_pairs_page_url_with_serial_id():
     }
 
 
+def test_numeric_url_suffix_is_used_as_page_provided_serial_id():
+    assert yiche.serial_id_from_url("https://car.yiche.com/modely-6224/peizhi/") == "6224"
+    assert yiche.serial_id_from_url("https://car.yiche.com/hanl/peizhi/") == ""
+
+
 def test_extract_serial_id_from_page_state():
     assert yiche.extract_serial_id('<script>window.state={"serialId":12345}</script>') == "12345"
 

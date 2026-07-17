@@ -89,6 +89,12 @@ def normalize_series_url(url):
     return page_url
 
 
+def serial_id_from_url(url):
+    slug = series_slug_from_url(normalize_series_url(url))
+    match = re.search(r"-(\d+)$", slug)
+    return match.group(1) if match else ""
+
+
 def extract_candidate_urls(base_url, html):
     pattern = re.compile(r'https?://car\.yiche\.com/[a-z0-9][a-z0-9-]*/(?:peizhi/)?|/[a-z0-9][a-z0-9-]*/(?:peizhi/)?', re.I)
     excluded = {
@@ -179,7 +185,8 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
         discovered.update(extract_series_targets(discovery_url, html))
         for candidate in extract_candidate_urls(discovery_url, html):
             if candidate.endswith("/peizhi/"):
-                discovered.setdefault(normalize_series_url(candidate), "")
+                normalized = normalize_series_url(candidate)
+                discovered.setdefault(normalized, serial_id_from_url(normalized))
             else:
                 candidate_pages.append(candidate)
 
@@ -191,7 +198,8 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
             continue
         discovered.update(extract_series_targets(candidate, html))
         for nested in extract_candidate_urls(candidate, html):
-            discovered.setdefault(normalize_series_url(nested), "")
+            normalized = normalize_series_url(nested)
+            discovered.setdefault(normalized, serial_id_from_url(normalized))
 
     print(f"自动发现易车车系 URL {len(discovered)} 个，其中 {sum(bool(value) for value in discovered.values())} 个含 serialId")
     return discovered
@@ -451,12 +459,12 @@ def main():
     args = parser.parse_args()
 
     urls = load_urls(args)
-    targets = {normalize_series_url(url): "" for url in urls}
+    targets = {normalize_series_url(url): serial_id_from_url(url) for url in urls}
     if not targets:
         discovery_urls = args.discover_url or split_urls(os.getenv("YICHE_DISCOVERY_URLS", "")) or DEFAULT_DISCOVERY_URLS
         session = requests.Session()
         session.headers.update({"User-Agent": "Mozilla/5.0"})
-        targets = {normalize_series_url(url): "" for url in DEFAULT_SERIES_URLS}
+        targets = {normalize_series_url(url): serial_id_from_url(url) for url in DEFAULT_SERIES_URLS}
         targets.update(discover_series_urls(session, discovery_urls, args.max_discovery_pages))
     if args.max_series > 0:
         targets = dict(list(targets.items())[:args.max_series])
