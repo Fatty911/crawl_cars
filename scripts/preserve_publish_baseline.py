@@ -10,11 +10,11 @@ import tempfile
 from pathlib import Path
 
 from merge_data import collect_fields, filter_car, keep_pages_year, write_csv, write_json
-from prepare_debug_merge_inputs import load_published_rows, published_identity_key
+from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows, load_rows
 
 
 def unique_keys(label: str, rows: list[dict]) -> list[tuple[str, ...]]:
-    keys = [published_identity_key(row) for row in rows]
+    keys = [identity_key(row) for row in rows]
     if len(set(keys)) != len(keys):
         raise ValueError(f"{label} input contains duplicate identities")
     return keys
@@ -97,7 +97,12 @@ def main() -> int:
     parser.add_argument("--filtered-csv", type=Path, required=True)
     args = parser.parse_args()
 
-    rows, stats = preserve_rows(load_published_rows(args.baseline), load_published_rows(args.merged_json))
+    baseline_rows = [row for row in load_json_rows(args.baseline) if keep_pages_year(row)]
+    baseline_rows, invalid_dropped = filter_valid_identity_rows(baseline_rows)
+    rows, stats = preserve_rows(baseline_rows, load_rows(args.merged_json))
+    if invalid_dropped:
+        stats["baseline_invalid_identity_dropped"] = invalid_dropped
+        print(f"warning: dropped {invalid_dropped} published baseline rows without a verifiable identity")
     write_publish_assets(rows, args.merged_json, args.merged_csv, args.filtered_json, args.filtered_csv)
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0

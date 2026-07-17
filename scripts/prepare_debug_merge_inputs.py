@@ -41,36 +41,31 @@ def identity_key(row: dict[str, Any]) -> tuple[str, ...]:
     return ("fallback", brand, series, model, year)
 
 
-def published_identity_key(row: dict[str, Any]) -> tuple[str, ...]:
-    """Identify published rows while retaining a narrowly scoped legacy row."""
-    try:
-        return identity_key(row)
-    except ValueError:
-        model = _value(row, "车型名称") if isinstance(row, dict) else ""
-        year = _value(row, "年款") if isinstance(row, dict) else ""
-        series_id = _value(row, "车系ID") if isinstance(row, dict) else ""
-        if not model and year and series_id:
-            return ("published_series_year", series_id, year)
-        raise
-
-
-def load_rows(path: Path) -> list[dict[str, Any]]:
+def load_json_rows(path: Path) -> list[dict[str, Any]]:
     with path.open("r", encoding="utf-8") as file:
         rows = json.load(file)
     if not isinstance(rows, list):
         raise ValueError(f"{path} must contain a JSON list")
-    for row in rows:
-        identity_key(row)
     return rows
 
 
-def load_published_rows(path: Path) -> list[dict[str, Any]]:
-    with path.open("r", encoding="utf-8") as file:
-        rows = json.load(file)
-    if not isinstance(rows, list):
-        raise ValueError(f"{path} must contain a JSON list")
+def filter_valid_identity_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+    valid = []
+    dropped = 0
     for row in rows:
-        published_identity_key(row)
+        try:
+            identity_key(row)
+        except ValueError:
+            dropped += 1
+        else:
+            valid.append(row)
+    return valid, dropped
+
+
+def load_rows(path: Path) -> list[dict[str, Any]]:
+    rows = load_json_rows(path)
+    for row in rows:
+        identity_key(row)
     return rows
 
 

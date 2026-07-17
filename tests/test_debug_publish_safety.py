@@ -242,14 +242,6 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("identity requires", result.stderr)
 
-    def test_missing_model_with_series_and_year_still_fails_closed(self) -> None:
-        row = {"车系ID": "3014", "车系": "飞驰", "车型名称": "", "年款": "2024"}
-
-        result, _ = self.run_prepare([row], [row])
-
-        self.assertNotEqual(0, result.returncode)
-        self.assertIn("identity requires", result.stderr)
-
     def test_non_yiche_no_year_still_fails_closed(self) -> None:
         row = {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "A", "车型名称": "未知年款", "年款": ""}
 
@@ -423,17 +415,26 @@ class VerifyPublishSupersetTests(unittest.TestCase):
             json.loads(result.stdout.strip().splitlines()[-1]),
         )
 
-    def test_legacy_published_row_without_model_can_verify(self) -> None:
-        legacy = {"车系ID": "3014", "车系": "飞驰", "车型名称": "", "年款": "2024"}
-        candidate = [legacy, {"车系ID": "100", "车型名称": "A", "年款": "2026"}]
+    def test_invalid_published_baseline_identity_is_dropped_but_candidate_stays_strict(self) -> None:
+        baseline = [
+            {"车系ID": "100", "车型名称": "A", "年款": "2026"},
+            {"数据来源": "仅易车", "车型名称": "", "年款": ""},
+        ]
+        candidate = [
+            {"车系ID": "100", "车型名称": "A", "年款": "2026"},
+            {"车系ID": "101", "车型名称": "B", "年款": "2026"},
+        ]
 
-        result = self.run_verify([legacy], candidate)
+        result = self.run_verify(baseline, candidate)
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual(
-            {"baseline_rows": 1, "candidate_rows": 2, "retained_rows": 1, "added_rows": 1, "missing_rows": 0},
-            json.loads(result.stdout.strip().splitlines()[-1]),
-        )
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["baseline_invalid_identity_dropped"])
+        self.assertEqual(1, stats["baseline_rows"])
+
+        invalid_candidate = candidate + [{"车型名称": "", "年款": ""}]
+        result = self.run_verify(baseline, invalid_candidate)
+        self.assertNotEqual(0, result.returncode)
 
 
 class PreservePublishBaselineTests(unittest.TestCase):
@@ -556,14 +557,27 @@ class PreservePublishBaselineTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(baseline + [candidate[1]], outputs["merged_json"])
 
-    def test_legacy_published_row_without_model_is_preserved(self) -> None:
-        legacy = {"车系ID": "3014", "车系": "飞驰", "车型名称": "", "年款": "2024", "价格": "published"}
-        candidate = [{"车系ID": "100", "车型名称": "A", "年款": "2026"}]
+    def test_invalid_published_baseline_identity_is_dropped_without_expanding_output(self) -> None:
+        valid = {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "published"}
+        dirty = {"数据来源": "仅易车", "车型名称": "", "年款": "", "价格": "dirty"}
+        added = {"车系ID": "101", "车型名称": "B", "年款": "2026", "价格": "new"}
 
-        result, outputs = self.run_preserve([legacy], candidate)
+        result, outputs = self.run_preserve([valid, dirty], [valid, added])
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual([legacy] + candidate, outputs["merged_json"])
+        self.assertEqual([valid, added], outputs["merged_json"])
+        self.assertNotIn(dirty, outputs["merged_json"])
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["baseline_invalid_identity_dropped"])
+        self.assertEqual(2, stats["candidate_output_rows"])
+
+    def test_all_invalid_published_baseline_identities_still_fail_closed(self) -> None:
+        dirty = {"数据来源": "仅易车", "车型名称": "", "年款": ""}
+        candidate = {"车系ID": "101", "车型名称": "B", "年款": "2026"}
+
+        result, _ = self.run_preserve([dirty], [candidate])
+
+        self.assertNotEqual(0, result.returncode)
 
 
 class WorkflowValidatorTests(unittest.TestCase):
