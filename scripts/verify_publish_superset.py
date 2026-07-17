@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from merge_data import keep_pages_year
-from prepare_debug_merge_inputs import identity_key, load_rows
+from prepare_debug_merge_inputs import load_published_rows, published_identity_key
 
 
 def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> dict[str, int]:
@@ -21,8 +21,8 @@ def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> di
         raise ValueError(
             f"candidate row count decreased: baseline={len(baseline_rows)} candidate={len(candidate_rows)}"
         )
-    baseline_keys = {identity_key(row) for row in baseline_rows}
-    candidate_keys = {identity_key(row) for row in candidate_rows}
+    baseline_keys = {published_identity_key(row) for row in baseline_rows}
+    candidate_keys = {published_identity_key(row) for row in candidate_rows}
     missing = baseline_keys - candidate_keys
     if missing:
         sample = sorted(missing)[:5]
@@ -42,7 +42,7 @@ def main() -> int:
     parser.add_argument("--candidate", type=Path, required=True)
     args = parser.parse_args()
     try:
-        stats = verify_superset(load_rows(args.baseline), load_rows(args.candidate))
+        stats = verify_superset(load_published_rows(args.baseline), load_published_rows(args.candidate))
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"publish superset verification failed: {exc}", file=sys.stderr)
         return 1

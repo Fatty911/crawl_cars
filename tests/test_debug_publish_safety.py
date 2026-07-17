@@ -242,6 +242,14 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("identity requires", result.stderr)
 
+    def test_missing_model_with_series_and_year_still_fails_closed(self) -> None:
+        row = {"车系ID": "3014", "车系": "飞驰", "车型名称": "", "年款": "2024"}
+
+        result, _ = self.run_prepare([row], [row])
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("identity requires", result.stderr)
+
     def test_non_yiche_no_year_still_fails_closed(self) -> None:
         row = {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "A", "车型名称": "未知年款", "年款": ""}
 
@@ -415,6 +423,18 @@ class VerifyPublishSupersetTests(unittest.TestCase):
             json.loads(result.stdout.strip().splitlines()[-1]),
         )
 
+    def test_legacy_published_row_without_model_can_verify(self) -> None:
+        legacy = {"车系ID": "3014", "车系": "飞驰", "车型名称": "", "年款": "2024"}
+        candidate = [legacy, {"车系ID": "100", "车型名称": "A", "年款": "2026"}]
+
+        result = self.run_verify([legacy], candidate)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(
+            {"baseline_rows": 1, "candidate_rows": 2, "retained_rows": 1, "added_rows": 1, "missing_rows": 0},
+            json.loads(result.stdout.strip().splitlines()[-1]),
+        )
+
 
 class PreservePublishBaselineTests(unittest.TestCase):
     @classmethod
@@ -535,6 +555,15 @@ class PreservePublishBaselineTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(baseline + [candidate[1]], outputs["merged_json"])
+
+    def test_legacy_published_row_without_model_is_preserved(self) -> None:
+        legacy = {"车系ID": "3014", "车系": "飞驰", "车型名称": "", "年款": "2024", "价格": "published"}
+        candidate = [{"车系ID": "100", "车型名称": "A", "年款": "2026"}]
+
+        result, outputs = self.run_preserve([legacy], candidate)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([legacy] + candidate, outputs["merged_json"])
 
 
 class WorkflowValidatorTests(unittest.TestCase):
