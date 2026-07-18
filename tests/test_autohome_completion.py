@@ -226,6 +226,80 @@ class AutohomeCompletionTests(unittest.TestCase):
             )
         self.assertIsNone(html)
 
+    def test_history_spec_official_page_fallback_produces_valid_model3_output(self) -> None:
+        target = {
+            "cache_key": "5346_spec_2022_54529",
+            "car_id": "5346",
+            "spec_id": "54529",
+            "year": "2022",
+            "brand": "特斯拉",
+            "series": "Model 3",
+            "url": "https://car.autohome.com.cn/config/spec/54529.html",
+            "target_type": "history",
+        }
+        official_page = """
+        <html><head><title>Model 3 2022款 后轮驱动版参数配置表_特斯拉_汽车之家</title></head>
+        <body>
+          <a href="https://www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>
+          <div>总功率：194 kW</div>
+          <div>续航里程：556km</div>
+        </body></html>
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("html", "newjson", "exception"):
+                (root / name).mkdir()
+            with (
+                mock.patch.object(self.autohome, "html_dir", str(root / "html")),
+                mock.patch.object(self.autohome, "newjson_dir", str(root / "newjson")),
+                mock.patch.object(self.autohome, "exception_dir", str(root / "exception")),
+                mock.patch.object(self.autohome, "working_dir", str(root)),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+            ):
+                (root / "target_manifest.json").write_text(
+                    json.dumps({"5346_spec_2022_54529": target}, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                html = self.autohome.build_autohome_history_spec_page_html(target, official_page)
+                self.assertIsNotNone(html)
+                (root / "html" / "5346_spec_2022_54529").write_text(html, encoding="utf-8")
+                self.assertTrue(self.autohome.cached_html_has_valid_autohome_data("5346_spec_2022_54529"))
+                (root / "newjson" / "5346_spec_2022_54529").write_text(html, encoding="utf-8")
+                self.autohome.generate_csv()
+                output = json.loads(next(root.glob("autoHome_*.json")).read_text(encoding="utf-8"))
+
+        self.assertEqual(1, len(output))
+        self.assertEqual("特斯拉", output[0]["品牌"])
+        self.assertEqual("Model 3", output[0]["车系"])
+        self.assertEqual("2022", output[0]["年款"])
+        self.assertEqual("54529", output[0]["车款ID"])
+        self.assertEqual("2022款 后轮驱动版", output[0]["车型名称"])
+
+    def test_history_spec_official_page_fallback_rejects_wrong_spec_or_prediction(self) -> None:
+        target = {
+            "cache_key": "5346_spec_2022_54529",
+            "car_id": "5346",
+            "spec_id": "54529",
+            "year": "2022",
+            "brand": "特斯拉",
+            "series": "Model 3",
+            "url": "https://car.autohome.com.cn/config/spec/54529.html",
+            "target_type": "history",
+        }
+
+        self.assertIsNone(
+            self.autohome.build_autohome_history_spec_page_html(
+                target,
+                "<title>Model 3 2022款 后轮驱动版参数配置表_特斯拉_汽车之家</title>",
+            )
+        )
+        self.assertIsNone(
+            self.autohome.build_autohome_history_spec_page_html(
+                target,
+                '<title>Model 3 2022款 即将上市版参数配置表_特斯拉_汽车之家</title><a href="/spec/54529/">54529</a>',
+            )
+        )
+
     def test_first_incomplete_target_index_rewinds_inserted_history_before_saved_index(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -455,6 +455,70 @@ def fetch_autohome_history_spec_api_html(target):
     return None
 
 
+def build_autohome_history_spec_page_html(target, page_html):
+    spec_id = clean_value(str(target.get("spec_id") or ""))
+    if not spec_id:
+        return None
+    title_match = re.search(r"<title>\s*(.*?)\s*</title>", page_html, re.S | re.I)
+    title = clean_value(title_match.group(1)) if title_match else ""
+    title = re.sub(r"\s+", " ", title).strip()
+    if spec_id not in page_html:
+        return None
+    title = title.split("_汽车之家", 1)[0]
+    title = title.split("-汽车之家", 1)[0]
+    title = title.replace("价格单_特斯拉_汽车之家", "").strip()
+    model_name = re.sub(r"参数配置表.*$", "", title).strip()
+    series_name = str(target.get("series") or "").strip()
+    if series_name and model_name.startswith(series_name):
+        model_name = model_name[len(series_name):].strip()
+    year_match = re.search(r"((?:19|20)\d{2})\s*款", model_name)
+    if not model_name or not year_match:
+        return None
+    if re.search(r"预售|未上市|即将上市|概念", model_name):
+        return None
+    year = year_match.group(1)
+    config = {
+        "returncode": 0,
+        "message": "success",
+        "result": {
+            "paramtypeitems": [
+                {
+                    "name": "基本参数",
+                    "paramitems": [
+                        {"name": "车型名称", "valueitems": [{"value": model_name}]},
+                        {"name": "年款", "valueitems": [{"value": year}]},
+                        {"name": "车款ID", "valueitems": [{"value": spec_id}]},
+                    ],
+                }
+            ]
+        },
+    }
+    option = {
+        "returncode": 0,
+        "message": "success",
+        "result": {
+            "configtypeitems": [
+                {
+                    "name": "官方页面",
+                    "configitems": [
+                        {"name": "官方配置页", "valueitems": [{"value": "可解析"}]},
+                    ],
+                }
+            ]
+        },
+    }
+    title_series = series_name or str(target.get("car_id") or spec_id)
+    return (
+        "<!DOCTYPE html><html><head>"
+        f"<title>汽车之家 | {title_series} | 参数配置</title>"
+        "<meta charset=\"utf-8\"></head><body>"
+        f"<script>var config = {json.dumps(config, ensure_ascii=False)};"
+        f"var option = {json.dumps(option, ensure_ascii=False)};"
+        "var bag = {};"
+        "</script></body></html>"
+    )
+
+
 def load_target_manifest():
     try:
         with open(target_manifest_file, "r", encoding="utf-8") as f:
@@ -1265,6 +1329,11 @@ def download_car_pages():
                 continue
             resp.encoding = resp.apparent_encoding
             content = resp.text
+            if item.get("target_type") == "history":
+                converted = build_autohome_history_spec_page_html(item, content)
+                if converted:
+                    print(f"历史目标{cache_key}官方配置页解析成功: {car_url}")
+                    content = converted
 
         with open(car_file, "w", encoding="utf-8") as f:
             f.write(content)
