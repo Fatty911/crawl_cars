@@ -161,6 +161,36 @@ class AutohomeCompletionTests(unittest.TestCase):
         self.assertFalse(completed)
         self.assertNotIn("1_history_no_data", manifest)
 
+    def test_debug_target_preparation_skips_unbounded_history_discovery(self) -> None:
+        series_queue = [
+            {"car_id": str(i), "brand": "品牌", "series": f"车系{i}"}
+            for i in range(100)
+        ]
+        manifest = {}
+        with (
+            mock.patch.object(self.autohome, "DEBUG_MODE", True),
+            mock.patch.object(self.autohome, "MAX_CARS_PER_RUN", 30),
+            mock.patch.object(self.autohome, "discover_history_targets_until_deadline") as discover,
+        ):
+            targets = self.autohome.prepare_autohome_targets(series_queue, manifest, 0)
+
+        discover.assert_not_called()
+        self.assertEqual(30, len(targets))
+        self.assertEqual([str(i) for i in range(30)], [target["car_id"] for target in targets])
+
+    def test_full_target_preparation_keeps_history_discovery(self) -> None:
+        series_queue = [{"car_id": "1", "brand": "品牌", "series": "车系"}]
+        manifest = {}
+        with (
+            mock.patch.object(self.autohome, "DEBUG_MODE", False),
+            mock.patch.object(self.autohome, "MAX_CARS_PER_RUN", 30),
+            mock.patch.object(self.autohome, "discover_history_targets_until_deadline") as discover,
+        ):
+            targets = self.autohome.prepare_autohome_targets(series_queue, manifest, 0)
+
+        discover.assert_called_once_with(series_queue, manifest, 0)
+        self.assertEqual(["1"], [target["car_id"] for target in targets])
+
     def test_history_discovery_deadline_resumes_with_cursor(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

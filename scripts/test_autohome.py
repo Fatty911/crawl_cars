@@ -647,6 +647,19 @@ def build_autohome_targets(series_queue, manifest):
     return targets
 
 
+def prepare_autohome_targets(series_queue, manifest, start_time):
+    if DEBUG_MODE and MAX_CARS_PER_RUN > 0:
+        sampled_queue = list(series_queue[:MAX_CARS_PER_RUN])
+        print(
+            f"Debug模式：目标预扫描限制为前 {len(sampled_queue)} 个车系，"
+            "跳过全量历史目标发现"
+        )
+        return build_autohome_targets(sampled_queue, manifest)
+
+    discover_history_targets_until_deadline(series_queue, manifest, start_time)
+    return build_autohome_targets(series_queue, manifest)
+
+
 def load_autohome_priority_series_names():
     data_root = os.path.join(repo_dir, "data")
     dongchedi_path = os.path.join(data_root, "dongchedi_series_list.json")
@@ -1081,8 +1094,7 @@ def download_car_pages():
         print(f"已按汽车之家缺口优先级重排未处理队列: queue_idx={queue_idx}")
 
     manifest = load_target_manifest()
-    discover_history_targets_until_deadline(series_queue, manifest, start_time)
-    targets = build_autohome_targets(series_queue, manifest)
+    targets = prepare_autohome_targets(series_queue, manifest, start_time)
     save_target_manifest(manifest)
     if not targets:
         stop_incomplete_step1("汽车之家真实目标队列为空，拒绝判定step1完成")
