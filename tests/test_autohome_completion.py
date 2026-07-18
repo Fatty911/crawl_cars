@@ -28,6 +28,26 @@ class AutohomeCompletionTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.autohome = load_autohome_module()
 
+    def valid_html(self, series: str = "Model 3", model: str = "2022款 后轮驱动版") -> str:
+        config = {
+            "result": {
+                "paramtypeitems": [
+                    {
+                        "paramitems": [
+                            {"name": "车型名称", "valueitems": [{"value": model}]},
+                            {"name": "年款", "valueitems": [{"value": "2022"}]},
+                        ]
+                    }
+                ]
+            }
+        }
+        option = {"result": {"configtypeitems": [{"configitems": [{"name": "配置项", "valueitems": [{"value": "有"}]}]}]}}
+        return (
+            f"<title>汽车之家 | {series} | 参数配置</title>"
+            f"<script>var config = {json.dumps(config, ensure_ascii=False)};"
+            f"var option = {json.dumps(option, ensure_ascii=False)};var bag = {{}};</script>"
+        )
+
     def test_tracked_done_progress_cannot_complete_without_cached_series(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -40,6 +60,7 @@ class AutohomeCompletionTests(unittest.TestCase):
             )
             with (
                 mock.patch.object(self.autohome, "html_dir", str(html_dir)),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
                 mock.patch.object(self.autohome, "series_queue_file", str(queue_path)),
                 mock.patch.object(
                     self.autohome,
@@ -48,9 +69,111 @@ class AutohomeCompletionTests(unittest.TestCase):
                 ),
             ):
                 self.assertFalse(self.autohome.is_step1_completed())
-                (html_dir / "a").write_text("a", encoding="utf-8")
-                (html_dir / "b").write_text("b", encoding="utf-8")
+                (root / "target_manifest.json").write_text(
+                    json.dumps(
+                        {
+                            "a": {"cache_key": "a", "car_id": "a", "target_type": "current", "series": "Model 3", "brand": "特斯拉"},
+                            "b": {"cache_key": "b", "car_id": "b", "target_type": "current", "series": "Model 3", "brand": "特斯拉"},
+                            "a_history_no_data": {"target_type": "history_terminal_no_data", "terminal": True},
+                            "b_history_no_data": {"target_type": "history_terminal_no_data", "terminal": True},
+                        },
+                        ensure_ascii=False,
+                    ),
+                    encoding="utf-8",
+                )
+                (html_dir / "a").write_text(self.valid_html(), encoding="utf-8")
+                (html_dir / "b").write_text(self.valid_html(), encoding="utf-8")
                 self.assertTrue(self.autohome.is_step1_completed())
+
+    def test_unparseable_existing_cache_cannot_complete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            html_dir = root / "html"
+            html_dir.mkdir()
+            queue_path = root / "queue.json"
+            queue_path.write_text(json.dumps([{"car_id": "5346"}]), encoding="utf-8")
+            (root / "target_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "5346": {"cache_key": "5346", "car_id": "5346", "target_type": "current", "series": "Model 3", "brand": "特斯拉"},
+                        "5346_history_no_data": {"target_type": "history_terminal_no_data", "terminal": True},
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            (html_dir / "5346").write_text("<html>blocked</html>", encoding="utf-8")
+            with (
+                mock.patch.object(self.autohome, "html_dir", str(html_dir)),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+                mock.patch.object(self.autohome, "series_queue_file", str(queue_path)),
+                mock.patch.object(self.autohome, "progress", {"download_car_pages": list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "queue_idx": 1}),
+            ):
+                self.assertFalse(self.autohome.is_step1_completed())
+
+    def test_sale_page_parser_keeps_one_2022_plus_spec_per_year(self) -> None:
+        html = """
+        <a href="https://car.autohome.com.cn/config/spec/54529.html">2022款 后轮驱动版</a>
+        <a href="/config/spec/55666.html">2022款 高性能版</a>
+        <a href="/config/spec/60000.html">2023款 后轮驱动版</a>
+        <a href="/config/spec/70000.html">2021款 标准版</a>
+        <a href="/config/spec/80000.html">2026款 预售版</a>
+        """
+        targets = self.autohome.parse_sale_history_targets("5346", "特斯拉", "Model 3", html)
+        self.assertEqual(["2022", "2023"], [target["year"] for target in targets])
+        self.assertEqual("5346_spec_2022_54529", targets[0]["cache_key"])
+
+    def test_history_cache_key_maps_to_original_series_in_output(self) -> None:
+        self.assertEqual("5346", self.autohome.original_series_id_from_cache_key("5346_spec_2022_54529"))
+
+    def test_no_history_data_records_terminal_target(self) -> None:
+        manifest = {}
+        response = mock.Mock(status_code=200, text="<html></html>", apparent_encoding="utf-8")
+        with mock.patch.object(self.autohome.session, "get", return_value=response):
+            targets = self.autohome.build_autohome_targets(
+                [{"car_id": "1", "brand": "特斯拉", "series": "Model 3"}],
+                manifest,
+            )
+        self.assertEqual(["1"], [target["cache_key"] for target in targets])
+        self.assertTrue(manifest["1_history_no_data"]["terminal"])
+
+    def test_refetch_invalidates_downstream_cache_and_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dirs = {}
+            for name in ("html", "newhtml", "json", "content", "newjson"):
+                dirs[name] = root / name
+                dirs[name].mkdir()
+            for path in [
+                dirs["html"] / "5346",
+                dirs["newhtml"] / "5346.html",
+                dirs["json"] / "5346",
+                dirs["content"] / "5346.html",
+                dirs["newjson"] / "5346",
+            ]:
+                path.write_text("old", encoding="utf-8")
+            progress = {
+                "parse_js_to_html": ["5346"],
+                "parse_json_data": ["5346"],
+                "crack_html_files": ["5346.html"],
+                "generate_data_files": ["5346"],
+            }
+            with (
+                mock.patch.object(self.autohome, "html_dir", str(dirs["html"])),
+                mock.patch.object(self.autohome, "newhtml_dir", str(dirs["newhtml"])),
+                mock.patch.object(self.autohome, "json_dir", str(dirs["json"])),
+                mock.patch.object(self.autohome, "content_dir", str(dirs["content"])),
+                mock.patch.object(self.autohome, "newjson_dir", str(dirs["newjson"])),
+            ):
+                self.autohome.invalidate_autohome_target_cache("5346", progress)
+            self.assertTrue(all(not path.exists() for directory in dirs.values() for path in directory.iterdir()))
+            self.assertTrue(all(not values for values in progress.values()))
+
+    def test_workflow_done_gate_requires_target_complete(self) -> None:
+        workflow = (ROOT / ".github/workflows/crawl-autohome.yml").read_text(encoding="utf-8")
+        marker = workflow.split("- name: Mark Autohome period complete", 1)[1].split("run: |", 1)[0]
+        self.assertIn("steps.verify_autohome.outputs.target_complete == 'true'", marker)
+        self.assertNotIn("fromJSON(steps.verify_autohome.outputs.row_count) >= 500", marker)
 
     def test_empty_queue_is_never_complete(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

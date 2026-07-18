@@ -465,6 +465,31 @@ jobs:
               rows = json.load(f)
 
           print(f"{path}: {len(rows)} rows")
+          required = ("品牌", "车系", "车型名称", "年款")
+          invalid_rows = [
+              i for i, row in enumerate(rows, 1)
+              if any(not str(row.get(field, "") or "").strip() for field in required)
+              or not __import__("re").search(r"(?:19|20)\d{2}", str(row.get("年款", "") or ""))
+          ]
+          if invalid_rows:
+              raise SystemExit(f"汽车之家存在 {len(invalid_rows)} 行缺少品牌/车系/车型/4位年款，拒绝完成")
+          progress_path = "crawl_state/autohome/progress.json"
+          manifest_path = "crawl_state/autohome/target_manifest.json"
+          target_complete = False
+          if os.path.exists(progress_path) and os.path.exists(manifest_path):
+              with open(progress_path, "r", encoding="utf-8") as f:
+                  progress = json.load(f)
+              with open(manifest_path, "r", encoding="utf-8") as f:
+                  manifest = json.load(f)
+              active_targets = [
+                  value for value in manifest.values()
+                  if isinstance(value, dict)
+                  and value.get("target_type") in ("current", "history")
+                  and value.get("cache_key")
+                  and not value.get("terminal")
+              ]
+              target_complete = bool(active_targets) and int(progress.get("queue_idx", 0)) >= len(active_targets)
+              print(f"Autohome target_complete={target_complete}, queue_idx={progress.get('queue_idx')}, active_targets={len(active_targets)}")
           min_rows = 20 if debug_mode else 500
           max_rows = int(os.environ.get("DEBUG_OUTPUT_MAX_ROWS", "30"))
           if incremental and len(rows) == 0:
@@ -480,10 +505,11 @@ jobs:
               with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                   f.write("has_data=true\n")
                   f.write(f"row_count={len(rows)}\n")
+                  f.write(f"target_complete={str(target_complete).lower()}\n")
           PY
 
       - name: Mark Autohome period complete
-        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true') && steps.verify_autohome.outputs.has_data == 'true' && fromJSON(steps.verify_autohome.outputs.row_count) >= 500 && github.event.inputs.debug_mode != 'true'
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && (steps.step1.outputs.complete == 'true' || steps.retry_step1.outputs.complete == 'true') && steps.verify_autohome.outputs.has_data == 'true' && steps.verify_autohome.outputs.target_complete == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
           mkdir -p crawl_state
           touch "$AUTOHOME_DONE_MARKER"

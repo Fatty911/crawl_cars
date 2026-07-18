@@ -83,8 +83,9 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
     )
     if path.name == "crawl-autohome.yml":
         assert_condition(
-            "fromJSON(steps.verify_autohome.outputs.row_count) >= 500" in text,
-            f"{path.name} 完成标记必须由全量行数阈值兜底",
+            "steps.verify_autohome.outputs.target_complete == 'true'" in text
+            and "fromJSON(steps.verify_autohome.outputs.row_count) >= 500" not in text,
+            f"{path.name} 完成标记必须绑定真实目标完成而非仅行数阈值",
             errors,
         )
         trigger_condition = text.split("name: Trigger merge-and-filter workflow", 1)[1].split("run: |", 1)[0]

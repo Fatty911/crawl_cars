@@ -56,6 +56,7 @@ content_dir = os.path.join(state_dir, "content")
 newjson_dir = os.path.join(state_dir, "newjson")
 exception_dir = os.path.join(state_dir, "exception")
 series_queue_file = os.path.join(working_dir, "data", "autohome_series_queue.json")
+target_manifest_file = os.path.join(state_dir, "target_manifest.json")
 
 for dir_path in [
     html_dir,
@@ -382,6 +383,170 @@ def fetch_autohome_api_html(car_id):
         return None
     print(f"车型{car_id} API优先成功: {api_url}, datalist={len((payload.get('result') or {}).get('datalist') or [])}")
     return html
+
+
+def load_target_manifest():
+    try:
+        with open(target_manifest_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_target_manifest(manifest):
+    with open(target_manifest_file, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def original_series_id_from_cache_key(cache_key):
+    return str(cache_key).split("_spec_", 1)[0]
+
+
+def invalidate_autohome_target_cache(cache_key, progress_obj=None):
+    for path in [
+        os.path.join(html_dir, cache_key),
+        os.path.join(newhtml_dir, f"{cache_key}.html"),
+        os.path.join(json_dir, cache_key),
+        os.path.join(content_dir, f"{cache_key}.html"),
+        os.path.join(newjson_dir, cache_key),
+    ]:
+        if os.path.exists(path):
+            os.remove(path)
+    if progress_obj is not None:
+        for key, value in list(progress_obj.items()):
+            if key in ("parse_js_to_html", "parse_json_data", "crack_html_files", "generate_data_files") and isinstance(value, list):
+                progress_obj[key] = [
+                    item for item in value
+                    if item not in (cache_key, f"{cache_key}.html")
+                ]
+
+
+def extract_var_json(content, var_name):
+    match = re.search(rf"var\s+{re.escape(var_name)}\s*=\s*(.*?);\s*var", content, re.S)
+    if not match:
+        match = re.search(rf"var\s+{re.escape(var_name)}\s*=\s*(.*?);", content, re.S)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return None
+
+
+def cached_html_has_valid_autohome_data(cache_key):
+    html_path = os.path.join(html_dir, cache_key)
+    if not os.path.exists(html_path):
+        return False
+    try:
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except OSError:
+        return False
+    config = extract_var_json(content, "config")
+    option = extract_var_json(content, "option")
+    if not config or not option:
+        return False
+    target_meta = load_target_manifest().get(cache_key) or {}
+    series_name = target_meta.get("series") or extract_series_from_html(cache_key)
+    brand = target_meta.get("brand") or derive_brand_from_series(series_name)
+    names, years = [], []
+    for pt in ((config.get("result") or {}).get("paramtypeitems") or []):
+        for it in pt.get("paramitems", []):
+            vals = [clean_value(str(v.get("value", "") or "")) for v in it.get("valueitems", [])]
+            if it.get("name") == "车型名称":
+                names = vals
+            elif it.get("name") == "年款":
+                years = vals
+    if not brand or not series_name or not names:
+        return False
+    for idx, name in enumerate(names):
+        year = years[idx] if idx < len(years) else ""
+        if name and re.search(r"(?:19|20)\d{2}", year):
+            return True
+    return False
+
+
+def cache_key_for_history_target(series_id, year, spec_id):
+    return f"{series_id}_spec_{year}_{spec_id}"
+
+
+def parse_sale_history_targets(series_id, brand, series_name, sale_html):
+    targets_by_year = {}
+    for spec_id, title in re.findall(r"/spec/(\d+)\.html[^>]*>([^<]+)</a>", sale_html):
+        title_text = re.sub(r"\s+", " ", title).strip()
+        year_match = re.search(r"((?:20)\d{2})\s*款", title_text)
+        if not year_match:
+            continue
+        year = int(year_match.group(1))
+        if year < 2022 or year > CURRENT_YEAR:
+            continue
+        if re.search(r"预售|未上市|即将上市|概念", title_text):
+            continue
+        targets_by_year.setdefault(str(year), {
+            "cache_key": cache_key_for_history_target(series_id, year, spec_id),
+            "car_id": str(series_id),
+            "spec_id": str(spec_id),
+            "year": str(year),
+            "brand": brand,
+            "series": series_name,
+            "url": f"https://car.autohome.com.cn/config/spec/{spec_id}.html",
+            "target_type": "history",
+        })
+    return [targets_by_year[year] for year in sorted(targets_by_year)]
+
+
+def discover_history_targets(series_id, brand, series_name, manifest):
+    sale_url = f"https://www.autohome.com.cn/{series_id}/sale.html"
+    try:
+        resp = session.get(sale_url, timeout=15)
+        if resp.status_code != 200:
+            return []
+        resp.encoding = resp.apparent_encoding
+    except requests.exceptions.RequestException:
+        return []
+    targets = parse_sale_history_targets(series_id, brand, series_name, resp.text)
+    if not targets:
+        manifest[f"{series_id}_history_no_data"] = {
+            "car_id": str(series_id),
+            "brand": brand,
+            "series": series_name,
+            "target_type": "history_terminal_no_data",
+            "terminal": True,
+            "url": sale_url,
+        }
+    return targets
+
+
+def build_autohome_targets(series_queue, manifest):
+    targets = []
+    for item in series_queue:
+        series_id = str(item.get("car_id", ""))
+        if not series_id:
+            continue
+        current = {
+            "cache_key": series_id,
+            "car_id": series_id,
+            "brand": item.get("brand", ""),
+            "series": item.get("series", ""),
+            "heat": item.get("heat", 999),
+            "url": f"https://car.autohome.com.cn/config/series/{series_id}.html",
+            "target_type": "current",
+        }
+        manifest[series_id] = current
+        targets.append(current)
+        known_history = [
+            value for value in manifest.values()
+            if isinstance(value, dict)
+            and value.get("target_type") == "history"
+            and str(value.get("car_id")) == series_id
+        ]
+        if not known_history and not manifest.get(f"{series_id}_history_no_data"):
+            known_history = discover_history_targets(series_id, item.get("brand", ""), item.get("series", ""), manifest)
+        for target in known_history:
+            manifest[target["cache_key"]] = target
+            targets.append(target)
+    return targets
 
 def load_autohome_priority_series_names():
     data_root = os.path.join(repo_dir, "data")
@@ -796,9 +961,6 @@ def download_car_pages():
     if not series_queue:
         stop_incomplete_step1("汽车之家车系列表为空，拒绝判定step1完成")
 
-    # === Phase 1: 按品牌热度顺序逐个爬详情页 ===
-    second_url = "https://car.autohome.com.cn/config/series/{}.html"
-
     # 从队列中恢复进度
     queue_idx = progress.get("queue_idx", 0)
 
@@ -809,10 +971,17 @@ def download_car_pages():
             json.dump(series_queue, f, ensure_ascii=False, indent=2)
         print(f"已按汽车之家缺口优先级重排未处理队列: queue_idx={queue_idx}")
 
-    for idx in range(queue_idx, len(series_queue)):
-        item = series_queue[idx]
+    manifest = load_target_manifest()
+    targets = build_autohome_targets(series_queue, manifest)
+    save_target_manifest(manifest)
+    if not targets:
+        stop_incomplete_step1("汽车之家真实目标队列为空，拒绝判定step1完成")
+
+    for idx in range(queue_idx, len(targets)):
+        item = targets[idx]
+        cache_key = item["cache_key"]
         car_id = item["car_id"]
-        heat = item["heat"]
+        heat = item.get("heat", 999)
         brand = item["brand"]
         series = item["series"]
 
@@ -824,50 +993,72 @@ def download_car_pages():
             with open(progress_file, "w") as f:
                 json.dump(progress, f)
             if AUTO_MODE:
-                print(f"未完成，队列第{idx}/{len(series_queue)}个（{brand}/{series}, heat={heat}），等待下次继续")
+                print(f"未完成，目标第{idx}/{len(targets)}个（{brand}/{series}, cache_key={cache_key}, heat={heat}），等待下次继续")
                 sys.exit(10)
             return
 
-        car_file = os.path.join(html_dir, f"{car_id}")
+        car_file = os.path.join(html_dir, cache_key)
         if os.path.exists(car_file):
-            if INCREMENTAL_MODE:
+            if cached_html_has_valid_autohome_data(cache_key):
+                if INCREMENTAL_MODE:
+                    skipped_count += 1
+                continue
+            if item.get("terminal"):
                 skipped_count += 1
-            continue
+                continue
+            print(f"目标{cache_key}已有缓存不可解析或缺少有效车型，删除并重抓")
+            invalidate_autohome_target_cache(cache_key, progress)
+            with open(progress_file, "w") as f:
+                json.dump(progress, f)
 
-        car_url = second_url.format(car_id)
-        print(f"[{idx+1}/{len(series_queue)}] 正在获取 {brand}/{series} (car_id={car_id}, heat={heat})")
+        car_url = item.get("url") or f"https://car.autohome.com.cn/config/series/{car_id}.html"
+        print(f"[{idx+1}/{len(targets)}] 正在获取 {brand}/{series} (cache_key={cache_key}, car_id={car_id}, heat={heat})")
 
         content = None
-        try:
-            content = fetch_autohome_api_html(car_id)
-        except requests.exceptions.RequestException as e:
-            print(f"车型{car_id} API请求异常，回退HTML: {e}")
-
+        if item.get("target_type") == "current":
+            try:
+                content = fetch_autohome_api_html(car_id)
+            except requests.exceptions.RequestException as e:
+                print(f"车型{car_id} API请求异常，回退HTML: {e}")
         if content is None:
             for i in range(5):
                 try:
                     resp = session.get(car_url, timeout=15)
-                    print(f"车型{car_id}响应码: {resp.status_code}")
+                    print(f"目标{cache_key}响应码: {resp.status_code}")
                     break
                 except requests.exceptions.RequestException:
                     print(f"请求异常, 重试次数:{i + 1}")
-                    human_delay(f"车型{car_id}请求异常")
+                    human_delay(f"目标{cache_key}请求异常")
             else:
-                print(f"获取{car_id}车型失败,跳过")
+                print(f"获取{cache_key}目标失败,跳过")
                 continue
             resp.encoding = resp.apparent_encoding
             content = resp.text
-        human_delay(f"获取{car_id}车型配置")
-        print(f"车型{car_id}内容长度: {len(content)}")
 
         with open(car_file, "w", encoding="utf-8") as f:
             f.write(content)
+        if not cached_html_has_valid_autohome_data(cache_key):
+            print(f"目标{cache_key}缓存未解析出非空config/option/有效车型，删除缓存并等待后续run重试")
+            invalidate_autohome_target_cache(cache_key, progress)
+            progress["cars_downloaded"] = cars_downloaded
+            progress["queue_idx"] = idx
+            progress["download_car_pages"] = letters
+            with open(progress_file, "w") as f:
+                json.dump(progress, f)
+            stop_incomplete_step1(f"目标{cache_key}未得到有效汽车之家数据")
+            continue
+        human_delay(f"获取{car_id}车型配置")
+        print(f"车型{car_id}内容长度: {len(content)}")
         cars_downloaded += 1
 
     cached_ids = set(os.listdir(html_dir)) if os.path.isdir(html_dir) else set()
     missing_indices = [
-        idx for idx, item in enumerate(series_queue)
-        if str(item.get("car_id", "")) not in cached_ids
+        idx for idx, item in enumerate(targets)
+        if not item.get("terminal")
+        and (
+            str(item.get("cache_key", "")) not in cached_ids
+            or not cached_html_has_valid_autohome_data(str(item.get("cache_key", "")))
+        )
     ]
     if missing_indices:
         retry_index = missing_indices[0]
@@ -876,11 +1067,11 @@ def download_car_pages():
         progress["download_car_pages"] = letters
         with open(progress_file, "w") as f:
             json.dump(progress, f)
-        message = f"step1缓存不完整：缺少 {len(missing_indices)}/{len(series_queue)} 个车系，从队列 {retry_index} 重试"
+        message = f"step1真实目标缓存不完整：缺少或无效 {len(missing_indices)}/{len(targets)} 个目标，从队列 {retry_index} 重试"
         stop_incomplete_step1(message)
 
     # 全部队列完成
-    progress["queue_idx"] = len(series_queue)
+    progress["queue_idx"] = len(targets)
     progress["cars_downloaded"] = cars_downloaded
     progress["download_car_pages"] = [chr(i) for i in range(ord("A"), ord("Z") + 1)]
     with open(progress_file, "w") as f:
@@ -1200,6 +1391,12 @@ def extract_series_from_html(file_id):
     return ''
 
 
+def target_meta_for_cache_key(file_id):
+    manifest = load_target_manifest()
+    meta = manifest.get(file_id)
+    return meta if isinstance(meta, dict) else {}
+
+
 def generate_csv():
     print("第六步,生成CSV")
     today = date.today().strftime("%Y%m%d")
@@ -1225,8 +1422,10 @@ def generate_csv():
             print(f"Processing: {file}")
 
             # 从原始 HTML 提取车系名称和品牌
-            series_name = extract_series_from_html(file)
-            brand = derive_brand_from_series(series_name)
+            target_meta = target_meta_for_cache_key(file)
+            series_name = target_meta.get("series") or extract_series_from_html(file)
+            brand = target_meta.get("brand") or derive_brand_from_series(series_name)
+            series_id = target_meta.get("car_id") or original_series_id_from_cache_key(file)
 
             if "result" in cd and "paramtypeitems" in cd["result"]:
                 for pt in cd["result"]["paramtypeitems"]:
@@ -1260,10 +1459,12 @@ def generate_csv():
                     "数据来源": "汽车之家",
                     "品牌": brand,
                     "车系": series_name,
-                    "车系ID": file,
+                    "车系ID": series_id,
                     "车型名称": names[i] if i < len(names) else "",
                     "年款": ys,
                 }
+                if not row["品牌"] or not row["车系"] or not row["车型名称"] or not re.search(r"(?:19|20)\d{2}", row["年款"]):
+                    continue
                 for h in all_h:
                     v = data.get(h, [])
                     row[h] = v[i] if i < len(v) else "-"
@@ -1311,12 +1512,34 @@ def is_step1_completed():
         return False
     if not isinstance(queue, list) or not queue:
         return False
+    manifest = load_target_manifest()
+    targets = []
+    for item in queue:
+        series_id = str(item.get("car_id", ""))
+        if not series_id:
+            return False
+        targets.append({"cache_key": series_id, "terminal": False})
+        history_targets = [
+            value for value in manifest.values()
+            if isinstance(value, dict)
+            and value.get("target_type") == "history"
+            and str(value.get("car_id")) == series_id
+        ]
+        terminal = manifest.get(f"{series_id}_history_no_data")
+        if not history_targets and not terminal:
+            return False
+        targets.extend(history_targets)
     cached_ids = set(os.listdir(html_dir)) if os.path.isdir(html_dir) else set()
-    expected_ids = {str(item.get("car_id", "")) for item in queue if item.get("car_id")}
+    expected_ids = {
+        str(item.get("cache_key", ""))
+        for item in targets
+        if item.get("cache_key") and not item.get("terminal")
+    }
     return (
-        len(expected_ids) == len(queue)
+        expected_ids
         and expected_ids.issubset(cached_ids)
-        and int(progress.get("queue_idx", 0)) >= len(queue)
+        and all(cached_html_has_valid_autohome_data(cache_key) for cache_key in expected_ids)
+        and int(progress.get("queue_idx", 0)) >= len(targets)
     )
 
 
