@@ -368,6 +368,27 @@ def build_autohome_api_html(car_id, api_payload):
     )
 
 
+def autohome_api_spec_id(spec):
+    return clean_value(str(spec.get("specid") or spec.get("specId") or spec.get("id") or ""))
+
+
+def filter_autohome_api_payload_by_spec(api_payload, spec_id):
+    result = api_payload.get("result") or {}
+    data_list = result.get("datalist") or []
+    wanted = clean_value(str(spec_id or ""))
+    filtered = [
+        spec for spec in data_list
+        if autohome_api_spec_id(spec) == wanted
+    ]
+    if not wanted or not filtered:
+        return None
+    filtered_payload = dict(api_payload)
+    filtered_result = dict(result)
+    filtered_result["datalist"] = filtered
+    filtered_payload["result"] = filtered_result
+    return filtered_payload
+
+
 def fetch_autohome_api_html(car_id):
     api_url = f"https://car-web-api.autohome.com.cn/car/param/getParamConf?mode=1&site=1&seriesid={car_id}"
     resp = session.get(api_url, timeout=15, headers={"Referer": "https://car.autohome.com.cn/"})
@@ -393,6 +414,45 @@ def fetch_autohome_api_html(car_id):
         return None, False
     print(f"车型{car_id} API优先成功: {api_url}, datalist={len((payload.get('result') or {}).get('datalist') or [])}")
     return html, False
+
+
+def fetch_autohome_history_spec_api_html(target):
+    car_id = str(target.get("car_id") or "")
+    spec_id = clean_value(str(target.get("spec_id") or ""))
+    if not car_id or not spec_id:
+        return None
+    api_urls = [
+        f"https://car-web-api.autohome.com.cn/car/param/getParamConf?mode=1&site=1&seriesid={car_id}&specid={spec_id}",
+        f"https://car-web-api.autohome.com.cn/car/param/getParamConf?mode=1&site=1&specid={spec_id}",
+    ]
+    for api_url in api_urls:
+        resp = session.get(api_url, timeout=15, headers={"Referer": f"https://car.autohome.com.cn/config/spec/{spec_id}.html"})
+        content_type = resp.headers.get("content-type", "")
+        if resp.status_code != 200 or "application/json" not in content_type.lower():
+            print(f"历史车款{spec_id} API不可用: status={resp.status_code}, content-type={content_type}, url={api_url}")
+            continue
+        try:
+            payload = resp.json()
+        except ValueError:
+            print(f"历史车款{spec_id} API返回非JSON: {api_url}")
+            continue
+        if payload.get("returncode") != 0:
+            print(f"历史车款{spec_id} API返回失败: returncode={payload.get('returncode')}, message={payload.get('message')}")
+            continue
+        payload = filter_autohome_api_payload_by_spec(payload, spec_id)
+        if not payload:
+            print(f"历史车款{spec_id} API未返回匹配spec_id的datalist: {api_url}")
+            continue
+        result = payload.get("result") or {}
+        bread = result.get("bread")
+        if isinstance(bread, dict) and target.get("series") and not bread.get("seriesname"):
+            bread["seriesname"] = target.get("series")
+        html = build_autohome_api_html(car_id, payload)
+        if html:
+            print(f"历史车款{spec_id} API优先成功: {api_url}, datalist={len(result.get('datalist') or [])}")
+            return html
+        print(f"历史车款{spec_id} API缺少有效titlelist/datalist: {api_url}")
+    return None
 
 
 def load_target_manifest():
@@ -468,7 +528,7 @@ def cached_html_has_valid_autohome_data(cache_key):
     target_meta = load_target_manifest().get(cache_key) or {}
     series_name = target_meta.get("series") or extract_series_from_html(cache_key)
     brand = target_meta.get("brand") or derive_brand_from_series(series_name)
-    names, years = [], []
+    names, years, spec_ids = [], [], []
     for pt in ((config.get("result") or {}).get("paramtypeitems") or []):
         for it in pt.get("paramitems", []):
             vals = [clean_value(str(v.get("value", "") or "")) for v in it.get("valueitems", [])]
@@ -476,11 +536,14 @@ def cached_html_has_valid_autohome_data(cache_key):
                 names = vals
             elif it.get("name") == "年款":
                 years = vals
+            elif it.get("name") == "车款ID":
+                spec_ids = vals
     if not brand or not series_name or not names:
         return False
     for idx, name in enumerate(names):
         year = years[idx] if idx < len(years) else ""
-        if name and re.search(r"(?:19|20)\d{2}", year):
+        spec_id = spec_ids[idx] if idx < len(spec_ids) else str(target_meta.get("spec_id") or "")
+        if name and re.search(r"(?:19|20)\d{2}", year) and str(spec_id).isdigit():
             return True
     return False
 
@@ -665,6 +728,17 @@ def prepare_autohome_targets(series_queue, manifest, start_time):
     discovery_complete = discover_history_targets_until_deadline(series_queue, manifest, start_time)
     progress["history_discovery_complete"] = discovery_complete
     return build_autohome_targets(series_queue, manifest)
+
+
+def first_incomplete_target_index(targets):
+    cached_ids = set(os.listdir(html_dir)) if os.path.isdir(html_dir) else set()
+    for idx, item in enumerate(targets):
+        cache_key = str(item.get("cache_key", ""))
+        if item.get("terminal") or not cache_key:
+            continue
+        if cache_key not in cached_ids or not cached_html_has_valid_autohome_data(cache_key):
+            return idx
+    return len(targets)
 
 
 def load_autohome_priority_series_names():
@@ -1106,7 +1180,10 @@ def download_car_pages():
     if not targets:
         stop_incomplete_step1("汽车之家真实目标队列为空，拒绝判定step1完成")
 
-    target_idx = int(progress.get("target_idx", 0) or 0)
+    saved_target_idx = int(progress.get("target_idx", 0) or 0)
+    target_idx = min(saved_target_idx, first_incomplete_target_index(targets))
+    if target_idx < saved_target_idx:
+        print(f"目标队列出现新增/无效缓存，target_idx 从 {saved_target_idx} 回退到最早未完成目标 {target_idx}")
     for idx in range(target_idx, len(targets)):
         item = targets[idx]
         cache_key = item["cache_key"]
@@ -1151,6 +1228,11 @@ def download_car_pages():
                 content, current_terminal = fetch_autohome_api_html(car_id)
             except requests.exceptions.RequestException as e:
                 print(f"车型{car_id} API请求异常，回退HTML: {e}")
+        elif item.get("target_type") == "history":
+            try:
+                content = fetch_autohome_history_spec_api_html(item)
+            except requests.exceptions.RequestException as e:
+                print(f"历史目标{cache_key} API请求异常，回退HTML: {e}")
         if current_terminal:
             manifest[cache_key]["target_type"] = "current_terminal_no_data"
             manifest[cache_key]["terminal"] = True

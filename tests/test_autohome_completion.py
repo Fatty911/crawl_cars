@@ -36,6 +36,7 @@ class AutohomeCompletionTests(unittest.TestCase):
                         "paramitems": [
                             {"name": "车型名称", "valueitems": [{"value": model}]},
                             {"name": "年款", "valueitems": [{"value": "2022"}]},
+                            {"name": "车款ID", "valueitems": [{"value": "54529"}]},
                         ]
                     }
                 ]
@@ -131,6 +132,128 @@ class AutohomeCompletionTests(unittest.TestCase):
         config = self.autohome.extract_var_json(html, "config")
         identity_items = config["result"]["paramtypeitems"][0]["paramitems"]
         self.assertIn({"name": "车款ID", "valueitems": [{"value": "54529"}]}, identity_items)
+
+    def test_history_spec_api_path_produces_valid_model3_cache_and_output(self) -> None:
+        payload = {
+            "returncode": 0,
+            "result": {
+                "bread": {"seriesname": "Model 3"},
+                "titlelist": [
+                    {"groupname": "参数信息", "items": [{"itemname": "车型名称"}, {"itemname": "能源类型"}]},
+                ],
+                "datalist": [
+                    {
+                        "specid": 54529,
+                        "specname": "2022款 后轮驱动版",
+                        "condition": ["2022"],
+                        "paramconflist": [
+                            {"itemname": "2022款 后轮驱动版"},
+                            {"itemname": "纯电动"},
+                        ],
+                    },
+                    {
+                        "specid": 99999,
+                        "specname": "2022款 其它版",
+                        "condition": ["2022"],
+                        "paramconflist": [
+                            {"itemname": "2022款 其它版"},
+                            {"itemname": "纯电动"},
+                        ],
+                    },
+                ],
+            },
+        }
+        response = mock.Mock(
+            status_code=200,
+            headers={"content-type": "application/json"},
+            json=lambda: payload,
+        )
+        target = {
+            "cache_key": "5346_spec_2022_54529",
+            "car_id": "5346",
+            "spec_id": "54529",
+            "year": "2022",
+            "brand": "特斯拉",
+            "series": "Model 3",
+            "target_type": "history",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("html", "newjson", "exception"):
+                (root / name).mkdir()
+            with (
+                mock.patch.object(self.autohome, "html_dir", str(root / "html")),
+                mock.patch.object(self.autohome, "newjson_dir", str(root / "newjson")),
+                mock.patch.object(self.autohome, "exception_dir", str(root / "exception")),
+                mock.patch.object(self.autohome, "working_dir", str(root)),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+                mock.patch.object(self.autohome.session, "get", return_value=response),
+            ):
+                (root / "target_manifest.json").write_text(
+                    json.dumps({"5346_spec_2022_54529": target}, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                html = self.autohome.fetch_autohome_history_spec_api_html(target)
+                self.assertIsNotNone(html)
+                (root / "html" / "5346_spec_2022_54529").write_text(html, encoding="utf-8")
+                self.assertTrue(self.autohome.cached_html_has_valid_autohome_data("5346_spec_2022_54529"))
+                (root / "newjson" / "5346_spec_2022_54529").write_text(html, encoding="utf-8")
+                self.autohome.generate_csv()
+                output = json.loads(next(root.glob("autoHome_*.json")).read_text(encoding="utf-8"))
+
+        self.assertEqual(1, len(output))
+        self.assertEqual("Model 3", output[0]["车系"])
+        self.assertEqual("2022", output[0]["年款"])
+        self.assertEqual("54529", output[0]["车款ID"])
+        self.assertEqual("2022款 后轮驱动版", output[0]["车型名称"])
+
+    def test_history_spec_api_rejects_payload_without_matching_spec_id(self) -> None:
+        response = mock.Mock(
+            status_code=200,
+            headers={"content-type": "application/json"},
+            json=lambda: {
+                "returncode": 0,
+                "result": {
+                    "bread": {"seriesname": "Model 3"},
+                    "titlelist": [{"groupname": "参数信息", "items": [{"itemname": "车型名称"}]}],
+                    "datalist": [{"specid": 99999, "specname": "2022款 其它版", "paramconflist": [{"itemname": "2022款 其它版"}]}],
+                },
+            },
+        )
+        with mock.patch.object(self.autohome.session, "get", return_value=response):
+            html = self.autohome.fetch_autohome_history_spec_api_html(
+                {"car_id": "5346", "spec_id": "54529", "series": "Model 3"}
+            )
+        self.assertIsNone(html)
+
+    def test_first_incomplete_target_index_rewinds_inserted_history_before_saved_index(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            html_dir = root / "html"
+            html_dir.mkdir()
+            (html_dir / "5346").write_text(self.valid_html(), encoding="utf-8")
+            with (
+                mock.patch.object(self.autohome, "html_dir", str(html_dir)),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+            ):
+                (root / "target_manifest.json").write_text(
+                    json.dumps(
+                        {
+                            "5346": {"cache_key": "5346", "car_id": "5346", "target_type": "current", "brand": "特斯拉", "series": "Model 3"},
+                            "5346_spec_2022_54529": {"cache_key": "5346_spec_2022_54529", "car_id": "5346", "target_type": "history", "brand": "特斯拉", "series": "Model 3", "spec_id": "54529"},
+                        },
+                        ensure_ascii=False,
+                    ),
+                    encoding="utf-8",
+                )
+                idx = self.autohome.first_incomplete_target_index(
+                    [
+                        {"cache_key": "5346", "target_type": "current"},
+                        {"cache_key": "5346_spec_2022_54529", "target_type": "history"},
+                        {"cache_key": "2", "target_type": "current"},
+                    ]
+                )
+        self.assertEqual(1, idx)
 
     def test_history_discovery_slice_allows_target_phase_to_run(self) -> None:
         manifest = {}
