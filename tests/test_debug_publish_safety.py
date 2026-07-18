@@ -166,6 +166,24 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(1, stats["stable_invalid_year_dropped"])
         self.assertEqual(2, stats["output_rows"])
 
+
+    def test_invalid_stable_rows_can_be_replaced_by_valid_partial_rows(self) -> None:
+        stable = [
+            self.merge_row(车款ID="", 价格="missing-id"),
+            self.merge_row(车系ID="101", 车款ID="abc", 车型名称="B", 价格="dirty-id"),
+        ]
+        valid_debug = self.merge_row(车系ID="102", 车款ID="54531", 车型名称="C", 价格="debug")
+
+        result, rows = self.run_prepare(stable, [valid_debug])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([valid_debug], rows)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(2, stats["stable_raw_input"])
+        self.assertEqual(2, stats["stable_invalid_dropped"])
+        self.assertEqual(2, stats["stable_invalid_model_id_dropped"])
+        self.assertEqual(1, stats["output_rows"])
+
     def test_empty_or_duplicate_input_fails_closed(self) -> None:
         row = self.merge_row()
         for stable, debug in [([], [row]), ([row], []), ([row, row], [row]), ([row], [row, row])]:
@@ -263,7 +281,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
                 self.assertIn("debug input contains duplicate identities", result.stderr)
 
     def test_missing_series_id_is_dropped_before_merge_identity(self) -> None:
-        stable = [self.merge_row(车系ID="-", 年款="2025", 车款ID="-")]
+        stable: list[dict[str, str]] = []
         debug = [
             self.merge_row(年款="2025"),
             self.merge_row(车型名称="A Pro", 年款="2025"),

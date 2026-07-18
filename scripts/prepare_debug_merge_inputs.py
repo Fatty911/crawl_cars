@@ -100,8 +100,9 @@ def prepare_rows(
     *,
     dedupe_partial: bool = False,
     debug_invalid_identity_dropped: int = 0,
+    allow_empty_stable: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    if not stable_rows or not debug_rows:
+    if (not stable_rows and not allow_empty_stable) or not debug_rows:
         raise ValueError("stable and debug inputs must both be non-empty")
     stable_keys_list = [identity_key(row) for row in stable_rows]
     if len(set(stable_keys_list)) != len(stable_keys_list):
@@ -167,6 +168,7 @@ def main() -> int:
         debug_rows,
         dedupe_partial=dedupe_partial,
         debug_invalid_identity_dropped=debug_filter_stats["invalid_dropped"],
+        allow_empty_stable=stable_filter_stats["input"] > 0 and stable_filter_stats["invalid_dropped"] > 0,
     )
     stats.update({
         "stable_raw_input": stable_filter_stats["input"],
