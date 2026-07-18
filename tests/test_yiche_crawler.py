@@ -526,3 +526,60 @@ def test_brand_init_repeated_empty_fails_closed(monkeypatch):
     frontier = yiche.YicheDiscoveryFrontier(requests.Session(), retry_backoff=0, max_brand_attempts=2)
     with pytest.raises(RuntimeError, match="结构化品牌发现反复不可用"):
         frontier.discover()
+
+
+def test_discovery_reuses_seed_homepage_brands_when_frontier_homepage_later_blocked(monkeypatch):
+    master_html = '<a href="/xuanchegongju/?mid=740">长安启源</a><div data-serial-id="11958"><a href="/changanqiyuanq05-11958/">长安启源Q05</a></div>'
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: master_html)
+    yiche.discover_series_urls(requests.Session(), ["https://car.yiche.com/"], max_pages=0)
+
+    def blocked_fetch(session, url):
+        raise requests.HTTPError("403")
+
+    def fake_api(session, endpoint, parameters):
+        assert parameters["masterId"] == "740"
+        return {"data": [{"name": "长安启源", "serialList": [
+            {"id": "11958", "name": "长安启源Q05", "brandName": "长安启源", "allSpell": "changanqiyuanq05-11958"}
+        ]}]}
+
+    monkeypatch.setattr(yiche, "fetch", blocked_fetch)
+    monkeypatch.setattr(yiche, "fetch_yiche_api", fake_api)
+    frontier = yiche.YicheDiscoveryFrontier(requests.Session(), initial_brands=yiche.LAST_DISCOVERED_MASTER_BRANDS)
+
+    assert frontier.discover() == {
+        "https://car.yiche.com/changanqiyuanq05-11958/peizhi/": {"serial_id": "11958", "brand": "长安启源", "series": "长安启源Q05"}
+    }
+
+
+def test_brand_series_carries_approved_model_ids_for_sale_filter():
+    payload = {"data": [{"name": "长安启源", "serialList": [{
+        "id": "11958", "name": "长安启源Q05", "brandName": "长安启源", "allSpell": "changanqiyuanq05-11958",
+        "carList": [
+            {"carId": "701", "carName": "2026款 405km Air", "saleStatusName": "在售"},
+            {"carId": "702", "carName": "2026款 基本型", "saleStatusName": "即将上市"},
+        ],
+    }]}]}
+
+    assert yiche.extract_brand_series(payload) == [(
+        "https://car.yiche.com/changanqiyuanq05-11958/peizhi/",
+        {"serial_id": "11958", "brand": "长安启源", "series": "长安启源Q05", "sale_model_ids": {"701"}},
+    )]
+
+
+def test_sale_filter_uses_target_model_ids_when_sale_page_blocked(monkeypatch):
+    rows = [
+        {"品牌": "长安启源", "车系": "长安启源Q05", "车型名称": "2026款 405km Air", "年款": "2026", "车款ID": "701", "价格": "9.99万", "易车上市状态": "unknown"},
+        {"品牌": "长安启源", "车系": "长安启源Q05", "车型名称": "2026款 基本型", "年款": "2026", "车款ID": "702", "价格": "暂无", "易车上市状态": "unknown"},
+    ]
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: (_ for _ in ()).throw(requests.HTTPError("403")))
+
+    approved = yiche.approve_rows_from_sale_page(
+        requests.Session(),
+        "https://car.yiche.com/changanqiyuanq05-11958/peizhi/",
+        rows,
+        {"sale_model_ids": "701"},
+    )
+
+    assert approved == [rows[0]]
+    assert rows[0]["易车上市状态"] == "approved"
+    assert rows[1]["易车上市状态"] == "unapproved"

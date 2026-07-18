@@ -142,7 +142,13 @@ def normalize_key(key):
 
 def target_meta(value):
     if isinstance(value, dict):
-        return {key: clean_text(val) for key, val in value.items()}
+        meta = {}
+        for key, val in value.items():
+            if isinstance(val, (set, list, tuple)):
+                meta[key] = ",".join(clean_text(item) for item in val if clean_text(item))
+            else:
+                meta[key] = clean_text(val)
+        return meta
     return {"serial_id": clean_text(value)}
 
 
@@ -294,7 +300,9 @@ def extract_serial_id(html):
 
 
 def discover_series_urls(session, discovery_urls, max_pages=30):
+    global LAST_DISCOVERED_MASTER_BRANDS
     discovered = {}
+    discovered_brands = []
     candidate_pages = []
     for discovery_url in discovery_urls:
         try:
@@ -304,6 +312,7 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
             print(f"  易车发现页抓取失败，跳过: {exc}")
             continue
         discovered.update(extract_series_targets(discovery_url, html))
+        discovered_brands.extend(extract_master_brands(html))
         for candidate in extract_candidate_urls(discovery_url, html):
             normalized = normalize_series_url(candidate)
             serial_id = serial_id_from_url(normalized)
@@ -320,6 +329,7 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
             continue
         discovered.update(extract_series_targets(candidate, html))
 
+    LAST_DISCOVERED_MASTER_BRANDS = list(dict.fromkeys(discovered_brands))
     trusted = {url: serial_id for url, serial_id in discovered.items() if serial_id}
     print(
         f"自动发现易车车系 URL {len(trusted)} 个，均含 serialId; "
@@ -399,6 +409,18 @@ def extract_master_brands(html):
         if master_id.isdigit() and name and master_id not in seen:
             seen.add(master_id)
             brands.append((master_id, name))
+    for link in soup.find_all("a", href=True):
+        match = re.search(r"[?&]mid=(\d+)", link["href"])
+        name = clean_text(link.get_text(" "))
+        if match and name and is_chinese_text(name) and match.group(1) not in seen:
+            seen.add(match.group(1))
+            brands.append((match.group(1), name))
+    for link in soup.find_all("a", href=True):
+        match = re.search(r"[?&]mid=(\d+)", link["href"])
+        name = clean_text(link.get_text(" "))
+        if match and name and is_chinese_text(name) and match.group(1) not in seen:
+            seen.add(match.group(1))
+            brands.append((match.group(1), name))
     for obj in walk(extract_json_objects(html)):
         master_id = clean_text(obj.get("masterId") or obj.get("masterid") or obj.get("id"))
         name = clean_text(obj.get("masterName") or obj.get("mastername") or obj.get("name"))
@@ -420,6 +442,23 @@ def extract_master_brands_from_payload(payload):
     return brands
 
 
+def extract_approved_model_ids_from_obj(obj):
+    ids = set()
+    for child in walk(obj):
+        if not isinstance(child, dict):
+            continue
+        model_id = clean_text(child.get("carId") or child.get("carid") or child.get("modelId") or child.get("id"))
+        model_name = clean_text(child.get("carName") or child.get("carname") or child.get("name"))
+        if model_id.isdigit() and normalize_model_year(model_name) and yiche_sale_status(child) == "approved":
+            ids.add(model_id)
+    return ids
+
+
+def target_sale_model_ids(target):
+    meta = target_meta(target)
+    return {item for item in re.split(r"[,;，；\s]+", meta.get("sale_model_ids", "")) if item}
+
+
 def extract_brand_series(payload):
     series = []
     for maker in payload.get("data") or []:
@@ -435,14 +474,18 @@ def extract_brand_series(payload):
             slug = clean_text(item.get("allSpell"))
             if serial_id.isdigit() and name and brand:
                 url = f"https://car.yiche.com/{slug}/peizhi/" if re.fullmatch(r"[a-z][a-z0-9-]+", slug) else f"https://car.yiche.com/serial-{serial_id}/peizhi/"
-                series.append((url, {"serial_id": serial_id, "brand": brand, "series": name}))
+                target = {"serial_id": serial_id, "brand": brand, "series": name}
+                sale_model_ids = extract_approved_model_ids_from_obj(item)
+                if sale_model_ids:
+                    target["sale_model_ids"] = sale_model_ids
+                series.append((url, target))
     return series
 
 
 class YicheDiscoveryFrontier:
-    def __init__(self, session, max_brand_attempts=3, retry_backoff=1, max_init_attempts=3):
+    def __init__(self, session, max_brand_attempts=3, retry_backoff=1, max_init_attempts=3, initial_brands=None):
         self.session = session
-        self.brand_queue = []
+        self.brand_queue = list(initial_brands or [])
         self.retry_queue = []
         self.brand_attempts = {}
         self.max_brand_attempts = max_brand_attempts
@@ -483,7 +526,11 @@ class YicheDiscoveryFrontier:
     def discover(self):
         if not self.initialized:
             errors = []
+            if self.brand_queue:
+                self.init_attempts = 0
             for attempt in range(1, self.max_init_attempts + 1):
+                if self.brand_queue:
+                    break
                 self.init_attempts = attempt
                 try:
                     self.init_attempts = attempt
@@ -643,67 +690,70 @@ def add_quality_counts(stats, rows):
 
 
 def series_home_url(page_url):
-    return normalize_series_url(page_url).replace("/peizhi/", "/")
+    parsed = urlparse(normalize_series_url(page_url).replace("/peizhi/", "/"))
+    return f"{parsed.scheme or 'https'}://{parsed.netloc or 'car.yiche.com'}{parsed.path}"
 
 
-def extract_sale_model_ids(html):
-    ids = set()
-    for obj in walk(extract_json_objects(html)):
-        model_id = clean_text(obj.get("carId") or obj.get("carid") or obj.get("modelId") or obj.get("id"))
-        status = yiche_sale_status(obj)
-        text = " ".join(clean_text(obj.get(key)) for key in ("name", "carName", "statusName", "saleStatusName", "marketStatusName"))
-        if model_id and (status == "approved" or any(token in text for token in YICHE_APPROVED_STATUS_TEXT)):
-            ids.add(model_id)
+def mobile_series_home_url(page_url):
+    parsed = urlparse(series_home_url(page_url))
+    return f"https://car.m.yiche.com{parsed.path}"
+
+
+def extract_sale_model_refs(html):
+    sale_ids = extract_sale_model_ids(html)
+    sale_names = set()
     soup = bs4.BeautifulSoup(html or "", "html.parser")
-    for node in soup.select("[data-car-id], [data-carid], [data-model-id]"):
-        model_id = clean_text(node.get("data-car-id") or node.get("data-carid") or node.get("data-model-id"))
-        text = clean_text(node.get_text(" "))
-        if model_id and not any(token in text for token in YICHE_UNAPPROVED_STATUS_TEXT):
-            ids.add(model_id)
-    return ids
-
-
-def series_home_url(page_url):
-    parsed = urlparse(page_url)
-    parts = [part for part in parsed.path.split("/") if part and part != "peizhi"]
-    if not parts:
-        return page_url
-    return f"{parsed.scheme or 'https'}://{parsed.netloc or 'car.yiche.com'}/{parts[0]}/"
-
-
-def extract_sale_model_ids(html):
-    sale_ids = set()
+    text = clean_text(soup.get_text(" "))
+    for marker in ("即将上市", "停售车款", "停售"):
+        if marker in text:
+            text = text.split(marker, 1)[0]
+    for match in re.finditer(r"((?:19|20)?\d{2}款[^|<>\n]{1,60}?)(?:图片|参数|指导价|\d+\.\d+万)", text):
+        name = clean_text(match.group(1))
+        if name and not any(token in name for token in YICHE_UNAPPROVED_STATUS_TEXT):
+            sale_names.add(name)
     for obj in walk(extract_json_objects(html)):
-        status = yiche_sale_status(obj)
-        model_id = clean_text(obj.get("carId") or obj.get("carid") or obj.get("modelId") or obj.get("id"))
-        name = clean_text(obj.get("carName") or obj.get("carname") or obj.get("name"))
-        if model_id and (status == "approved" or (name and "款" in name and not any(token in name for token in YICHE_UNAPPROVED_STATUS_TEXT))):
-            sale_ids.add(model_id)
-    return sale_ids
+        if not isinstance(obj, dict):
+            continue
+        if yiche_sale_status(obj) == "approved":
+            name = clean_text(obj.get("carName") or obj.get("carname") or obj.get("name"))
+            if name:
+                sale_names.add(name)
+    return sale_ids, sale_names
 
 
-def approve_rows_from_sale_page(session, page_url, rows):
-    try:
-        sale_ids = extract_sale_model_ids(fetch(session, series_home_url(page_url)))
-    except requests.RequestException as exc:
-        print(f"  易车在售车款页抓取失败，使用 API 状态字段判定: {type(exc).__name__}: {exc}")
-        sale_ids = set()
+def approve_rows_from_sale_page(session, page_url, rows, target=None):
+    sale_ids = target_sale_model_ids(target)
+    sale_names = set()
+    errors = []
+    if not sale_ids:
+        for candidate_url in (series_home_url(page_url), mobile_series_home_url(page_url)):
+            try:
+                ids, names = extract_sale_model_refs(fetch(session, candidate_url))
+            except requests.RequestException as exc:
+                errors.append(f"{candidate_url} {type(exc).__name__}: {exc}")
+                continue
+            sale_ids.update(ids)
+            sale_names.update(names)
+            if sale_ids or sale_names:
+                break
+    if errors and not (sale_ids or sale_names):
+        print(f"  易车在售车款页抓取失败，使用 API 状态字段判定: {'; '.join(errors[-2:])}")
     approved = []
     rejected = 0
     for row in rows:
         model_id = clean_text(row.get("车款ID"))
-        if sale_ids:
-            row["易车上市状态"] = "approved" if model_id and model_id in sale_ids else "unapproved"
+        model_name = clean_text(row.get("车型名称"))
+        if sale_ids or sale_names:
+            row["易车上市状态"] = "approved" if (model_id and model_id in sale_ids) or model_name in sale_names else "unapproved"
         if is_real_config_row(row):
             approved.append(row)
         else:
             rejected += 1
     print(
-        f"  易车上市过滤: sale_model_ids={len(sale_ids)} approved_rows={len(approved)} "
+        f"  易车上市过滤: sale_model_ids={len(sale_ids)} sale_model_names={len(sale_names)} approved_rows={len(approved)} "
         f"rejected_rows={rejected}"
     )
     return approved
-
 
 def parse_next_data(html):
     soup = bs4.BeautifulSoup(html, "html.parser")
@@ -945,7 +995,7 @@ def crawl(
             real_rows = validate_real_rows(rows)
             if not real_rows and serial_id:
                 api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta)
-                real_rows = approve_rows_from_sale_page(session, page_url, api_rows)
+                real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
                 add_quality_counts(stats, api_rows)
             if real_rows:
                 target_succeeded = True
@@ -963,7 +1013,7 @@ def crawl(
                 stats[str(status_code)] += 1
             try:
                 api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta) if serial_id else []
-                real_rows = approve_rows_from_sale_page(session, page_url, api_rows)
+                real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
                 add_quality_counts(stats, api_rows)
             except requests.RequestException as api_exc:
                 real_rows = []
@@ -1007,7 +1057,13 @@ def crawl(
             idle_discovery_rounds = 0 if added else idle_discovery_rounds + 1
             print(f"易车增量发现: round={stats['discovery_rounds']} discovered={len(discovered)} added_or_enriched={added}")
     deduped_rows = []
-    if discovery_callback and hasattr(discovery_callback, "discover") and discovery_callback.exhausted and not pending:
+    if (
+        stop_reason == "target_exhausted"
+        and discovery_callback
+        and hasattr(discovery_callback, "discover")
+        and discovery_callback.exhausted
+        and not pending
+    ):
         stop_reason = "trusted_discovery_exhausted"
     seen_rows = set()
     for row in all_rows:
@@ -1057,7 +1113,7 @@ def main():
         print("未配置且未发现易车车系 URL，生成空数据文件。可通过 --url、--url-file、YICHE_SERIES_URLS 或 YICHE_DISCOVERY_URLS 配置。")
     discovery_callback = None
     if not urls:
-        discovery_callback = YicheDiscoveryFrontier(session)
+        discovery_callback = YicheDiscoveryFrontier(session, initial_brands=LAST_DISCOVERED_MASTER_BRANDS)
     rows = crawl(
         targets,
         args.delay,
