@@ -65,7 +65,7 @@ class AutohomeCompletionTests(unittest.TestCase):
                 mock.patch.object(
                     self.autohome,
                     "progress",
-                    {"download_car_pages": list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "queue_idx": 2},
+                    {"download_car_pages": list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "target_idx": 2},
                 ),
             ):
                 self.assertFalse(self.autohome.is_step1_completed())
@@ -107,35 +107,302 @@ class AutohomeCompletionTests(unittest.TestCase):
                 mock.patch.object(self.autohome, "html_dir", str(html_dir)),
                 mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
                 mock.patch.object(self.autohome, "series_queue_file", str(queue_path)),
-                mock.patch.object(self.autohome, "progress", {"download_car_pages": list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "queue_idx": 1}),
+                mock.patch.object(self.autohome, "progress", {"download_car_pages": list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "target_idx": 1}),
             ):
                 self.assertFalse(self.autohome.is_step1_completed())
 
     def test_sale_page_parser_keeps_one_2022_plus_spec_per_year(self) -> None:
         html = """
-        <a href="https://car.autohome.com.cn/config/spec/54529.html">2022款 后轮驱动版</a>
-        <a href="/config/spec/55666.html">2022款 高性能版</a>
-        <a href="/config/spec/60000.html">2023款 后轮驱动版</a>
-        <a href="/config/spec/70000.html">2021款 标准版</a>
-        <a href="/config/spec/80000.html">2026款 预售版</a>
+        <div class="spec-cont">
+          <a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>
+          <a href="//www.autohome.com.cn/spec/55666/">2022款 高性能版</a>
+          <a href="//www.autohome.com.cn/spec/60000/">2023款 后轮驱动版</a>
+          <a href="//www.autohome.com.cn/spec/70000/">2021款 标准版</a>
+          <a href="//www.autohome.com.cn/spec/80000/">2026款 预售版</a>
+        </div>
         """
         targets = self.autohome.parse_sale_history_targets("5346", "特斯拉", "Model 3", html)
         self.assertEqual(["2022", "2023"], [target["year"] for target in targets])
         self.assertEqual("5346_spec_2022_54529", targets[0]["cache_key"])
+        self.assertEqual("https://car.autohome.com.cn/config/spec/54529.html", targets[0]["url"])
 
     def test_history_cache_key_maps_to_original_series_in_output(self) -> None:
         self.assertEqual("5346", self.autohome.original_series_id_from_cache_key("5346_spec_2022_54529"))
 
-    def test_no_history_data_records_terminal_target(self) -> None:
+    def test_no_history_data_records_terminal_target_only_for_verified_sale_structure(self) -> None:
         manifest = {}
-        response = mock.Mock(status_code=200, text="<html></html>", apparent_encoding="utf-8")
+        response = mock.Mock(
+            status_code=200,
+            text='<div class="spec-cont"><a href="//www.autohome.com.cn/spec/10001/">2021款 标准版</a></div>',
+            apparent_encoding="utf-8",
+        )
         with mock.patch.object(self.autohome.session, "get", return_value=response):
-            targets = self.autohome.build_autohome_targets(
-                [{"car_id": "1", "brand": "特斯拉", "series": "Model 3"}],
+            targets, completed = self.autohome.discover_history_targets(
+                "1",
+                "特斯拉",
+                "Model 3",
                 manifest,
             )
-        self.assertEqual(["1"], [target["cache_key"] for target in targets])
+        self.assertEqual([], targets)
+        self.assertTrue(completed)
         self.assertTrue(manifest["1_history_no_data"]["terminal"])
+
+    def test_antibot_sale_page_does_not_record_terminal_target(self) -> None:
+        manifest = {}
+        response = mock.Mock(status_code=200, text="<html>安全验证</html>", apparent_encoding="utf-8")
+        with mock.patch.object(self.autohome.session, "get", return_value=response):
+            targets, completed = self.autohome.discover_history_targets(
+                "1",
+                "特斯拉",
+                "Model 3",
+                manifest,
+            )
+        self.assertEqual([], targets)
+        self.assertFalse(completed)
+        self.assertNotIn("1_history_no_data", manifest)
+
+    def test_history_discovery_deadline_resumes_with_cursor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = {}
+            progress = {"history_discovery_idx": 1}
+            response = mock.Mock(
+                status_code=200,
+                text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
+                apparent_encoding="utf-8",
+            )
+            get_mock = mock.Mock(return_value=response)
+            with (
+                mock.patch.object(self.autohome, "progress", progress),
+                mock.patch.object(self.autohome, "progress_file", str(root / "progress.json")),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+                mock.patch.object(self.autohome.session, "get", get_mock),
+                mock.patch.object(self.autohome, "check_time_limit", side_effect=[False, True]),
+                mock.patch.object(self.autohome, "AUTO_MODE", True),
+            ):
+                with self.assertRaises(SystemExit) as raised:
+                    self.autohome.discover_history_targets_until_deadline(
+                        [
+                            {"car_id": "already", "brand": "特斯拉", "series": "旧"},
+                            {"car_id": "5346", "brand": "特斯拉", "series": "Model 3"},
+                            {"car_id": "2", "brand": "特斯拉", "series": "Model Y"},
+                        ],
+                        manifest,
+                        0,
+                    )
+            self.assertEqual(10, raised.exception.code)
+            self.assertEqual(2, progress["history_discovery_idx"])
+            self.assertIn("5346_spec_2022_54529", manifest)
+
+    def test_history_discovery_batch_limit_prevents_full_prescan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = {}
+            progress = {}
+            response = mock.Mock(
+                status_code=200,
+                text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
+                apparent_encoding="utf-8",
+            )
+            get_mock = mock.Mock(return_value=response)
+            with (
+                mock.patch.object(self.autohome, "progress", progress),
+                mock.patch.object(self.autohome, "progress_file", str(root / "progress.json")),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+                mock.patch.object(self.autohome.session, "get", get_mock),
+                mock.patch.object(self.autohome, "check_time_limit", return_value=False),
+                mock.patch.object(self.autohome, "AUTO_MODE", True),
+                mock.patch.dict("os.environ", {"AUTOHOME_HISTORY_DISCOVERY_BATCH": "1"}),
+            ):
+                with self.assertRaises(SystemExit) as raised:
+                    self.autohome.discover_history_targets_until_deadline(
+                        [
+                            {"car_id": "5346", "brand": "特斯拉", "series": "Model 3"},
+                            {"car_id": "2", "brand": "特斯拉", "series": "Model Y"},
+                        ],
+                        manifest,
+                        0,
+                    )
+            self.assertEqual(10, raised.exception.code)
+            self.assertEqual(1, progress["history_discovery_idx"])
+            self.assertEqual(1, get_mock.call_count)
+
+    def test_history_discovery_default_has_no_200_batch_stop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = {}
+            progress = {}
+            response = mock.Mock(
+                status_code=200,
+                text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
+                apparent_encoding="utf-8",
+            )
+            get_mock = mock.Mock(return_value=response)
+            with (
+                mock.patch.object(self.autohome, "progress", progress),
+                mock.patch.object(self.autohome, "progress_file", str(root / "progress.json")),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+                mock.patch.object(self.autohome.session, "get", get_mock),
+                mock.patch.object(self.autohome, "check_time_limit", return_value=False),
+                mock.patch.dict("os.environ", {}, clear=True),
+            ):
+                self.autohome.discover_history_targets_until_deadline(
+                    [
+                        {"car_id": str(i), "brand": "品牌", "series": f"车系{i}"}
+                        for i in range(201)
+                    ],
+                    manifest,
+                    0,
+                )
+            self.assertEqual(201, progress["history_discovery_idx"])
+            self.assertEqual(201, get_mock.call_count)
+
+    def test_history_discovery_pending_advances_to_next_series(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = {}
+            progress = {}
+            bad = mock.Mock(status_code=200, text="<html>安全验证</html>", apparent_encoding="utf-8")
+            good = mock.Mock(
+                status_code=200,
+                text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
+                apparent_encoding="utf-8",
+            )
+            get_mock = mock.Mock(side_effect=[bad, good])
+            with (
+                mock.patch.object(self.autohome, "progress", progress),
+                mock.patch.object(self.autohome, "progress_file", str(root / "progress.json")),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+                mock.patch.object(self.autohome.session, "get", get_mock),
+                mock.patch.object(self.autohome, "check_time_limit", return_value=False),
+                mock.patch.object(self.autohome, "AUTO_MODE", True),
+            ):
+                with self.assertRaises(SystemExit) as raised:
+                    self.autohome.discover_history_targets_until_deadline(
+                        [
+                            {"car_id": "bad", "brand": "品牌", "series": "坏页"},
+                            {"car_id": "good", "brand": "品牌", "series": "好页"},
+                        ],
+                        manifest,
+                        0,
+                    )
+            self.assertEqual(10, raised.exception.code)
+            self.assertEqual(2, get_mock.call_count)
+            self.assertIn("bad_history_pending", manifest)
+            self.assertIn("good_spec_2022_54529", manifest)
+            self.assertEqual(0, progress["history_discovery_idx"])
+
+    def test_history_discovery_retries_pending_after_sweep(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = {
+                "bad_history_pending": {
+                    "car_id": "bad",
+                    "brand": "品牌",
+                    "series": "坏页",
+                    "target_type": "history_pending",
+                }
+            }
+            progress = {"history_discovery_idx": 0}
+            good = mock.Mock(
+                status_code=200,
+                text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
+                apparent_encoding="utf-8",
+            )
+            with (
+                mock.patch.object(self.autohome, "progress", progress),
+                mock.patch.object(self.autohome, "progress_file", str(root / "progress.json")),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+                mock.patch.object(self.autohome.session, "get", return_value=good),
+                mock.patch.object(self.autohome, "check_time_limit", return_value=False),
+            ):
+                self.autohome.discover_history_targets_until_deadline(
+                    [{"car_id": "bad", "brand": "品牌", "series": "坏页"}],
+                    manifest,
+                    0,
+                )
+            self.assertEqual(1, progress["history_discovery_idx"])
+            self.assertIn("bad_spec_2022_54529", manifest)
+
+    def test_target_fetch_pending_marks_retry_without_losing_manifest(self) -> None:
+        manifest = {
+            "5346_spec_2022_54529": {
+                "cache_key": "5346_spec_2022_54529",
+                "car_id": "5346",
+                "target_type": "history",
+                "series": "Model 3",
+                "brand": "特斯拉",
+            }
+        }
+        self.autohome.mark_target_fetch_pending("5346_spec_2022_54529", manifest)
+        self.assertTrue(manifest["5346_spec_2022_54529"]["fetch_pending"])
+        self.assertEqual(1, manifest["5346_spec_2022_54529"]["fetch_retry_count"])
+        self.assertEqual("5346", manifest["5346_spec_2022_54529"]["car_id"])
+
+    def test_legacy_queue_idx_migrates_without_becoming_target_idx(self) -> None:
+        progress = {"queue_idx": 1751}
+        with tempfile.TemporaryDirectory() as tmp:
+            progress_path = Path(tmp) / "progress.json"
+            with mock.patch.object(self.autohome, "progress", progress), mock.patch.object(
+                self.autohome, "progress_file", str(progress_path)
+            ):
+                if "target_idx" not in self.autohome.progress and "queue_idx" in self.autohome.progress:
+                    self.autohome.progress["legacy_series_queue_idx"] = self.autohome.progress.get("queue_idx", 0)
+                    self.autohome.progress["target_idx"] = 0
+                    self.autohome.progress.pop("queue_idx", None)
+            self.assertEqual(1751, progress["legacy_series_queue_idx"])
+            self.assertEqual(0, progress["target_idx"])
+            self.assertNotIn("queue_idx", progress)
+
+    def test_current_api_empty_data_records_current_terminal(self) -> None:
+        response = mock.Mock(
+            status_code=200,
+            headers={"content-type": "application/json"},
+            json=lambda: {"returncode": 0, "result": {"titlelist": [], "datalist": []}},
+        )
+        with mock.patch.object(self.autohome.session, "get", return_value=response):
+            content, terminal = self.autohome.fetch_autohome_api_html("1")
+        self.assertIsNone(content)
+        self.assertTrue(terminal)
+
+    def test_current_terminal_target_does_not_block_history_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            html_dir = root / "html"
+            html_dir.mkdir()
+            queue_path = root / "queue.json"
+            queue_path.write_text(json.dumps([{"car_id": "5346"}]), encoding="utf-8")
+            (root / "target_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "5346": {
+                            "cache_key": "5346",
+                            "car_id": "5346",
+                            "target_type": "current_terminal_no_data",
+                            "terminal": True,
+                            "series": "Model 3",
+                            "brand": "特斯拉",
+                        },
+                        "5346_spec_2022_54529": {
+                            "cache_key": "5346_spec_2022_54529",
+                            "car_id": "5346",
+                            "target_type": "history",
+                            "series": "Model 3",
+                            "brand": "特斯拉",
+                        },
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            (html_dir / "5346_spec_2022_54529").write_text(self.valid_html(), encoding="utf-8")
+            with (
+                mock.patch.object(self.autohome, "html_dir", str(html_dir)),
+                mock.patch.object(self.autohome, "target_manifest_file", str(root / "target_manifest.json")),
+                mock.patch.object(self.autohome, "series_queue_file", str(queue_path)),
+                mock.patch.object(self.autohome, "progress", {"download_car_pages": list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "target_idx": 2}),
+            ):
+                self.assertTrue(self.autohome.is_step1_completed())
 
     def test_refetch_invalidates_downstream_cache_and_progress(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -188,7 +455,7 @@ class AutohomeCompletionTests(unittest.TestCase):
                 mock.patch.object(
                     self.autohome,
                     "progress",
-                    {"download_car_pages": list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "queue_idx": 0},
+                    {"download_car_pages": list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "target_idx": 0},
                 ),
             ):
                 self.assertFalse(self.autohome.is_step1_completed())

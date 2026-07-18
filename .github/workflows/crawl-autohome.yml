@@ -488,8 +488,8 @@ jobs:
                   and value.get("cache_key")
                   and not value.get("terminal")
               ]
-              target_complete = bool(active_targets) and int(progress.get("queue_idx", 0)) >= len(active_targets)
-              print(f"Autohome target_complete={target_complete}, queue_idx={progress.get('queue_idx')}, active_targets={len(active_targets)}")
+              target_complete = bool(active_targets) and int(progress.get("target_idx", 0)) >= len(active_targets)
+              print(f"Autohome target_complete={target_complete}, target_idx={progress.get('target_idx')}, active_targets={len(active_targets)}")
           min_rows = 20 if debug_mode else 500
           max_rows = int(os.environ.get("DEBUG_OUTPUT_MAX_ROWS", "30"))
           if incremental and len(rows) == 0:
