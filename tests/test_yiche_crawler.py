@@ -1,5 +1,6 @@
 import sys
 import types
+import json
 
 import requests
 import pytest
@@ -472,6 +473,67 @@ def test_yiche_keeps_approved_model_and_rejects_presale_same_series():
     rows = yiche.extract_from_config_api(payload, {"brand": "长安启源", "series": "长安启源Q05"})
     assert [row["车型名称"] for row in yiche.validate_real_rows(rows)] == ["26款 405km Air"]
     assert yiche.validate_real_rows(rows)[0]["年款"] == "2026"
+
+
+def test_config_api_prefers_base_info_and_rejects_status_8_predictions():
+    payload = {"data": [{"items": [
+        {"name": "车型名称", "paramValues": [
+            {
+                "value": "占位",
+                "id": "185727",
+                "status": 1,
+                "baseInfo": json.dumps({
+                    "carName": "26款 405km Air",
+                    "brandName": "长安启源",
+                    "serialName": "长安启源Q05",
+                    "year": "2026",
+                    "saleStatus": 1,
+                }, ensure_ascii=False),
+            },
+            {
+                "value": "占位",
+                "id": "190799",
+                "status": 8,
+                "baseInfo": json.dumps({
+                    "carName": "26款 改款 纯电版 基本型",
+                    "brandName": "长安启源",
+                    "serialName": "长安启源Q05",
+                    "year": "2026",
+                    "saleStatus": 8,
+                }, ensure_ascii=False),
+            },
+        ]},
+        {"name": "厂商指导价", "paramValues": [
+            {"value": "9.99万", "id": "185727", "status": 1, "baseInfo": "{\"saleStatus\":1}"},
+            {"value": "暂无", "id": "190799", "status": 8, "baseInfo": "{\"saleStatus\":8}"},
+        ]},
+    ]}]}
+    rows = yiche.extract_from_config_api(payload, yiche.make_target("11958", "错误品牌", "错误车系"))
+    real = yiche.validate_real_rows(rows)
+
+    assert [(row["车款ID"], row["车型名称"], row["品牌"], row["车系"], row["年款"]) for row in real] == [
+        ("185727", "26款 405km Air", "长安启源", "长安启源Q05", "2026")
+    ]
+    assert rows[1]["易车上市状态"] == "unapproved"
+
+
+def test_config_api_splits_q05_mixed_official_status_ids():
+    payload = {"data": [{"items": [
+        {"name": "车型名称", "paramValues": [
+            {"value": "26款 405km Air", "id": "185727", "status": 1, "baseInfo": "{\"saleStatus\":1,\"brandName\":\"长安启源\",\"serialName\":\"长安启源Q05\",\"year\":\"2026\"}"},
+            {"value": "26款 506km Max", "id": "188822", "status": 1, "baseInfo": "{\"saleStatus\":1,\"brandName\":\"长安启源\",\"serialName\":\"长安启源Q05\",\"year\":\"2026\"}"},
+            {"value": "26款 改款 纯电版 基本型", "id": "190799", "status": 8, "baseInfo": "{\"saleStatus\":8,\"brandName\":\"长安启源\",\"serialName\":\"长安启源Q05\",\"year\":\"2026\"}"},
+            {"value": "26款 改款 纯电版 高配版", "id": "190800", "status": 8, "baseInfo": "{\"saleStatus\":8,\"brandName\":\"长安启源\",\"serialName\":\"长安启源Q05\",\"year\":\"2026\"}"},
+        ]},
+        {"name": "厂商指导价", "paramValues": [
+            {"value": "7.99万"}, {"value": "10.99万"}, {"value": "暂无"}, {"value": "暂无"}
+        ]},
+    ]}]}
+
+    real = yiche.validate_real_rows(yiche.extract_from_config_api(payload, yiche.make_target("11958", "长安启源", "长安启源Q05")))
+
+    assert {row["车款ID"] for row in real} == {"185727", "188822"}
+    assert {row["车型名称"] for row in real} == {"26款 405km Air", "26款 506km Max"}
 
 
 def test_brand_frontier_retries_empty_homepage_then_recovers(monkeypatch):

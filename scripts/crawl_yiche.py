@@ -98,9 +98,28 @@ def is_positive_yiche_sale_status(value):
     return text.lower() in {"1", "2", "3", "sale", "onsale", "on_sale", "sell", "selling", "listed"}
 
 
+def parse_yiche_base_info(raw_value):
+    if not isinstance(raw_value, dict):
+        return {}
+    base_info = raw_value.get("baseInfo") or raw_value.get("baseinfo")
+    if isinstance(base_info, dict):
+        return base_info
+    if isinstance(base_info, str):
+        try:
+            parsed = json.loads(base_info)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
 def yiche_sale_status(raw_value):
     values = []
     if isinstance(raw_value, dict):
+        base_info = parse_yiche_base_info(raw_value)
+        for key in ("saleStatus", "saleStatusName", "marketStatus", "marketStatusName", "status", "statusName"):
+            if key in base_info:
+                values.append(clean_text(base_info.get(key)))
         for key in ("saleStatus", "saleStatusName", "marketStatus", "marketStatusName", "status", "statusName", "sale_state", "saleState", "sale_state_name"):
             if key in raw_value:
                 values.append(clean_text(raw_value.get(key)))
@@ -112,7 +131,7 @@ def yiche_sale_status(raw_value):
     lowered = {value.lower() for value in values if value}
     if lowered & {"1", "2", "3", "sale", "onsale", "on_sale", "sell", "selling", "listed"}:
         return "approved"
-    if lowered & {"0", "-1", "presale", "pre_sale", "coming"}:
+    if lowered & {"0", "-1", "8", "presale", "pre_sale", "coming"}:
         return "unapproved"
     return "unknown"
 
@@ -610,19 +629,32 @@ def extract_from_config_api(payload, target=None):
             for index, raw_value in enumerate(item.get("paramValues") or []):
                 while len(rows) <= index:
                     rows.append({})
+                base_info = parse_yiche_base_info(raw_value)
                 value = clean_text(raw_value.get("value"))
                 if (not value or value == "-") and raw_value.get("subList"):
                     value = clean_text(raw_value["subList"][0].get("value"))
                 model_name = clean_text(
-                    raw_value.get("carName") or raw_value.get("carname") or raw_value.get("name")
+                    base_info.get("carName") or base_info.get("carname") or base_info.get("name")
+                    or raw_value.get("carName") or raw_value.get("carname") or raw_value.get("name")
                 )
-                brand_name = clean_text(raw_value.get("brandName") or raw_value.get("brandname") or target_brand_name)
-                series_name = clean_text(raw_value.get("serialName") or raw_value.get("serialname") or target_series_name)
-                model_id = clean_text(raw_value.get("carId") or raw_value.get("carid") or raw_value.get("modelId") or raw_value.get("id"))
+                brand_name = clean_text(
+                    base_info.get("brandName") or base_info.get("brandname") or base_info.get("masterName")
+                    or base_info.get("mastername") or raw_value.get("brandName") or raw_value.get("brandname")
+                    or rows[index].get("品牌") or target_brand_name
+                )
+                series_name = clean_text(
+                    base_info.get("serialName") or base_info.get("serialname")
+                    or raw_value.get("serialName") or raw_value.get("serialname") or rows[index].get("车系") or target_series_name
+                )
+                model_id = clean_text(
+                    base_info.get("carId") or base_info.get("carid") or base_info.get("modelId")
+                    or raw_value.get("carId") or raw_value.get("carid") or raw_value.get("modelId") or raw_value.get("id")
+                )
+                model_year = clean_text(base_info.get("year") or base_info.get("yearName") or base_info.get("modelYear"))
                 sale_status = yiche_sale_status(raw_value)
                 if model_name:
                     rows[index]["车型名称"] = model_name
-                    rows[index].setdefault("年款", normalize_model_year(model_name))
+                    rows[index].setdefault("年款", normalize_model_year(model_year) or normalize_model_year(model_name))
                 if brand_name:
                     rows[index]["品牌"] = brand_name
                 if series_name:
@@ -634,7 +666,7 @@ def extract_from_config_api(payload, target=None):
                     rows[index]["易车上市状态"] = sale_status
                 if value and value != "-":
                     if key in {"车型", "车型名称", "车款"} or (group_index == 0 and item_index == 0):
-                        rows[index]["车型名称"] = value
+                        rows[index]["车型名称"] = model_name or value
                     else:
                         rows[index][key] = value
     for row in rows:
