@@ -447,6 +447,36 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               rows = json.load(f)
 
+          def clean(value):
+              return str(value or "").strip()
+
+          def has_chinese(value):
+              import re
+              return bool(re.search(r"[\u4e00-\u9fff]", clean(value)))
+
+          valid_rows = []
+          invalid_identity = 0
+          for row in rows if isinstance(rows, list) else []:
+              brand = clean(row.get("品牌"))
+              series = clean(row.get("车系"))
+              model = clean(row.get("车型名称"))
+              year = clean(row.get("年款"))
+              if (
+                  brand in {"", "-"}
+                  or series in {"", "-"}
+                  or not has_chinese(series)
+                  or model in {"", "-"}
+                  or not __import__("re").fullmatch(r"(?:19|20)\d{2}", year)
+              ):
+                  invalid_identity += 1
+                  continue
+              valid_rows.append(row)
+          if invalid_identity:
+              print(f"懂车帝输出剔除无效发布身份行: {invalid_identity}")
+              with open(path, "w", encoding="utf-8") as f:
+                  json.dump(valid_rows, f, ensure_ascii=False, indent=2)
+              rows = valid_rows
+
           print(f"{path}: {len(rows)} rows")
           min_rows = 20 if debug_mode else 50
           max_rows = int(os.environ.get("DEBUG_OUTPUT_MAX_ROWS", "30"))

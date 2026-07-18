@@ -200,10 +200,10 @@ jobs:
               https://cars.jiucai.eu.org/data/latest.json \
               --output merge-inputs/current-pages-latest.json
             if [ "$PARTIAL_SOURCE" = "autohome" ]; then
-              python -c 'import json; rows=json.load(open("merge-inputs/current-pages-latest.json", encoding="utf-8")); kept=[row for row in rows if "汽车之家" in str(row.get("数据来源", ""))]; assert len(kept) >= 50, f"汽车之家 Pages stable 基线不足: {len(kept)}"; json.dump(kept, open("merge-inputs/stable/autohome/autoHome_pages_baseline.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)'
+              python scripts/filter_pages_source_baseline.py --input merge-inputs/current-pages-latest.json --output merge-inputs/stable/autohome/autoHome_pages_baseline.json --source autohome --min-rows 50
               mapfile -t AUTOHOME_STABLE < <(find merge-inputs/stable/autohome -maxdepth 1 -type f -name 'autoHome_*.json' -print)
             else
-              python -c 'import json; rows=json.load(open("merge-inputs/current-pages-latest.json", encoding="utf-8")); kept=[row for row in rows if "懂车帝" in str(row.get("数据来源", ""))]; assert len(kept) >= 50, f"懂车帝 Pages stable 基线不足: {len(kept)}"; json.dump(kept, open("merge-inputs/stable/dongchedi/dongchedi_pages_baseline.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)'
+              python scripts/filter_pages_source_baseline.py --input merge-inputs/current-pages-latest.json --output merge-inputs/stable/dongchedi/dongchedi_pages_baseline.json --source dongchedi --min-rows 50
               mapfile -t DONGCHEDI_STABLE < <(find merge-inputs/stable/dongchedi -maxdepth 1 -type f -name 'dongchedi_*.json' -print)
             fi
           fi

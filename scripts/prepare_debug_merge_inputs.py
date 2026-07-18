@@ -17,6 +17,36 @@ def _value(row: dict[str, Any], field: str) -> str:
     return "" if value == "-" else value
 
 
+def has_chinese(value: str) -> bool:
+    return bool(re.search(r"[\u4e00-\u9fff]", value))
+
+
+def is_slug_series(value: str) -> bool:
+    return bool(re.fullmatch(r"[a-z][a-z0-9-]*-?\d*", value))
+
+
+def publish_boundary_valid(row: dict[str, Any]) -> bool:
+    if not isinstance(row, dict):
+        return False
+    brand = _value(row, "品牌")
+    series = _value(row, "车系")
+    model = _value(row, "车型名称")
+    year = _value(row, "年款")
+    source = _value(row, "数据来源")
+    if not year:
+        match = re.search(r"(?:19|20)\d{2}", model)
+        year = match.group(0) if match else ""
+    if not (brand and series and model and re.fullmatch(r"(?:19|20)\d{2}", year)):
+        return False
+    if not has_chinese(series) or is_slug_series(series):
+        return False
+    if "易车" in source:
+        car_id = _value(row, "车款ID") or _value(row, "易车车型ID") or _value(row, "车型ID")
+        status = _value(row, "易车上市状态")
+        return bool(car_id and car_id.isdigit() and status == "approved")
+    return True
+
+
 def identity_key(row: dict[str, Any]) -> tuple[str, ...]:
     if not isinstance(row, dict):
         raise ValueError("each row must be a JSON object")
@@ -40,9 +70,9 @@ def identity_key(row: dict[str, Any]) -> tuple[str, ...]:
         status = _value(row, "易车上市状态")
         if (
             status != "approved"
-            or not re.search(r"[\u4e00-\u9fff]", brand)
-            or not re.search(r"[\u4e00-\u9fff]", series)
-            or re.fullmatch(r"[a-z][a-z0-9-]*-?\d*", series)
+            or not has_chinese(brand)
+            or not has_chinese(series)
+            or is_slug_series(series)
         ):
             raise ValueError("Yiche identity requires approved status and Chinese brand/series")
     return ("fallback", brand, series, model, year)
@@ -56,12 +86,18 @@ def load_json_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def filter_valid_identity_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def filter_valid_identity_rows(
+    rows: list[dict[str, Any]],
+    *,
+    require_publish_boundary: bool = False,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     valid = []
     invalid = []
     for row in rows:
         try:
             identity_key(row)
+            if require_publish_boundary and not publish_boundary_valid(row):
+                raise ValueError("identity row does not satisfy publish boundary")
         except ValueError:
             invalid.append(row)
         else:
@@ -145,7 +181,9 @@ def main() -> int:
     stable_rows = load_rows(args.stable)
     debug_invalid_identity_dropped = 0
     if dedupe_partial:
-        debug_rows, invalid_debug_rows = filter_valid_identity_rows(load_json_rows(args.debug))
+        debug_rows, invalid_debug_rows = filter_valid_identity_rows(
+            load_json_rows(args.debug), require_publish_boundary=True
+        )
         debug_invalid_identity_dropped = len(invalid_debug_rows)
     else:
         debug_rows = load_rows(args.debug)

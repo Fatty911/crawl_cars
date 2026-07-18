@@ -137,13 +137,13 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
                 self.assertNotEqual(0, result.returncode)
 
     def test_dongchedi_partial_dedupes_incoming_rows_but_stable_still_wins(self) -> None:
-        stable = [{"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "stable"}]
-        first_new = {"车系ID": "101", "车型名称": "B", "年款": "2026", "价格": "first"}
+        stable = [{"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "价格": "stable"}]
+        first_new = {"车系ID": "101", "品牌": "甲", "车系": "甲车系", "车型名称": "B", "年款": "2026", "价格": "first"}
         debug = [
-            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "debug"},
-            {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "debug-duplicate"},
+            {"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "价格": "debug"},
+            {"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "价格": "debug-duplicate"},
             first_new,
-            {"车系ID": "101", "车型名称": "B", "年款": "2026", "价格": "second"},
+            {"车系ID": "101", "品牌": "甲", "车系": "甲车系", "车型名称": "B", "年款": "2026", "价格": "second"},
         ]
 
         result, rows = self.run_prepare(
@@ -169,8 +169,8 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         )
 
     def test_dongchedi_partial_drops_invalid_debug_identity_without_expanding_output(self) -> None:
-        stable = [{"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "stable"}]
-        valid_new = {"车系ID": "101", "车型名称": "B", "年款": "2026", "价格": "new"}
+        stable = [{"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "价格": "stable"}]
+        valid_new = {"车系ID": "101", "品牌": "甲", "车系": "甲车系", "车型名称": "B", "年款": "2026", "价格": "new"}
         dirty = {"车系ID": "102", "品牌": "坏数据", "年款": "", "价格": "dirty"}
 
         result, rows = self.run_prepare(
@@ -188,7 +188,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(2, stats["output_rows"])
 
     def test_dongchedi_partial_dedupe_never_allows_duplicate_stable_input(self) -> None:
-        row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
+        row = {"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026"}
 
         result, _ = self.run_prepare(
             [row, dict(row)],
@@ -850,3 +850,55 @@ class YicheDirtyPublishRegressionTests(unittest.TestCase):
             {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "approved"},
         ]
         self.assertEqual([False, False, False, True], [self.merge_data.keep_pages_year(row) for row in rows])
+
+class FilterPagesSourceBaselineTests(unittest.TestCase):
+    def run_filter(self, rows: list[dict], source: str) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_path = root / "latest.json"
+            output_path = root / "baseline.json"
+            input_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPTS / "filter_pages_source_baseline.py"),
+                    "--input",
+                    str(input_path),
+                    "--output",
+                    str(output_path),
+                    "--source",
+                    source,
+                    "--min-rows",
+                    "1",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            return result, json.loads(output_path.read_text(encoding="utf-8")) if output_path.exists() else []
+
+    def test_pages_fallback_keeps_only_exact_single_source_and_reports_cross_source(self) -> None:
+        rows = [
+            {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "甲车系", "车型名称": "甲 2026款", "年款": "2026"},
+            {"数据来源": "汽车之家+懂车帝(车系级)", "品牌": "甲", "车系": "甲车系", "车型名称": "甲 2026款", "年款": "2026"},
+            {"数据来源": "仅汽车之家", "品牌": "乙", "车系": "乙车系", "车型名称": "乙 2026款", "年款": "2026"},
+        ]
+
+        result, output = self.run_filter(rows, "dongchedi")
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([rows[0]], output)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["cross_source_dropped"])
+        self.assertEqual(1, stats["single_source"])
+
+    def test_pages_fallback_drops_invalid_identity_before_writing_baseline(self) -> None:
+        valid = {"数据来源": "仅汽车之家", "品牌": "甲", "车系": "甲车系", "车型名称": "甲 2026款", "年款": "2026"}
+        dirty = {"数据来源": "仅汽车之家", "品牌": "甲", "车系": "modely-6224", "车型名称": "甲 2026款", "年款": "2026"}
+
+        result, output = self.run_filter([valid, dirty], "autohome")
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([valid], output)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["invalid_identity_dropped"])
