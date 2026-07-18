@@ -238,7 +238,7 @@ class AutohomeCompletionTests(unittest.TestCase):
             "target_type": "history",
         }
         official_page = """
-        <html><head><title>Model 3 2022款 后轮驱动版参数配置表_特斯拉_汽车之家</title></head>
+        <html><head><title>【Model 3 2022款 后轮驱动版参数配置表】价格单_特斯拉_汽车之家</title></head>
         <body>
           <a href="https://www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>
           <div>总功率：194 kW</div>
@@ -297,6 +297,12 @@ class AutohomeCompletionTests(unittest.TestCase):
             self.autohome.build_autohome_history_spec_page_html(
                 target,
                 '<title>Model 3 2022款 即将上市版参数配置表_特斯拉_汽车之家</title><a href="/spec/54529/">54529</a>',
+            )
+        )
+        self.assertIsNone(
+            self.autohome.build_autohome_history_spec_page_html(
+                target,
+                '<title>【Model 3 2022款参数配置表】价格单_特斯拉_汽车之家</title><a href="/spec/54529/">54529</a>',
             )
         )
 

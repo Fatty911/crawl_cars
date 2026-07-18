@@ -467,12 +467,14 @@ def build_autohome_history_spec_page_html(target, page_html):
     title = title.split("_汽车之家", 1)[0]
     title = title.split("-汽车之家", 1)[0]
     title = title.replace("价格单_特斯拉_汽车之家", "").strip()
-    model_name = re.sub(r"参数配置表.*$", "", title).strip()
+    model_name = re.sub(r"参数配置表.*$", "", title).strip("【】[] ")
     series_name = str(target.get("series") or "").strip()
     if series_name and model_name.startswith(series_name):
-        model_name = model_name[len(series_name):].strip()
+        model_name = model_name[len(series_name):].strip("【】[] ")
     year_match = re.search(r"((?:19|20)\d{2})\s*款", model_name)
     if not model_name or not year_match:
+        return None
+    if not re.search(r"(?:19|20)\d{2}\s*款\s*\S+", model_name):
         return None
     if re.search(r"预售|未上市|即将上市|概念", model_name):
         return None
