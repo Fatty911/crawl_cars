@@ -196,7 +196,7 @@ jobs:
           mapfile -t YICHE_STABLE < <(find merge-inputs/stable/yiche -maxdepth 1 -type f -name 'yiche_*.json' -print)
           if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ] || [ "${#DONGCHEDI_STABLE[@]}" -ne 1 ]; then
             echo "当前半月 stable artifact 不齐备，改用 Pages 已发布精确单源行作为缺失 stable 基线"
-            curl --fail --show-error --silent --location --retry 2 --connect-timeout 15 --max-time 60 \
+            curl --fail --show-error --silent --location --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 180 \
               https://cars.jiucai.eu.org/data/latest.json \
               --output merge-inputs/current-pages-latest.json
             if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ]; then
@@ -400,7 +400,7 @@ jobs:
         if: steps.validate.outputs.ready == 'true'
         run: |
           set -euo pipefail
-          curl --fail --show-error --silent --location --retry 2 --connect-timeout 15 --max-time 60 \
+          curl --fail --show-error --silent --location --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 180 \
             https://cars.jiucai.eu.org/data/latest.json \
             --output /tmp/current-pages-latest.json
           python scripts/preserve_publish_baseline.py \
