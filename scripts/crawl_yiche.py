@@ -107,9 +107,12 @@ def yiche_sale_status(raw_value):
     text = " ".join(value for value in values if value)
     if any(token in text for token in YICHE_UNAPPROVED_STATUS_TEXT):
         return "unapproved"
-    if any(token in text for token in YICHE_APPROVED_STATUS_TEXT) or any(is_positive_yiche_sale_status(value) for value in values):
+    if any(token in text for token in YICHE_APPROVED_STATUS_TEXT):
         return "approved"
-    if any(value in {"0", "-1"} for value in values):
+    lowered = {value.lower() for value in values if value}
+    if lowered & {"1", "2", "3", "sale", "onsale", "on_sale", "sell", "selling", "listed"}:
+        return "approved"
+    if lowered & {"0", "-1", "presale", "pre_sale", "coming"}:
         return "unapproved"
     return "unknown"
 
@@ -639,10 +642,6 @@ def add_quality_counts(stats, rows):
         stats[key] = stats.get(key, 0) + value
 
 
-def is_positive_yiche_sale_status(value):
-    return yiche_sale_status({"saleStatusName": value}) == "approved"
-
-
 def series_home_url(page_url):
     return normalize_series_url(page_url).replace("/peizhi/", "/")
 
@@ -819,7 +818,9 @@ def enrich_identity(rows, url, target=None):
         row.setdefault("年款", normalize_model_year(row.get("车型名称")))
         status_value = row.get("易车上市状态") or row.get("上市状态") or row.get("状态")
         if status_value:
-            row.setdefault("易车上市状态", "approved" if is_positive_yiche_sale_status(status_value) else "unapproved")
+            status = yiche_sale_status({"saleStatusName": status_value})
+            if status in {"approved", "unapproved"}:
+                row.setdefault("易车上市状态", status)
         row.setdefault("数据来源", "易车")
     return rows
 
