@@ -132,12 +132,23 @@ def match_score(ah_row, dcd_row, require_year):
     return score, reasons
 
 
-def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58):
+def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_candidates=20000):
     ah_unused = sorted(ah_rows, key=model_sort_key)
     dcd_unused = sorted(dcd_rows, key=model_sort_key)
     pairs = []
     candidates = []
     require_year = level == "车系"
+    candidate_count = len(ah_unused) * len(dcd_unused)
+    if candidate_count > max_candidates:
+        stats.setdefault("_ambiguous_a", set()).update(id(row) for row in ah_unused)
+        stats.setdefault("_ambiguous_d", set()).update(id(row) for row in dcd_unused)
+        stats["大桶跳过"] = stats.get("大桶跳过", 0) + 1
+        stats["大桶候选"] = stats.get("大桶候选", 0) + candidate_count
+        print(
+            f"跳过过大车系模糊匹配桶: level={level} "
+            f"autohome={len(ah_unused)} dongchedi={len(dcd_unused)} candidates={candidate_count}"
+        )
+        return pairs
     for ai, ah_row in enumerate(ah_unused):
         for di, dcd_row in enumerate(dcd_unused):
             score, reasons = match_score(ah_row, dcd_row, require_year)
@@ -788,7 +799,7 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
     merged = []
     used_autohome = set()
     used_dongchedi = set()
-    stats = {'精确': 0, '规范': 0, '车系': 0, '仅汽车之家': 0, '仅懂车帝': 0, '仅易车': 0, '易车补充': 0, '低置信拒绝': 0, '歧义拒绝': 0}
+    stats = {'精确': 0, '规范': 0, '车系': 0, '仅汽车之家': 0, '仅懂车帝': 0, '仅易车': 0, '易车补充': 0, '低置信拒绝': 0, '歧义拒绝': 0, '大桶跳过': 0, '大桶候选': 0}
 
     # 第一级: 精确匹配
     for match_key, ah_rows in sorted(autohome_index.items()):
@@ -893,7 +904,7 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
     stats["合计"] = len(merged)
     global MERGE_ANALYSIS_STATS
     MERGE_ANALYSIS_STATS = dict(stats)
-    print(f"合并统计: 精确{stats['精确']} 规范{stats['规范']} 车系{merged_by_series['车系']} 车系(无年款){merged_by_series['车系(无年款)']} 易车补充{stats['易车补充']} 低置信拒绝{stats['低置信拒绝']} 歧义拒绝{stats['歧义拒绝']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 仅易车{stats['仅易车']} 合计{len(merged)}")
+    print(f"合并统计: 精确{stats['精确']} 规范{stats['规范']} 车系{merged_by_series['车系']} 车系(无年款){merged_by_series['车系(无年款)']} 易车补充{stats['易车补充']} 低置信拒绝{stats['低置信拒绝']} 歧义拒绝{stats['歧义拒绝']} 大桶跳过{stats['大桶跳过']} 大桶候选{stats['大桶候选']} 仅汽车之家{stats['仅汽车之家']} 仅懂车帝{stats['仅懂车帝']} 仅易车{stats['仅易车']} 合计{len(merged)}")
     return merged
 
 

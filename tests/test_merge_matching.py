@@ -91,6 +91,15 @@ def test_tied_feature_candidates_are_kept_as_single_source():
     assert merge_data.MERGE_ANALYSIS_STATS["歧义拒绝"] >= 1
 
 
+def test_large_series_feature_bucket_is_skipped_instead_of_cartesian_hang():
+    ah = [make("汽车之家", f"2026款 测试S {index}") for index in range(2)]
+    dcd = [make("懂车帝", f"测试S 2026款 {index}") for index in range(3)]
+
+    pairs = merge_data.pair_rows_by_features(ah, dcd, {}, "车系", max_candidates=5)
+
+    assert pairs == []
+
+
 def test_evidence_report_counts_both_atomic_sources_and_prefixed_synonyms():
     rows = []
     for index, series in enumerate(("S1", "S1", "S2", "S2")):
