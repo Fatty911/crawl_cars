@@ -204,6 +204,53 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(2, stats["stable_invalid_model_id_dropped"])
         self.assertEqual(1, stats["output_rows"])
 
+    def test_latin_commercial_autohome_series_survives_strict_merge_filter(self) -> None:
+        model3 = self.merge_row(
+            数据来源="仅汽车之家",
+            品牌="特斯拉",
+            车系="Model 3",
+            车系ID="5346",
+            车型名称="2022款 后轮驱动版",
+            年款="2022",
+            车款ID="54529",
+        )
+        ds9 = self.merge_row(
+            数据来源="仅汽车之家",
+            品牌="雪铁龙",
+            车系="DS 9",
+            车系ID="5001",
+            车型名称="2024款 歌剧院版",
+            年款="2024",
+            车款ID="60001",
+        )
+        mini = self.merge_row(
+            数据来源="仅汽车之家",
+            品牌="宝马",
+            车系="MINI",
+            车系ID="5002",
+            车型名称="2024款 Cooper",
+            年款="2024",
+            车款ID="60002",
+        )
+        invalid_rows = [
+            self.merge_row(数据来源="仅汽车之家", 品牌="特斯拉", 车系="modely-6224", 车型名称="2026款 Pro", 年款="2026", 车款ID="60003"),
+            self.merge_row(数据来源="仅汽车之家", 品牌="特斯拉", 车系="", 车型名称="2026款 Pro", 年款="2026", 车款ID="60004"),
+            self.merge_row(数据来源="仅汽车之家", 品牌="特斯拉", 车系="Model 3", 车型名称="2026款 Pro", 年款="2026", 车款ID=""),
+            self.merge_row(数据来源="仅汽车之家", 品牌="特斯拉", 车系="Model 3", 车型名称="2026款 Pro", 年款="2026", 车款ID="abc"),
+            self.merge_row(数据来源="仅汽车之家", 品牌="特斯拉", 车系="Model 3", 车型名称="2026款 Pro", 年款="", 车款ID="60005"),
+        ]
+
+        result, rows = self.run_prepare([model3, ds9], [mini] + invalid_rows)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([model3, ds9, mini], rows)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(5, stats["debug_invalid_dropped"])
+        self.assertEqual(2, stats["debug_invalid_series_dropped"])
+        self.assertEqual(2, stats["debug_invalid_model_id_dropped"])
+        self.assertEqual(1, stats["debug_invalid_year_dropped"])
+        self.assertIn(model3, rows)
+
     def test_empty_or_duplicate_input_fails_closed(self) -> None:
         row = self.merge_row()
         for stable, debug in [([], [row]), ([row], []), ([row, row], [row]), ([row], [row, row])]:

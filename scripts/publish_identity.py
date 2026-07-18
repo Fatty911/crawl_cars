@@ -24,6 +24,10 @@ def is_slug_series(text: str) -> bool:
     return bool(re.fullmatch(r"[a-z][a-z0-9-]*-\d+", text))
 
 
+def autohome_series_valid(series: str) -> bool:
+    return bool(series and series != "-" and not is_slug_series(series))
+
+
 def is_autohome_row(row: dict[str, Any]) -> bool:
     return "汽车之家" in str(row.get("数据来源", "") or "")
 
@@ -57,10 +61,9 @@ def autohome_publish_identity_valid(row: dict[str, Any]) -> bool:
     year = value(row, "年款")
     car_id = row_car_id(row)
     return (
-        bool(brand and series and model and YEAR_RE.fullmatch(year))
+        bool(brand and model and YEAR_RE.fullmatch(year))
         and has_chinese(brand)
-        and has_chinese(series)
-        and not is_slug_series(series)
+        and autohome_series_valid(series)
         and car_id.isdigit()
     )
 

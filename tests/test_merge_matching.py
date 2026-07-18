@@ -141,3 +141,15 @@ def test_publish_boundary_rejects_autohome_without_numeric_car_id():
 
     assert kept == [valid]
     assert stats["invalid_autohome_identity"] == 3
+
+
+def test_publish_boundary_keeps_autohome_latin_commercial_series():
+    model3 = make("仅汽车之家", "2022款 后轮驱动版", year="2022", brand="特斯拉", series="Model 3") | {"车系ID": "5346", "车款ID": "54529"}
+    ds9 = make("仅汽车之家", "2024款 歌剧院版", year="2024", brand="雪铁龙", series="DS 9") | {"车系ID": "5001", "车款ID": "60001"}
+    mini = make("仅汽车之家", "2024款 Cooper", year="2024", brand="宝马", series="MINI") | {"车系ID": "5002", "车款ID": "60002"}
+    dirty = make("仅汽车之家", "2026款 Pro", year="2026", brand="特斯拉", series="modely-6224") | {"车系ID": "100", "车款ID": "60003"}
+
+    kept, stats = merge_data.partition_publishable_rows([model3, ds9, mini, dirty])
+
+    assert kept == [model3, ds9, mini]
+    assert stats["invalid_autohome_identity"] == 1

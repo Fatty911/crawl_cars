@@ -104,6 +104,46 @@ def test_prepare_rows_rejects_autohome_slug_series():
             "车系": "modely-6224",
             "车型名称": "甲 2026款 Pro",
             "年款": "2026",
+            "车款ID": "54529",
         }
     ]
     assert MODULE.prepare_rows(rows, 2022) == []
+
+
+def test_prepare_rows_keeps_autohome_latin_commercial_series():
+    model3 = {
+        "数据来源": "仅汽车之家",
+        "品牌": "特斯拉",
+        "车系": "Model 3",
+        "车系ID": "5346",
+        "车型名称": "2022款 后轮驱动版",
+        "年款": "2022",
+        "车款ID": "54529",
+    }
+    ds9 = {
+        "数据来源": "仅汽车之家",
+        "品牌": "雪铁龙",
+        "车系": "DS 9",
+        "车系ID": "5001",
+        "车型名称": "2024款 歌剧院版",
+        "年款": "2024",
+        "车款ID": "60001",
+    }
+    mini = {
+        "数据来源": "仅汽车之家",
+        "品牌": "宝马",
+        "车系": "MINI",
+        "车系ID": "5002",
+        "车型名称": "2024款 Cooper",
+        "年款": "2024",
+        "车款ID": "60002",
+    }
+    invalid = [
+        dict(model3, 车系="modely-6224", 车款ID="60003"),
+        dict(model3, 车系="", 车款ID="60004"),
+        dict(model3, 年款="", 车款ID="60005"),
+        dict(model3, 车款ID=""),
+        dict(model3, 车款ID="abc"),
+    ]
+
+    assert MODULE.prepare_rows(invalid + [model3, ds9, mini], 2022) == [model3, ds9, mini]

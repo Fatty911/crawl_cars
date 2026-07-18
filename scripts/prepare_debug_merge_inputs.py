@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from publish_identity import has_chinese, identity_key, publish_boundary_valid, publish_year, row_car_id, value
+    from publish_identity import autohome_series_valid, has_chinese, identity_key, publish_boundary_valid, publish_year, row_car_id, value
 except ModuleNotFoundError:
-    from scripts.publish_identity import has_chinese, identity_key, publish_boundary_valid, publish_year, row_car_id, value
+    from scripts.publish_identity import autohome_series_valid, has_chinese, identity_key, publish_boundary_valid, publish_year, row_car_id, value
 
 
 def load_json_rows(path: Path) -> list[dict[str, Any]]:
@@ -54,7 +54,7 @@ def merge_identity_invalid_reason(row: dict[str, Any]) -> str:
     model_id = row_car_id(row)
     if not brand or not has_chinese(brand):
         return "invalid_brand"
-    if not series or not has_chinese(series):
+    if not autohome_series_valid(series):
         return "invalid_series"
     if not model:
         return "invalid_model_name"
