@@ -751,6 +751,15 @@ class WorkflowValidatorTests(unittest.TestCase):
             text,
         )
 
+    def test_partial_missing_stable_uses_pages_source_baseline_before_skip(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        fallback = "$PARTIAL_SOURCE 当前半月 stable artifact 不存在，改用 Pages 已发布同来源行作为 partial stable 基线"
+        self.assertIn(fallback, text)
+        self.assertIn("merge-inputs/current-pages-latest.json", text)
+        self.assertIn("autoHome_pages_baseline.json", text)
+        self.assertIn("dongchedi_pages_baseline.json", text)
+        self.assertLess(text.find(fallback), text.find('echo "爬虫 stable artifact 尚未齐备，交由完整性校验安全跳过"'))
+
     def test_partial_history_fallback_requires_exact_fresh_successful_attempt(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
         mutations = (
