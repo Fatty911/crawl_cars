@@ -335,9 +335,16 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
 
     def test_one_stable_and_twenty_five_debug_year_fallback_rows_verify(self) -> None:
-        baseline = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026", "车款ID": "54529"}]
+        baseline = [{"品牌": "甲", "车系": "甲车系", "车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026", "车款ID": "54529"}]
         debug_rows = [
-            {"车系ID": str(101 + index), "车型名称": f"{chr(66 + index)} 2026款 Pro", "年款": "", "车款ID": str(60000 + index)}
+            {
+                "品牌": "甲",
+                "车系": f"甲车系{index}",
+                "车系ID": str(101 + index),
+                "车型名称": f"{chr(66 + index)} 2026款 Pro",
+                "年款": "",
+                "车款ID": str(60000 + index),
+            }
             for index in range(25)
         ]
         candidate = self.merge_data.norm_rows(baseline + debug_rows, "汽车之家")
@@ -375,6 +382,33 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         result = self.run_verify(baseline, candidate)
 
         self.assertNotEqual(0, result.returncode)
+
+    def test_autohome_baseline_without_car_id_is_protected(self) -> None:
+        baseline = [
+            {
+                "数据来源": "仅汽车之家",
+                "品牌": "甲",
+                "车系": "甲车系",
+                "车系ID": "100",
+                "车型名称": "甲 2026款 Pro",
+                "年款": "2026",
+            }
+        ]
+        candidate = [
+            {
+                "数据来源": "仅懂车帝",
+                "品牌": "乙",
+                "车系": "乙车系",
+                "车系ID": "200",
+                "车型名称": "乙 2026款 Pro",
+                "年款": "2026",
+            }
+        ]
+
+        result = self.run_verify(baseline, candidate)
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("candidate is missing", result.stderr)
 
     def test_merge_single_row_and_single_source_rows_backfill_model_name_year(self) -> None:
         merged = self.merge_data.merge_single_row(

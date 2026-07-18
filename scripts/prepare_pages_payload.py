@@ -11,6 +11,22 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+try:
+    from publish_identity import (
+        autohome_publish_identity_valid,
+        is_autohome_row,
+        is_yiche_row,
+        row_car_id,
+        yiche_publish_identity_valid,
+    )
+except ModuleNotFoundError:
+    from scripts.publish_identity import (
+        autohome_publish_identity_valid,
+        is_autohome_row,
+        is_yiche_row,
+        row_car_id,
+        yiche_publish_identity_valid,
+    )
 
 YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 
@@ -35,37 +51,6 @@ def has_chinese(value: Any) -> bool:
     return bool(re.search(r"[\u4e00-\u9fff]", str(value or "")))
 
 
-def is_yiche_row(row: dict[str, Any]) -> bool:
-    return "易车" in str(row.get("数据来源", "") or "")
-
-
-def row_car_id(row: dict[str, Any]) -> str:
-    for field in ("车款ID", "易车车型ID", "车型ID", "spec_id", "specId"):
-        value = str(row.get(field) or "").strip()
-        if value and value != "-":
-            return value
-    return ""
-
-
-def yiche_publish_identity_valid(row: dict[str, Any]) -> bool:
-    if not is_yiche_row(row):
-        return True
-    brand = str(row.get("品牌") or "").strip()
-    series = str(row.get("车系") or "").strip()
-    model = str(row.get("车型名称") or "").strip()
-    status = str(row.get("易车上市状态") or "").strip()
-    return (
-        brand not in {"", "-"}
-        and series not in {"", "-"}
-        and model not in {"", "-"}
-        and has_chinese(brand)
-        and not re.fullmatch(r"[a-z][a-z0-9-]*-\d+", series)
-        and re.fullmatch(r"(?:19|20)\d{2}", str(row.get("年款") or "").strip()) is not None
-        and row_car_id(row).isdigit()
-        and status == "approved"
-    )
-
-
 def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
     if not isinstance(rows, list):
         raise ValueError("Pages payload input must be a JSON array")
@@ -78,7 +63,7 @@ def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
         source = str(row.get("数据来源", "") or "")
         if brand in {"", "-"} or model in {"", "-"} or not yiche_publish_identity_valid(row):
             continue
-        if "汽车之家" in source and not row_car_id(row).isdigit():
+        if is_autohome_row(row) and not autohome_publish_identity_valid(row):
             continue
         year = model_year(row)
         if year is None or year < min_year:

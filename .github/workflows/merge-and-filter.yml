@@ -396,8 +396,8 @@ jobs:
             exit 0
           fi
 
-      - name: Debug 保留当前 Pages 发布基线
-        if: steps.validate.outputs.ready == 'true' && github.event.inputs.debug_mode == 'true'
+      - name: 保留当前 Pages 发布基线
+        if: steps.validate.outputs.ready == 'true'
         run: |
           set -euo pipefail
           curl --fail --show-error --silent --location --retry 2 --connect-timeout 15 --max-time 60 \
@@ -427,8 +427,8 @@ jobs:
             exit 1
           fi
 
-      - name: Debug 发布防缩小校验
-        if: steps.validate.outputs.ready == 'true' && github.event.inputs.debug_mode == 'true'
+      - name: 发布防缩小校验
+        if: steps.validate.outputs.ready == 'true'
         run: |
           set -euo pipefail
           python scripts/verify_publish_superset.py \

@@ -11,72 +11,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-
-def _value(row: dict[str, Any], field: str) -> str:
-    value = str(row.get(field, "") or "").strip()
-    return "" if value == "-" else value
-
-
-def has_chinese(value: str) -> bool:
-    return bool(re.search(r"[\u4e00-\u9fff]", value))
-
-
-def is_slug_series(value: str) -> bool:
-    return bool(re.fullmatch(r"[a-z][a-z0-9-]*-\d+", value))
-
-
-def publish_boundary_valid(row: dict[str, Any]) -> bool:
-    if not isinstance(row, dict):
-        return False
-    brand = _value(row, "品牌")
-    series = _value(row, "车系")
-    model = _value(row, "车型名称")
-    year = _value(row, "年款")
-    source = _value(row, "数据来源")
-    if not year:
-        match = re.search(r"(?:19|20)\d{2}", model)
-        year = match.group(0) if match else ""
-    if not (brand and series and model and re.fullmatch(r"(?:19|20)\d{2}", year)):
-        return False
-    if is_slug_series(series):
-        return False
-    car_id = _value(row, "车款ID") or _value(row, "易车车型ID") or _value(row, "车型ID") or _value(row, "spec_id") or _value(row, "specId")
-    if "汽车之家" in source and not (car_id and car_id.isdigit()):
-        return False
-    if "易车" in source:
-        status = _value(row, "易车上市状态")
-        return bool(car_id and car_id.isdigit() and status == "approved")
-    return True
-
-
-def identity_key(row: dict[str, Any]) -> tuple[str, ...]:
-    if not isinstance(row, dict):
-        raise ValueError("each row must be a JSON object")
-    model = _value(row, "车型名称")
-    year = _value(row, "年款")
-    if not year:
-        match = re.search(r"(?:19|20)\d{2}", model)
-        year = match.group(0) if match else ""
-    series_id = _value(row, "车系ID")
-    if not model:
-        raise ValueError("identity requires 车型名称 and 年款")
-    brand = _value(row, "品牌")
-    series = _value(row, "车系")
-    if not year:
-        raise ValueError("identity requires 车型名称 and 年款")
-    if series_id:
-        return ("series_id", series_id, model, year)
-    if not brand or not series:
-        raise ValueError("identity without 车系ID requires 品牌 and 车系")
-    if "易车" in _value(row, "数据来源"):
-        status = _value(row, "易车上市状态")
-        if (
-            status != "approved"
-            or not has_chinese(brand)
-            or is_slug_series(series)
-        ):
-            raise ValueError("Yiche identity requires approved status and Chinese brand/series")
-    return ("fallback", brand, series, model, year)
+try:
+    from publish_identity import identity_key, publish_boundary_valid
+except ModuleNotFoundError:
+    from scripts.publish_identity import identity_key, publish_boundary_valid
 
 
 def load_json_rows(path: Path) -> list[dict[str, Any]]:

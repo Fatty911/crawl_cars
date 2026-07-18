@@ -6,6 +6,23 @@ import os
 import re
 from datetime import date
 
+try:
+    from publish_identity import (
+        autohome_publish_identity_valid,
+        is_autohome_row,
+        is_yiche_row,
+        row_car_id,
+        yiche_publish_identity_valid,
+    )
+except ModuleNotFoundError:
+    from scripts.publish_identity import (
+        autohome_publish_identity_valid,
+        is_autohome_row,
+        is_yiche_row,
+        row_car_id,
+        yiche_publish_identity_valid,
+    )
+
 DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 FILTER_CONFIG_PATH = os.path.join(DIR, "config", "filter_conditions.json")
@@ -271,46 +288,6 @@ def backfill_year_from_model_name(row):
     match = re.search(r"(?:19|20)\d{2}", str(row.get("车型名称", "") or ""))
     if match:
         row["年款"] = match.group(0)
-
-
-def is_yiche_row(row):
-    return "易车" in str(row.get("数据来源", "") or "")
-
-
-def is_autohome_row(row):
-    return "汽车之家" in str(row.get("数据来源", "") or "")
-
-
-def row_car_id(row):
-    for field in ("车款ID", "易车车型ID", "车型ID", "spec_id", "specId"):
-        value = str(row.get(field) or "").strip()
-        if value and value != "-":
-            return value
-    return ""
-
-
-def _has_chinese(value):
-    return bool(re.search(r"[\u4e00-\u9fff]", str(value or "")))
-
-
-def yiche_publish_identity_valid(row):
-    if not is_yiche_row(row):
-        return True
-    brand = str(row.get("品牌") or "").strip()
-    series = str(row.get("车系") or "").strip()
-    model = str(row.get("车型名称") or "").strip()
-    status = str(row.get("易车上市状态") or "").strip()
-    car_id = row_car_id(row)
-    return (
-        brand not in {"", "-"}
-        and series not in {"", "-"}
-        and model not in {"", "-"}
-        and _has_chinese(brand)
-        and not re.fullmatch(r"[a-z][a-z0-9-]*-\d+", series)
-        and re.fullmatch(r"(?:19|20)\d{2}", str(row.get("年款") or "").strip()) is not None
-        and car_id.isdigit()
-        and status == "approved"
-    )
 
 
 def keep_pages_year(row):
@@ -998,9 +975,9 @@ def partition_publishable_rows(rows):
         if is_yiche_row(row) and not yiche_publish_identity_valid(row):
             stats["invalid_yiche_identity"] += 1
             continue
-        if is_autohome_row(row) and not row_car_id(row).isdigit():
-            stats.setdefault("invalid_autohome_id", 0)
-            stats["invalid_autohome_id"] += 1
+        if is_autohome_row(row) and not autohome_publish_identity_valid(row):
+            stats.setdefault("invalid_autohome_identity", 0)
+            stats["invalid_autohome_identity"] += 1
             continue
         brand = str(row.get("品牌") or "").strip()
         model = str(row.get("车型名称") or "").strip()
@@ -1065,7 +1042,9 @@ def main():
     all_rows, publish_stats = partition_publishable_rows(all_rows)
     print(
         f"发布身份门禁: valid={len(all_rows)} invalid_brand={publish_stats['invalid_brand']} "
-        f"invalid_model_name={publish_stats['invalid_model_name']}"
+        f"invalid_model_name={publish_stats['invalid_model_name']} "
+        f"invalid_autohome_identity={publish_stats.get('invalid_autohome_identity', 0)} "
+        f"invalid_yiche_identity={publish_stats['invalid_yiche_identity']}"
     )
     before_year_filter = len(all_rows)
     all_rows = [row for row in all_rows if keep_pages_year(row)]

@@ -78,3 +78,28 @@ def test_prepare_rows_rejects_dirty_yiche_rows():
         {"品牌": "凯迪拉克", "车系": "凯威德", "车型名称": "2026款 豪华版", "年款": "2026", "数据来源": "仅易车", "易车上市状态": "approved", "车款ID": "1001"},
     ]
     assert MODULE.prepare_rows(rows, 2022) == [rows[2]]
+
+
+def test_prepare_rows_keeps_autohome_without_car_id_when_identity_is_clean():
+    row = {
+        "数据来源": "仅汽车之家",
+        "品牌": "甲",
+        "车系": "甲车系",
+        "车系ID": "100",
+        "车型名称": "甲 2026款 Pro",
+        "年款": "2026",
+    }
+    assert MODULE.prepare_rows([row], 2022) == [row]
+
+
+def test_prepare_rows_rejects_autohome_slug_series():
+    rows = [
+        {
+            "数据来源": "仅汽车之家",
+            "品牌": "甲",
+            "车系": "modely-6224",
+            "车型名称": "甲 2026款 Pro",
+            "年款": "2026",
+        }
+    ]
+    assert MODULE.prepare_rows(rows, 2022) == []

@@ -126,3 +126,15 @@ def test_publish_boundary_rejects_blank_brand_and_model():
     kept, stats = merge_data.partition_publishable_rows(rows)
     assert kept == [rows[0]]
     assert stats == {"invalid_brand": 0, "invalid_model_name": 0, "invalid_yiche_identity": 2}
+
+
+def test_publish_boundary_keeps_autohome_without_car_id_when_identity_is_clean():
+    rows = [
+        make("仅汽车之家", "甲 2026款 Pro", brand="甲", series="甲车系") | {"车系ID": "100"},
+        make("仅汽车之家", "脏 2026款 Pro", brand="甲", series="modely-6224") | {"车系ID": "101"},
+    ]
+
+    kept, stats = merge_data.partition_publishable_rows(rows)
+
+    assert kept == [rows[0]]
+    assert stats["invalid_autohome_identity"] == 1

@@ -373,8 +373,9 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         and upload_position != -1
         and merge_position < preserve_position < verify_position < upload_position
         and "https://cars.jiucai.eu.org/data/latest.json" in text
-        and "github.event.inputs.debug_mode == 'true'" in text,
-        "merge-and-filter.yml 缺少 merge 后、artifact/Release 前的 debug-only 基线保留与防缩小校验",
+        and "Debug 保留当前 Pages 发布基线" not in text
+        and "Debug 发布防缩小校验" not in text,
+        "merge-and-filter.yml 缺少 merge 后、artifact/Release 前的全路径基线保留与防缩小校验",
         errors,
     )
     assert_condition(
@@ -408,8 +409,8 @@ def check_deploy_workflow(path: Path, errors: list[str]) -> None:
         and upload_position != -1
         and verify_position < copy_position < upload_position
         and "https://cars.jiucai.eu.org/data/latest.json" in text
-        and 'if [ "$DEBUG_MODE" = "true" ]; then' in text,
-        "deploy-pages.yml 缺少复制/上传 Pages 数据前的 debug 防缩小复核",
+        and 'if [ "$DEBUG_MODE" = "true" ]; then' not in text,
+        "deploy-pages.yml 缺少复制/上传 Pages 数据前的全路径防缩小复核",
         errors,
     )
 
