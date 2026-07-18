@@ -552,6 +552,10 @@ def cache_key_for_history_target(series_id, year, spec_id):
     return f"{series_id}_spec_{year}_{spec_id}"
 
 
+def autohome_history_config_url(spec_id):
+    return f"https://car.autohome.com.cn/config/spec/{spec_id}.html"
+
+
 def sale_page_has_verifiable_structure(sale_html):
     if re.search(r"验证码|安全验证|访问验证|人机验证|请稍后重试", sale_html):
         return False
@@ -580,7 +584,7 @@ def parse_sale_history_targets(series_id, brand, series_name, sale_html):
             "year": str(year),
             "brand": brand,
             "series": series_name,
-            "url": f"https://car.autohome.com.cn/config/spec/{spec_id}.html",
+            "url": autohome_history_config_url(spec_id),
             "target_type": "history",
         })
     return [targets_by_year[year] for year in sorted(targets_by_year)]

@@ -298,6 +298,28 @@ class AutohomeCompletionTests(unittest.TestCase):
         self.assertEqual("5346_spec_2022_54529", targets[0]["cache_key"])
         self.assertEqual("https://car.autohome.com.cn/config/spec/54529.html", targets[0]["url"])
 
+    def test_history_targets_all_use_official_car_config_spec_host(self) -> None:
+        links = "\n".join(
+            f'<a href="//www.autohome.com.cn/spec/{54529 + idx}/">202{idx % 5 + 2}款 小样{idx}</a>'
+            for idx in range(20)
+        )
+
+        targets = self.autohome.parse_sale_history_targets(
+            "5346",
+            "特斯拉",
+            "Model 3",
+            f"<div>{links}</div>",
+        )
+
+        self.assertEqual(5, len(targets))
+        for target in targets:
+            self.assertRegex(
+                target["url"],
+                r"^https://car\.autohome\.com\.cn/config/spec/\d+\.html$",
+            )
+            self.assertNotIn("https://www.autohome.com.cn/spec/", target["url"])
+            self.assertNotIn("https://www.autohome.com.cn/config/spec/", target["url"])
+
     def test_history_cache_key_maps_to_original_series_in_output(self) -> None:
         self.assertEqual("5346", self.autohome.original_series_id_from_cache_key("5346_spec_2022_54529"))
 
