@@ -159,7 +159,7 @@ def main() -> int:
     args = parser.parse_args()
     dedupe_partial = (
         os.environ.get("DEBUG_MODE") == "false"
-        and os.environ.get("TRIGGER_SOURCE") == "dongchedi-crawl"
+        and os.environ.get("TRIGGER_SOURCE") in {"autohome-crawl", "dongchedi-crawl"}
     )
     stable_rows, stable_filter_stats = load_merge_rows(args.stable)
     debug_rows, debug_filter_stats = load_merge_rows(args.debug)

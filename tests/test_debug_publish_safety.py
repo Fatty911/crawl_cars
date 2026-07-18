@@ -167,6 +167,26 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(2, stats["output_rows"])
 
 
+
+    def test_autohome_partial_dedupes_incoming_rows_after_strict_filter(self) -> None:
+        stable = [self.merge_row(车款ID="", 价格="old-invalid")]
+        valid_debug = self.merge_row(车系ID="102", 车款ID="54531", 车型名称="C", 价格="first")
+        duplicate_debug = dict(valid_debug, 价格="second")
+
+        result, rows = self.run_prepare(
+            stable,
+            [valid_debug, duplicate_debug],
+            debug_mode="false",
+            trigger_source="autohome-crawl",
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([valid_debug], rows)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["debug_duplicates_dropped"])
+        self.assertEqual(1, stats["debug_added"])
+        self.assertEqual(1, stats["output_rows"])
+
     def test_invalid_stable_rows_can_be_replaced_by_valid_partial_rows(self) -> None:
         stable = [
             self.merge_row(车款ID="", 价格="missing-id"),
@@ -266,7 +286,6 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
             ("", "dongchedi-crawl"),
             ("true", "dongchedi-crawl"),
             ("TRUE", "dongchedi-crawl"),
-            ("false", "autohome-crawl"),
             (None, None),
         ]
         for debug_mode, trigger_source in cases:
