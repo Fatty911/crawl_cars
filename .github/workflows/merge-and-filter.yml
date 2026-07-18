@@ -194,15 +194,16 @@ jobs:
           mapfile -t AUTOHOME_STABLE < <(find merge-inputs/stable/autohome -maxdepth 1 -type f -name 'autoHome_*.json' -print)
           mapfile -t DONGCHEDI_STABLE < <(find merge-inputs/stable/dongchedi -maxdepth 1 -type f -name 'dongchedi_*.json' -print)
           mapfile -t YICHE_STABLE < <(find merge-inputs/stable/yiche -maxdepth 1 -type f -name 'yiche_*.json' -print)
-          if [ -n "$PARTIAL_ARTIFACT_NAME" ] && { [ "$PARTIAL_SOURCE" = "autohome" ] && [ "${#AUTOHOME_STABLE[@]}" -ne 1 ] || [ "$PARTIAL_SOURCE" = "dongchedi" ] && [ "${#DONGCHEDI_STABLE[@]}" -ne 1 ]; }; then
-            echo "$PARTIAL_SOURCE 当前半月 stable artifact 不存在，改用 Pages 已发布同来源行作为 partial stable 基线"
+          if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ] || [ "${#DONGCHEDI_STABLE[@]}" -ne 1 ]; then
+            echo "当前半月 stable artifact 不齐备，改用 Pages 已发布精确单源行作为缺失 stable 基线"
             curl --fail --show-error --silent --location --retry 2 --connect-timeout 15 --max-time 60 \
               https://cars.jiucai.eu.org/data/latest.json \
               --output merge-inputs/current-pages-latest.json
-            if [ "$PARTIAL_SOURCE" = "autohome" ]; then
+            if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ]; then
               python scripts/filter_pages_source_baseline.py --input merge-inputs/current-pages-latest.json --output merge-inputs/stable/autohome/autoHome_pages_baseline.json --source autohome --min-rows 50
               mapfile -t AUTOHOME_STABLE < <(find merge-inputs/stable/autohome -maxdepth 1 -type f -name 'autoHome_*.json' -print)
-            else
+            fi
+            if [ "${#DONGCHEDI_STABLE[@]}" -ne 1 ]; then
               python scripts/filter_pages_source_baseline.py --input merge-inputs/current-pages-latest.json --output merge-inputs/stable/dongchedi/dongchedi_pages_baseline.json --source dongchedi --min-rows 50
               mapfile -t DONGCHEDI_STABLE < <(find merge-inputs/stable/dongchedi -maxdepth 1 -type f -name 'dongchedi_*.json' -print)
             fi
