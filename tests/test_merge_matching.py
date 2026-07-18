@@ -119,7 +119,7 @@ def test_evidence_report_counts_both_atomic_sources_and_prefixed_synonyms():
 
 def test_publish_boundary_rejects_blank_brand_and_model():
     rows = [
-        make("仅易车", "有效车型", brand="真实品牌") | {"易车上市状态": "approved"},
+        make("仅易车", "有效车型", brand="真实品牌") | {"易车上市状态": "approved", "车款ID": "185727"},
         make("仅易车", "空品牌", brand="  "),
         make("仅易车", "-", brand="真实品牌"),
     ]

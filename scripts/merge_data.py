@@ -277,6 +277,18 @@ def is_yiche_row(row):
     return "易车" in str(row.get("数据来源", "") or "")
 
 
+def is_autohome_row(row):
+    return "汽车之家" in str(row.get("数据来源", "") or "")
+
+
+def row_car_id(row):
+    for field in ("车款ID", "易车车型ID", "车型ID", "spec_id", "specId"):
+        value = str(row.get(field) or "").strip()
+        if value and value != "-":
+            return value
+    return ""
+
+
 def _has_chinese(value):
     return bool(re.search(r"[\u4e00-\u9fff]", str(value or "")))
 
@@ -288,14 +300,15 @@ def yiche_publish_identity_valid(row):
     series = str(row.get("车系") or "").strip()
     model = str(row.get("车型名称") or "").strip()
     status = str(row.get("易车上市状态") or "").strip()
+    car_id = row_car_id(row)
     return (
         brand not in {"", "-"}
         and series not in {"", "-"}
         and model not in {"", "-"}
         and _has_chinese(brand)
-        and _has_chinese(series)
-        and not re.fullmatch(r"[a-z][a-z0-9-]*-?\d*", series)
+        and not re.fullmatch(r"[a-z][a-z0-9-]*-\d+", series)
         and re.fullmatch(r"(?:19|20)\d{2}", str(row.get("年款") or "").strip()) is not None
+        and car_id.isdigit()
         and status == "approved"
     )
 
@@ -984,6 +997,10 @@ def partition_publishable_rows(rows):
     for row in rows:
         if is_yiche_row(row) and not yiche_publish_identity_valid(row):
             stats["invalid_yiche_identity"] += 1
+            continue
+        if is_autohome_row(row) and not row_car_id(row).isdigit():
+            stats.setdefault("invalid_autohome_id", 0)
+            stats["invalid_autohome_id"] += 1
             continue
         brand = str(row.get("品牌") or "").strip()
         model = str(row.get("车型名称") or "").strip()

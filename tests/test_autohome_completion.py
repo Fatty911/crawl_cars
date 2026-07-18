@@ -111,6 +111,55 @@ class AutohomeCompletionTests(unittest.TestCase):
             ):
                 self.assertFalse(self.autohome.is_step1_completed())
 
+
+    def test_api_html_preserves_spec_id_as_car_id(self) -> None:
+        payload = {
+            "result": {
+                "bread": {"seriesname": "Model 3"},
+                "titlelist": [
+                    {"groupname": "参数信息", "items": [{"itemname": "车型名称"}]},
+                ],
+                "datalist": [
+                    {"specid": 54529, "specname": "2022款 后轮驱动版", "paramconflist": [{"itemname": "2022款 后轮驱动版"}]},
+                ],
+            }
+        }
+
+        html = self.autohome.build_autohome_api_html("5346", payload)
+
+        self.assertIsNotNone(html)
+        config = self.autohome.extract_var_json(html, "config")
+        identity_items = config["result"]["paramtypeitems"][0]["paramitems"]
+        self.assertIn({"name": "车款ID", "valueitems": [{"value": "54529"}]}, identity_items)
+
+    def test_history_discovery_slice_allows_target_phase_to_run(self) -> None:
+        manifest = {}
+        progress = {}
+        response = mock.Mock(
+            status_code=200,
+            text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
+            apparent_encoding="utf-8",
+        )
+        with (
+            mock.patch.object(self.autohome, "progress", progress),
+            mock.patch.object(self.autohome.session, "get", mock.Mock(return_value=response)),
+            mock.patch.object(self.autohome, "check_time_limit", return_value=False),
+            mock.patch.dict("os.environ", {"AUTOHOME_HISTORY_DISCOVERY_BATCH": "1"}),
+        ):
+            targets = self.autohome.prepare_autohome_targets(
+                [
+                    {"car_id": "5346", "brand": "特斯拉", "series": "Model 3"},
+                    {"car_id": "2", "brand": "特斯拉", "series": "Model Y"},
+                ],
+                manifest,
+                0,
+            )
+
+        self.assertFalse(progress["history_discovery_complete"])
+        self.assertGreaterEqual(len(targets), 2)
+        self.assertEqual("5346", targets[0]["cache_key"])
+        self.assertIn("5346_spec_2022_54529", [target["cache_key"] for target in targets])
+
     def test_sale_page_parser_keeps_one_2022_plus_spec_per_year(self) -> None:
         html = """
         <div class="spec-cont">
@@ -210,17 +259,16 @@ class AutohomeCompletionTests(unittest.TestCase):
                 mock.patch.object(self.autohome, "check_time_limit", side_effect=[False, True]),
                 mock.patch.object(self.autohome, "AUTO_MODE", True),
             ):
-                with self.assertRaises(SystemExit) as raised:
-                    self.autohome.discover_history_targets_until_deadline(
-                        [
-                            {"car_id": "already", "brand": "特斯拉", "series": "旧"},
-                            {"car_id": "5346", "brand": "特斯拉", "series": "Model 3"},
-                            {"car_id": "2", "brand": "特斯拉", "series": "Model Y"},
-                        ],
-                        manifest,
-                        0,
-                    )
-            self.assertEqual(10, raised.exception.code)
+                completed = self.autohome.discover_history_targets_until_deadline(
+                    [
+                        {"car_id": "already", "brand": "特斯拉", "series": "旧"},
+                        {"car_id": "5346", "brand": "特斯拉", "series": "Model 3"},
+                        {"car_id": "2", "brand": "特斯拉", "series": "Model Y"},
+                    ],
+                    manifest,
+                    0,
+                )
+            self.assertFalse(completed)
             self.assertEqual(2, progress["history_discovery_idx"])
             self.assertIn("5346_spec_2022_54529", manifest)
 
@@ -244,16 +292,15 @@ class AutohomeCompletionTests(unittest.TestCase):
                 mock.patch.object(self.autohome, "AUTO_MODE", True),
                 mock.patch.dict("os.environ", {"AUTOHOME_HISTORY_DISCOVERY_BATCH": "1"}),
             ):
-                with self.assertRaises(SystemExit) as raised:
-                    self.autohome.discover_history_targets_until_deadline(
-                        [
-                            {"car_id": "5346", "brand": "特斯拉", "series": "Model 3"},
-                            {"car_id": "2", "brand": "特斯拉", "series": "Model Y"},
-                        ],
-                        manifest,
-                        0,
-                    )
-            self.assertEqual(10, raised.exception.code)
+                completed = self.autohome.discover_history_targets_until_deadline(
+                    [
+                        {"car_id": "5346", "brand": "特斯拉", "series": "Model 3"},
+                        {"car_id": "2", "brand": "特斯拉", "series": "Model Y"},
+                    ],
+                    manifest,
+                    0,
+                )
+            self.assertFalse(completed)
             self.assertEqual(1, progress["history_discovery_idx"])
             self.assertEqual(1, get_mock.call_count)
 
@@ -284,8 +331,8 @@ class AutohomeCompletionTests(unittest.TestCase):
                     manifest,
                     0,
                 )
-            self.assertEqual(201, progress["history_discovery_idx"])
-            self.assertEqual(201, get_mock.call_count)
+            self.assertEqual(120, progress["history_discovery_idx"])
+            self.assertEqual(120, get_mock.call_count)
 
     def test_history_discovery_pending_advances_to_next_series(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -307,16 +354,15 @@ class AutohomeCompletionTests(unittest.TestCase):
                 mock.patch.object(self.autohome, "check_time_limit", return_value=False),
                 mock.patch.object(self.autohome, "AUTO_MODE", True),
             ):
-                with self.assertRaises(SystemExit) as raised:
-                    self.autohome.discover_history_targets_until_deadline(
-                        [
-                            {"car_id": "bad", "brand": "品牌", "series": "坏页"},
-                            {"car_id": "good", "brand": "品牌", "series": "好页"},
-                        ],
-                        manifest,
-                        0,
-                    )
-            self.assertEqual(10, raised.exception.code)
+                completed = self.autohome.discover_history_targets_until_deadline(
+                    [
+                        {"car_id": "bad", "brand": "品牌", "series": "坏页"},
+                        {"car_id": "good", "brand": "品牌", "series": "好页"},
+                    ],
+                    manifest,
+                    0,
+                )
+            self.assertFalse(completed)
             self.assertEqual(2, get_mock.call_count)
             self.assertIn("bad_history_pending", manifest)
             self.assertIn("good_spec_2022_54529", manifest)

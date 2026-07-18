@@ -269,8 +269,8 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertIn("identity requires", result.stderr)
 
     def test_yiche_explicit_year_uses_existing_year_identity(self) -> None:
-        stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "甲车系", "车型名称": "易车旧款", "年款": "2021", "价格": "stable", "易车上市状态": "approved"}]
-        debug = [{"数据来源": "仅易车", "品牌": "甲", "车系": "甲车系", "车型名称": "易车旧款", "年款": "2021", "价格": "debug", "易车上市状态": "approved"}]
+        stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "甲车系", "车型名称": "易车旧款", "年款": "2021", "价格": "stable", "易车上市状态": "approved", "车款ID": "1001"}]
+        debug = [{"数据来源": "仅易车", "品牌": "甲", "车系": "甲车系", "车型名称": "易车旧款", "年款": "2021", "价格": "debug", "易车上市状态": "approved", "车款ID": "1001"}]
 
         result, rows = self.run_prepare(stable, debug)
 
@@ -327,7 +327,7 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         )
 
     def test_model_name_year_fallback_matches_explicit_baseline_year(self) -> None:
-        baseline = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026"}]
+        baseline = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026", "车款ID": "54529"}]
         candidate = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": ""}]
 
         result = self.run_verify(baseline, candidate)
@@ -335,9 +335,9 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
 
     def test_one_stable_and_twenty_five_debug_year_fallback_rows_verify(self) -> None:
-        baseline = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026"}]
+        baseline = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026", "车款ID": "54529"}]
         debug_rows = [
-            {"车系ID": str(101 + index), "车型名称": f"{chr(66 + index)} 2026款 Pro", "年款": ""}
+            {"车系ID": str(101 + index), "车型名称": f"{chr(66 + index)} 2026款 Pro", "年款": "", "车款ID": str(60000 + index)}
             for index in range(25)
         ]
         candidate = self.merge_data.norm_rows(baseline + debug_rows, "汽车之家")
@@ -844,10 +844,10 @@ class YicheDirtyPublishRegressionTests(unittest.TestCase):
 
     def test_keep_pages_year_drops_dirty_yiche_rows(self) -> None:
         rows = [
-            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "modely-6224", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "approved"},
-            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y", "年款": "-", "易车上市状态": "approved"},
+            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "modely-6224", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "approved", "车款ID": "1001"},
+            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y", "年款": "-", "易车上市状态": "approved", "车款ID": "1001"},
             {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "unapproved"},
-            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "approved"},
+            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "approved", "车款ID": "1001"},
         ]
         self.assertEqual([False, False, False, True], [self.merge_data.keep_pages_year(row) for row in rows])
 
@@ -893,7 +893,7 @@ class FilterPagesSourceBaselineTests(unittest.TestCase):
         self.assertEqual(1, stats["single_source"])
 
     def test_pages_fallback_drops_invalid_identity_before_writing_baseline(self) -> None:
-        valid = {"数据来源": "仅汽车之家", "品牌": "甲", "车系": "甲车系", "车型名称": "甲 2026款", "年款": "2026"}
+        valid = {"数据来源": "仅汽车之家", "品牌": "甲", "车系": "甲车系", "车型名称": "甲 2026款", "年款": "2026", "车款ID": "54529"}
         dirty = {"数据来源": "仅汽车之家", "品牌": "甲", "车系": "modely-6224", "车型名称": "甲 2026款", "年款": "2026"}
 
         result, output = self.run_filter([valid, dirty], "autohome")

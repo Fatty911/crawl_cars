@@ -295,6 +295,8 @@ def build_value_items(api_rows, title_index, fallback_name=None):
         value = "-"
         if fallback_name == "年款":
             value = extract_model_year(spec) or "-"
+        elif fallback_name == "车款ID":
+            value = clean_value(str(spec.get("specid") or spec.get("specId") or spec.get("id") or "")) or "-"
         else:
             paramconf = spec.get("paramconflist") or []
             if isinstance(title_index, int) and title_index < len(paramconf):
@@ -338,8 +340,12 @@ def build_autohome_api_html(car_id, api_payload):
         if configitems:
             configtypeitems.append({"name": group_name, "configitems": configitems})
 
+    identity_items = []
     if not has_model_year:
-        paramtypeitems.insert(0, {"name": "基本参数", "paramitems": [{"name": "年款", "valueitems": build_value_items(data_list, None, "年款")} ]})
+        identity_items.append({"name": "年款", "valueitems": build_value_items(data_list, None, "年款")})
+    identity_items.append({"name": "车款ID", "valueitems": build_value_items(data_list, None, "车款ID")})
+    if identity_items:
+        paramtypeitems.insert(0, {"name": "基本参数", "paramitems": identity_items})
     if not any(
         item.get("name") == "车型名称" and any(v.get("value") != "-" for v in item.get("valueitems", []))
         for group in paramtypeitems
@@ -580,7 +586,7 @@ def pending_history_indices(series_queue, manifest):
 
 def discover_history_targets_until_deadline(series_queue, manifest, start_time):
     cursor = int(progress.get("history_discovery_idx", 0) or 0)
-    batch_limit = int(os.getenv("AUTOHOME_HISTORY_DISCOVERY_BATCH", "0"))
+    batch_limit = int(os.getenv("AUTOHOME_HISTORY_DISCOVERY_BATCH", "120"))
     processed = 0
     while cursor < len(series_queue):
         if check_time_limit(start_time) or (batch_limit > 0 and processed >= batch_limit):
@@ -588,7 +594,7 @@ def discover_history_targets_until_deadline(series_queue, manifest, start_time):
             save_target_manifest(manifest)
             with open(progress_file, "w") as f:
                 json.dump(progress, f)
-            stop_incomplete_step1(f"汽车之家历史目标发现未完成：{cursor}/{len(series_queue)}")
+            return False
         item = series_queue[cursor]
         series_id = str(item.get("car_id", ""))
         if not series_id or has_history_discovery_state(series_id, manifest):
@@ -612,7 +618,7 @@ def discover_history_targets_until_deadline(series_queue, manifest, start_time):
         save_target_manifest(manifest)
         with open(progress_file, "w") as f:
             json.dump(progress, f)
-        stop_incomplete_step1(f"汽车之家历史目标发现存在待重试目标：{len(pending)}")
+        return False
     return True
 
 
@@ -656,7 +662,8 @@ def prepare_autohome_targets(series_queue, manifest, start_time):
         )
         return build_autohome_targets(sampled_queue, manifest)
 
-    discover_history_targets_until_deadline(series_queue, manifest, start_time)
+    discovery_complete = discover_history_targets_until_deadline(series_queue, manifest, start_time)
+    progress["history_discovery_complete"] = discovery_complete
     return build_autohome_targets(series_queue, manifest)
 
 
@@ -1212,6 +1219,14 @@ def download_car_pages():
         message = f"step1真实目标缓存不完整：缺少或无效 {len(missing_indices)}/{len(targets)} 个目标，从队列 {retry_index} 重试"
         stop_incomplete_step1(message)
 
+    if not progress.get("history_discovery_complete"):
+        progress["cars_downloaded"] = cars_downloaded
+        progress["target_idx"] = len(targets)
+        progress["download_car_pages"] = letters
+        with open(progress_file, "w") as f:
+            json.dump(progress, f)
+        stop_incomplete_step1("汽车之家历史目标发现仍未完成，但本轮已推进真实目标抓取")
+
     # 全部队列完成
     progress["target_idx"] = len(targets)
     progress["cars_downloaded"] = cars_downloaded
@@ -1543,7 +1558,7 @@ def generate_csv():
     print("第六步,生成CSV")
     today = date.today().strftime("%Y%m%d")
 
-    fixed = ["数据来源", "品牌", "车系", "车系ID", "车型名称", "年款"]
+    fixed = ["数据来源", "品牌", "车系", "车系ID", "车型名称", "年款", "车款ID"]
     all_h, rows = [], []
 
     for file in os.listdir(newjson_dir):
@@ -1597,6 +1612,9 @@ def generate_csv():
                 ym = re.search(r"(\d{4})", ys)
                 if ym and int(ym.group(1)) < MIN_YEAR:
                     continue
+                target_spec_id = str(target_meta.get("spec_id") or "")
+                parsed_spec_ids = data.get("车款ID", [])
+                spec_id = clean_value(parsed_spec_ids[i]) if i < len(parsed_spec_ids) else target_spec_id
                 row = {
                     "数据来源": "汽车之家",
                     "品牌": brand,
@@ -1604,8 +1622,9 @@ def generate_csv():
                     "车系ID": series_id,
                     "车型名称": names[i] if i < len(names) else "",
                     "年款": ys,
+                    "车款ID": spec_id,
                 }
-                if not row["品牌"] or not row["车系"] or not row["车型名称"] or not re.search(r"(?:19|20)\d{2}", row["年款"]):
+                if not row["品牌"] or not row["车系"] or not row["车型名称"] or not re.search(r"(?:19|20)\d{2}", row["年款"]) or not str(row.get("车款ID", "")).isdigit():
                     continue
                 for h in all_h:
                     v = data.get(h, [])

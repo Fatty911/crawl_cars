@@ -79,16 +79,19 @@ def contains_chinese(value):
     return bool(re.search(r"[\u4e00-\u9fff]", clean_text(value)))
 
 
-def normalize_model_year(value):
+def normalize_model_year(value, *, trusted_bare_year=False):
     text = clean_text(value)
-    match = re.search(r"((?:19|20)\d{2})\s*款", text) or re.search(r"((?:19|20)\d{2})", text)
+    match = re.search(r"((?:19|20)\d{2})\s*款", text)
     if match:
         return match.group(1)
+    if trusted_bare_year:
+        match = re.fullmatch(r"(?:19|20)\d{2}", text) or re.search(r"((?:19|20)\d{2})", text)
+        if match:
+            return match.group(0) if match.lastindex is None else match.group(1)
     match = re.search(r"(?<!\d)(\d{2})\s*款", text)
     if match:
-        year = 2000 + int(match.group(1))
-        if 2000 <= year <= 2099:
-            return str(year)
+        short_year = int(match.group(1))
+        return str(1900 + short_year if short_year >= 80 else 2000 + short_year)
     return ""
 
 
@@ -684,7 +687,7 @@ def extract_from_config_api(payload, target=None):
                 sale_status = yiche_sale_status(raw_value)
                 if model_name:
                     rows[index]["车型名称"] = model_name
-                    rows[index].setdefault("年款", normalize_model_year(model_year) or normalize_model_year(model_name))
+                    rows[index].setdefault("年款", normalize_model_year(model_year, trusted_bare_year=True) or normalize_model_year(model_name))
                 if brand_name:
                     rows[index]["品牌"] = brand_name
                 if series_name:

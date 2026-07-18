@@ -691,3 +691,52 @@ def test_approved_and_unapproved_api_statuses_do_not_fetch_sale_page(monkeypatch
     )
 
     assert approved == [rows[0]]
+
+
+
+def test_yiche_two_digit_years_do_not_use_model_code_as_year():
+    cases = {
+        "8968": ("99款 2.6L MT", "1999"),
+        "8967": ("99款 2.2L MT", "1999"),
+        "6896": ("94款 1.8L", "1994"),
+        "6897": ("94款 2.0L", "1994"),
+        "6898": ("94款 2.2L（五缸）", "1994"),
+        "6899": ("94款 2.6L（六缸）", "1994"),
+        "105": ("03款 BJ2032Z2F1", "2003"),
+    }
+    payload = {
+        "data": [
+            {
+                "items": [
+                    {
+                        "name": "车型名称",
+                        "paramValues": [
+                            {
+                                "value": name,
+                                "id": car_id,
+                                "status": 1,
+                                "baseInfo": json.dumps(
+                                    {
+                                        "saleStatus": 1,
+                                        "brandName": "测试品牌",
+                                        "serialName": "测试车系",
+                                        "carName": name,
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                            }
+                            for car_id, (name, _year) in cases.items()
+                        ],
+                    },
+                    {
+                        "name": "价格",
+                        "paramValues": [{"value": "1万", "id": car_id, "status": 1} for car_id in cases],
+                    },
+                ]
+            }
+        ]
+    }
+
+    rows = yiche.validate_real_rows(yiche.extract_from_config_api(payload, {"brand": "测试品牌", "series": "测试车系"}))
+
+    assert {row["车款ID"]: row["年款"] for row in rows} == {car_id: year for car_id, (_name, year) in cases.items()}

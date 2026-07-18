@@ -22,7 +22,7 @@ def has_chinese(value: str) -> bool:
 
 
 def is_slug_series(value: str) -> bool:
-    return bool(re.fullmatch(r"[a-z][a-z0-9-]*-?\d*", value))
+    return bool(re.fullmatch(r"[a-z][a-z0-9-]*-\d+", value))
 
 
 def publish_boundary_valid(row: dict[str, Any]) -> bool:
@@ -38,10 +38,12 @@ def publish_boundary_valid(row: dict[str, Any]) -> bool:
         year = match.group(0) if match else ""
     if not (brand and series and model and re.fullmatch(r"(?:19|20)\d{2}", year)):
         return False
-    if not has_chinese(series) or is_slug_series(series):
+    if is_slug_series(series):
+        return False
+    car_id = _value(row, "车款ID") or _value(row, "易车车型ID") or _value(row, "车型ID") or _value(row, "spec_id") or _value(row, "specId")
+    if "汽车之家" in source and not (car_id and car_id.isdigit()):
         return False
     if "易车" in source:
-        car_id = _value(row, "车款ID") or _value(row, "易车车型ID") or _value(row, "车型ID")
         status = _value(row, "易车上市状态")
         return bool(car_id and car_id.isdigit() and status == "approved")
     return True
@@ -71,7 +73,6 @@ def identity_key(row: dict[str, Any]) -> tuple[str, ...]:
         if (
             status != "approved"
             or not has_chinese(brand)
-            or not has_chinese(series)
             or is_slug_series(series)
         ):
             raise ValueError("Yiche identity requires approved status and Chinese brand/series")
