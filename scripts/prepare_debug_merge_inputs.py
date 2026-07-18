@@ -81,6 +81,7 @@ def prepare_rows(
     debug_rows: list[dict[str, Any]],
     *,
     dedupe_partial: bool = False,
+    debug_invalid_identity_dropped: int = 0,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if not stable_rows or not debug_rows:
         raise ValueError("stable and debug inputs must both be non-empty")
@@ -112,6 +113,7 @@ def prepare_rows(
         "debug_duplicates_dropped": debug_duplicates_dropped,
         "overlap_kept_stable": overlap,
         "debug_added": len(added_keys),
+        "debug_invalid_identity_dropped": debug_invalid_identity_dropped,
         "output_rows": len(output),
     }
     return output, stats
@@ -136,13 +138,23 @@ def main() -> int:
     parser.add_argument("--debug", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    stable_rows = load_rows(args.stable)
-    debug_rows = load_rows(args.debug)
     dedupe_partial = (
         os.environ.get("DEBUG_MODE") == "false"
         and os.environ.get("TRIGGER_SOURCE") == "dongchedi-crawl"
     )
-    output, stats = prepare_rows(stable_rows, debug_rows, dedupe_partial=dedupe_partial)
+    stable_rows = load_rows(args.stable)
+    debug_invalid_identity_dropped = 0
+    if dedupe_partial:
+        debug_rows, invalid_debug_rows = filter_valid_identity_rows(load_json_rows(args.debug))
+        debug_invalid_identity_dropped = len(invalid_debug_rows)
+    else:
+        debug_rows = load_rows(args.debug)
+    output, stats = prepare_rows(
+        stable_rows,
+        debug_rows,
+        dedupe_partial=dedupe_partial,
+        debug_invalid_identity_dropped=debug_invalid_identity_dropped,
+    )
     write_json_atomic(args.output, output)
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0

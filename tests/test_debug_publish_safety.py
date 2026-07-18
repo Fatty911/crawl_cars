@@ -118,6 +118,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
                 "debug_duplicates_dropped": 0,
                 "overlap_kept_stable": 2,
                 "debug_added": 1,
+                "debug_invalid_identity_dropped": 0,
                 "output_rows": 3,
             },
             stats,
@@ -161,10 +162,30 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
                 "debug_duplicates_dropped": 2,
                 "overlap_kept_stable": 1,
                 "debug_added": 1,
+                "debug_invalid_identity_dropped": 0,
                 "output_rows": 2,
             },
             json.loads(result.stdout.strip().splitlines()[-1]),
         )
+
+    def test_dongchedi_partial_drops_invalid_debug_identity_without_expanding_output(self) -> None:
+        stable = [{"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "stable"}]
+        valid_new = {"车系ID": "101", "车型名称": "B", "年款": "2026", "价格": "new"}
+        dirty = {"车系ID": "102", "品牌": "坏数据", "年款": "", "价格": "dirty"}
+
+        result, rows = self.run_prepare(
+            stable,
+            [dirty, valid_new],
+            debug_mode="false",
+            trigger_source="dongchedi-crawl",
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(stable + [valid_new], rows)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["debug_invalid_identity_dropped"])
+        self.assertEqual(1, stats["debug_added"])
+        self.assertEqual(2, stats["output_rows"])
 
     def test_dongchedi_partial_dedupe_never_allows_duplicate_stable_input(self) -> None:
         row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
