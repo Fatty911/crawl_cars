@@ -137,15 +137,16 @@ test("Pages only uses the deduplicated 2022+ display set for source coverage and
     row("仅懂车帝", 2023, "懂车帝款"),
     row("合作数据源+易车", 2024, "未知来源合并款"),
     row("仅懂车帝", 2024, "未知来源合并款"),
+    { "数据来源": "仅易车", "品牌": "测试品牌", "车系": "测试车系", "车型名称": "易车无年款款" },
     row("仅懂车帝", 2025, "分行双源款"),
     row("仅汽车之家+易车", 2025, "分行双源款")
   ]);
   hooks.renderResultsOnly();
 
-  assert.equal(hooks.state.rows.length, 4);
-  assert.deepEqual(
-    Array.from(new Set(hooks.state.rows.map((item) => Number(item["年款"])))).sort(),
-    [2022, 2023, 2024, 2025]
+  assert.equal(hooks.state.rows.length, 5);
+  assert.equal(
+    JSON.stringify(hooks.state.rows.map((item) => item["车型名称"]).sort()),
+    JSON.stringify(["分行双源款", "双源款", "懂车帝款", "易车无年款款", "未知来源合并款"].sort())
   );
 
   const verified = hooks.state.rows.find((item) => item["车型名称"] === "双源款");
@@ -169,21 +170,21 @@ test("Pages only uses the deduplicated 2022+ display set for source coverage and
     ["懂车帝", "汽车之家", "易车"].sort()
   );
 
-  assert.equal(elements.get("visibleCount").textContent, "4");
-  assert.equal(elements.get("totalCount").textContent, "4");
+  assert.equal(elements.get("visibleCount").textContent, "5");
+  assert.equal(elements.get("totalCount").textContent, "5");
   assert.equal(elements.get("verifiedCount").textContent, "3");
   assert.equal(elements.get("dongchediCount").textContent, "4");
   assert.equal(elements.get("autohomeCount").textContent, "2");
-  assert.equal(elements.get("yicheCount").textContent, "3");
+  assert.equal(elements.get("yicheCount").textContent, "4");
 
   hooks.state.search = "不存在的车型";
   hooks.renderResultsOnly();
   assert.equal(elements.get("visibleCount").textContent, "0");
-  assert.equal(elements.get("totalCount").textContent, "4");
+  assert.equal(elements.get("totalCount").textContent, "5");
   assert.equal(elements.get("verifiedCount").textContent, "3");
   assert.equal(elements.get("dongchediCount").textContent, "4");
   assert.equal(elements.get("autohomeCount").textContent, "2");
-  assert.equal(elements.get("yicheCount").textContent, "3");
+  assert.equal(elements.get("yicheCount").textContent, "4");
 });
 
 test("Pages page jump rejects invalid values and clamps valid integers", () => {

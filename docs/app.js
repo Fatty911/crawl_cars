@@ -218,6 +218,18 @@
     return atomicSources(row["核验来源"] || row["数据来源"]).indexOf(source) !== -1;
   }
 
+  function rowAllowsMissingYear(row) {
+    return rowHasSource(row, "易车");
+  }
+
+  function keepDisplayYear(row) {
+    var year = modelYear(row);
+    if (!year) {
+      return rowAllowsMissingYear(row);
+    }
+    return Number(year) >= 2022;
+  }
+
   function canonicalModelName(row) {
     var name = String(row["车型名称"] || "").trim();
     var series = String(row["车系"] || "").trim();
@@ -1675,7 +1687,7 @@
 
   function initializeRows(rows) {
     var displayRows = mergeVerifiedRows(Array.isArray(rows) ? rows : []).filter(function (row) {
-      return Number(modelYear(row)) >= 2022;
+      return keepDisplayYear(row);
     });
     state.rows = withDerivedDimensions(displayRows);
     state.expandedSeries.clear();
