@@ -54,8 +54,15 @@ def autohome_publish_identity_valid(row: dict[str, Any]) -> bool:
     brand = value(row, "品牌")
     series = value(row, "车系")
     model = value(row, "车型名称")
-    year = publish_year(row)
-    return bool(brand and series and model and year and not is_slug_series(series))
+    year = value(row, "年款")
+    car_id = row_car_id(row)
+    return (
+        bool(brand and series and model and YEAR_RE.fullmatch(year))
+        and has_chinese(brand)
+        and has_chinese(series)
+        and not is_slug_series(series)
+        and car_id.isdigit()
+    )
 
 
 def yiche_publish_identity_valid(row: dict[str, Any]) -> bool:

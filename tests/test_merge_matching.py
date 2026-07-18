@@ -128,13 +128,16 @@ def test_publish_boundary_rejects_blank_brand_and_model():
     assert stats == {"invalid_brand": 0, "invalid_model_name": 0, "invalid_yiche_identity": 2}
 
 
-def test_publish_boundary_keeps_autohome_without_car_id_when_identity_is_clean():
+def test_publish_boundary_rejects_autohome_without_numeric_car_id():
+    valid = make("仅汽车之家", "甲 2026款 Pro", brand="甲", series="甲车系") | {"车系ID": "100", "车款ID": "54529"}
     rows = [
-        make("仅汽车之家", "甲 2026款 Pro", brand="甲", series="甲车系") | {"车系ID": "100"},
-        make("仅汽车之家", "脏 2026款 Pro", brand="甲", series="modely-6224") | {"车系ID": "101"},
+        valid,
+        make("仅汽车之家", "缺ID 2026款 Pro", brand="甲", series="甲车系") | {"车系ID": "101"},
+        make("仅汽车之家", "脏ID 2026款 Pro", brand="甲", series="甲车系") | {"车系ID": "102", "车款ID": "abc"},
+        make("仅汽车之家", "脏车系 2026款 Pro", brand="甲", series="modely-6224") | {"车系ID": "103", "车款ID": "54530"},
     ]
 
     kept, stats = merge_data.partition_publishable_rows(rows)
 
-    assert kept == [rows[0]]
-    assert stats["invalid_autohome_identity"] == 1
+    assert kept == [valid]
+    assert stats["invalid_autohome_identity"] == 3

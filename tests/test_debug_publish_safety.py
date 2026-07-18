@@ -53,6 +53,18 @@ class ZeroToWholeRatioDateTests(unittest.TestCase):
 
 
 class PrepareDebugMergeInputsTests(unittest.TestCase):
+    def merge_row(self, **overrides: str) -> dict[str, str]:
+        row = {
+            "品牌": "甲",
+            "车系": "甲车系",
+            "车系ID": "100",
+            "车型名称": "A",
+            "年款": "2026",
+            "车款ID": "54529",
+        }
+        row.update(overrides)
+        return row
+
     def run_prepare(
         self,
         stable: list[dict],
@@ -97,13 +109,13 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
 
     def test_stable_row_wins_and_debug_only_identity_is_appended(self) -> None:
         stable = [
-            {"车系ID": "100", "车型名称": "A Max", "年款": "2026", "价格": "stable"},
-            {"品牌": "甲", "车系": "A", "车型名称": "A Pro", "年款": "2025", "价格": "stable-fallback"},
+            self.merge_row(车型名称="A Max", 价格="stable"),
+            self.merge_row(车系ID="101", 车型名称="A Pro", 年款="2025", 价格="stable-fallback"),
         ]
         debug = [
-            {"车系ID": "100", "车型名称": "A Max", "年款": "2026", "价格": "debug"},
-            {"品牌": "甲", "车系": "A", "车型名称": "A Pro", "年款": "2025", "价格": "debug-fallback"},
-            {"车系ID": "101", "车型名称": "A Ultra", "年款": "2026", "价格": "new"},
+            self.merge_row(车型名称="A Max", 价格="debug"),
+            self.merge_row(车系ID="101", 车型名称="A Pro", 年款="2025", 价格="debug-fallback"),
+            self.merge_row(车系ID="102", 车型名称="A Ultra", 价格="new"),
         ]
 
         result, rows = self.run_prepare(stable, debug)
@@ -114,7 +126,11 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(
             {
                 "stable_input": 2,
+                "stable_raw_input": 2,
+                "stable_invalid_dropped": 0,
                 "debug_input": 3,
+                "debug_raw_input": 3,
+                "debug_invalid_dropped": 0,
                 "debug_duplicates_dropped": 0,
                 "overlap_kept_stable": 2,
                 "debug_added": 1,
@@ -129,21 +145,42 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         result, _ = self.run_prepare(incomplete, [])
         self.assertNotEqual(0, result.returncode)
 
+    def test_invalid_stable_rows_are_audited_and_excluded_before_identity_merge(self) -> None:
+        valid_stable = self.merge_row(价格="stable")
+        valid_debug = self.merge_row(车系ID="101", 车型名称="B", 价格="debug")
+        stable = [
+            dict(valid_stable),
+            self.merge_row(车系ID="102", 车型名称="", 价格="missing-model"),
+            self.merge_row(车系ID="103", 年款="", 车型名称="缺少年款", 价格="missing-year"),
+        ]
+        debug = [dict(valid_stable, 价格="debug-overlap"), valid_debug]
+
+        result, rows = self.run_prepare(stable, debug)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([valid_stable, valid_debug], rows)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(3, stats["stable_raw_input"])
+        self.assertEqual(2, stats["stable_invalid_dropped"])
+        self.assertEqual(1, stats["stable_invalid_model_name_dropped"])
+        self.assertEqual(1, stats["stable_invalid_year_dropped"])
+        self.assertEqual(2, stats["output_rows"])
+
     def test_empty_or_duplicate_input_fails_closed(self) -> None:
-        row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
+        row = self.merge_row()
         for stable, debug in [([], [row]), ([row], []), ([row, row], [row]), ([row], [row, row])]:
             with self.subTest(stable=len(stable), debug=len(debug)):
                 result, _ = self.run_prepare(stable, debug)
                 self.assertNotEqual(0, result.returncode)
 
     def test_dongchedi_partial_dedupes_incoming_rows_but_stable_still_wins(self) -> None:
-        stable = [{"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "价格": "stable"}]
-        first_new = {"车系ID": "101", "品牌": "甲", "车系": "甲车系", "车型名称": "B", "年款": "2026", "价格": "first"}
+        stable = [self.merge_row(价格="stable")]
+        first_new = self.merge_row(车系ID="101", 车型名称="B", 价格="first")
         debug = [
-            {"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "价格": "debug"},
-            {"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "价格": "debug-duplicate"},
+            self.merge_row(价格="debug"),
+            self.merge_row(价格="debug-duplicate"),
             first_new,
-            {"车系ID": "101", "品牌": "甲", "车系": "甲车系", "车型名称": "B", "年款": "2026", "价格": "second"},
+            self.merge_row(车系ID="101", 车型名称="B", 价格="second"),
         ]
 
         result, rows = self.run_prepare(
@@ -158,7 +195,11 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(
             {
                 "stable_input": 1,
+                "stable_raw_input": 1,
+                "stable_invalid_dropped": 0,
                 "debug_input": 4,
+                "debug_raw_input": 4,
+                "debug_invalid_dropped": 0,
                 "debug_duplicates_dropped": 2,
                 "overlap_kept_stable": 1,
                 "debug_added": 1,
@@ -169,8 +210,8 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         )
 
     def test_dongchedi_partial_drops_invalid_debug_identity_without_expanding_output(self) -> None:
-        stable = [{"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "价格": "stable"}]
-        valid_new = {"车系ID": "101", "品牌": "甲", "车系": "甲车系", "车型名称": "B", "年款": "2026", "价格": "new"}
+        stable = [{"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026", "车款ID": "54529", "价格": "stable"}]
+        valid_new = {"车系ID": "101", "品牌": "甲", "车系": "甲车系", "车型名称": "B", "年款": "2026", "车款ID": "54530", "价格": "new"}
         dirty = {"车系ID": "102", "品牌": "坏数据", "年款": "", "价格": "dirty"}
 
         result, rows = self.run_prepare(
@@ -188,7 +229,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(2, stats["output_rows"])
 
     def test_dongchedi_partial_dedupe_never_allows_duplicate_stable_input(self) -> None:
-        row = {"车系ID": "100", "品牌": "甲", "车系": "甲车系", "车型名称": "A", "年款": "2026"}
+        row = self.merge_row()
 
         result, _ = self.run_prepare(
             [row, dict(row)],
@@ -201,7 +242,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertIn("stable input contains duplicate identities", result.stderr)
 
     def test_partial_dedupe_environment_fails_closed_outside_normal_dongchedi(self) -> None:
-        row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
+        row = self.merge_row()
         cases = [
             (None, "dongchedi-crawl"),
             ("", "dongchedi-crawl"),
@@ -221,16 +262,16 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
                 self.assertNotEqual(0, result.returncode)
                 self.assertIn("debug input contains duplicate identities", result.stderr)
 
-    def test_missing_series_id_uses_fallback_and_identity_keeps_model_and_year(self) -> None:
-        stable = [{"车系ID": "-", "品牌": "甲", "车系": "A", "车型名称": "A", "年款": "2025"}]
+    def test_missing_series_id_is_dropped_before_merge_identity(self) -> None:
+        stable = [self.merge_row(车系ID="-", 年款="2025", 车款ID="-")]
         debug = [
-            {"车系ID": "100", "车型名称": "A", "年款": "2025"},
-            {"车系ID": "100", "车型名称": "A Pro", "年款": "2025"},
-            {"车系ID": "100", "车型名称": "A", "年款": "2026"},
+            self.merge_row(年款="2025"),
+            self.merge_row(车型名称="A Pro", 年款="2025"),
+            self.merge_row(年款="2026"),
         ]
         result, rows = self.run_prepare(stable, debug)
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual(stable + debug, rows)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("stable and debug inputs must both be non-empty", result.stderr)
 
     def test_yiche_no_year_fails_closed(self) -> None:
         stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "", "价格": "stable"}]
@@ -242,7 +283,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         result, rows = self.run_prepare(stable, debug)
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("identity requires", result.stderr)
+        self.assertIn("stable and debug inputs must both be non-empty", result.stderr)
 
     def test_yiche_no_year_without_brand_or_series_fails_closed(self) -> None:
         row = {"数据来源": "仅易车", "品牌": "甲", "车型名称": "易车受限款", "年款": ""}
@@ -250,7 +291,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         result, rows = self.run_prepare([row], [row])
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("identity requires", result.stderr)
+        self.assertIn("stable and debug inputs must both be non-empty", result.stderr)
 
     def test_yiche_no_year_without_model_still_fails_closed(self) -> None:
         row = {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "", "年款": ""}
@@ -258,7 +299,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         result, _ = self.run_prepare([row], [row])
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("identity requires", result.stderr)
+        self.assertIn("stable and debug inputs must both be non-empty", result.stderr)
 
     def test_non_yiche_no_year_still_fails_closed(self) -> None:
         row = {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "A", "车型名称": "未知年款", "年款": ""}
@@ -266,7 +307,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         result, _ = self.run_prepare([row], [row])
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("identity requires", result.stderr)
+        self.assertIn("stable and debug inputs must both be non-empty", result.stderr)
 
     def test_yiche_explicit_year_uses_existing_year_identity(self) -> None:
         stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "甲车系", "车型名称": "易车旧款", "年款": "2021", "价格": "stable", "易车上市状态": "approved", "车款ID": "1001"}]
@@ -283,7 +324,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         result, _ = self.run_prepare([row, dict(row)], [row])
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("identity requires", result.stderr)
+        self.assertIn("stable and debug inputs must both be non-empty", result.stderr)
 
 
 class VerifyPublishSupersetTests(unittest.TestCase):
@@ -383,7 +424,7 @@ class VerifyPublishSupersetTests(unittest.TestCase):
 
         self.assertNotEqual(0, result.returncode)
 
-    def test_autohome_baseline_without_car_id_is_protected(self) -> None:
+    def test_autohome_baseline_without_car_id_is_dropped_before_superset_check(self) -> None:
         baseline = [
             {
                 "数据来源": "仅汽车之家",
@@ -402,13 +443,15 @@ class VerifyPublishSupersetTests(unittest.TestCase):
                 "车系ID": "200",
                 "车型名称": "乙 2026款 Pro",
                 "年款": "2026",
+                "易车上市状态": "approved",
+                "车款ID": "1001",
             }
         ]
 
         result = self.run_verify(baseline, candidate)
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("candidate is missing", result.stderr)
+        self.assertIn("2022+ baseline and candidate must both be non-empty", result.stderr)
 
     def test_merge_single_row_and_single_source_rows_backfill_model_name_year(self) -> None:
         merged = self.merge_data.merge_single_row(

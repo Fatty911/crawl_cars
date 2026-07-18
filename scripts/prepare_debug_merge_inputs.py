@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from publish_identity import identity_key, publish_boundary_valid
+    from publish_identity import has_chinese, identity_key, publish_boundary_valid, publish_year, row_car_id, value
 except ModuleNotFoundError:
-    from scripts.publish_identity import identity_key, publish_boundary_valid
+    from scripts.publish_identity import has_chinese, identity_key, publish_boundary_valid, publish_year, row_car_id, value
 
 
 def load_json_rows(path: Path) -> list[dict[str, Any]]:
@@ -44,11 +44,54 @@ def filter_valid_identity_rows(
     return valid, invalid
 
 
+def merge_identity_invalid_reason(row: dict[str, Any]) -> str:
+    if not isinstance(row, dict):
+        return "not_object"
+    brand = value(row, "品牌")
+    series = value(row, "车系")
+    model = value(row, "车型名称")
+    year = value(row, "年款")
+    model_id = row_car_id(row)
+    if not brand or not has_chinese(brand):
+        return "invalid_brand"
+    if not series or not has_chinese(series):
+        return "invalid_series"
+    if not model:
+        return "invalid_model_name"
+    if not re.fullmatch(r"(?:19|20)\d{2}", year):
+        return "invalid_year"
+    if not model_id or not re.fullmatch(r"\d+", model_id):
+        return "invalid_model_id"
+    try:
+        identity_key(row)
+    except ValueError as exc:
+        return f"invalid_identity:{exc}"
+    return ""
+
+
+def filter_merge_identity_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    valid = []
+    stats: dict[str, int] = {"input": len(rows), "invalid_dropped": 0}
+    for row in rows:
+        reason = merge_identity_invalid_reason(row)
+        if reason:
+            stats["invalid_dropped"] += 1
+            stats[f"{reason}_dropped"] = stats.get(f"{reason}_dropped", 0) + 1
+        else:
+            valid.append(row)
+    stats["valid"] = len(valid)
+    return valid, stats
+
+
 def load_rows(path: Path) -> list[dict[str, Any]]:
     rows = load_json_rows(path)
     for row in rows:
         identity_key(row)
     return rows
+
+
+def load_merge_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    return filter_merge_identity_rows(load_json_rows(path))
 
 
 def prepare_rows(
@@ -117,21 +160,24 @@ def main() -> int:
         os.environ.get("DEBUG_MODE") == "false"
         and os.environ.get("TRIGGER_SOURCE") == "dongchedi-crawl"
     )
-    stable_rows = load_rows(args.stable)
-    debug_invalid_identity_dropped = 0
-    if dedupe_partial:
-        debug_rows, invalid_debug_rows = filter_valid_identity_rows(
-            load_json_rows(args.debug), require_publish_boundary=True
-        )
-        debug_invalid_identity_dropped = len(invalid_debug_rows)
-    else:
-        debug_rows = load_rows(args.debug)
+    stable_rows, stable_filter_stats = load_merge_rows(args.stable)
+    debug_rows, debug_filter_stats = load_merge_rows(args.debug)
     output, stats = prepare_rows(
         stable_rows,
         debug_rows,
         dedupe_partial=dedupe_partial,
-        debug_invalid_identity_dropped=debug_invalid_identity_dropped,
+        debug_invalid_identity_dropped=debug_filter_stats["invalid_dropped"],
     )
+    stats.update({
+        "stable_raw_input": stable_filter_stats["input"],
+        "stable_invalid_dropped": stable_filter_stats["invalid_dropped"],
+        "debug_raw_input": debug_filter_stats["input"],
+        "debug_invalid_dropped": debug_filter_stats["invalid_dropped"],
+    })
+    for prefix, filter_stats in (("stable", stable_filter_stats), ("debug", debug_filter_stats)):
+        for key, value in filter_stats.items():
+            if key.endswith("_dropped") and key != "invalid_dropped" and value:
+                stats[f"{prefix}_{key}"] = value
     write_json_atomic(args.output, output)
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0
