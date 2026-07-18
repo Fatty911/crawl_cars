@@ -645,3 +645,49 @@ def test_sale_filter_uses_target_model_ids_when_sale_page_blocked(monkeypatch):
     assert approved == [rows[0]]
     assert rows[0]["易车上市状态"] == "approved"
     assert rows[1]["易车上市状态"] == "unapproved"
+
+
+def test_serial_id_target_uses_config_api_before_page_fetch(monkeypatch):
+    def fail_page_fetch(session, url):
+        raise AssertionError(f"page fetch should not run for serialId target: {url}")
+
+    payload = {"data": [{"items": [
+        {"name": "车型名称", "paramValues": [{"value": "2026款 405km Air", "id": "185727", "saleStatus": "1"}]},
+        {"name": "厂商指导价", "paramValues": [{"value": "9.99万", "id": "185727", "saleStatus": "1"}]},
+    ]}]}
+
+    monkeypatch.setattr(yiche, "fetch", fail_page_fetch)
+    monkeypatch.setattr(yiche, "fetch_config_api", lambda session, serial_id: payload)
+
+    rows = yiche.crawl(
+        {"https://car.yiche.com/changanqiyuanq05-11958/peizhi/": {"serial_id": "11958", "brand": "长安启源", "series": "长安启源Q05"}},
+        delay=0,
+    )
+
+    assert rows == [{
+        "车型名称": "2026款 405km Air",
+        "年款": "2026",
+        "车款ID": "185727",
+        "易车上市状态": "approved",
+        "价格": "9.99万",
+        "品牌": "长安启源",
+        "车系": "长安启源Q05",
+        "数据来源": "易车",
+    }]
+
+
+def test_approved_and_unapproved_api_statuses_do_not_fetch_sale_page(monkeypatch):
+    rows = [
+        {"品牌": "长安启源", "车系": "长安启源Q05", "车型名称": "2026款 405km Air", "年款": "2026", "车款ID": "185727", "价格": "9.99万", "易车上市状态": "approved"},
+        {"品牌": "长安启源", "车系": "长安启源Q05", "车型名称": "2026款 基本型", "年款": "2026", "车款ID": "190799", "价格": "暂无", "易车上市状态": "unapproved"},
+    ]
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: (_ for _ in ()).throw(AssertionError("sale page should not be fetched")))
+
+    approved = yiche.approve_rows_from_sale_page(
+        requests.Session(),
+        "https://car.yiche.com/changanqiyuanq05-11958/peizhi/",
+        rows,
+        {},
+    )
+
+    assert approved == [rows[0]]

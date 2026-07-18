@@ -5,9 +5,11 @@ import hashlib
 import json
 import os
 import re
+import signal
 import time
 from datetime import date
 from html import unescape
+from contextlib import contextmanager
 from urllib.parse import urljoin, urlparse
 
 import bs4
@@ -29,6 +31,9 @@ YICHE_BRAND_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/brand/get
 YICHE_MASTER_BRAND_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/brand/get_master_brand_list"
 YICHE_API_CID = "508"
 YICHE_API_SECRET = "19DDD1FBDFF065D3A4DA777D2D7A81EC"
+YICHE_CONNECT_TIMEOUT = float(os.getenv("YICHE_CONNECT_TIMEOUT_SECONDS", "8"))
+YICHE_READ_TIMEOUT = float(os.getenv("YICHE_READ_TIMEOUT_SECONDS", "20"))
+YICHE_WALL_TIMEOUT = int(os.getenv("YICHE_WALL_TIMEOUT_SECONDS", "35"))
 IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源", "易车车型ID", "易车上市状态", "车款ID"}
 NON_SERIES_SLUGS = {
     "api", "article", "assets", "authenservice", "citybase", "current",
@@ -157,6 +162,31 @@ def make_target(serial_id, brand="", series=""):
 def normalize_key(key):
     key = clean_text(key).strip("：:")
     return HEADER_MAP.get(key, key)
+
+
+@contextmanager
+def request_wall_timeout(seconds):
+    if seconds <= 0 or not hasattr(signal, "SIGALRM"):
+        yield
+        return
+
+    def timeout_handler(signum, frame):
+        raise requests.Timeout(f"request exceeded wall timeout {seconds}s")
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.setitimer(signal.ITIMER_REAL, seconds)
+    signal.signal(signal.SIGALRM, timeout_handler)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, previous_timer[0], previous_timer[1])
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
+def session_get(session, url, **kwargs):
+    kwargs.setdefault("timeout", (YICHE_CONNECT_TIMEOUT, YICHE_READ_TIMEOUT))
+    with request_wall_timeout(YICHE_WALL_TIMEOUT):
+        return session.get(url, **kwargs)
 
 
 def target_meta(value):
@@ -358,7 +388,7 @@ def discover_series_urls(session, discovery_urls, max_pages=30):
 
 
 def fetch(session, url):
-    response = session.get(url, timeout=30)
+    response = session_get(session, url)
     response.raise_for_status()
     return response.text
 
@@ -369,7 +399,8 @@ def fetch_yiche_api(session, endpoint, parameters):
     signature = hashlib.md5(
         f"cid={YICHE_API_CID}&param={param}{YICHE_API_SECRET}{timestamp}".encode()
     ).hexdigest()
-    response = session.get(
+    response = session_get(
+        session,
         endpoint,
         params={"cid": YICHE_API_CID, "param": param},
         headers={
@@ -380,7 +411,6 @@ def fetch_yiche_api(session, endpoint, parameters):
             "x-sign": signature,
             "x-timestamp": timestamp,
         },
-        timeout=30,
     )
     response.raise_for_status()
     return response.json()
@@ -757,7 +787,9 @@ def approve_rows_from_sale_page(session, page_url, rows, target=None):
     sale_ids = target_sale_model_ids(target)
     sale_names = set()
     errors = []
-    if not sale_ids:
+    status_values = {clean_text(row.get("易车上市状态")) for row in rows}
+    needs_sale_page = "unknown" in status_values or "" in status_values
+    if not sale_ids and needs_sale_page:
         for candidate_url in (series_home_url(page_url), mobile_series_home_url(page_url)):
             try:
                 ids, names = extract_sale_model_refs(fetch(session, candidate_url))
@@ -1014,21 +1046,33 @@ def crawl(
         stats["attempted"] += 1
         print(f"抓取易车: {page_url}")
         try:
-            html = fetch(session, page_url)
-            serial_id = serial_id or extract_serial_id(html)
-            data = parse_next_data(html)
-            rows = extract_from_next_data(data) if data else []
-            if not rows:
-                rows = extract_from_tables(html)
-            if not rows:
-                rows = extract_identity_from_meta(html)
-            rows = enrich_identity(rows, page_url, meta)
-            add_quality_counts(stats, rows)
-            real_rows = validate_real_rows(rows)
-            if not real_rows and serial_id:
-                api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta)
-                real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
-                add_quality_counts(stats, api_rows)
+            html = ""
+            rows = []
+            if serial_id:
+                try:
+                    api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta)
+                    real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
+                    add_quality_counts(stats, api_rows)
+                    rows = api_rows
+                except requests.RequestException as api_exc:
+                    print(f"  易车配置 API 抓取失败，改用页面限时兜底: {api_exc}")
+                    real_rows = []
+            if not serial_id or not real_rows:
+                html = fetch(session, page_url)
+                serial_id = serial_id or extract_serial_id(html)
+                data = parse_next_data(html)
+                rows = extract_from_next_data(data) if data else []
+                if not rows:
+                    rows = extract_from_tables(html)
+                if not rows:
+                    rows = extract_identity_from_meta(html)
+                rows = enrich_identity(rows, page_url, meta)
+                add_quality_counts(stats, rows)
+                real_rows = validate_real_rows(rows)
+                if not real_rows and serial_id:
+                    api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta)
+                    real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
+                    add_quality_counts(stats, api_rows)
             if real_rows:
                 target_succeeded = True
                 stats["success"] += 1
@@ -1037,7 +1081,7 @@ def crawl(
                 all_rows.extend(real_rows)
             else:
                 stats["degraded_identity"] += len(rows) or 1
-                page_title = clean_text(bs4.BeautifulSoup(html, "html.parser").title)
+                page_title = clean_text(bs4.BeautifulSoup(html, "html.parser").title) if not serial_id else ""
                 print(f"  仅获得降级身份，未计入真实配置 (html_bytes={len(html.encode())} title={page_title!r})")
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else None
