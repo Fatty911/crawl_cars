@@ -26,13 +26,16 @@ DEFAULT_SERIES_URLS = [
 
 YICHE_CONFIG_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/car/config_new_param"
 YICHE_BRAND_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/brand/get_brand_list"
+YICHE_MASTER_BRAND_API = "https://mapi.yiche.com/web_api/car_model_api/api/v1/brand/get_master_brand_list"
 YICHE_API_CID = "508"
 YICHE_API_SECRET = "19DDD1FBDFF065D3A4DA777D2D7A81EC"
-IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源"}
+IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源", "易车车型ID", "易车上市状态", "车款ID"}
 NON_SERIES_SLUGS = {
     "api", "article", "assets", "authenservice", "citybase", "current",
     "issue", "message", "videos",
 }
+YICHE_APPROVED_STATUS_TEXT = ("在售", "已上市")
+YICHE_UNAPPROVED_STATUS_TEXT = ("未上市", "即将上市", "即将", "预售", "预测", "概念", "未定名")
 
 
 HEADER_MAP = {
@@ -67,9 +70,114 @@ def clean_text(value):
     return re.sub(r"\s+", " ", unescape(str(value or ""))).strip()
 
 
+def contains_chinese(value):
+    return bool(re.search(r"[\u4e00-\u9fff]", clean_text(value)))
+
+
+def normalize_model_year(value):
+    text = clean_text(value)
+    match = re.search(r"((?:19|20)\d{2})\s*款", text) or re.search(r"((?:19|20)\d{2})", text)
+    if match:
+        return match.group(1)
+    match = re.search(r"(?<!\d)(\d{2})\s*款", text)
+    if match:
+        year = 2000 + int(match.group(1))
+        if 2000 <= year <= 2099:
+            return str(year)
+    return ""
+
+
+def is_positive_yiche_sale_status(value):
+    text = clean_text(value)
+    if not text or text == "-":
+        return False
+    if any(token in text for token in YICHE_UNAPPROVED_STATUS_TEXT):
+        return False
+    if any(token in text for token in YICHE_APPROVED_STATUS_TEXT):
+        return True
+    return text.lower() in {"1", "2", "3", "sale", "onsale", "on_sale", "sell", "selling", "listed"}
+
+
+def yiche_sale_status(raw_value):
+    values = []
+    if isinstance(raw_value, dict):
+        for key in ("saleStatus", "saleStatusName", "marketStatus", "marketStatusName", "status", "statusName", "sale_state", "saleState", "sale_state_name"):
+            if key in raw_value:
+                values.append(clean_text(raw_value.get(key)))
+    text = " ".join(value for value in values if value)
+    if any(token in text for token in YICHE_UNAPPROVED_STATUS_TEXT):
+        return "unapproved"
+    if any(token in text for token in YICHE_APPROVED_STATUS_TEXT) or any(is_positive_yiche_sale_status(value) for value in values):
+        return "approved"
+    if any(value in {"0", "-1"} for value in values):
+        return "unapproved"
+    return "unknown"
+
+
+def target_serial_id(target):
+    if isinstance(target, dict):
+        return clean_text(target.get("serial_id") or target.get("serialId"))
+    return clean_text(target)
+
+
+def target_brand(target):
+    return clean_text(target.get("brand") if isinstance(target, dict) else "")
+
+
+def target_series(target):
+    return clean_text(target.get("series") if isinstance(target, dict) else "")
+
+
+def make_target(serial_id, brand="", series=""):
+    return {"serial_id": clean_text(serial_id), "brand": clean_text(brand), "series": clean_text(series)}
+
+
 def normalize_key(key):
     key = clean_text(key).strip("：:")
     return HEADER_MAP.get(key, key)
+
+
+def target_meta(value):
+    if isinstance(value, dict):
+        return {key: clean_text(val) for key, val in value.items()}
+    return {"serial_id": clean_text(value)}
+
+
+def is_chinese_text(value):
+    return contains_chinese(value)
+
+
+def is_slug_series(value):
+    text = clean_text(value)
+    return bool(text and re.fullmatch(r"[a-z][a-z0-9-]*-?\d*", text) and not is_chinese_text(text))
+
+
+def extract_sale_model_ids(html):
+    soup = bs4.BeautifulSoup(html or "", "html.parser")
+    sale_ids = set()
+    for link in soup.find_all("a", href=True):
+        text = clean_text(link.get_text(" "))
+        href = link["href"]
+        if "即将上市" in text or any(token in text for token in YICHE_UNAPPROVED_STATUS_TEXT):
+            continue
+        if not normalize_model_year(text):
+            continue
+        around = clean_text(str(link.parent))
+        if any(token in around for token in YICHE_UNAPPROVED_STATUS_TEXT):
+            continue
+        for pattern in (r"/m(\d+)/", r"[?&](?:carId|carid|modelId|id)=(\d+)", r"-(\d+)\.html"):
+            match = re.search(pattern, href)
+            if match:
+                sale_ids.add(match.group(1))
+    for obj in walk(extract_json_objects(html)):
+        if not isinstance(obj, dict):
+            continue
+        model_id = clean_text(obj.get("carId") or obj.get("carid") or obj.get("modelId") or obj.get("id"))
+        model_name = clean_text(obj.get("carName") or obj.get("carname") or obj.get("name"))
+        status = yiche_sale_status(obj)
+        if model_id.isdigit() and normalize_model_year(model_name) and status == "approved":
+            sale_ids.add(model_id)
+    return sale_ids
 
 
 def split_urls(raw):
@@ -261,6 +369,23 @@ def fetch_config_api(session, serial_id):
     return payload
 
 
+def extract_json_objects(html):
+    objects = []
+    for match in re.finditer(r"<script[^>]*>(.*?)</script>", html or "", re.S | re.I):
+        text = match.group(1).strip()
+        if not text or "{" not in text:
+            continue
+        if text.startswith("{") or text.startswith("["):
+            try:
+                objects.append(json.loads(text))
+            except json.JSONDecodeError:
+                pass
+    next_data = parse_next_data(html)
+    if next_data is not None:
+        objects.append(next_data)
+    return objects
+
+
 def extract_master_brands(html):
     brands = []
     seen = set()
@@ -269,6 +394,24 @@ def extract_master_brands(html):
         master_id = clean_text(node.get("data-id"))
         name = clean_text(node.get("data-name") or node.get_text())
         if master_id.isdigit() and name and master_id not in seen:
+            seen.add(master_id)
+            brands.append((master_id, name))
+    for obj in walk(extract_json_objects(html)):
+        master_id = clean_text(obj.get("masterId") or obj.get("masterid") or obj.get("id"))
+        name = clean_text(obj.get("masterName") or obj.get("mastername") or obj.get("name"))
+        if master_id.isdigit() and name and is_chinese_text(name) and master_id not in seen:
+            seen.add(master_id)
+            brands.append((master_id, name))
+    return brands
+
+
+def extract_master_brands_from_payload(payload):
+    brands = []
+    seen = set()
+    for obj in walk(payload):
+        master_id = clean_text(obj.get("masterId") or obj.get("masterid") or obj.get("id"))
+        name = clean_text(obj.get("masterName") or obj.get("mastername") or obj.get("name"))
+        if master_id.isdigit() and name and is_chinese_text(name) and master_id not in seen:
             seen.add(master_id)
             brands.append((master_id, name))
     return brands
@@ -289,18 +432,20 @@ def extract_brand_series(payload):
             slug = clean_text(item.get("allSpell"))
             if serial_id.isdigit() and name and brand:
                 url = f"https://car.yiche.com/{slug}/peizhi/" if re.fullmatch(r"[a-z][a-z0-9-]+", slug) else f"https://car.yiche.com/serial-{serial_id}/peizhi/"
-                series.append((url, serial_id))
+                series.append((url, {"serial_id": serial_id, "brand": brand, "series": name}))
     return series
 
 
 class YicheDiscoveryFrontier:
-    def __init__(self, session, max_brand_attempts=3, retry_backoff=1):
+    def __init__(self, session, max_brand_attempts=3, retry_backoff=1, max_init_attempts=3):
         self.session = session
         self.brand_queue = []
         self.retry_queue = []
         self.brand_attempts = {}
         self.max_brand_attempts = max_brand_attempts
         self.retry_backoff = retry_backoff
+        self.max_init_attempts = max_init_attempts
+        self.init_attempts = 0
         self.brands_total = 0
         self.brands_scanned = 0
         self.pages_scanned = 0
@@ -334,13 +479,32 @@ class YicheDiscoveryFrontier:
 
     def discover(self):
         if not self.initialized:
-            html = fetch(self.session, DEFAULT_DISCOVERY_URLS[0])
-            self.brand_queue = extract_master_brands(html)
+            errors = []
+            for attempt in range(1, self.max_init_attempts + 1):
+                self.init_attempts = attempt
+                try:
+                    self.init_attempts = attempt
+                    html = fetch(self.session, DEFAULT_DISCOVERY_URLS[0])
+                    self.brand_queue = extract_master_brands(html)
+                    if not self.brand_queue:
+                        payload = fetch_yiche_api(self.session, YICHE_MASTER_BRAND_API, {})
+                        self.brand_queue = extract_master_brands_from_payload(payload)
+                    if self.brand_queue:
+                        break
+                    errors.append("empty_brand_tree")
+                except requests.RequestException as exc:
+                    errors.append(f"{type(exc).__name__}:{exc}")
+                if attempt < self.max_init_attempts:
+                    self.brand_discovery_retries += 1
+                    time.sleep(self.retry_backoff * (2 ** (attempt - 1)))
             self.brands_total = len(self.brand_queue)
             self.initialized = True
-            print(f"易车可信发现初始化: brands_total={self.brands_total} source={DEFAULT_DISCOVERY_URLS[0]}")
+            print(
+                f"易车可信发现初始化: brands_total={self.brands_total} source={DEFAULT_DISCOVERY_URLS[0]} "
+                f"init_attempts={self.init_attempts} errors={errors[-3:]}"
+            )
             if not self.brand_queue:
-                raise RuntimeError("易车首页未解析到结构化品牌节点，拒绝把推荐车系耗尽当作全量发现完成")
+                raise RuntimeError("易车结构化品牌发现反复不可用，拒绝上传小样本 artifact")
         if self.exhausted:
             return {}
         master_id, brand_name = self._next_brand()
@@ -367,12 +531,13 @@ class YicheDiscoveryFrontier:
         self.brands_scanned += 1
         self.pages_scanned += 1
         targets = {}
-        for url, serial_id in extract_brand_series(payload):
+        for url, target in extract_brand_series(payload):
+            serial_id = target_serial_id(target)
             if serial_id in self.seen_serial_ids:
                 self.duplicate_serial_ids += 1
                 continue
             self.seen_serial_ids.add(serial_id)
-            targets[url] = serial_id
+            targets[url] = target
         print(
             f"易车可信发现: brand={brand_name!r} master_id={master_id} brands_scanned={self.brands_scanned} "
             f"brands_total={self.brands_total} pages_scanned={self.pages_scanned} new_serial_ids={len(targets)} "
@@ -381,8 +546,10 @@ class YicheDiscoveryFrontier:
         return targets
 
 
-def extract_from_config_api(payload):
+def extract_from_config_api(payload, target=None):
     rows = []
+    target_brand_name = target_brand(target)
+    target_series_name = target_series(target)
     for group_index, group in enumerate(payload.get("data") or []):
         if not isinstance(group, dict):
             continue
@@ -399,28 +566,55 @@ def extract_from_config_api(payload):
                 model_name = clean_text(
                     raw_value.get("carName") or raw_value.get("carname") or raw_value.get("name")
                 )
-                brand_name = clean_text(raw_value.get("brandName") or raw_value.get("brandname"))
+                brand_name = clean_text(raw_value.get("brandName") or raw_value.get("brandname") or target_brand_name)
+                series_name = clean_text(raw_value.get("serialName") or raw_value.get("serialname") or target_series_name)
+                model_id = clean_text(raw_value.get("carId") or raw_value.get("carid") or raw_value.get("modelId") or raw_value.get("id"))
+                sale_status = yiche_sale_status(raw_value)
                 if model_name:
                     rows[index]["车型名称"] = model_name
+                    rows[index].setdefault("年款", normalize_model_year(model_name))
                 if brand_name:
                     rows[index]["品牌"] = brand_name
+                if series_name:
+                    rows[index]["车系"] = series_name
+                if model_id:
+                    rows[index]["车款ID"] = model_id
+                previous_status = rows[index].get("易车上市状态")
+                if sale_status in {"approved", "unapproved"} or not previous_status:
+                    rows[index]["易车上市状态"] = sale_status
                 if value and value != "-":
                     if key in {"车型", "车型名称", "车款"} or (group_index == 0 and item_index == 0):
                         rows[index]["车型名称"] = value
                     else:
                         rows[index][key] = value
     for row in rows:
-        brand = clean_text(row.get("品牌") or row.get("厂商"))
+        brand = clean_text(row.get("品牌") or row.get("厂商") or target_brand_name)
+        series = clean_text(row.get("车系") or target_series_name)
+        year = clean_text(row.get("年款")) or normalize_model_year(row.get("车型名称"))
         if brand and brand != "-":
             row["品牌"] = brand
+        if series and series != "-":
+            row["车系"] = series
+        if year:
+            row["年款"] = year
     return rows
 
 
 def is_real_config_row(row):
     brand = clean_text(row.get("品牌"))
+    series = clean_text(row.get("车系"))
     model = clean_text(row.get("车型名称"))
-    return brand not in {"", "-"} and model not in {"", "-"} and any(
-        clean_text(value) for key, value in row.items() if key not in IDENTITY_FIELDS
+    year = clean_text(row.get("年款"))
+    status = clean_text(row.get("易车上市状态"))
+    return (
+        brand not in {"", "-"}
+        and series not in {"", "-"}
+        and model not in {"", "-"}
+        and bool(re.fullmatch(r"(?:19|20)\d{2}", year))
+        and contains_chinese(brand)
+        and contains_chinese(series)
+        and status == "approved"
+        and any(clean_text(value) for key, value in row.items() if key not in IDENTITY_FIELDS)
     )
 
 
@@ -429,10 +623,87 @@ def validate_real_rows(rows):
 
 
 def identity_quality_counts(rows):
+    dict_rows = [row for row in rows if isinstance(row, dict)]
     return {
-        "invalid_brand": sum(clean_text(row.get("品牌")) in {"", "-"} for row in rows if isinstance(row, dict)),
-        "invalid_model_name": sum(clean_text(row.get("车型名称")) in {"", "-"} for row in rows if isinstance(row, dict)),
+        "invalid_brand": sum(clean_text(row.get("品牌")) in {"", "-"} or not contains_chinese(row.get("品牌")) for row in dict_rows),
+        "invalid_model_name": sum(clean_text(row.get("车型名称")) in {"", "-"} for row in dict_rows),
+        "invalid_series": sum(clean_text(row.get("车系")) in {"", "-"} or not contains_chinese(row.get("车系")) for row in dict_rows),
+        "invalid_year": sum(not re.fullmatch(r"(?:19|20)\d{2}", clean_text(row.get("年款"))) for row in dict_rows),
+        "unapproved_status": sum(clean_text(row.get("易车上市状态")) != "approved" for row in dict_rows),
     }
+
+
+def add_quality_counts(stats, rows):
+    quality = identity_quality_counts(rows)
+    for key, value in quality.items():
+        stats[key] = stats.get(key, 0) + value
+
+
+def is_positive_yiche_sale_status(value):
+    return yiche_sale_status({"saleStatusName": value}) == "approved"
+
+
+def series_home_url(page_url):
+    return normalize_series_url(page_url).replace("/peizhi/", "/")
+
+
+def extract_sale_model_ids(html):
+    ids = set()
+    for obj in walk(extract_json_objects(html)):
+        model_id = clean_text(obj.get("carId") or obj.get("carid") or obj.get("modelId") or obj.get("id"))
+        status = yiche_sale_status(obj)
+        text = " ".join(clean_text(obj.get(key)) for key in ("name", "carName", "statusName", "saleStatusName", "marketStatusName"))
+        if model_id and (status == "approved" or any(token in text for token in YICHE_APPROVED_STATUS_TEXT)):
+            ids.add(model_id)
+    soup = bs4.BeautifulSoup(html or "", "html.parser")
+    for node in soup.select("[data-car-id], [data-carid], [data-model-id]"):
+        model_id = clean_text(node.get("data-car-id") or node.get("data-carid") or node.get("data-model-id"))
+        text = clean_text(node.get_text(" "))
+        if model_id and not any(token in text for token in YICHE_UNAPPROVED_STATUS_TEXT):
+            ids.add(model_id)
+    return ids
+
+
+def series_home_url(page_url):
+    parsed = urlparse(page_url)
+    parts = [part for part in parsed.path.split("/") if part and part != "peizhi"]
+    if not parts:
+        return page_url
+    return f"{parsed.scheme or 'https'}://{parsed.netloc or 'car.yiche.com'}/{parts[0]}/"
+
+
+def extract_sale_model_ids(html):
+    sale_ids = set()
+    for obj in walk(extract_json_objects(html)):
+        status = yiche_sale_status(obj)
+        model_id = clean_text(obj.get("carId") or obj.get("carid") or obj.get("modelId") or obj.get("id"))
+        name = clean_text(obj.get("carName") or obj.get("carname") or obj.get("name"))
+        if model_id and (status == "approved" or (name and "款" in name and not any(token in name for token in YICHE_UNAPPROVED_STATUS_TEXT))):
+            sale_ids.add(model_id)
+    return sale_ids
+
+
+def approve_rows_from_sale_page(session, page_url, rows):
+    try:
+        sale_ids = extract_sale_model_ids(fetch(session, series_home_url(page_url)))
+    except requests.RequestException as exc:
+        print(f"  易车在售车款页抓取失败，使用 API 状态字段判定: {type(exc).__name__}: {exc}")
+        sale_ids = set()
+    approved = []
+    rejected = 0
+    for row in rows:
+        model_id = clean_text(row.get("车款ID"))
+        if sale_ids:
+            row["易车上市状态"] = "approved" if model_id and model_id in sale_ids else "unapproved"
+        if is_real_config_row(row):
+            approved.append(row)
+        else:
+            rejected += 1
+    print(
+        f"  易车上市过滤: sale_model_ids={len(sale_ids)} approved_rows={len(approved)} "
+        f"rejected_rows={rejected}"
+    )
+    return approved
 
 
 def parse_next_data(html):
@@ -537,10 +808,18 @@ def extract_identity_from_url(url, html):
     return [{"车系": series_slug, "车型名称": series_slug}]
 
 
-def enrich_identity(rows, url):
-    series_slug = series_slug_from_url(url)
+def enrich_identity(rows, url, target=None):
+    series_name = target_series(target)
+    brand_name = target_brand(target)
     for row in rows:
-        row.setdefault("车系", series_slug)
+        if brand_name:
+            row.setdefault("品牌", brand_name)
+        if series_name:
+            row.setdefault("车系", series_name)
+        row.setdefault("年款", normalize_model_year(row.get("车型名称")))
+        status_value = row.get("易车上市状态") or row.get("上市状态") or row.get("状态")
+        if status_value:
+            row.setdefault("易车上市状态", "approved" if is_positive_yiche_sale_status(status_value) else "unapproved")
         row.setdefault("数据来源", "易车")
     return rows
 
@@ -562,16 +841,16 @@ def crawl(
     stats = {"attempted": 0, "success": 0, "403": 0, "429": 0, "failed": 0, "degraded_identity": 0}
     start = start_time if start_time is not None else time.monotonic()
     deadline = start + time_limit if time_limit else 0
-    known_targets = dict(targets) if isinstance(targets, dict) else {url: "" for url in targets}
+    known_targets = dict(targets) if isinstance(targets, dict) else {url: {"serial_id": ""} for url in targets}
     if max_targets > 0:
         known_targets = dict(list(known_targets.items())[:max_targets])
     pending = list(known_targets)
-    known_serial_ids = {serial_id for serial_id in known_targets.values() if serial_id}
+    known_serial_ids = {target_serial_id(value) for value in known_targets.values() if target_serial_id(value)}
     attempts = {}
     completed = set()
     idle_discovery_rounds = 0
     stop_reason = "target_exhausted"
-    stats.update({"discovery_rounds": 0, "discovery_network_errors": 0, "retry_attempted": 0, "invalid_brand": 0, "invalid_model_name": 0})
+    stats.update({"discovery_rounds": 0, "discovery_network_errors": 0, "retry_attempted": 0, "invalid_brand": 0, "invalid_model_name": 0, "invalid_series": 0, "invalid_year": 0, "unapproved_status": 0})
     print(
         f"易车预算: budget_seconds={time_limit} finish_buffer_seconds={finish_buffer} "
         f"deadline_monotonic={deadline:.3f} targets_initial={len(known_targets)} max_attempts={max_attempts}"
@@ -600,19 +879,20 @@ def crawl(
                     time.sleep(min(delay, 1))
                 continue
             except RuntimeError as exc:
-                if max_targets > 0 and all_rows:
-                    stop_reason = "discovery_unavailable_after_seed_rows"
-                    print(f"易车结构化发现不可用，保留有界样本已有真实配置: stop_reason={stop_reason} error={exc}")
-                    break
-                raise
+                stop_reason = "discovery_unavailable_fail_closed" if max_targets == 0 else "discovery_unavailable_after_seed_rows"
+                print(f"易车结构化发现不可用: stop_reason={stop_reason} seed_rows={len(all_rows)} error={exc}")
+                if max_targets == 0:
+                    all_rows = []
+                break
             added = 0
-            for discovered_url, discovered_id in discovered.items():
+            for discovered_url, discovered_value in discovered.items():
                 if max_targets > 0 and len(known_targets) >= max_targets:
                     break
+                discovered_id = target_serial_id(discovered_value)
                 if discovered_id in known_serial_ids:
                     continue
                 normalized = normalize_series_url(discovered_url)
-                known_targets[normalized] = discovered_id
+                known_targets[normalized] = target_meta(discovered_value)
                 known_serial_ids.add(discovered_id)
                 pending.append(normalized)
                 added += 1
@@ -631,7 +911,7 @@ def crawl(
                 if normalized not in known_targets:
                     if max_targets > 0 and len(known_targets) >= max_targets:
                         break
-                    known_targets[normalized] = discovered_id
+                    known_targets[normalized] = discovered_id if isinstance(discovered_id, dict) else make_target(discovered_id)
                     pending.append(normalized)
                     added += 1
             idle_discovery_rounds = 0 if added else idle_discovery_rounds + 1
@@ -641,7 +921,8 @@ def crawl(
         url = pending.pop(0)
         if url in completed:
             continue
-        serial_id = known_targets.get(url, "")
+        meta = target_meta(known_targets.get(url, {}))
+        serial_id = meta.get("serial_id", "")
         attempts[url] = attempts.get(url, 0) + 1
         if attempts[url] > 1:
             stats["retry_attempted"] += 1
@@ -658,17 +939,13 @@ def crawl(
                 rows = extract_from_tables(html)
             if not rows:
                 rows = extract_identity_from_meta(html)
-            rows = enrich_identity(rows, page_url)
-            quality = identity_quality_counts(rows)
-            stats["invalid_brand"] += quality["invalid_brand"]
-            stats["invalid_model_name"] += quality["invalid_model_name"]
+            rows = enrich_identity(rows, page_url, meta)
+            add_quality_counts(stats, rows)
             real_rows = validate_real_rows(rows)
             if not real_rows and serial_id:
-                api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id)), page_url)
-                quality = identity_quality_counts(api_rows)
-                stats["invalid_brand"] += quality["invalid_brand"]
-                stats["invalid_model_name"] += quality["invalid_model_name"]
-                real_rows = validate_real_rows(api_rows)
+                api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta)
+                real_rows = approve_rows_from_sale_page(session, page_url, api_rows)
+                add_quality_counts(stats, api_rows)
             if real_rows:
                 target_succeeded = True
                 stats["success"] += 1
@@ -684,11 +961,9 @@ def crawl(
             if status_code in {403, 429}:
                 stats[str(status_code)] += 1
             try:
-                api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id)), page_url) if serial_id else []
-                quality = identity_quality_counts(api_rows)
-                stats["invalid_brand"] += quality["invalid_brand"]
-                stats["invalid_model_name"] += quality["invalid_model_name"]
-                real_rows = validate_real_rows(api_rows)
+                api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta) if serial_id else []
+                real_rows = approve_rows_from_sale_page(session, page_url, api_rows)
+                add_quality_counts(stats, api_rows)
             except requests.RequestException as api_exc:
                 real_rows = []
                 print(f"  易车配置 API 抓取失败: {api_exc}")
@@ -720,11 +995,11 @@ def crawl(
                 if normalized not in known_targets:
                     if max_targets > 0 and len(known_targets) >= max_targets:
                         break
-                    known_targets[normalized] = discovered_id
+                    known_targets[normalized] = discovered_id if isinstance(discovered_id, dict) else make_target(discovered_id)
                     pending.append(normalized)
                     added += 1
                 elif discovered_id and not previous_id:
-                    known_targets[normalized] = discovered_id
+                    known_targets[normalized] = discovered_id if isinstance(discovered_id, dict) else make_target(discovered_id)
                     if normalized not in completed and attempts.get(normalized, 0) < max_attempts:
                         pending.append(normalized)
                         added += 1
@@ -742,7 +1017,7 @@ def crawl(
     print(
         "易车抓取统计: "
         + " ".join(f"{key}={value}" for key, value in stats.items())
-        + f" targets_discovered={len(known_targets)} unique_serial_ids_attempted={len({known_targets[url] for url in attempts if known_targets.get(url)})} "
+        + f" targets_discovered={len(known_targets)} unique_serial_ids_attempted={len({target_serial_id(known_targets[url]) for url in attempts if target_serial_id(known_targets.get(url, {}))})} "
         + f"brands_total={getattr(discovery_callback, 'brands_total', 0)} brands_scanned={getattr(discovery_callback, 'brands_scanned', 0)} "
         + f"remaining_brands={getattr(discovery_callback, 'remaining_brands', 0)} pages_scanned={getattr(discovery_callback, 'pages_scanned', 0)} "
         + f"brand_discovery_retries={getattr(discovery_callback, 'brand_discovery_retries', 0)} "
@@ -773,7 +1048,7 @@ def main():
         discovery_urls = args.discover_url or split_urls(os.getenv("YICHE_DISCOVERY_URLS", "")) or DEFAULT_DISCOVERY_URLS
         session = requests.Session()
         session.headers.update({"User-Agent": "Mozilla/5.0"})
-        targets = {normalize_series_url(url): serial_id_from_url(url) for url in DEFAULT_SERIES_URLS}
+        targets = {normalize_series_url(url): make_target(serial_id_from_url(url)) for url in DEFAULT_SERIES_URLS}
         targets.update(discover_series_urls(session, discovery_urls, args.max_discovery_pages))
     if args.max_series > 0:
         targets = dict(list(targets.items())[:args.max_series])

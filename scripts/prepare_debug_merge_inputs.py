@@ -30,14 +30,21 @@ def identity_key(row: dict[str, Any]) -> tuple[str, ...]:
         raise ValueError("identity requires 车型名称 and 年款")
     brand = _value(row, "品牌")
     series = _value(row, "车系")
-    if not year and "易车" in _value(row, "数据来源"):
-        return ("yiche_no_year", brand, series or model, model)
     if not year:
         raise ValueError("identity requires 车型名称 and 年款")
     if series_id:
         return ("series_id", series_id, model, year)
     if not brand or not series:
         raise ValueError("identity without 车系ID requires 品牌 and 车系")
+    if "易车" in _value(row, "数据来源"):
+        status = _value(row, "易车上市状态")
+        if (
+            status != "approved"
+            or not re.search(r"[\u4e00-\u9fff]", brand)
+            or not re.search(r"[\u4e00-\u9fff]", series)
+            or re.fullmatch(r"[a-z][a-z0-9-]*-?\d*", series)
+        ):
+            raise ValueError("Yiche identity requires approved status and Chinese brand/series")
     return ("fallback", brand, series, model, year)
 
 

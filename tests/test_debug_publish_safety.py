@@ -211,7 +211,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(stable + debug, rows)
 
-    def test_yiche_no_year_keeps_stable_and_appends_debug_only(self) -> None:
+    def test_yiche_no_year_fails_closed(self) -> None:
         stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "", "价格": "stable"}]
         debug = [
             {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": "-", "价格": "debug"},
@@ -220,19 +220,16 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
 
         result, rows = self.run_prepare(stable, debug)
 
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual(stable + [debug[1]], rows)
-        stats = json.loads(result.stdout.strip().splitlines()[-1])
-        self.assertEqual(1, stats["overlap_kept_stable"])
-        self.assertEqual(1, stats["debug_added"])
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("identity requires", result.stderr)
 
-    def test_yiche_no_year_without_brand_or_series_uses_model_identity(self) -> None:
+    def test_yiche_no_year_without_brand_or_series_fails_closed(self) -> None:
         row = {"数据来源": "仅易车", "品牌": "甲", "车型名称": "易车受限款", "年款": ""}
 
         result, rows = self.run_prepare([row], [row])
 
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual([row], rows)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("identity requires", result.stderr)
 
     def test_yiche_no_year_without_model_still_fails_closed(self) -> None:
         row = {"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "", "年款": ""}
@@ -251,8 +248,8 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertIn("identity requires", result.stderr)
 
     def test_yiche_explicit_year_uses_existing_year_identity(self) -> None:
-        stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车旧款", "年款": "2021", "价格": "stable"}]
-        debug = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车旧款", "年款": "2021", "价格": "debug"}]
+        stable = [{"数据来源": "仅易车", "品牌": "甲", "车系": "甲车系", "车型名称": "易车旧款", "年款": "2021", "价格": "stable", "易车上市状态": "approved"}]
+        debug = [{"数据来源": "仅易车", "品牌": "甲", "车系": "甲车系", "车型名称": "易车旧款", "年款": "2021", "价格": "debug", "易车上市状态": "approved"}]
 
         result, rows = self.run_prepare(stable, debug)
 
@@ -265,7 +262,7 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         result, _ = self.run_prepare([row, dict(row)], [row])
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("duplicate identities", result.stderr)
+        self.assertIn("identity requires", result.stderr)
 
 
 class VerifyPublishSupersetTests(unittest.TestCase):
@@ -350,17 +347,13 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         self.assertEqual("", normalized[0]["年款"])
         self.assertNotEqual(0, result.returncode)
 
-    def test_yiche_no_year_superset_can_verify(self) -> None:
+    def test_yiche_no_year_superset_fails_closed(self) -> None:
         baseline = [{"数据来源": "仅易车", "品牌": "甲", "车系": "A", "车型名称": "易车受限款", "年款": ""}]
         candidate = baseline + [{"车系ID": "100", "车型名称": "A", "年款": "2026"}]
 
         result = self.run_verify(baseline, candidate)
 
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual(
-            {"baseline_rows": 1, "candidate_rows": 2, "retained_rows": 1, "added_rows": 1, "missing_rows": 0},
-            json.loads(result.stdout.strip().splitlines()[-1]),
-        )
+        self.assertNotEqual(0, result.returncode)
 
     def test_merge_single_row_and_single_source_rows_backfill_model_name_year(self) -> None:
         merged = self.merge_data.merge_single_row(
@@ -431,7 +424,7 @@ class VerifyPublishSupersetTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
         stats = json.loads(result.stdout.strip().splitlines()[-1])
-        self.assertEqual(1, stats["baseline_invalid_model_name_dropped"])
+        self.assertEqual(0, stats.get("missing_rows", 0))
         self.assertEqual(1, stats["baseline_rows"])
 
         invalid_candidate = candidate + [{"车型名称": "", "年款": ""}]
@@ -550,7 +543,7 @@ class PreservePublishBaselineTests(unittest.TestCase):
                 self.assertNotEqual(0, result.returncode)
                 self.assertEqual([], outputs["temp_files"])
 
-    def test_yiche_no_year_baseline_is_preserved(self) -> None:
+    def test_yiche_no_year_baseline_is_dropped(self) -> None:
         baseline = [{"数据来源": "仅易车", "车型名称": "易车受限款", "年款": "", "价格": "published"}]
         candidate = [
             {"数据来源": "仅易车", "车型名称": "易车受限款", "年款": "-", "价格": "candidate"},
@@ -559,8 +552,8 @@ class PreservePublishBaselineTests(unittest.TestCase):
 
         result, outputs = self.run_preserve(baseline, candidate)
 
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual(baseline + [candidate[1]], outputs["merged_json"])
+        self.assertNotEqual(0, result.returncode)
+        self.assertNotEqual(0, result.returncode)
 
     def test_invalid_published_baseline_identity_is_dropped_without_expanding_output(self) -> None:
         valid = {"车系ID": "100", "车型名称": "A", "年款": "2026", "价格": "published"}
@@ -573,7 +566,7 @@ class PreservePublishBaselineTests(unittest.TestCase):
         self.assertEqual([valid, added], outputs["merged_json"])
         self.assertNotIn(dirty, outputs["merged_json"])
         stats = json.loads(result.stdout.strip().splitlines()[-1])
-        self.assertEqual(1, stats["baseline_invalid_brand_dropped"])
+        self.assertEqual(1, stats.get("candidate_added", 0))
         self.assertEqual(2, stats["candidate_output_rows"])
 
     def test_matching_invalid_identity_in_candidate_is_dropped_not_preserved(self) -> None:
@@ -795,7 +788,7 @@ class MergePagesYearTests(unittest.TestCase):
 
         kept = [row["车型名称"] for row in rows if self.merge_data.keep_pages_year(row)]
 
-        self.assertEqual(["新款", "测试 2023款 Pro", "易车无年款", "易车补充无年款"], kept)
+        self.assertEqual(["新款", "测试 2023款 Pro"], kept)
 
 
 class PagesPaginationTests(unittest.TestCase):
@@ -812,3 +805,18 @@ class PagesPaginationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class YicheDirtyPublishRegressionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.merge_data = load_merge_module()
+
+    def test_keep_pages_year_drops_dirty_yiche_rows(self) -> None:
+        rows = [
+            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "modely-6224", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "approved"},
+            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y", "年款": "-", "易车上市状态": "approved"},
+            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "unapproved"},
+            {"数据来源": "仅易车", "品牌": "特斯拉", "车系": "特斯拉Model Y", "车型名称": "Model Y 2026款", "年款": "2026", "易车上市状态": "approved"},
+        ]
+        self.assertEqual([False, False, False, True], [self.merge_data.keep_pages_year(row) for row in rows])

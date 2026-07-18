@@ -266,10 +266,35 @@ def is_yiche_row(row):
     return "易车" in str(row.get("数据来源", "") or "")
 
 
+def _has_chinese(value):
+    return bool(re.search(r"[\u4e00-\u9fff]", str(value or "")))
+
+
+def yiche_publish_identity_valid(row):
+    if not is_yiche_row(row):
+        return True
+    brand = str(row.get("品牌") or "").strip()
+    series = str(row.get("车系") or "").strip()
+    model = str(row.get("车型名称") or "").strip()
+    status = str(row.get("易车上市状态") or "").strip()
+    return (
+        brand not in {"", "-"}
+        and series not in {"", "-"}
+        and model not in {"", "-"}
+        and _has_chinese(brand)
+        and _has_chinese(series)
+        and not re.fullmatch(r"[a-z][a-z0-9-]*-?\d*", series)
+        and re.fullmatch(r"(?:19|20)\d{2}", str(row.get("年款") or "").strip()) is not None
+        and status == "approved"
+    )
+
+
 def keep_pages_year(row):
+    if is_yiche_row(row) and not yiche_publish_identity_valid(row):
+        return False
     year = row_year(row)
     if year is None:
-        return is_yiche_row(row)
+        return False
     return year >= 2022
 
 
@@ -944,8 +969,11 @@ def write_json(path, rows):
 
 def partition_publishable_rows(rows):
     kept = []
-    stats = {"invalid_brand": 0, "invalid_model_name": 0}
+    stats = {"invalid_brand": 0, "invalid_model_name": 0, "invalid_yiche_identity": 0}
     for row in rows:
+        if is_yiche_row(row) and not yiche_publish_identity_valid(row):
+            stats["invalid_yiche_identity"] += 1
+            continue
         brand = str(row.get("品牌") or "").strip()
         model = str(row.get("车型名称") or "").strip()
         if brand in {"", "-"}:

@@ -28,7 +28,34 @@ def keep_value(value: Any) -> bool:
 
 
 def source_allows_missing_year(row: dict[str, Any]) -> bool:
+    return False
+
+
+def has_chinese(value: Any) -> bool:
+    return bool(re.search(r"[\u4e00-\u9fff]", str(value or "")))
+
+
+def is_yiche_row(row: dict[str, Any]) -> bool:
     return "易车" in str(row.get("数据来源", "") or "")
+
+
+def yiche_publish_identity_valid(row: dict[str, Any]) -> bool:
+    if not is_yiche_row(row):
+        return True
+    brand = str(row.get("品牌") or "").strip()
+    series = str(row.get("车系") or "").strip()
+    model = str(row.get("车型名称") or "").strip()
+    status = str(row.get("易车上市状态") or "").strip()
+    return (
+        brand not in {"", "-"}
+        and series not in {"", "-"}
+        and model not in {"", "-"}
+        and has_chinese(brand)
+        and has_chinese(series)
+        and not re.fullmatch(r"[a-z][a-z0-9-]*-?\d*", series)
+        and re.fullmatch(r"(?:19|20)\d{2}", str(row.get("年款") or "").strip()) is not None
+        and status == "approved"
+    )
 
 
 def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
@@ -40,14 +67,18 @@ def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
             continue
         brand = str(row.get("品牌") or "").strip()
         model = str(row.get("车型名称") or "").strip()
-        if brand in {"", "-"} or model in {"", "-"}:
+        if brand in {"", "-"} or model in {"", "-"} or not yiche_publish_identity_valid(row):
             continue
         year = model_year(row)
-        if year is None:
-            if not source_allows_missing_year(row):
-                continue
-        elif year < min_year:
+        if year is None or year < min_year:
             continue
+        if "易车" in str(row.get("数据来源", "") or ""):
+            series = str(row.get("车系") or "").strip()
+            status = str(row.get("易车上市状态") or "").strip()
+            if not series or series == "-" or not re.search(r"[\u4e00-\u9fff]", series):
+                continue
+            if status != "approved":
+                continue
         prepared_row = {key: value for key, value in row.items() if keep_value(value)}
         prepared_row["品牌"] = brand
         prepared_row["车型名称"] = model
