@@ -83,6 +83,7 @@ jobs:
               "车系ID": "ci",
               "车型名称": "CI测试车型",
               "年款": "2026",
+              "车款ID": "54529",
               "官方0-100km_h加速_s_": "6.8",
               "CLTC纯电续航里程_km_": "200",
               "城市领航辅助": "●",
@@ -92,7 +93,7 @@ jobs:
               "电动座椅记忆功能": "驾驶位",
               "外后视镜功能": "电动调节|记忆|加热"
           }
-          low_range_row = dict(match_row, 车型名称="CI低续航车型", CLTC纯电续航里程_km_="100")
+          low_range_row = dict(match_row, 车型名称="CI低续航车型", 车款ID="54530", CLTC纯电续航里程_km_="100")
 
           with open("autoHome_ci_smoke.json", "w", encoding="utf-8") as f:
               json.dump([match_row, low_range_row], f, ensure_ascii=False)
