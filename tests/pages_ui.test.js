@@ -95,7 +95,9 @@ function loadAppForTest() {
       getFilteredRows: getFilteredRows,
       groupRowsBySeries: groupRowsBySeries,
       initializeRows: initializeRows,
+      renderEverything: renderEverything,
       renderResultsOnly: renderResultsOnly,
+      renderSelectedTags: renderSelectedTags,
       snapshotFilters: snapshotFilters,
       applySnapshot: applySnapshot,
       getFilteredRows: getFilteredRows,
@@ -358,4 +360,55 @@ test("Pages defaults to filter center and shares filters with table result set",
   const css = fs.readFileSync(path.join(__dirname, "..", "docs", "styles.css"), "utf8");
   assert.doesNotMatch(html, /table-region advanced-hidden/);
   assert.doesNotMatch(css, /\.advanced-hidden\s*,\s*\.center-hidden/);
+});
+
+
+test("Pages enables the eight core filters by default and after reset", () => {
+  const { elements, hooks } = loadAppForTest();
+  hooks.state.config.conditions = [
+    { id: "zero_to_hundred", label: "百公里加速", type: "range", field: "百公里加速(s)", max: 7 },
+    { id: "ev_range", label: "纯电续航", type: "range", field: "纯电续航(km)", min: 150 },
+    { id: "city_navigation", label: "NOA城市领航", type: "feature", fields: ["NOA城市领航"], keywords: ["支持"] },
+    { id: "remote_start", label: "远程启动", type: "feature", fields: ["远程启动"], keywords: ["支持"] },
+    { id: "remote_control", label: "手机远程控制", type: "feature", fields: ["远程控制"], keywords: ["支持"] },
+    { id: "bluetooth_key", label: "蓝牙/数字钥匙", type: "feature", fields: ["蓝牙/数字钥匙"], keywords: ["支持"] },
+    { id: "seat_memory", label: "座椅记忆", type: "feature", fields: ["座椅记忆"], keywords: ["支持"] },
+    { id: "mirror_memory", label: "外后视镜记忆", type: "feature", fields: ["外后视镜记忆"], keywords: ["支持"] }
+  ];
+  const passing = Object.assign(row("仅懂车帝", 2026, "默认通过"), {
+    "百公里加速(s)": "6.9",
+    "纯电续航(km)": "180",
+    "NOA城市领航": "支持",
+    "远程启动": "支持",
+    "远程控制": "支持",
+    "蓝牙/数字钥匙": "支持",
+    "座椅记忆": "支持",
+    "外后视镜记忆": "支持"
+  });
+  const failing = Object.assign(row("仅懂车帝", 2026, "默认不过"), passing, { "车型名称": "默认不过", "百公里加速(s)": "8.0" });
+
+  hooks.initializeRows([passing, failing]);
+  hooks.renderEverything();
+
+  assert.deepEqual(Object.keys(hooks.state.featureFilters).sort(), [
+    "bluetooth_key", "city_navigation", "mirror_memory", "remote_control", "remote_start", "seat_memory"
+  ].sort());
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: 7 }, ev_range: { min: 150, max: "" } });
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.getFilteredRows().map((item) => item["车型名称"]))), ["默认通过"]);
+  assert.equal(elements.get("selectedTags").children.map((tag) => tag.textContent).join("|"), "百公里加速 ≤7|纯电续航 ≥150|NOA城市领航|远程启动|手机远程控制|蓝牙/数字钥匙|座椅记忆|外后视镜记忆");
+
+  hooks.state.rangeFilters = {};
+  hooks.state.featureFilters = {};
+  elements.get("resetFilters").dispatch("click");
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: 7 }, ev_range: { min: 150, max: "" } });
+  assert.equal(Object.keys(hooks.state.featureFilters).length, 6);
+});
+
+test("Pages default visible columns include listing time and core feature columns", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "config", "filter_conditions.json"), "utf8"));
+  ["官方指导价", "上市时间", "NOA城市领航", "远程启动", "远程控制", "蓝牙/数字钥匙", "座椅记忆", "外后视镜记忆"].forEach((column) => {
+    assert.ok(config.defaultVisibleColumns.includes(column), column);
+  });
+  assert.ok(config.defaultVisibleColumns.indexOf("官方指导价") < config.defaultVisibleColumns.indexOf("上市时间"));
+  assert.ok(config.defaultVisibleColumns.indexOf("上市时间") < config.defaultVisibleColumns.indexOf("NOA城市领航"));
 });

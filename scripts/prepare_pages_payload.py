@@ -16,6 +16,8 @@ try:
         autohome_publish_identity_valid,
         is_autohome_row,
         is_yiche_row,
+        normalize_publish_official_price,
+        publish_boundary_valid,
         row_car_id,
         yiche_publish_identity_valid,
     )
@@ -24,6 +26,8 @@ except ModuleNotFoundError:
         autohome_publish_identity_valid,
         is_autohome_row,
         is_yiche_row,
+        normalize_publish_official_price,
+        publish_boundary_valid,
         row_car_id,
         yiche_publish_identity_valid,
     )
@@ -65,6 +69,8 @@ def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
             continue
         if is_autohome_row(row) and not autohome_publish_identity_valid(row):
             continue
+        if not publish_boundary_valid(row):
+            continue
         year = model_year(row)
         if year is None or year < min_year:
             continue
@@ -76,6 +82,7 @@ def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
             if status != "approved":
                 continue
         prepared_row = {key: value for key, value in row.items() if keep_value(value)}
+        normalize_publish_official_price(prepared_row)
         prepared_row["品牌"] = brand
         prepared_row["车型名称"] = model
         prepared.append(prepared_row)

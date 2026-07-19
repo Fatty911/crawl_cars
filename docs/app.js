@@ -28,11 +28,24 @@
     }
   ];
 
+  var DEFAULT_RANGE_FILTERS = {
+    zero_to_hundred: { min: "", max: 7 },
+    ev_range: { min: 150, max: "" }
+  };
+  var DEFAULT_FEATURE_FILTERS = {
+    city_navigation: true,
+    remote_start: true,
+    remote_control: true,
+    bluetooth_key: true,
+    seat_memory: true,
+    mirror_memory: true
+  };
+
   var fallbackConfig = {
     defaultDataset: "latest",
     hiddenByDefault: ["数据来源", "ABS防抱死", "制动防抱死", "刹车防抱死"],
     dropIfUniformPositive: ["ABS防抱死", "制动防抱死", "刹车防抱死"],
-    defaultVisibleColumns: ["车型名称", "品牌", "车系", "年款", "交叉核验", "百公里加速(s)", "纯电续航(km)"],
+    defaultVisibleColumns: ["车型名称", "品牌", "车系", "年款", "级别", "能源类型", "官方指导价", "上市时间", "交叉核验", "百公里加速(s)", "纯电续航(km)", "NOA城市领航", "远程启动", "远程控制", "蓝牙/数字钥匙", "座椅记忆", "外后视镜记忆"],
     conditions: []
   };
 
@@ -43,8 +56,8 @@
     columns: [],
     visibleColumns: new Set(),
     columnFilters: {},
-    rangeFilters: {},
-    featureFilters: {},
+    rangeFilters: Object.assign({}, DEFAULT_RANGE_FILTERS),
+    featureFilters: Object.assign({}, DEFAULT_FEATURE_FILTERS),
     search: "",
     brand: "",
     series: "",
@@ -139,6 +152,14 @@
 
   function cleanText(value) {
     return String(value == null ? "" : value).replace(/\s+/g, "").toLowerCase();
+  }
+
+  function cloneDefaultRangeFilters() {
+    return JSON.parse(JSON.stringify(DEFAULT_RANGE_FILTERS));
+  }
+
+  function cloneDefaultFeatureFilters() {
+    return Object.assign({}, DEFAULT_FEATURE_FILTERS);
   }
 
   function cleanModelText(value) {
@@ -931,6 +952,21 @@
     });
   }
 
+  function conditionTagLabel(condition) {
+    if (condition.type !== "range") {
+      return condition.label;
+    }
+    var filter = state.rangeFilters[condition.id] || {};
+    var parts = [];
+    if (filter.max !== "" && filter.max != null) {
+      parts.push("≤" + filter.max);
+    }
+    if (filter.min !== "" && filter.min != null) {
+      parts.push("≥" + filter.min);
+    }
+    return condition.label + (parts.length ? " " + parts.join(" ") : "");
+  }
+
   function renderSelectedTags() {
     els.selectedTags.textContent = "";
     [["品牌", state.brand], ["车系", state.series]].forEach(function (item) {
@@ -942,7 +978,7 @@
     (state.config.conditions || []).forEach(function (condition) {
       if (state.featureFilters[condition.id] || state.rangeFilters[condition.id]) {
         var tag = document.createElement("span");
-        tag.textContent = condition.label;
+        tag.textContent = conditionTagLabel(condition);
         els.selectedTags.appendChild(tag);
       }
     });
@@ -1597,8 +1633,8 @@
 
     els.resetFilters.addEventListener("click", function () {
       state.columnFilters = {};
-      state.rangeFilters = {};
-      state.featureFilters = {};
+      state.rangeFilters = cloneDefaultRangeFilters();
+      state.featureFilters = cloneDefaultFeatureFilters();
       state.search = "";
       state.brand = "";
       state.series = "";
@@ -1693,6 +1729,8 @@
     state.expandedSeries.clear();
     state.seriesViewSignature = "";
     state.cardLimit = 24;
+    state.rangeFilters = cloneDefaultRangeFilters();
+    state.featureFilters = cloneDefaultFeatureFilters();
     state.columns = buildColumns(state.rows);
     state.visibleColumns = new Set();
     (state.config.defaultVisibleColumns || []).forEach(function (column) {
