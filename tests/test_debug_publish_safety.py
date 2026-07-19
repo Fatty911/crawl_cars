@@ -186,6 +186,38 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(1, stats["valid"])
         self.assertEqual(0, stats["invalid_dropped"])
 
+    def test_dongchedi_partial_context_allows_raw_rows_without_model_id(self) -> None:
+        module = load_prepare_debug_module()
+        row = self.merge_row(数据来源="", 车款ID="")
+        previous = os.environ.get("TRIGGER_SOURCE")
+        os.environ["TRIGGER_SOURCE"] = "dongchedi-crawl"
+        try:
+            valid, stats = module.filter_merge_identity_rows([row])
+        finally:
+            if previous is None:
+                os.environ.pop("TRIGGER_SOURCE", None)
+            else:
+                os.environ["TRIGGER_SOURCE"] = previous
+
+        self.assertEqual([row], valid)
+        self.assertEqual(1, stats["valid"])
+        self.assertEqual(0, stats["invalid_dropped"])
+
+    def test_raw_rows_without_model_id_still_fail_without_dongchedi_context(self) -> None:
+        module = load_prepare_debug_module()
+        row = self.merge_row(数据来源="", 车款ID="")
+        previous = os.environ.pop("TRIGGER_SOURCE", None)
+        try:
+            valid, stats = module.filter_merge_identity_rows([row])
+        finally:
+            if previous is not None:
+                os.environ["TRIGGER_SOURCE"] = previous
+
+        self.assertEqual([], valid)
+        self.assertEqual(0, stats["valid"])
+        self.assertEqual(1, stats["invalid_model_id_dropped"])
+        self.assertEqual(1, stats["invalid_dropped"])
+
     def test_dongchedi_merge_filter_still_drops_missing_identity(self) -> None:
         module = load_prepare_debug_module()
         row = self.merge_row(数据来源="仅懂车帝", 车系="", 车系ID="", 车款ID="")

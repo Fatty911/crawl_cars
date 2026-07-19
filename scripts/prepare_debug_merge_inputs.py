@@ -72,7 +72,10 @@ def merge_identity_invalid_reason(row: dict[str, Any]) -> str:
     model = value(row, "车型名称")
     year = value(row, "年款")
     source = value(row, "数据来源")
-    requires_model_id = is_autohome_row(row) or is_yiche_row(row) or "懂车帝" not in source
+    source_is_dongchedi = "懂车帝" in source or (
+        not source and os.environ.get("TRIGGER_SOURCE") == "dongchedi-crawl"
+    )
+    requires_model_id = is_autohome_row(row) or is_yiche_row(row) or not source_is_dongchedi
     if not brand or not has_chinese(brand):
         return "invalid_brand"
     if not autohome_series_valid(series):
