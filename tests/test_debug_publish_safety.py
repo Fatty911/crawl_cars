@@ -46,6 +46,16 @@ def load_merge_module():
     return module
 
 
+def load_prepare_debug_module():
+    path = SCRIPTS / "prepare_debug_merge_inputs.py"
+    spec = importlib.util.spec_from_file_location("prepare_debug_merge_inputs_regression", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class ZeroToWholeRatioDateTests(unittest.TestCase):
     def test_dated_artifact_uses_shanghai_date_when_utc_is_previous_day(self) -> None:
         module = load_zero_to_whole_module()
@@ -165,6 +175,40 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual(1, stats["stable_invalid_model_name_dropped"])
         self.assertEqual(1, stats["stable_invalid_year_dropped"])
         self.assertEqual(2, stats["output_rows"])
+
+    def test_dongchedi_merge_filter_allows_series_identity_without_model_id(self) -> None:
+        module = load_prepare_debug_module()
+        row = self.merge_row(数据来源="仅懂车帝", 车款ID="")
+
+        valid, stats = module.filter_merge_identity_rows([row])
+
+        self.assertEqual([row], valid)
+        self.assertEqual(1, stats["valid"])
+        self.assertEqual(0, stats["invalid_dropped"])
+
+    def test_dongchedi_merge_filter_still_drops_missing_identity(self) -> None:
+        module = load_prepare_debug_module()
+        row = self.merge_row(数据来源="仅懂车帝", 车系="", 车系ID="", 车款ID="")
+
+        valid, stats = module.filter_merge_identity_rows([row])
+
+        self.assertEqual([], valid)
+        self.assertEqual(0, stats["valid"])
+        self.assertEqual(1, stats["invalid_dropped"])
+
+    def test_publish_sources_still_require_model_id_in_merge_filter(self) -> None:
+        module = load_prepare_debug_module()
+        rows = [
+            self.merge_row(数据来源="仅汽车之家", 车款ID=""),
+            self.merge_row(数据来源="仅易车", 车款ID="", 易车上市状态="approved"),
+        ]
+
+        valid, stats = module.filter_merge_identity_rows(rows)
+
+        self.assertEqual([], valid)
+        self.assertEqual(0, stats["valid"])
+        self.assertEqual(2, stats["invalid_model_id_dropped"])
+        self.assertEqual(2, stats["invalid_dropped"])
 
 
 

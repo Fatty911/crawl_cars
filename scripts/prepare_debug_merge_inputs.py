@@ -12,9 +12,29 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from publish_identity import autohome_series_valid, has_chinese, identity_key, publish_boundary_valid, publish_year, row_car_id, value
+    from publish_identity import (
+        autohome_series_valid,
+        has_chinese,
+        identity_key,
+        is_autohome_row,
+        is_yiche_row,
+        publish_boundary_valid,
+        publish_year,
+        row_car_id,
+        value,
+    )
 except ModuleNotFoundError:
-    from scripts.publish_identity import autohome_series_valid, has_chinese, identity_key, publish_boundary_valid, publish_year, row_car_id, value
+    from scripts.publish_identity import (
+        autohome_series_valid,
+        has_chinese,
+        identity_key,
+        is_autohome_row,
+        is_yiche_row,
+        publish_boundary_valid,
+        publish_year,
+        row_car_id,
+        value,
+    )
 
 
 def load_json_rows(path: Path) -> list[dict[str, Any]]:
@@ -51,7 +71,8 @@ def merge_identity_invalid_reason(row: dict[str, Any]) -> str:
     series = value(row, "车系")
     model = value(row, "车型名称")
     year = value(row, "年款")
-    model_id = row_car_id(row)
+    source = value(row, "数据来源")
+    requires_model_id = is_autohome_row(row) or is_yiche_row(row) or "懂车帝" not in source
     if not brand or not has_chinese(brand):
         return "invalid_brand"
     if not autohome_series_valid(series):
@@ -60,7 +81,7 @@ def merge_identity_invalid_reason(row: dict[str, Any]) -> str:
         return "invalid_model_name"
     if not re.fullmatch(r"(?:19|20)\d{2}", year):
         return "invalid_year"
-    if not model_id or not re.fullmatch(r"\d+", model_id):
+    if requires_model_id and not re.fullmatch(r"\d+", row_car_id(row)):
         return "invalid_model_id"
     try:
         identity_key(row)
