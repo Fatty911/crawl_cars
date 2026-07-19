@@ -1144,10 +1144,74 @@ def parse_config_pages(series_list):
                             info = car.get("info", {})
                             all_config_keys.update(info.keys())
 
+                        # _v4 后缀字段 → 中文名映射（懂车帝智驾/座舱配置块）
+                        V4_CN_MAP = {
+                            "laser_radar_v4": "激光雷达",
+                            "driving_assist_chip_computing_v4": "辅助驾驶芯片算力",
+                            "car_intelligent_system_v4": "车载智能系统",
+                            "driving_assist_chip_v4": "辅助驾驶芯片",
+                            "car_intelligent_chip_v4": "车载智能芯片",
+                            "driving_assist_op_system_v4": "辅助驾驶操作系统",
+                            "ultrasonic_radar_v4": "超声波雷达",
+                            "battery_brand_v4": "电池品牌",
+                            "millimeter_wave_radar_v4": "毫米波雷达",
+                            "camera_count_v4": "摄像头数量",
+                            "v2x_communication_v4": "V2X通信",
+                            "heat_pump_management_system_v4": "热泵管理系统",
+                            "mobile_remote_control_v4": "手机远程控制",
+                            "high_precision_map_v4": "高精度地图",
+                        }
+
+                        # 选装包/套装/订阅字段归一化：懂车帝把选装包分流成 _1(描述) _2(状态) 两个 key
+                        # 格式: "包名_数字" → 收集到选装包列表
+                        import re as _re  # noqa: E702
+                        _pkg_groups = {}  # 包名 → {1: value, 2: value, ...}
+                        _pkg_keys = set()
+                        for config_key in list(all_config_keys):
+                            m = _re.match(r'^(.+)_(\d+)$', config_key)
+                            if m:
+                                base = m.group(1)
+                                idx = m.group(2)
+                                # 判断是否为选装包类字段：名称含套装/包/套件/订阅/NOA/领航/装备/CO2/热泵等关键词
+                                _is_pkg = any(kw in base for kw in [
+                                    '套装', '套件', '订阅', 'NOA', '领航', '装备',
+                                    'CO2', '热泵', '包', '舒适', '科技', '智驾', '智享',
+                                    '臻选', '尊享', '豪华', '定制', '冬季', '夏季',
+                                    '氛围', '灯光', '音响', '座椅', '泊车', '智能',
+                                    '温控', '音效', '密友', '家庭', '全能', '选装',
+                                    '酷炫', '睿智', '智控', '舒享', '臻享', '悦享',
+                                    '至尊', '铂金', '钻石', '璀璨', '曜夜', '黑曜',
+                                    '动感', '炫酷', '电控', '电驱', '电享', '静谧',
+                                    '奢侈', '炯炯', '双零', '辅助', '驾驶', '新装备',
+                                    '性能', '尊贵', '典藏', '极夜', '博速', '氮气',
+                                    '四驱', '哑光', '外部', '旅行', '全球', '夜色',
+                                    '暗夜', '碳纤维', '空气动力学', '冰雪', '越野',
+                                    '车轮', '合金', '尊享', '尊贵', '竞技', '勒芒',
+                                    '法式', '车神', '全维', 'E', 'M碳', 'P', 'Audi',
+                                    'AMG', 'RS', 'AT', 'R', 'S-line', 'M运', 'M高',
+                                    '深色', '浅色', '个性', '户外',
+                                ])
+                                if _is_pkg:
+                                    _pkg_keys.add(config_key)
+                                    _pkg_groups.setdefault(base, {})[idx] = None
+                                elif base in V4_CN_MAP:
+                                    # _v4_数字 格式（如 driving_assist_chip_v4_254）→ 归一化
+                                    pass  # 保留在 all_config_keys 中，用 V4_CN_MAP 处理
+
+                        # 移除选装包类 key，后续统一处理
+                        all_config_keys -= _pkg_keys
+
+                        # 为选装包生成统一列名
+                        _pkg_entries = []  # 收集所有选装包条目
+                        for pkg_name, idx_map in _pkg_groups.items():
+                            _pkg_entries.append(pkg_name)
+
                         # 为每个配置项提取所有车型的值
-                        for config_key in all_config_keys:
+                        for config_key in sorted(all_config_keys):
                             if config_key in prop_mapping:
                                 prop_text = prop_mapping[config_key]
+                            elif config_key in V4_CN_MAP:
+                                prop_text = V4_CN_MAP[config_key]
                             else:
                                 # 如果映射中没有，使用key本身
                                 prop_text = config_key
@@ -1167,6 +1231,47 @@ def parse_config_pages(series_list):
                                 car_data[prop_text] = values
                                 if prop_text not in all_headers:
                                     all_headers.append(prop_text)
+
+                        # 处理选装包字段：提取每个车型的选装包值
+                        if _pkg_entries:
+                            import json as _json_mod
+                            _pkg_list_values = []  # 每个车型的选装包列表 JSON
+                            _pkg_individual_values = {}  # 每个选装包基础名 → 每个车型的值
+                            for pkg_name in _pkg_entries:
+                                _pkg_individual_values[pkg_name] = []
+                            for car in car_info:
+                                info = car.get("info", {})
+                                _car_pkgs = {}
+                                for pkg_name in _pkg_entries:
+                                    _pkg_desc = ""
+                                    _pkg_status = ""
+                                    for idx_str in ["1", "2"]:
+                                        raw_key = f"{pkg_name}_{idx_str}"
+                                        if raw_key in _pkg_keys:
+                                            cv = info.get(raw_key, {})
+                                            if isinstance(cv, dict):
+                                                v = cv.get("value", "")
+                                            else:
+                                                v = str(cv) if cv else ""
+                                            if idx_str == "1":
+                                                _pkg_desc = v
+                                            else:
+                                                _pkg_status = v
+                                    if _pkg_desc or _pkg_status:
+                                        _car_pkgs[pkg_name] = {
+                                            "描述": _pkg_desc,
+                                            "状态": _pkg_status,
+                                        }
+                                    _pkg_individual_values[pkg_name].append(
+                                        _pkg_desc if _pkg_desc else _pkg_status
+                                    )
+                                _pkg_list_values.append(_json_mod.dumps(_car_pkgs, ensure_ascii=False) if _car_pkgs else "")
+                            # 添加选装包列表列
+                            car_data["选装包列表"] = _pkg_list_values
+                            # 添加单个选装包列（不带 _数字 后缀）
+                            for pkg_name, vals in _pkg_individual_values.items():
+                                if any(vals):
+                                    car_data[pkg_name] = vals
 
                         print(
                             f"  从配置 payload 解析到 {len(car_info)} 个车型, {len(car_data)} 个配置属性"

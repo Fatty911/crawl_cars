@@ -169,6 +169,22 @@ jobs:
           echo "OPENROUTER_API_KEY=*** secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "ACTION_PAT=${{ secrets.ACTION_PAT }}" >> $GITHUB_ENV
 
+      - name: Download latest merged data for dual-source priority
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "下载最新 merged release 数据用于双源优先队列..."
+          LATEST_TAG=$(gh release list -R Fatty911/crawl_cars --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+          if [ -n "$LATEST_TAG" ]; then
+            echo "最新 release: $LATEST_TAG"
+            mkdir -p data
+            gh release download "$LATEST_TAG" -R Fatty911/crawl_cars -p 'merged_*.json' -D data/ 2>/dev/null || echo "下载 merged_*.json 失败，跳过"
+            ls -lh data/merged_*.json 2>/dev/null || echo "data/ 无 merged json"
+          else
+            echo "未找到 release，使用现有数据"
+          fi
+
       - name: Setup proxy if configured
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true'
         env:
