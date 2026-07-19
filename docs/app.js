@@ -738,7 +738,7 @@
         title.appendChild(checkbox);
       }
       var text = document.createElement("span");
-      text.textContent = condition.label;
+      text.textContent = conditionTagLabel(condition);
       title.appendChild(text);
       item.appendChild(title);
 
@@ -947,7 +947,7 @@
       input.dataset.conditionId = condition.id;
       input.checked = condition.type === "feature" ? Boolean(state.featureFilters[condition.id]) : Boolean(state.rangeFilters[condition.id]);
       label.appendChild(input);
-      label.appendChild(document.createTextNode(condition.label));
+      label.appendChild(document.createTextNode(conditionTagLabel(condition)));
       els.centerConditionList.appendChild(label);
     });
   }
@@ -1435,7 +1435,7 @@
         state.featureFilters[condition.id] = event.target.checked;
         if (!event.target.checked) { delete state.featureFilters[condition.id]; }
       }
-      state.page = 1; state.cardLimit = 24; renderResultsOnly();
+      state.page = 1; state.cardLimit = 24; renderConditions(); renderCenterFilters(); renderResultsOnly();
     });
     els.cardList.addEventListener("click", function (event) {
       var toggle = event.target.closest(".series-card-toggle");
@@ -1552,6 +1552,8 @@
         delete state.featureFilters[event.target.dataset.conditionId];
       }
       state.page = 1;
+      renderCenterFilters();
+      renderSelectedTags();
       renderResultsOnly();
     });
 
@@ -1567,6 +1569,8 @@
       });
       state.rangeFilters[id] = value;
       state.page = 1;
+      renderCenterFilters();
+      renderSelectedTags();
       renderResultsOnly();
     });
 

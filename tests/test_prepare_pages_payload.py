@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 
@@ -10,7 +11,11 @@ def listed(row):
     return row
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "prepare_pages_payload.py"
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+SCRIPT = ROOT / "scripts" / "prepare_pages_payload.py"
 SPEC = importlib.util.spec_from_file_location("prepare_pages_payload", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -19,16 +24,16 @@ SPEC.loader.exec_module(MODULE)
 
 def test_prepare_rows_keeps_recent_sparse_rows_and_meaningful_zeroes():
     rows = [
-        {"品牌": "甲", "车型名称": "旧车 2021款", "年款": "2021", "远程启动": "标配"},
-        {"品牌": "甲", "车型名称": "新车 2024款", "年款": "", "远程启动": "-", "气囊数": 0},
-        {"品牌": "甲", "车型名称": "无年款", "年款": "-", "数据来源": "仅懂车帝"},
+        listed({"品牌": "甲", "车型名称": "旧车 2021款", "年款": "2021", "远程启动": "标配"}),
+        listed({"品牌": "甲", "车型名称": "新车 2024款", "年款": "", "远程启动": "-", "气囊数": 0}),
+        listed({"品牌": "甲", "车型名称": "无年款", "年款": "-", "数据来源": "仅懂车帝"}),
         {"品牌": "乙", "车系": "乙车系", "车型名称": "易车无年款", "年款": "-", "数据来源": "仅易车", "配置A": "-"},
         listed({"品牌": "乙", "车系": "乙车系", "车型名称": "易车旧款", "年款": "2021", "数据来源": "仅易车", "易车上市状态": "approved", "车款ID": "1001"}),
         listed({"品牌": "乙", "车系": "乙车系", "车型名称": "易车新款 2026款", "年款": "2026", "数据来源": "仅易车", "易车上市状态": "approved", "车款ID": "1001", "配置A": "有"}),
     ]
 
     assert MODULE.prepare_rows(rows, 2022) == [
-        {"品牌": "甲", "车型名称": "新车 2024款", "气囊数": 0},
+        listed({"品牌": "甲", "车型名称": "新车 2024款", "气囊数": 0}),
         listed({"品牌": "乙", "车系": "乙车系", "车型名称": "易车新款 2026款", "年款": "2026", "数据来源": "仅易车", "易车上市状态": "approved", "车款ID": "1001", "配置A": "有"}),
     ]
 
@@ -38,8 +43,8 @@ def test_main_supports_atomic_in_place_compaction(tmp_path, monkeypatch):
     payload.write_text(
         json.dumps(
             [
-                {"品牌": "甲", "车型名称": "甲 2022款", "年款": "2022", "配置A": "-", "配置B": "有"},
-                {"品牌": "乙", "车型名称": "乙 2021款", "年款": "2021", "配置B": "有"},
+                listed({"品牌": "甲", "车型名称": "甲 2022款", "年款": "2022", "配置A": "-", "配置B": "有"}),
+                listed({"品牌": "乙", "车型名称": "乙 2021款", "年款": "2021", "配置B": "有"}),
             ],
             ensure_ascii=False,
             indent=2,
@@ -54,16 +59,16 @@ def test_main_supports_atomic_in_place_compaction(tmp_path, monkeypatch):
 
     assert MODULE.main() == 0
     assert json.loads(payload.read_text(encoding="utf-8")) == [
-        {"品牌": "甲", "车型名称": "甲 2022款", "年款": "2022", "配置B": "有"}
+        listed({"品牌": "甲", "车型名称": "甲 2022款", "年款": "2022", "配置B": "有"})
     ]
     assert payload.stat().st_size < before
 
 
 def test_prepare_rows_rejects_blank_brand_and_model():
     rows = [
-        {"品牌": " ", "车型名称": "A 2026款", "年款": "2026"},
-        {"品牌": "甲", "车型名称": "-", "年款": "2026"},
-        {"品牌": "甲", "车型名称": "A 2026款", "年款": "2026"},
+        listed({"品牌": " ", "车型名称": "A 2026款", "年款": "2026"}),
+        listed({"品牌": "甲", "车型名称": "-", "年款": "2026"}),
+        listed({"品牌": "甲", "车型名称": "A 2026款", "年款": "2026"}),
     ]
     assert MODULE.prepare_rows(rows, 2022) == [rows[2]]
 
@@ -175,3 +180,20 @@ def test_prepare_rows_rejects_blank_listing_time_accepts_combined_past_and_rejec
     combined = dict(base, 上市时间="汽车之家:2026-04-16|懂车帝:2026.04")
     future = dict(base, 上市时间="2099-01-01")
     assert MODULE.prepare_rows([blank, combined, future], 2022) == [combined]
+
+
+def test_prepare_rows_reports_price_and_listing_drop_stats():
+    base = {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "甲车系", "车型名称": "甲 2026款", "年款": "2026"}
+    rows = [
+        dict(base, 官方指导价="暂无报价", 上市时间="2026-01-01"),
+        dict(base, 官方指导价="12.98万", 上市时间=""),
+        dict(base, 官方指导价="12.98万", 上市时间="2099-01-01"),
+        dict(base, 官方指导价="12.98万", 上市时间="汽车之家:2026-04-16|懂车帝:2026.04"),
+    ]
+    prepared, stats = MODULE.prepare_rows_with_stats(rows, 2022)
+    assert prepared == [rows[-1]]
+    assert stats == {
+        "droppedMissingOfficialPrice": 1,
+        "droppedMissingListingTime": 1,
+        "droppedFutureListingTime": 1,
+    }

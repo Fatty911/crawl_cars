@@ -16,6 +16,7 @@ try:
         autohome_publish_identity_valid,
         is_autohome_row,
         is_yiche_row,
+        has_valid_listing_time,
         normalize_publish_official_price,
         publish_boundary_valid,
         row_car_id,
@@ -26,6 +27,7 @@ except ModuleNotFoundError:
         autohome_publish_identity_valid,
         is_autohome_row,
         is_yiche_row,
+        has_valid_listing_time,
         normalize_publish_official_price,
         publish_boundary_valid,
         row_car_id,
@@ -55,19 +57,33 @@ def has_chinese(value: Any) -> bool:
     return bool(re.search(r"[\u4e00-\u9fff]", str(value or "")))
 
 
-def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
+def prepare_rows_with_stats(rows: Any, min_year: int) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if not isinstance(rows, list):
         raise ValueError("Pages payload input must be a JSON array")
     prepared = []
+    stats = {
+        "droppedMissingOfficialPrice": 0,
+        "droppedMissingListingTime": 0,
+        "droppedFutureListingTime": 0,
+    }
     for row in rows:
         if not isinstance(row, dict):
             continue
         brand = str(row.get("品牌") or "").strip()
         model = str(row.get("车型名称") or "").strip()
-        source = str(row.get("数据来源", "") or "")
         if brand in {"", "-"} or model in {"", "-"} or not yiche_publish_identity_valid(row):
             continue
         if is_autohome_row(row) and not autohome_publish_identity_valid(row):
+            continue
+        if not normalize_publish_official_price(row):
+            stats["droppedMissingOfficialPrice"] += 1
+            continue
+        listing_time = str(row.get("上市时间") or "").strip()
+        if not listing_time or listing_time in {"-", "--", "None", "null"}:
+            stats["droppedMissingListingTime"] += 1
+            continue
+        if not has_valid_listing_time(row):
+            stats["droppedFutureListingTime"] += 1
             continue
         if not publish_boundary_valid(row):
             continue
@@ -86,6 +102,11 @@ def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
         prepared_row["品牌"] = brand
         prepared_row["车型名称"] = model
         prepared.append(prepared_row)
+    return prepared, stats
+
+
+def prepare_rows(rows: Any, min_year: int) -> list[dict[str, Any]]:
+    prepared, _stats = prepare_rows_with_stats(rows, min_year)
     return prepared
 
 
@@ -114,7 +135,7 @@ def main() -> int:
     before_bytes = args.input.stat().st_size
     with args.input.open(encoding="utf-8") as handle:
         rows = json.load(handle)
-    prepared = prepare_rows(rows, args.min_year)
+    prepared, stats = prepare_rows_with_stats(rows, args.min_year)
     write_atomic(args.output, prepared)
     print(
         json.dumps(
@@ -124,6 +145,9 @@ def main() -> int:
                 "inputBytes": before_bytes,
                 "outputBytes": args.output.stat().st_size,
                 "minYear": args.min_year,
+                "droppedMissingOfficialPrice": stats["droppedMissingOfficialPrice"],
+                "droppedMissingListingTime": stats["droppedMissingListingTime"],
+                "droppedFutureListingTime": stats["droppedFutureListingTime"],
             },
             ensure_ascii=False,
             sort_keys=True,

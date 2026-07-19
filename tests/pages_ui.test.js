@@ -396,12 +396,17 @@ test("Pages enables the eight core filters by default and after reset", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: 7 }, ev_range: { min: 150, max: "" } });
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.getFilteredRows().map((item) => item["车型名称"]))), ["默认通过"]);
   assert.equal(elements.get("selectedTags").children.map((tag) => tag.textContent).join("|"), "百公里加速 ≤7|纯电续航 ≥150|NOA城市领航|远程启动|手机远程控制|蓝牙/数字钥匙|座椅记忆|外后视镜记忆");
+  assert.equal(elements.get("conditionList").children[0].children[0].children[0].children[0].textContent, "百公里加速 ≤7");
+  assert.equal(elements.get("centerConditionList").children[0].children[1].textContent, "百公里加速 ≤7");
+  assert.equal(elements.get("centerConditionList").children.filter((label) => label.children[0].checked).length, 8);
 
   hooks.state.rangeFilters = {};
   hooks.state.featureFilters = {};
   elements.get("resetFilters").dispatch("click");
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: 7 }, ev_range: { min: 150, max: "" } });
   assert.equal(Object.keys(hooks.state.featureFilters).length, 6);
+  assert.equal(elements.get("conditionList").children[0].children.filter((item) => item.children[0].children[0] && item.children[0].children[0].checked).length, 6);
+  assert.equal(elements.get("centerConditionList").children.filter((label) => label.children[0].checked).length, 8);
 });
 
 test("Pages default visible columns include listing time and core feature columns", () => {
