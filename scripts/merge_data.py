@@ -675,7 +675,7 @@ def series_key(row):
 def check_numeric_condition(row, field_name, threshold, op):
     numbers = parse_numbers(row.get(field_name, "-"))
     if not numbers:
-        return False
+        return True  # 数据缺失不做过滤，不拒绝该车型
     if op == "<=":
         return any(val <= threshold for val in numbers)
     if op == ">=":
@@ -716,7 +716,7 @@ def check_feature(row, field_names, value_keywords=None, require_keyword=False):
         if value_matches:
             return True
 
-    return False
+    return True  # 数据缺失不做过滤：如果该数据源完全没有相关字段，不过滤
 
 
 def filter_car(row):

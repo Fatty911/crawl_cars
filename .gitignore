@@ -28,7 +28,7 @@ dongchedi/json/
 step1_done
 dcd_step2_done
 
-# 生成的数据文件
+# 生成的數據文件
 /autoHome_*.json
 /dongchedi_*.json
 /merged_*.csv
@@ -37,6 +37,10 @@ dcd_step2_done
 /filtered_cars_*.csv
 /filtered_cars_*.json
 /zero_to_whole_ratios*.json
+data/merged_*.json
+data/merged_*.csv
+data/filtered_cars_*.json
+data/filtered_cars_*.csv
 
 # 日志
 *.log
