@@ -9,6 +9,7 @@ from datetime import date
 try:
     from publish_identity import (
         autohome_publish_identity_valid,
+        identity_key,
         is_autohome_row,
         is_yiche_row,
         row_car_id,
@@ -17,6 +18,7 @@ try:
 except ModuleNotFoundError:
     from scripts.publish_identity import (
         autohome_publish_identity_valid,
+        identity_key,
         is_autohome_row,
         is_yiche_row,
         row_car_id,
@@ -40,6 +42,8 @@ HEADER_MAP = {
     "官方0-100km_h加速_s_": "百公里加速(s)",
     "0-100km_h加速时间_s_": "百公里加速(s)",
     "百公里加速时间": "百公里加速(s)",
+    "0-100km/h加速(s)": "百公里加速(s)",
+    "0-100km/h加速时间(s)": "百公里加速(s)",
     "远程启动功能": "远程启动",
     "发动机远程启动": "远程启动",
     "远程操控": "远程控制",
@@ -241,8 +245,7 @@ HEADER_MAP = {
     "近光灯": "近光灯",
     "远光灯光源": "远光灯",
     "远光灯": "远光灯",
-    "外后视镜记忆": "外后视镜功能",
-    "外后视镜功能": "外后视镜功能",
+
     "内后视镜功能": "内后视镜功能",
     "内后视镜": "内后视镜功能",
     "车窗防夹手功能": "车窗防夹手功能",
@@ -675,7 +678,7 @@ def series_key(row):
 def check_numeric_condition(row, field_name, threshold, op):
     numbers = parse_numbers(row.get(field_name, "-"))
     if not numbers:
-        return True  # 数据缺失不做过滤，不拒绝该车型
+        return False
     if op == "<=":
         return any(val <= threshold for val in numbers)
     if op == ">=":
@@ -716,7 +719,7 @@ def check_feature(row, field_names, value_keywords=None, require_keyword=False):
         if value_matches:
             return True
 
-    return True  # 数据缺失不做过滤：如果该数据源完全没有相关字段，不过滤
+    return False
 
 
 def filter_car(row):
@@ -1392,6 +1395,24 @@ def main():
         f"invalid_autohome_identity={publish_stats.get('invalid_autohome_identity', 0)} "
         f"invalid_yiche_identity={publish_stats['invalid_yiche_identity']}"
     )
+    # 按 identity_key 去重，避免 preserve_publish_baseline.py 报 duplicate identities
+    seen_keys = set()
+    deduped_rows = []
+    dup_count = 0
+    for row in all_rows:
+        try:
+            key = identity_key(row)
+        except ValueError:
+            deduped_rows.append(row)
+            continue
+        if key in seen_keys:
+            dup_count += 1
+            continue
+        seen_keys.add(key)
+        deduped_rows.append(row)
+    if dup_count:
+        print(f"identity_key 去重: 移除 {dup_count} 条重复身份行 ({len(all_rows)} -> {len(deduped_rows)})")
+    all_rows = deduped_rows
     before_year_filter = len(all_rows)
     all_rows = [row for row in all_rows if keep_pages_year(row)]
     print(f"2022年及以后车型: {len(all_rows)}/{before_year_filter}")
