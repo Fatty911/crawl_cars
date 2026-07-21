@@ -1,9 +1,51 @@
 [
   {
+    "heat": 0,
+    "car_id": "6298",
+    "brand": "比亚迪",
+    "series": "元PLUS"
+  },
+  {
+    "heat": 0,
+    "car_id": "7538",
+    "brand": "比亚迪",
+    "series": "元UP"
+  },
+  {
+    "heat": 0,
+    "car_id": "7220",
+    "brand": "比亚迪",
+    "series": "宋L EV"
+  },
+  {
+    "heat": 0,
+    "car_id": "6851",
+    "brand": "比亚迪",
+    "series": "海狮07 EV"
+  },
+  {
+    "heat": 1,
+    "car_id": "3788",
+    "brand": "吉利汽车",
+    "series": "博越"
+  },
+  {
     "heat": 1,
     "car_id": "6814",
     "brand": "吉利汽车",
     "series": "博越L"
+  },
+  {
+    "heat": 1,
+    "car_id": "8544",
+    "brand": "吉利汽车",
+    "series": "博越REV"
+  },
+  {
+    "heat": 1,
+    "car_id": "4813",
+    "brand": "吉利汽车",
+    "series": "吉利ICON"
   },
   {
     "heat": 1,
@@ -13,33 +55,237 @@
   },
   {
     "heat": 1,
-    "car_id": "5273",
-    "brand": "吉利汽车",
-    "series": "星瑞"
-  },
-  {
-    "heat": 1,
     "car_id": "6004",
     "brand": "吉利汽车",
     "series": "星越L"
   },
   {
-    "heat": 4,
-    "car_id": "528",
-    "brand": "大众",
-    "series": "帕萨特"
+    "heat": 1,
+    "car_id": "4701",
+    "brand": "吉利汽车",
+    "series": "缤越"
+  },
+  {
+    "heat": 1,
+    "car_id": "6978",
+    "brand": "吉利汽车",
+    "series": "豪越L"
+  },
+  {
+    "heat": 2,
+    "car_id": "4976",
+    "brand": "长安",
+    "series": "长安CS35PLUS"
+  },
+  {
+    "heat": 2,
+    "car_id": "5498",
+    "brand": "长安",
+    "series": "长安CS55PLUS"
+  },
+  {
+    "heat": 2,
+    "car_id": "3204",
+    "brand": "长安",
+    "series": "长安CS75"
+  },
+  {
+    "heat": 2,
+    "car_id": "5179",
+    "brand": "长安",
+    "series": "长安CS75PLUS"
+  },
+  {
+    "heat": 2,
+    "car_id": "5927",
+    "brand": "长安",
+    "series": "长安UNI-K"
+  },
+  {
+    "heat": 2,
+    "car_id": "6264",
+    "brand": "长安",
+    "series": "长安UNI-K 智电iDD"
+  },
+  {
+    "heat": 2,
+    "car_id": "5565",
+    "brand": "长安",
+    "series": "长安UNI-T"
+  },
+  {
+    "heat": 2,
+    "car_id": "7821",
+    "brand": "长安",
+    "series": "长安UNI-Z"
+  },
+  {
+    "heat": 2,
+    "car_id": "7552",
+    "brand": "长安",
+    "series": "长安X5 PLUS"
+  },
+  {
+    "heat": 2,
+    "car_id": "7543",
+    "brand": "长安",
+    "series": "长安X7 PLUS"
+  },
+  {
+    "heat": 3,
+    "car_id": "7680",
+    "brand": "奇瑞",
+    "series": "探索06 C-DM"
+  },
+  {
+    "heat": 3,
+    "car_id": "6227",
+    "brand": "奇瑞",
+    "series": "欧萌达"
+  },
+  {
+    "heat": 3,
+    "car_id": "4099",
+    "brand": "奇瑞",
+    "series": "瑞虎3x"
+  },
+  {
+    "heat": 3,
+    "car_id": "3195",
+    "brand": "奇瑞",
+    "series": "瑞虎5"
+  },
+  {
+    "heat": 3,
+    "car_id": "4531",
+    "brand": "奇瑞",
+    "series": "瑞虎5x"
+  },
+  {
+    "heat": 3,
+    "car_id": "3766",
+    "brand": "奇瑞",
+    "series": "瑞虎7"
+  },
+  {
+    "heat": 3,
+    "car_id": "6288",
+    "brand": "奇瑞",
+    "series": "瑞虎7 PLUS"
+  },
+  {
+    "heat": 3,
+    "car_id": "4693",
+    "brand": "奇瑞",
+    "series": "瑞虎8"
+  },
+  {
+    "heat": 3,
+    "car_id": "7745",
+    "brand": "奇瑞",
+    "series": "瑞虎8L"
+  },
+  {
+    "heat": 3,
+    "car_id": "5884",
+    "brand": "奇瑞",
+    "series": "瑞虎8 PLUS"
+  },
+  {
+    "heat": 3,
+    "car_id": "7858",
+    "brand": "奇瑞",
+    "series": "瑞虎8 PLUS C-DM"
+  },
+  {
+    "heat": 3,
+    "car_id": "6547",
+    "brand": "奇瑞",
+    "series": "瑞虎8 PRO"
+  },
+  {
+    "heat": 3,
+    "car_id": "7072",
+    "brand": "奇瑞",
+    "series": "瑞虎9"
+  },
+  {
+    "heat": 3,
+    "car_id": "7214",
+    "brand": "奇瑞",
+    "series": "瑞虎9 C-DM"
+  },
+  {
+    "heat": 3,
+    "car_id": "6664",
+    "brand": "奇瑞",
+    "series": "艾瑞泽8"
   },
   {
     "heat": 4,
-    "car_id": "614",
+    "car_id": "7628",
     "brand": "大众",
-    "series": "朗逸"
+    "series": "与众06"
   },
   {
     "heat": 4,
-    "car_id": "496",
+    "car_id": "8312",
     "brand": "大众",
-    "series": "迈腾"
+    "series": "与众07"
+  },
+  {
+    "heat": 4,
+    "car_id": "8429",
+    "brand": "大众",
+    "series": "与众08"
+  },
+  {
+    "heat": 4,
+    "car_id": "4744",
+    "brand": "大众",
+    "series": "探岳"
+  },
+  {
+    "heat": 4,
+    "car_id": "8710",
+    "brand": "大众",
+    "series": "探岳L PHEV"
+  },
+  {
+    "heat": 4,
+    "car_id": "5246",
+    "brand": "大众",
+    "series": "探岳X"
+  },
+  {
+    "heat": 4,
+    "car_id": "5245",
+    "brand": "大众",
+    "series": "揽境"
+  },
+  {
+    "heat": 4,
+    "car_id": "6738",
+    "brand": "大众",
+    "series": "揽巡"
+  },
+  {
+    "heat": 4,
+    "car_id": "5062",
+    "brand": "大众",
+    "series": "迈腾 PHEV"
+  },
+  {
+    "heat": 4,
+    "car_id": "4745",
+    "brand": "大众",
+    "series": "途岳"
+  },
+  {
+    "heat": 4,
+    "car_id": "4232",
+    "brand": "大众",
+    "series": "途昂"
   },
   {
     "heat": 4,
@@ -49,9 +295,9 @@
   },
   {
     "heat": 4,
-    "car_id": "442",
+    "car_id": "82",
     "brand": "大众",
-    "series": "速腾"
+    "series": "途锐"
   },
   {
     "heat": 6,
@@ -61,15 +307,81 @@
   },
   {
     "heat": 6,
-    "car_id": "4962",
+    "car_id": "7713",
     "brand": "丰田",
-    "series": "亚洲龙"
+    "series": "丰田bZ5"
   },
   {
     "heat": 6,
-    "car_id": "110",
+    "car_id": "6428",
     "brand": "丰田",
-    "series": "凯美瑞"
+    "series": "卡罗拉锐放"
+  },
+  {
+    "heat": 6,
+    "car_id": "5472",
+    "brand": "丰田",
+    "series": "威兰达"
+  },
+  {
+    "heat": 6,
+    "car_id": "6385",
+    "brand": "丰田",
+    "series": "威飒"
+  },
+  {
+    "heat": 6,
+    "car_id": "46",
+    "brand": "丰田",
+    "series": "普拉多"
+  },
+  {
+    "heat": 6,
+    "car_id": "771",
+    "brand": "丰田",
+    "series": "汉兰达"
+  },
+  {
+    "heat": 6,
+    "car_id": "6030",
+    "brand": "丰田",
+    "series": "皇冠陆放"
+  },
+  {
+    "heat": 6,
+    "car_id": "7712",
+    "brand": "丰田",
+    "series": "铂智3X"
+  },
+  {
+    "heat": 6,
+    "car_id": "7520",
+    "brand": "丰田",
+    "series": "铂智4X"
+  },
+  {
+    "heat": 6,
+    "car_id": "6414",
+    "brand": "丰田",
+    "series": "锋兰达"
+  },
+  {
+    "heat": 8,
+    "car_id": "7676",
+    "brand": "本田",
+    "series": "东风本田S7"
+  },
+  {
+    "heat": 8,
+    "car_id": "4102",
+    "brand": "本田",
+    "series": "冠道"
+  },
+  {
+    "heat": 8,
+    "car_id": "7677",
+    "brand": "本田",
+    "series": "广汽本田P7"
   },
   {
     "heat": 8,
@@ -79,57 +391,441 @@
   },
   {
     "heat": 8,
-    "car_id": "78",
+    "car_id": "6825",
     "brand": "本田",
-    "series": "雅阁"
+    "series": "本田HR-V"
+  },
+  {
+    "heat": 8,
+    "car_id": "3582",
+    "brand": "本田",
+    "series": "本田XR-V"
+  },
+  {
+    "heat": 8,
+    "car_id": "5393",
+    "brand": "本田",
+    "series": "皓影"
+  },
+  {
+    "heat": 8,
+    "car_id": "3460",
+    "brand": "本田",
+    "series": "缤智"
   },
   {
     "heat": 9,
-    "car_id": "448",
+    "car_id": "6714",
     "brand": "日产",
-    "series": "轩逸"
+    "series": "ARIYA艾睿雅"
+  },
+  {
+    "heat": 9,
+    "car_id": "4305",
+    "brand": "日产",
+    "series": "劲客"
+  },
+  {
+    "heat": 9,
+    "car_id": "656",
+    "brand": "日产",
+    "series": "奇骏"
+  },
+  {
+    "heat": 9,
+    "car_id": "7396",
+    "brand": "日产",
+    "series": "探陆"
+  },
+  {
+    "heat": 9,
+    "car_id": "8243",
+    "brand": "日产",
+    "series": "日产N6"
+  },
+  {
+    "heat": 9,
+    "car_id": "8459",
+    "brand": "日产",
+    "series": "日产NX8"
+  },
+  {
+    "heat": 9,
+    "car_id": "564",
+    "brand": "日产",
+    "series": "逍客"
+  },
+  {
+    "heat": 10,
+    "car_id": "7272",
+    "brand": "五菱汽车",
+    "series": "五菱星云"
+  },
+  {
+    "heat": 10,
+    "car_id": "6117",
+    "brand": "五菱汽车",
+    "series": "五菱星辰"
+  },
+  {
+    "heat": 10,
+    "car_id": "6777",
+    "brand": "五菱汽车",
+    "series": "五菱星驰"
+  },
+  {
+    "heat": 10,
+    "car_id": "7572",
+    "brand": "五菱汽车",
+    "series": "五菱缤果PLUS"
+  },
+  {
+    "heat": 10,
+    "car_id": "8217",
+    "brand": "五菱汽车",
+    "series": "星光560"
+  },
+  {
+    "heat": 10,
+    "car_id": "8468",
+    "brand": "五菱汽车",
+    "series": "星光L"
+  },
+  {
+    "heat": 11,
+    "car_id": "7043",
+    "brand": "别克",
+    "series": "别克E5"
+  },
+  {
+    "heat": 11,
+    "car_id": "8510",
+    "brand": "别克",
+    "series": "别克至境E7"
+  },
+  {
+    "heat": 11,
+    "car_id": "8038",
+    "brand": "别克",
+    "series": "昂科威S"
   },
   {
     "heat": 12,
-    "car_id": "66",
+    "car_id": "3230",
     "brand": "宝马",
-    "series": "宝马3系"
+    "series": "宝马2系(进口)"
   },
   {
     "heat": 12,
-    "car_id": "65",
+    "car_id": "2968",
     "brand": "宝马",
-    "series": "宝马5系"
+    "series": "宝马4系"
+  },
+  {
+    "heat": 12,
+    "car_id": "153",
+    "brand": "宝马",
+    "series": "宝马7系"
+  },
+  {
+    "heat": 12,
+    "car_id": "3464",
+    "brand": "宝马",
+    "series": "宝马8系"
+  },
+  {
+    "heat": 12,
+    "car_id": "4942",
+    "brand": "宝马",
+    "series": "宝马iX"
+  },
+  {
+    "heat": 12,
+    "car_id": "7223",
+    "brand": "宝马",
+    "series": "宝马iX1"
+  },
+  {
+    "heat": 12,
+    "car_id": "5758",
+    "brand": "宝马",
+    "series": "宝马iX3"
+  },
+  {
+    "heat": 12,
+    "car_id": "3357",
+    "brand": "宝马",
+    "series": "宝马M2"
+  },
+  {
+    "heat": 12,
+    "car_id": "3189",
+    "brand": "宝马",
+    "series": "宝马M4"
+  },
+  {
+    "heat": 12,
+    "car_id": "2561",
+    "brand": "宝马",
+    "series": "宝马X1"
+  },
+  {
+    "heat": 12,
+    "car_id": "3386",
+    "brand": "宝马",
+    "series": "宝马X2(进口)"
+  },
+  {
+    "heat": 12,
+    "car_id": "4658",
+    "brand": "宝马",
+    "series": "宝马X3"
+  },
+  {
+    "heat": 12,
+    "car_id": "4928",
+    "brand": "宝马",
+    "series": "宝马X3 M"
+  },
+  {
+    "heat": 12,
+    "car_id": "271",
+    "brand": "宝马",
+    "series": "宝马X3(进口)"
+  },
+  {
+    "heat": 12,
+    "car_id": "3053",
+    "brand": "宝马",
+    "series": "宝马X4"
+  },
+  {
+    "heat": 12,
+    "car_id": "4929",
+    "brand": "宝马",
+    "series": "宝马X4 M"
+  },
+  {
+    "heat": 12,
+    "car_id": "6548",
+    "brand": "宝马",
+    "series": "宝马X5"
+  },
+  {
+    "heat": 12,
+    "car_id": "2728",
+    "brand": "宝马",
+    "series": "宝马X5 M"
+  },
+  {
+    "heat": 12,
+    "car_id": "159",
+    "brand": "宝马",
+    "series": "宝马X5(进口)"
+  },
+  {
+    "heat": 12,
+    "car_id": "587",
+    "brand": "宝马",
+    "series": "宝马X6"
+  },
+  {
+    "heat": 12,
+    "car_id": "2729",
+    "brand": "宝马",
+    "series": "宝马X6 M"
+  },
+  {
+    "heat": 12,
+    "car_id": "3362",
+    "brand": "宝马",
+    "series": "宝马X7"
+  },
+  {
+    "heat": 12,
+    "car_id": "6303",
+    "brand": "宝马",
+    "series": "宝马XM"
   },
   {
     "heat": 13,
-    "car_id": "588",
+    "car_id": "2717",
     "brand": "奔驰",
-    "series": "奔驰C级"
+    "series": "奔驰C级AMG"
   },
   {
     "heat": 13,
-    "car_id": "197",
+    "car_id": "6149",
     "brand": "奔驰",
-    "series": "奔驰E级"
+    "series": "奔驰EQA"
+  },
+  {
+    "heat": 13,
+    "car_id": "6150",
+    "brand": "奔驰",
+    "series": "奔驰EQB"
+  },
+  {
+    "heat": 13,
+    "car_id": "6975",
+    "brand": "奔驰",
+    "series": "奔驰EQE SUV"
+  },
+  {
+    "heat": 13,
+    "car_id": "6637",
+    "brand": "奔驰",
+    "series": "奔驰EQS SUV"
+  },
+  {
+    "heat": 13,
+    "car_id": "450",
+    "brand": "奔驰",
+    "series": "奔驰E级(进口)"
+  },
+  {
+    "heat": 13,
+    "car_id": "3248",
+    "brand": "奔驰",
+    "series": "奔驰GLA"
+  },
+  {
+    "heat": 13,
+    "car_id": "3264",
+    "brand": "奔驰",
+    "series": "奔驰GLA AMG"
+  },
+  {
+    "heat": 13,
+    "car_id": "5348",
+    "brand": "奔驰",
+    "series": "奔驰GLB"
+  },
+  {
+    "heat": 13,
+    "car_id": "5038",
+    "brand": "奔驰",
+    "series": "奔驰GLB AMG"
+  },
+  {
+    "heat": 13,
+    "car_id": "3862",
+    "brand": "奔驰",
+    "series": "奔驰GLC"
+  },
+  {
+    "heat": 13,
+    "car_id": "4074",
+    "brand": "奔驰",
+    "series": "奔驰GLC AMG"
+  },
+  {
+    "heat": 13,
+    "car_id": "3339",
+    "brand": "奔驰",
+    "series": "奔驰GLC轿跑"
+  },
+  {
+    "heat": 13,
+    "car_id": "6210",
+    "brand": "奔驰",
+    "series": "奔驰GLC轿跑 AMG"
+  },
+  {
+    "heat": 13,
+    "car_id": "3704",
+    "brand": "奔驰",
+    "series": "奔驰GLE AMG"
+  },
+  {
+    "heat": 13,
+    "car_id": "6207",
+    "brand": "奔驰",
+    "series": "奔驰GLE轿跑"
+  },
+  {
+    "heat": 13,
+    "car_id": "6209",
+    "brand": "奔驰",
+    "series": "奔驰GLE轿跑 AMG"
+  },
+  {
+    "heat": 13,
+    "car_id": "3683",
+    "brand": "奔驰",
+    "series": "奔驰GLE(进口)"
+  },
+  {
+    "heat": 13,
+    "car_id": "3688",
+    "brand": "奔驰",
+    "series": "奔驰GLS"
+  },
+  {
+    "heat": 13,
+    "car_id": "3901",
+    "brand": "奔驰",
+    "series": "奔驰GLS AMG"
+  },
+  {
+    "heat": 13,
+    "car_id": "60",
+    "brand": "奔驰",
+    "series": "奔驰G级"
+  },
+  {
+    "heat": 13,
+    "car_id": "2723",
+    "brand": "奔驰",
+    "series": "奔驰G级AMG"
+  },
+  {
+    "heat": 13,
+    "car_id": "6376",
+    "brand": "奔驰",
+    "series": "迈巴赫EQS SUV"
+  },
+  {
+    "heat": 13,
+    "car_id": "5462",
+    "brand": "奔驰",
+    "series": "迈巴赫GLS"
+  },
+  {
+    "heat": 13,
+    "car_id": "3665",
+    "brand": "奔驰",
+    "series": "迈巴赫S级"
   },
   {
     "heat": 14,
-    "car_id": "3170",
+    "car_id": "4871",
     "brand": "奥迪",
-    "series": "奥迪A3"
+    "series": "奥迪Q2L"
   },
   {
     "heat": 14,
-    "car_id": "692",
+    "car_id": "2951",
     "brand": "奥迪",
-    "series": "奥迪A4L"
+    "series": "奥迪Q3"
   },
   {
     "heat": 14,
-    "car_id": "18",
+    "car_id": "5933",
     "brand": "奥迪",
-    "series": "奥迪A6L"
+    "series": "奥迪Q3 Sportback"
+  },
+  {
+    "heat": 14,
+    "car_id": "6504",
+    "brand": "奥迪",
+    "series": "奥迪Q4 e-tron"
+  },
+  {
+    "heat": 14,
+    "car_id": "6336",
+    "brand": "奥迪",
+    "series": "奥迪Q5 e-tron"
   },
   {
     "heat": 14,
@@ -138,40 +834,1978 @@
     "series": "奥迪Q5L"
   },
   {
+    "heat": 14,
+    "car_id": "5912",
+    "brand": "奥迪",
+    "series": "奥迪Q5L Sportback"
+  },
+  {
+    "heat": 14,
+    "car_id": "6526",
+    "brand": "奥迪",
+    "series": "奥迪Q6"
+  },
+  {
+    "heat": 14,
+    "car_id": "7413",
+    "brand": "奥迪",
+    "series": "奥迪Q6L e-tron"
+  },
+  {
+    "heat": 14,
+    "car_id": "7936",
+    "brand": "奥迪",
+    "series": "奥迪Q6L Sportback e-tron"
+  },
+  {
+    "heat": 14,
+    "car_id": "412",
+    "brand": "奥迪",
+    "series": "奥迪Q7"
+  },
+  {
+    "heat": 14,
+    "car_id": "4288",
+    "brand": "奥迪",
+    "series": "奥迪Q8"
+  },
+  {
+    "heat": 14,
+    "car_id": "2735",
+    "brand": "奥迪",
+    "series": "奥迪RS 5"
+  },
+  {
+    "heat": 14,
+    "car_id": "5508",
+    "brand": "奥迪",
+    "series": "奥迪RS Q8"
+  },
+  {
+    "heat": 14,
+    "car_id": "2734",
+    "brand": "奥迪",
+    "series": "奥迪S5"
+  },
+  {
+    "heat": 14,
+    "car_id": "2841",
+    "brand": "奥迪",
+    "series": "奥迪SQ5"
+  },
+  {
+    "heat": 14,
+    "car_id": "6899",
+    "brand": "奥迪",
+    "series": "奥迪SQ5 Sportback"
+  },
+  {
+    "heat": 16,
+    "car_id": "8183",
+    "brand": "理想汽车",
+    "series": "理想i6"
+  },
+  {
+    "heat": 16,
+    "car_id": "7727",
+    "brand": "理想汽车",
+    "series": "理想i8"
+  },
+  {
+    "heat": 16,
+    "car_id": "6950",
+    "brand": "理想汽车",
+    "series": "理想L6"
+  },
+  {
+    "heat": 16,
+    "car_id": "6910",
+    "brand": "理想汽车",
+    "series": "理想L8"
+  },
+  {
+    "heat": 16,
+    "car_id": "6576",
+    "brand": "理想汽车",
+    "series": "理想L9"
+  },
+  {
+    "heat": 17,
+    "car_id": "5569",
+    "brand": "蔚来",
+    "series": "蔚来EC6"
+  },
+  {
+    "heat": 17,
+    "car_id": "6994",
+    "brand": "蔚来",
+    "series": "蔚来EC7"
+  },
+  {
+    "heat": 17,
+    "car_id": "4881",
+    "brand": "蔚来",
+    "series": "蔚来ES6"
+  },
+  {
+    "heat": 17,
+    "car_id": "4427",
+    "brand": "蔚来",
+    "series": "蔚来ES8"
+  },
+  {
+    "heat": 17,
+    "car_id": "6453",
+    "brand": "蔚来",
+    "series": "蔚来ET5"
+  },
+  {
+    "heat": 17,
+    "car_id": "7306",
+    "brand": "蔚来",
+    "series": "蔚来ET5T"
+  },
+  {
+    "heat": 19,
+    "car_id": "6388",
+    "brand": "AITO 问界",
+    "series": "问界M5"
+  },
+  {
     "heat": 19,
     "car_id": "6643",
     "brand": "AITO 问界",
     "series": "问界M7"
   },
   {
+    "heat": 19,
+    "car_id": "8003",
+    "brand": "AITO 问界",
+    "series": "问界M8"
+  },
+  {
+    "heat": 19,
+    "car_id": "7207",
+    "brand": "AITO 问界",
+    "series": "问界M9"
+  },
+  {
+    "heat": 20,
+    "car_id": "8433",
+    "brand": "零跑汽车",
+    "series": "零跑A10"
+  },
+  {
+    "heat": 20,
+    "car_id": "7877",
+    "brand": "零跑汽车",
+    "series": "零跑B10"
+  },
+  {
+    "heat": 20,
+    "car_id": "7382",
+    "brand": "零跑汽车",
+    "series": "零跑C10"
+  },
+  {
+    "heat": 20,
+    "car_id": "5205",
+    "brand": "零跑汽车",
+    "series": "零跑C11"
+  },
+  {
+    "heat": 20,
+    "car_id": "7674",
+    "brand": "零跑汽车",
+    "series": "零跑C16"
+  },
+  {
+    "heat": 20,
+    "car_id": "8273",
+    "brand": "零跑汽车",
+    "series": "零跑D19"
+  },
+  {
+    "heat": 22,
+    "car_id": "7162",
+    "brand": "小鹏",
+    "series": "小鹏G6"
+  },
+  {
+    "heat": 22,
+    "car_id": "8014",
+    "brand": "小鹏",
+    "series": "小鹏G7"
+  },
+  {
+    "heat": 22,
+    "car_id": "6492",
+    "brand": "小鹏",
+    "series": "小鹏G9"
+  },
+  {
+    "heat": 22,
+    "car_id": "8224",
+    "brand": "小鹏",
+    "series": "小鹏GX"
+  },
+  {
     "heat": 24,
-    "car_id": "4402",
+    "car_id": "4221",
     "brand": "领克",
-    "series": "领克03"
+    "series": "领克01"
+  },
+  {
+    "heat": 24,
+    "car_id": "5194",
+    "brand": "领克",
+    "series": "领克05"
+  },
+  {
+    "heat": 24,
+    "car_id": "5555",
+    "brand": "领克",
+    "series": "领克06"
+  },
+  {
+    "heat": 24,
+    "car_id": "5557",
+    "brand": "领克",
+    "series": "领克06 EM-P"
+  },
+  {
+    "heat": 24,
+    "car_id": "7243",
+    "brand": "领克",
+    "series": "领克08 EM-P"
+  },
+  {
+    "heat": 24,
+    "car_id": "6144",
+    "brand": "领克",
+    "series": "领克09"
+  },
+  {
+    "heat": 24,
+    "car_id": "6334",
+    "brand": "领克",
+    "series": "领克09 EM-P"
+  },
+  {
+    "heat": 24,
+    "car_id": "8176",
+    "brand": "领克",
+    "series": "领克10"
+  },
+  {
+    "heat": 24,
+    "car_id": "8002",
+    "brand": "领克",
+    "series": "领克900"
+  },
+  {
+    "heat": 24,
+    "car_id": "7812",
+    "brand": "领克",
+    "series": "领克Z20"
+  },
+  {
+    "heat": 25,
+    "car_id": "7092",
+    "brand": "哈弗",
+    "series": "哈弗H5"
+  },
+  {
+    "heat": 25,
+    "car_id": "2123",
+    "brand": "哈弗",
+    "series": "哈弗H6"
+  },
+  {
+    "heat": 25,
+    "car_id": "3298",
+    "brand": "哈弗",
+    "series": "哈弗H9"
+  },
+  {
+    "heat": 25,
+    "car_id": "5770",
+    "brand": "哈弗",
+    "series": "哈弗大狗"
+  },
+  {
+    "heat": 25,
+    "car_id": "6926",
+    "brand": "哈弗",
+    "series": "哈弗大狗 PLUS"
+  },
+  {
+    "heat": 25,
+    "car_id": "7150",
+    "brand": "哈弗",
+    "series": "哈弗枭龙MAX"
+  },
+  {
+    "heat": 25,
+    "car_id": "8545",
+    "brand": "哈弗",
+    "series": "长城猛龙 PLUS"
   },
   {
     "heat": 27,
-    "car_id": "4410",
+    "car_id": "5425",
     "brand": "红旗",
-    "series": "红旗H5"
+    "series": "红旗E-HS9"
+  },
+  {
+    "heat": 27,
+    "car_id": "7130",
+    "brand": "红旗",
+    "series": "红旗HS3"
+  },
+  {
+    "heat": 27,
+    "car_id": "7673",
+    "brand": "红旗",
+    "series": "红旗HS3 PHEV"
+  },
+  {
+    "heat": 27,
+    "car_id": "5048",
+    "brand": "红旗",
+    "series": "红旗HS5"
+  },
+  {
+    "heat": 27,
+    "car_id": "4150",
+    "brand": "红旗",
+    "series": "红旗HS7"
+  },
+  {
+    "heat": 27,
+    "car_id": "7590",
+    "brand": "红旗",
+    "series": "红旗HS7 PHEV"
+  },
+  {
+    "heat": 27,
+    "car_id": "7704",
+    "brand": "红旗",
+    "series": "红旗天工06"
+  },
+  {
+    "heat": 27,
+    "car_id": "6913",
+    "brand": "红旗",
+    "series": "红旗天工08"
+  },
+  {
+    "heat": 27,
+    "car_id": "6461",
+    "brand": "红旗",
+    "series": "红旗金葵花国耀"
+  },
+  {
+    "heat": 28,
+    "car_id": "3495",
+    "brand": "广汽传祺",
+    "series": "传祺GS3"
+  },
+  {
+    "heat": 28,
+    "car_id": "3691",
+    "brand": "广汽传祺",
+    "series": "传祺GS4"
+  },
+  {
+    "heat": 28,
+    "car_id": "4094",
+    "brand": "广汽传祺",
+    "series": "传祺GS8"
+  },
+  {
+    "heat": 28,
+    "car_id": "7928",
+    "brand": "广汽传祺",
+    "series": "传祺向往S7"
+  },
+  {
+    "heat": 28,
+    "car_id": "8083",
+    "brand": "广汽传祺",
+    "series": "传祺向往S9"
+  },
+  {
+    "heat": 28,
+    "car_id": "6495",
+    "brand": "广汽传祺",
+    "series": "影酷"
+  },
+  {
+    "heat": 31,
+    "car_id": "6476",
+    "brand": "长安欧尚",
+    "series": "长安欧尚Z6"
+  },
+  {
+    "heat": 34,
+    "car_id": "7275",
+    "brand": "沃尔沃",
+    "series": "沃尔沃EX30"
+  },
+  {
+    "heat": 34,
+    "car_id": "7230",
+    "brand": "沃尔沃",
+    "series": "沃尔沃EX90"
+  },
+  {
+    "heat": 34,
+    "car_id": "2190",
+    "brand": "沃尔沃",
+    "series": "沃尔沃V60"
+  },
+  {
+    "heat": 34,
+    "car_id": "5198",
+    "brand": "沃尔沃",
+    "series": "沃尔沃XC40"
+  },
+  {
+    "heat": 34,
+    "car_id": "3411",
+    "brand": "沃尔沃",
+    "series": "沃尔沃XC60"
+  },
+  {
+    "heat": 34,
+    "car_id": "405",
+    "brand": "沃尔沃",
+    "series": "沃尔沃XC70"
+  },
+  {
+    "heat": 34,
+    "car_id": "177",
+    "brand": "沃尔沃",
+    "series": "沃尔沃XC90"
   },
   {
     "heat": 35,
-    "car_id": "5349",
+    "car_id": "7332",
     "brand": "凯迪拉克",
-    "series": "凯迪拉克CT5"
+    "series": "IQ傲歌"
+  },
+  {
+    "heat": 35,
+    "car_id": "6404",
+    "brand": "凯迪拉克",
+    "series": "IQ锐歌"
+  },
+  {
+    "heat": 35,
+    "car_id": "8471",
+    "brand": "凯迪拉克",
+    "series": "凯威德"
+  },
+  {
+    "heat": 35,
+    "car_id": "6774",
+    "brand": "凯迪拉克",
+    "series": "凯迪拉克GT4"
+  },
+  {
+    "heat": 35,
+    "car_id": "4856",
+    "brand": "凯迪拉克",
+    "series": "凯迪拉克XT4"
+  },
+  {
+    "heat": 35,
+    "car_id": "3989",
+    "brand": "凯迪拉克",
+    "series": "凯迪拉克XT5"
+  },
+  {
+    "heat": 35,
+    "car_id": "5102",
+    "brand": "凯迪拉克",
+    "series": "凯迪拉克XT6"
+  },
+  {
+    "heat": 36,
+    "car_id": "802",
+    "brand": "路虎",
+    "series": "发现"
+  },
+  {
+    "heat": 36,
+    "car_id": "69",
+    "brand": "路虎",
+    "series": "揽胜"
+  },
+  {
+    "heat": 36,
+    "car_id": "4316",
+    "brand": "路虎",
+    "series": "揽胜星脉"
+  },
+  {
+    "heat": 36,
+    "car_id": "3521",
+    "brand": "路虎",
+    "series": "揽胜极光"
+  },
+  {
+    "heat": 36,
+    "car_id": "850",
+    "brand": "路虎",
+    "series": "揽胜运动"
+  },
+  {
+    "heat": 37,
+    "car_id": "4175",
+    "brand": "保时捷",
+    "series": "保时捷718"
+  },
+  {
+    "heat": 37,
+    "car_id": "162",
+    "brand": "保时捷",
+    "series": "保时捷911"
   },
   {
     "heat": 38,
-    "car_id": "403",
+    "car_id": "112",
     "brand": "雷克萨斯",
-    "series": "雷克萨斯ES"
+    "series": "雷克萨斯GX"
+  },
+  {
+    "heat": 38,
+    "car_id": "2623",
+    "brand": "雷克萨斯",
+    "series": "雷克萨斯LC"
+  },
+  {
+    "heat": 38,
+    "car_id": "3442",
+    "brand": "雷克萨斯",
+    "series": "雷克萨斯NX"
+  },
+  {
+    "heat": 38,
+    "car_id": "3934",
+    "brand": "雷克萨斯",
+    "series": "雷克萨斯RX"
+  },
+  {
+    "heat": 38,
+    "car_id": "6525",
+    "brand": "雷克萨斯",
+    "series": "雷克萨斯RZ"
+  },
+  {
+    "heat": 40,
+    "car_id": "5810",
+    "brand": "坦克",
+    "series": "坦克300"
+  },
+  {
+    "heat": 40,
+    "car_id": "6359",
+    "brand": "坦克",
+    "series": "坦克400"
+  },
+  {
+    "heat": 40,
+    "car_id": "6284",
+    "brand": "坦克",
+    "series": "坦克500"
+  },
+  {
+    "heat": 41,
+    "car_id": "4683",
+    "brand": "捷途",
+    "series": "捷途X70"
+  },
+  {
+    "heat": 41,
+    "car_id": "8186",
+    "brand": "捷途",
+    "series": "捷途X70L"
+  },
+  {
+    "heat": 41,
+    "car_id": "5941",
+    "brand": "捷途",
+    "series": "捷途X70 PLUS"
+  },
+  {
+    "heat": 41,
+    "car_id": "8095",
+    "brand": "捷途",
+    "series": "捷途X70 PLUS C-DM"
+  },
+  {
+    "heat": 41,
+    "car_id": "7319",
+    "brand": "捷途",
+    "series": "捷途X70 PRO"
+  },
+  {
+    "heat": 41,
+    "car_id": "4797",
+    "brand": "捷途",
+    "series": "捷途X90"
+  },
+  {
+    "heat": 41,
+    "car_id": "8073",
+    "brand": "捷途",
+    "series": "捷途X90 C-DM"
+  },
+  {
+    "heat": 41,
+    "car_id": "6146",
+    "brand": "捷途",
+    "series": "捷途X90 PLUS"
+  },
+  {
+    "heat": 41,
+    "car_id": "7597",
+    "brand": "捷途",
+    "series": "捷途X90 PRO"
+  },
+  {
+    "heat": 41,
+    "car_id": "5081",
+    "brand": "捷途",
+    "series": "捷途X95"
+  },
+  {
+    "heat": 41,
+    "car_id": "6291",
+    "brand": "捷途",
+    "series": "捷途大圣"
+  },
+  {
+    "heat": 41,
+    "car_id": "6606",
+    "brand": "捷途",
+    "series": "捷途旅行者"
+  },
+  {
+    "heat": 41,
+    "car_id": "7828",
+    "brand": "捷途",
+    "series": "捷途自由者"
+  },
+  {
+    "heat": 42,
+    "car_id": "7174",
+    "brand": "星途",
+    "series": "星纪元 ET"
+  },
+  {
+    "heat": 42,
+    "car_id": "8431",
+    "brand": "星途",
+    "series": "星途EX7"
+  },
+  {
+    "heat": 42,
+    "car_id": "5942",
+    "brand": "星途",
+    "series": "星途凌云"
+  },
+  {
+    "heat": 42,
+    "car_id": "5306",
+    "brand": "星途",
+    "series": "星途揽月"
+  },
+  {
+    "heat": 42,
+    "car_id": "7227",
+    "brand": "星途",
+    "series": "星途揽月C-DM"
+  },
+  {
+    "heat": 42,
+    "car_id": "6170",
+    "brand": "星途",
+    "series": "星途瑶光"
+  },
+  {
+    "heat": 42,
+    "car_id": "4822",
+    "brand": "星途",
+    "series": "星途追风"
+  },
+  {
+    "heat": 42,
+    "car_id": "6593",
+    "brand": "星途",
+    "series": "星途追风C-DM"
+  },
+  {
+    "heat": 44,
+    "car_id": "5138",
+    "brand": "捷达",
+    "series": "捷达VS5"
+  },
+  {
+    "heat": 44,
+    "car_id": "5193",
+    "brand": "捷达",
+    "series": "捷达VS7"
+  },
+  {
+    "heat": 45,
+    "car_id": "6369",
+    "brand": "smart",
+    "series": "smart精灵#1"
+  },
+  {
+    "heat": 45,
+    "car_id": "7044",
+    "brand": "smart",
+    "series": "smart精灵#3"
+  },
+  {
+    "heat": 45,
+    "car_id": "7684",
+    "brand": "smart",
+    "series": "smart精灵#5"
+  },
+  {
+    "heat": 46,
+    "car_id": "7632",
+    "brand": "MINI",
+    "series": "电动MINI ACEMAN"
+  },
+  {
+    "heat": 46,
+    "car_id": "7576",
+    "brand": "MINI",
+    "series": "电动MINI COOPER"
+  },
+  {
+    "heat": 46,
+    "car_id": "7866",
+    "brand": "MINI",
+    "series": "电动MINI JCW"
+  },
+  {
+    "heat": 46,
+    "car_id": "7865",
+    "brand": "MINI",
+    "series": "电动MINI JCW ACEMAN"
+  },
+  {
+    "heat": 48,
+    "car_id": "7569",
+    "brand": "深蓝汽车",
+    "series": "深蓝G318"
+  },
+  {
+    "heat": 48,
+    "car_id": "7740",
+    "brand": "深蓝汽车",
+    "series": "深蓝S05"
+  },
+  {
+    "heat": 48,
+    "car_id": "6817",
+    "brand": "深蓝汽车",
+    "series": "深蓝S07"
+  },
+  {
+    "heat": 48,
+    "car_id": "7979",
+    "brand": "深蓝汽车",
+    "series": "深蓝S09"
+  },
+  {
+    "heat": 49,
+    "car_id": "5224",
+    "brand": "启辰",
+    "series": "启辰T60EV"
+  },
+  {
+    "heat": 49,
+    "car_id": "7099",
+    "brand": "启辰",
+    "series": "启辰VX6"
+  },
+  {
+    "heat": 49,
+    "car_id": "6216",
+    "brand": "启辰",
+    "series": "启辰大V"
+  },
+  {
+    "heat": 49,
+    "car_id": "7104",
+    "brand": "启辰",
+    "series": "启辰大V DD-i"
+  },
+  {
+    "heat": 49,
+    "car_id": "7528",
+    "brand": "启辰",
+    "series": "启辰大V氢境"
+  },
+  {
+    "heat": 49,
+    "car_id": "5519",
+    "brand": "启辰",
+    "series": "启辰星"
+  },
+  {
+    "heat": 50,
+    "car_id": "7652",
+    "brand": "阿维塔",
+    "series": "阿维塔07"
+  },
+  {
+    "heat": 50,
+    "car_id": "6354",
+    "brand": "阿维塔",
+    "series": "阿维塔11"
+  },
+  {
+    "heat": 52,
+    "car_id": "5924",
+    "brand": "岚图汽车",
+    "series": "岚图FREE"
+  },
+  {
+    "heat": 52,
+    "car_id": "7728",
+    "brand": "岚图汽车",
+    "series": "岚图知音"
+  },
+  {
+    "heat": 54,
+    "car_id": "7514",
+    "brand": "智己汽车",
+    "series": "智己L6"
+  },
+  {
+    "heat": 54,
+    "car_id": "7305",
+    "brand": "智己汽车",
+    "series": "智己LS6"
+  },
+  {
+    "heat": 54,
+    "car_id": "6013",
+    "brand": "智己汽车",
+    "series": "智己LS7"
+  },
+  {
+    "heat": 54,
+    "car_id": "8215",
+    "brand": "智己汽车",
+    "series": "智己LS9"
+  },
+  {
+    "heat": 56,
+    "car_id": "7797",
+    "brand": "ARCFOX极狐",
+    "series": "极狐 考拉S"
+  },
+  {
+    "heat": 56,
+    "car_id": "8190",
+    "brand": "ARCFOX极狐",
+    "series": "极狐贝塔S3"
+  },
+  {
+    "heat": 56,
+    "car_id": "8086",
+    "brand": "ARCFOX极狐",
+    "series": "极狐贝塔T1"
+  },
+  {
+    "heat": 56,
+    "car_id": "7125",
+    "brand": "ARCFOX极狐",
+    "series": "极狐 阿尔法T5"
+  },
+  {
+    "heat": 56,
+    "car_id": "8056",
+    "brand": "ARCFOX极狐",
+    "series": "极狐 阿尔法T6"
+  },
+  {
+    "heat": 57,
+    "car_id": "6898",
+    "brand": "腾势",
+    "series": "腾势N7"
+  },
+  {
+    "heat": 58,
+    "car_id": "7177",
+    "brand": "方程豹",
+    "series": "豹5"
+  },
+  {
+    "heat": 58,
+    "car_id": "7353",
+    "brand": "方程豹",
+    "series": "豹8"
+  },
+  {
+    "heat": 58,
+    "car_id": "7356",
+    "brand": "方程豹",
+    "series": "钛3"
+  },
+  {
+    "heat": 59,
+    "car_id": "7003",
+    "brand": "仰望",
+    "series": "仰望U8"
+  },
+  {
+    "heat": 59,
+    "car_id": "8266",
+    "brand": "仰望",
+    "series": "仰望U8 L"
+  },
+  {
+    "heat": 59,
+    "car_id": "7116",
+    "brand": "仰望",
+    "series": "仰望U9"
+  },
+  {
+    "heat": 61,
+    "car_id": "7915",
+    "brand": "小米汽车",
+    "series": "小米SU7 Ultra"
+  },
+  {
+    "heat": 61,
+    "car_id": "7793",
+    "brand": "小米汽车",
+    "series": "小米YU7"
+  },
+  {
+    "heat": 62,
+    "car_id": "7730",
+    "brand": "智界",
+    "series": "智界R7"
+  },
+  {
+    "heat": 63,
+    "car_id": "7630",
+    "brand": "享界",
+    "series": "享界S9"
+  },
+  {
+    "heat": 64,
+    "car_id": "8205",
+    "brand": "尚界",
+    "series": "尚界H5"
+  },
+  {
+    "heat": 66,
+    "car_id": "7687",
+    "brand": "乐道",
+    "series": "乐道L60"
+  },
+  {
+    "heat": 66,
+    "car_id": "8591",
+    "brand": "乐道",
+    "series": "乐道L80"
+  },
+  {
+    "heat": 66,
+    "car_id": "8045",
+    "brand": "乐道",
+    "series": "乐道L90"
+  },
+  {
+    "heat": 69,
+    "car_id": "7575",
+    "brand": "长安启源",
+    "series": "长安启源E07"
+  },
+  {
+    "heat": 69,
+    "car_id": "8241",
+    "brand": "长安启源",
+    "series": "长安启源Q05"
+  },
+  {
+    "heat": 69,
+    "car_id": "7975",
+    "brand": "长安启源",
+    "series": "长安启源Q07"
+  },
+  {
+    "heat": 70,
+    "car_id": "5771",
+    "brand": "北京越野",
+    "series": "北京越野BJ30"
+  },
+  {
+    "heat": 70,
+    "car_id": "623",
+    "brand": "北京越野",
+    "series": "北京越野BJ40"
+  },
+  {
+    "heat": 70,
+    "car_id": "7696",
+    "brand": "北京越野",
+    "series": "北京越野BJ40增程"
+  },
+  {
+    "heat": 70,
+    "car_id": "6590",
+    "brand": "北京越野",
+    "series": "北京越野BJ60"
+  },
+  {
+    "heat": 70,
+    "car_id": "7513",
+    "brand": "北京越野",
+    "series": "北京越野BJ60增程"
+  },
+  {
+    "heat": 71,
+    "car_id": "5624",
+    "brand": "北京汽车",
+    "series": "北京X7"
+  },
+  {
+    "heat": 73,
+    "car_id": "8457",
+    "brand": "东风风行",
+    "series": "星海T5"
+  },
+  {
+    "heat": 73,
+    "car_id": "4767",
+    "brand": "东风风行",
+    "series": "风行T5"
+  },
+  {
+    "heat": 73,
+    "car_id": "5835",
+    "brand": "东风风行",
+    "series": "风行T5 EVO"
+  },
+  {
+    "heat": 73,
+    "car_id": "6633",
+    "brand": "东风风行",
+    "series": "风行雷霆"
+  },
+  {
+    "heat": 75,
+    "car_id": "5696",
+    "brand": "东风风神",
+    "series": "奕炫GS"
+  },
+  {
+    "heat": 75,
+    "car_id": "6583",
+    "brand": "东风风神",
+    "series": "皓极"
+  },
+  {
+    "heat": 75,
+    "car_id": "7136",
+    "brand": "东风风神",
+    "series": "皓瀚"
+  },
+  {
+    "heat": 77,
+    "car_id": "7394",
+    "brand": "荣威",
+    "series": "荣威D5X DMH"
+  },
+  {
+    "heat": 77,
+    "car_id": "4080",
+    "brand": "荣威",
+    "series": "荣威RX5"
+  },
+  {
+    "heat": 77,
+    "car_id": "6072",
+    "brand": "荣威",
+    "series": "飞凡R7"
+  },
+  {
+    "heat": 79,
+    "car_id": "5879",
+    "brand": "东风",
+    "series": "帕拉索"
+  },
+  {
+    "heat": 80,
+    "car_id": "4167",
+    "brand": "标致",
+    "series": "标致4008"
+  },
+  {
+    "heat": 80,
+    "car_id": "4271",
+    "brand": "标致",
+    "series": "标致5008"
+  },
+  {
+    "heat": 81,
+    "car_id": "4370",
+    "brand": "雪铁龙",
+    "series": "天逸 C5 AIRCROSS"
+  },
+  {
+    "heat": 82,
+    "car_id": "3335",
+    "brand": "雪佛兰",
+    "series": "创酷"
+  },
+  {
+    "heat": 82,
+    "car_id": "5476",
+    "brand": "雪佛兰",
+    "series": "开拓者"
+  },
+  {
+    "heat": 82,
+    "car_id": "4235",
+    "brand": "雪佛兰",
+    "series": "探界者"
+  },
+  {
+    "heat": 82,
+    "car_id": "7393",
+    "brand": "雪佛兰",
+    "series": "探界者Plus"
+  },
+  {
+    "heat": 82,
+    "car_id": "6718",
+    "brand": "雪佛兰",
+    "series": "星迈罗"
+  },
+  {
+    "heat": 83,
+    "car_id": "5556",
+    "brand": "福特",
+    "series": "探险者"
+  },
+  {
+    "heat": 83,
+    "car_id": "8213",
+    "brand": "福特",
+    "series": "福特智趣烈马"
+  },
+  {
+    "heat": 83,
+    "car_id": "7224",
+    "brand": "福特",
+    "series": "福特烈马"
+  },
+  {
+    "heat": 83,
+    "car_id": "3615",
+    "brand": "福特",
+    "series": "锐界"
+  },
+  {
+    "heat": 83,
+    "car_id": "5211",
+    "brand": "福特",
+    "series": "锐际"
+  },
+  {
+    "heat": 83,
+    "car_id": "6430",
+    "brand": "福特",
+    "series": "领睿"
+  },
+  {
+    "heat": 83,
+    "car_id": "5910",
+    "brand": "福特",
+    "series": "领裕"
+  },
+  {
+    "heat": 84,
+    "car_id": "4824",
+    "brand": "起亚",
+    "series": "奕跑"
+  },
+  {
+    "heat": 84,
+    "car_id": "6853",
+    "brand": "起亚",
+    "series": "狮铂拓界"
+  },
+  {
+    "heat": 84,
+    "car_id": "7439",
+    "brand": "起亚",
+    "series": "索奈"
+  },
+  {
+    "heat": 84,
+    "car_id": "7201",
+    "brand": "起亚",
+    "series": "赛图斯"
+  },
+  {
+    "heat": 84,
+    "car_id": "7352",
+    "brand": "起亚",
+    "series": "起亚EV5"
+  },
+  {
+    "heat": 85,
+    "car_id": "5586",
+    "brand": "马自达",
+    "series": "马自达CX-30"
+  },
+  {
+    "heat": 85,
+    "car_id": "2987",
+    "brand": "马自达",
+    "series": "马自达CX-5"
+  },
+  {
+    "heat": 85,
+    "car_id": "7082",
+    "brand": "马自达",
+    "series": "马自达CX-50行也"
+  },
+  {
+    "heat": 85,
+    "car_id": "7717",
+    "brand": "马自达",
+    "series": "马自达EZ-60"
+  },
+  {
+    "heat": 86,
+    "car_id": "4453",
+    "brand": "斯柯达",
+    "series": "柯珞克"
+  },
+  {
+    "heat": 86,
+    "car_id": "4690",
+    "brand": "斯柯达",
+    "series": "柯米克"
+  },
+  {
+    "heat": 86,
+    "car_id": "4217",
+    "brand": "斯柯达",
+    "series": "柯迪亚克"
+  },
+  {
+    "heat": 86,
+    "car_id": "4986",
+    "brand": "斯柯达",
+    "series": "柯迪亚克GT"
+  },
+  {
+    "heat": 88,
+    "car_id": "2557",
+    "brand": "斯巴鲁",
+    "series": "斯巴鲁BRZ"
+  },
+  {
+    "heat": 999,
+    "car_id": "8103",
+    "brand": "现代",
+    "series": "EO 羿欧"
+  },
+  {
+    "heat": 999,
+    "car_id": "7990",
+    "brand": "firefly萤火虫",
+    "series": "firefly萤火虫"
+  },
+  {
+    "heat": 999,
+    "car_id": "7649",
+    "brand": "iCAR",
+    "series": "iCAR 超级V23"
+  },
+  {
+    "heat": 999,
+    "car_id": "7325",
+    "brand": "现代",
+    "series": "IONIQ 5 N(艾尼氪5N)"
+  },
+  {
+    "heat": 999,
+    "car_id": "7880",
+    "brand": "Lorinser罗伦士",
+    "series": "Lorinser 星际战车"
+  },
+  {
+    "heat": 999,
+    "car_id": "7847",
+    "brand": "LUMMA",
+    "series": "LUMMA 捍卫者"
+  },
+  {
+    "heat": 999,
+    "car_id": "3576",
+    "brand": "五十铃",
+    "series": "mu-X牧游侠"
+  },
+  {
+    "heat": 999,
+    "car_id": "2854",
+    "brand": "道朗格",
+    "series": "TAHOE太浩"
+  },
+  {
+    "heat": 999,
+    "car_id": "947",
+    "brand": "道朗格",
+    "series": "YUKON育空"
+  },
+  {
+    "heat": 999,
+    "car_id": "7388",
+    "brand": "世极",
+    "series": "世极"
+  },
+  {
+    "heat": 999,
+    "car_id": "7124",
+    "brand": "云度",
+    "series": "云兔"
+  },
+  {
+    "heat": 999,
+    "car_id": "6864",
+    "brand": "克蒂汽车",
+    "series": "克蒂怪兽SV7"
+  },
+  {
+    "heat": 999,
+    "car_id": "5385",
+    "brand": "林肯",
+    "series": "冒险家"
+  },
+  {
+    "heat": 999,
+    "car_id": "6188",
+    "brand": "创维汽车",
+    "series": "创维EV6"
+  },
+  {
+    "heat": 999,
+    "car_id": "6686",
+    "brand": "创维汽车",
+    "series": "创维HT-i"
+  },
+  {
+    "heat": 999,
+    "car_id": "8685",
+    "brand": "创维汽车",
+    "series": "创维S710"
+  },
+  {
+    "heat": 999,
+    "car_id": "622",
+    "brand": "北京汽车制造厂",
+    "series": "勇士"
+  },
+  {
+    "heat": 999,
+    "car_id": "6552",
+    "brand": "北汽瑞翔",
+    "series": "北汽瑞翔X3"
+  },
+  {
+    "heat": 999,
+    "car_id": "6262",
+    "brand": "北汽瑞翔",
+    "series": "北汽瑞翔X5"
+  },
+  {
+    "heat": 999,
+    "car_id": "8283",
+    "brand": "华境",
+    "series": "华境S"
+  },
+  {
+    "heat": 999,
+    "car_id": "6639",
+    "brand": "吉利几何",
+    "series": "吉利几何E萤火虫"
+  },
+  {
+    "heat": 999,
+    "car_id": "6862",
+    "brand": "吉利几何",
+    "series": "吉利几何M6"
+  },
+  {
+    "heat": 999,
+    "car_id": "8424",
+    "brand": "启境",
+    "series": "启境GT7"
+  },
+  {
+    "heat": 999,
+    "car_id": "6293",
+    "brand": "Jeep",
+    "series": "大切诺基4xe(进口)"
+  },
+  {
+    "heat": 999,
+    "car_id": "6712",
+    "brand": "福田",
+    "series": "大将军G9SUV"
+  },
+  {
+    "heat": 999,
+    "car_id": "7088",
+    "brand": "奇瑞新能源",
+    "series": "奇瑞舒享家"
+  },
+  {
+    "heat": 999,
+    "car_id": "466",
+    "brand": "奔腾",
+    "series": "奔腾B70"
+  },
+  {
+    "heat": 999,
+    "car_id": "7149",
+    "brand": "奔腾",
+    "series": "奔腾T90"
+  },
+  {
+    "heat": 999,
+    "car_id": "8449",
+    "brand": "奥迪AUDI",
+    "series": "奥迪E7X"
+  },
+  {
+    "heat": 999,
+    "car_id": "7212",
+    "brand": "东风风度",
+    "series": "帕拉丁"
+  },
+  {
+    "heat": 999,
+    "car_id": "5003",
+    "brand": "现代",
+    "series": "帕里斯帝"
+  },
+  {
+    "heat": 999,
+    "car_id": "3778",
+    "brand": "劳斯莱斯",
+    "series": "库里南"
+  },
+  {
+    "heat": 999,
+    "car_id": "6897",
+    "brand": "思皓",
+    "series": "思皓X8 PLUS"
+  },
+  {
+    "heat": 999,
+    "car_id": "4946",
+    "brand": "恒天",
+    "series": "恒天L4600"
+  },
+  {
+    "heat": 999,
+    "car_id": "7899",
+    "brand": "奔腾",
+    "series": "悦意03"
+  },
+  {
+    "heat": 999,
+    "car_id": "7978",
+    "brand": "奔腾",
+    "series": "悦意07"
+  },
+  {
+    "heat": 999,
+    "car_id": "8109",
+    "brand": "奔腾",
+    "series": "悦意08"
+  },
+  {
+    "heat": 999,
+    "car_id": "5583",
+    "brand": "大运",
+    "series": "悦虎"
+  },
+  {
+    "heat": 999,
+    "car_id": "5475",
+    "brand": "捷尼赛思",
+    "series": "捷尼赛思GV70"
+  },
+  {
+    "heat": 999,
+    "car_id": "4397",
+    "brand": "捷尼赛思",
+    "series": "捷尼赛思GV80"
+  },
+  {
+    "heat": 999,
+    "car_id": "4663",
+    "brand": "捷豹",
+    "series": "捷豹E-PACE"
+  },
+  {
+    "heat": 999,
+    "car_id": "7238",
+    "brand": "捷途山海",
+    "series": "捷途山海L6"
+  },
+  {
+    "heat": 999,
+    "car_id": "7711",
+    "brand": "捷途山海",
+    "series": "捷途山海L7"
+  },
+  {
+    "heat": 999,
+    "car_id": "8106",
+    "brand": "捷途山海",
+    "series": "捷途山海L7 PLUS"
+  },
+  {
+    "heat": 999,
+    "car_id": "7397",
+    "brand": "捷途山海",
+    "series": "捷途山海L9"
+  },
+  {
+    "heat": 999,
+    "car_id": "7506",
+    "brand": "捷途山海",
+    "series": "捷途山海T1"
+  },
+  {
+    "heat": 999,
+    "car_id": "7345",
+    "brand": "捷途山海",
+    "series": "捷途旅行者C-DM"
+  },
+  {
+    "heat": 999,
+    "car_id": "7929",
+    "brand": "广汽昊铂",
+    "series": "昊铂HL"
+  },
+  {
+    "heat": 999,
+    "car_id": "7395",
+    "brand": "广汽昊铂",
+    "series": "昊铂HT"
+  },
+  {
+    "heat": 999,
+    "car_id": "6934",
+    "brand": "广汽昊铂",
+    "series": "昊铂SSR"
+  },
+  {
+    "heat": 999,
+    "car_id": "4949",
+    "brand": "江铃集团新能源",
+    "series": "易至EV3"
   },
   {
     "heat": 999,
     "car_id": "7806",
     "brand": "吉利银河",
     "series": "星愿"
+  },
+  {
+    "heat": 999,
+    "car_id": "8226",
+    "brand": "大通",
+    "series": "星际X SUV"
+  },
+  {
+    "heat": 999,
+    "car_id": "7302",
+    "brand": "ROX极石",
+    "series": "极石01"
+  },
+  {
+    "heat": 999,
+    "car_id": "5823",
+    "brand": "欧拉",
+    "series": "欧拉好猫"
+  },
+  {
+    "heat": 999,
+    "car_id": "7217",
+    "brand": "江淮汽车",
+    "series": "江淮QX PHEV"
+  },
+  {
+    "heat": 999,
+    "car_id": "7589",
+    "brand": "江淮汽车",
+    "series": "江淮X8 E家"
+  },
+  {
+    "heat": 999,
+    "car_id": "7435",
+    "brand": "江淮汽车",
+    "series": "江淮X8 PLUS"
+  },
+  {
+    "heat": 999,
+    "car_id": "8289",
+    "brand": "法拉利",
+    "series": "法拉利849"
+  },
+  {
+    "heat": 999,
+    "car_id": "2685",
+    "brand": "宾利",
+    "series": "添越"
+  },
+  {
+    "heat": 999,
+    "car_id": "5540",
+    "brand": "凯翼",
+    "series": "炫界"
+  },
+  {
+    "heat": 999,
+    "car_id": "6413",
+    "brand": "凯翼",
+    "series": "炫界Pro EV"
+  },
+  {
+    "heat": 999,
+    "car_id": "6924",
+    "brand": "吉利银河",
+    "series": "熊猫"
+  },
+  {
+    "heat": 999,
+    "car_id": "121",
+    "brand": "Jeep",
+    "series": "牧马人"
+  },
+  {
+    "heat": 999,
+    "car_id": "6907",
+    "brand": "猛士",
+    "series": "猛士917"
+  },
+  {
+    "heat": 999,
+    "car_id": "7542",
+    "brand": "猛士",
+    "series": "猛士M800"
+  },
+  {
+    "heat": 999,
+    "car_id": "8091",
+    "brand": "猛士",
+    "series": "猛士M817"
+  },
+  {
+    "heat": 999,
+    "car_id": "5646",
+    "brand": "玛莎拉蒂",
+    "series": "玛莎拉蒂MC20"
+  },
+  {
+    "heat": 999,
+    "car_id": "6788",
+    "brand": "睿蓝汽车",
+    "series": "睿蓝7"
+  },
+  {
+    "heat": 999,
+    "car_id": "6792",
+    "brand": "睿蓝汽车",
+    "series": "睿蓝9"
+  },
+  {
+    "heat": 999,
+    "car_id": "8043",
+    "brand": "示界",
+    "series": "示界06"
+  },
+  {
+    "heat": 999,
+    "car_id": "7364",
+    "brand": "东风奕派",
+    "series": "纳米01"
+  },
+  {
+    "heat": 999,
+    "car_id": "8026",
+    "brand": "东风奕派",
+    "series": "纳米06"
+  },
+  {
+    "heat": 999,
+    "car_id": "8023",
+    "brand": "纵横",
+    "series": "纵横G700"
+  },
+  {
+    "heat": 999,
+    "car_id": "6955",
+    "brand": "江铃集团新能源",
+    "series": "羿驰01"
+  },
+  {
+    "heat": 999,
+    "car_id": "8017",
+    "brand": "江铃集团新能源",
+    "series": "羿驰05"
+  },
+  {
+    "heat": 999,
+    "car_id": "8218",
+    "brand": "江铃集团新能源",
+    "series": "羿驰05S"
+  },
+  {
+    "heat": 999,
+    "car_id": "2927",
+    "brand": "现代",
+    "series": "胜达"
+  },
+  {
+    "heat": 999,
+    "car_id": "5757",
+    "brand": "林肯",
+    "series": "航海家"
+  },
+  {
+    "heat": 999,
+    "car_id": "5798",
+    "brand": "英力士掷弹兵",
+    "series": "英力士掷弹兵"
+  },
+  {
+    "heat": 999,
+    "car_id": "3591",
+    "brand": "英菲尼迪",
+    "series": "英菲尼迪QX50"
+  },
+  {
+    "heat": 999,
+    "car_id": "6342",
+    "brand": "英菲尼迪",
+    "series": "英菲尼迪QX60"
+  },
+  {
+    "heat": 999,
+    "car_id": "3100",
+    "brand": "英菲尼迪",
+    "series": "英菲尼迪QX80"
+  },
+  {
+    "heat": 999,
+    "car_id": "7270",
+    "brand": "蓝电",
+    "series": "蓝电E3"
+  },
+  {
+    "heat": 999,
+    "car_id": "6977",
+    "brand": "蓝电",
+    "series": "蓝电E5"
+  },
+  {
+    "heat": 999,
+    "car_id": "7832",
+    "brand": "蓝电",
+    "series": "蓝电E5 PLUS"
+  },
+  {
+    "heat": 999,
+    "car_id": "5690",
+    "brand": "迈莎锐",
+    "series": "迈莎锐添越"
+  },
+  {
+    "heat": 999,
+    "car_id": "358",
+    "brand": "现代",
+    "series": "途胜"
+  },
+  {
+    "heat": 999,
+    "car_id": "5099",
+    "brand": "钧天",
+    "series": "钧天勇猛者"
+  },
+  {
+    "heat": 999,
+    "car_id": "7650",
+    "brand": "吉利银河",
+    "series": "银河E5"
+  },
+  {
+    "heat": 999,
+    "car_id": "8466",
+    "brand": "吉利银河",
+    "series": "银河M7"
+  },
+  {
+    "heat": 999,
+    "car_id": "7165",
+    "brand": "吉利银河",
+    "series": "银河M9"
+  },
+  {
+    "heat": 999,
+    "car_id": "8313",
+    "brand": "吉利银河",
+    "series": "银河星耀7"
+  },
+  {
+    "heat": 999,
+    "car_id": "6421",
+    "brand": "劳斯莱斯",
+    "series": "闪灵"
+  },
+  {
+    "heat": 999,
+    "car_id": "7293",
+    "brand": "阿斯顿·马丁",
+    "series": "阿斯顿·马丁DB12"
+  },
+  {
+    "heat": 999,
+    "car_id": "3742",
+    "brand": "阿斯顿·马丁",
+    "series": "阿斯顿·马丁DBX"
+  },
+  {
+    "heat": 999,
+    "car_id": "6830",
+    "brand": "大通",
+    "series": "领地"
+  },
+  {
+    "heat": 999,
+    "car_id": "95",
+    "brand": "林肯",
+    "series": "领航员"
+  },
+  {
+    "heat": 999,
+    "car_id": "7633",
+    "brand": "奇瑞风云",
+    "series": "风云T10"
+  },
+  {
+    "heat": 999,
+    "car_id": "7411",
+    "brand": "奇瑞风云",
+    "series": "风云T11"
+  },
+  {
+    "heat": 999,
+    "car_id": "7216",
+    "brand": "奇瑞风云",
+    "series": "风云T6"
+  },
+  {
+    "heat": 999,
+    "car_id": "7898",
+    "brand": "奇瑞风云",
+    "series": "风云T8"
+  },
+  {
+    "heat": 999,
+    "car_id": "7442",
+    "brand": "奇瑞风云",
+    "series": "风云T9"
+  },
+  {
+    "heat": 999,
+    "car_id": "8209",
+    "brand": "奇瑞风云",
+    "series": "风云X3"
+  },
+  {
+    "heat": 999,
+    "car_id": "8208",
+    "brand": "奇瑞风云",
+    "series": "风云X3L"
+  },
+  {
+    "heat": 999,
+    "car_id": "8089",
+    "brand": "奇瑞风云",
+    "series": "风云X3 PLUS"
+  },
+  {
+    "heat": 999,
+    "car_id": "5871",
+    "brand": "东风风光",
+    "series": "风光500"
+  },
+  {
+    "heat": 999,
+    "car_id": "4023",
+    "brand": "东风风光",
+    "series": "风光580"
+  },
+  {
+    "heat": 999,
+    "car_id": "4759",
+    "brand": "东风风光",
+    "series": "风光ix5"
+  },
+  {
+    "heat": 999,
+    "car_id": "6431",
+    "brand": "东风风光",
+    "series": "风光MINIEV"
+  },
+  {
+    "heat": 999,
+    "car_id": "4468",
+    "brand": "东风风光",
+    "series": "风光S560"
+  },
+  {
+    "heat": 999,
+    "car_id": "7644",
+    "brand": "东风风光",
+    "series": "风光S580"
+  },
+  {
+    "heat": 999,
+    "car_id": "5554",
+    "brand": "林肯",
+    "series": "飞行家"
+  },
+  {
+    "heat": 999,
+    "car_id": "7964",
+    "brand": "骏驰",
+    "series": "骏驰EA"
   },
   {
     "heat": 0,
@@ -205,21 +2839,9 @@
   },
   {
     "heat": 0,
-    "car_id": "6298",
-    "brand": "比亚迪",
-    "series": "元PLUS"
-  },
-  {
-    "heat": 0,
     "car_id": "6073",
     "brand": "比亚迪",
     "series": "元Pro"
-  },
-  {
-    "heat": 0,
-    "car_id": "7538",
-    "brand": "比亚迪",
-    "series": "元UP"
   },
   {
     "heat": 0,
@@ -280,12 +2902,6 @@
     "car_id": "7815",
     "brand": "比亚迪",
     "series": "宋L DM-i"
-  },
-  {
-    "heat": 0,
-    "car_id": "7220",
-    "brand": "比亚迪",
-    "series": "宋L EV"
   },
   {
     "heat": 0,
@@ -577,12 +3193,6 @@
   },
   {
     "heat": 0,
-    "car_id": "6851",
-    "brand": "比亚迪",
-    "series": "海狮07 EV"
-  },
-  {
-    "heat": 0,
     "car_id": "6139",
     "brand": "比亚迪",
     "series": "海豚"
@@ -739,18 +3349,6 @@
   },
   {
     "heat": 1,
-    "car_id": "3788",
-    "brand": "吉利汽车",
-    "series": "博越"
-  },
-  {
-    "heat": 1,
-    "car_id": "8544",
-    "brand": "吉利汽车",
-    "series": "博越REV"
-  },
-  {
-    "heat": 1,
     "car_id": "2321",
     "brand": "吉利汽车",
     "series": "吉利EC6-RV"
@@ -880,12 +3478,6 @@
     "car_id": "3510",
     "brand": "吉利汽车",
     "series": "吉利GX8"
-  },
-  {
-    "heat": 1,
-    "car_id": "4813",
-    "brand": "吉利汽车",
-    "series": "吉利ICON"
   },
   {
     "heat": 1,
@@ -1033,6 +3625,12 @@
   },
   {
     "heat": 1,
+    "car_id": "5273",
+    "brand": "吉利汽车",
+    "series": "星瑞"
+  },
+  {
+    "heat": 1,
     "car_id": "7437",
     "brand": "吉利汽车",
     "series": "星瑞L90"
@@ -1093,12 +3691,6 @@
   },
   {
     "heat": 1,
-    "car_id": "4701",
-    "brand": "吉利汽车",
-    "series": "缤越"
-  },
-  {
-    "heat": 1,
     "car_id": "5122",
     "brand": "吉利汽车",
     "series": "缤越新能源"
@@ -1150,12 +3742,6 @@
     "car_id": "5073",
     "brand": "吉利汽车",
     "series": "豪越"
-  },
-  {
-    "heat": 1,
-    "car_id": "6978",
-    "brand": "吉利汽车",
-    "series": "豪越L"
   },
   {
     "heat": 1,
@@ -1423,21 +4009,9 @@
   },
   {
     "heat": 2,
-    "car_id": "4976",
-    "brand": "长安",
-    "series": "长安CS35PLUS"
-  },
-  {
-    "heat": 2,
     "car_id": "4269",
     "brand": "长安",
     "series": "长安CS55"
-  },
-  {
-    "heat": 2,
-    "car_id": "5498",
-    "brand": "长安",
-    "series": "长安CS55PLUS"
   },
   {
     "heat": 2,
@@ -1450,18 +4024,6 @@
     "car_id": "5397",
     "brand": "长安",
     "series": "长安CS55纯电版"
-  },
-  {
-    "heat": 2,
-    "car_id": "3204",
-    "brand": "长安",
-    "series": "长安CS75"
-  },
-  {
-    "heat": 2,
-    "car_id": "5179",
-    "brand": "长安",
-    "series": "长安CS75PLUS"
   },
   {
     "heat": 2,
@@ -1525,24 +4087,6 @@
   },
   {
     "heat": 2,
-    "car_id": "5927",
-    "brand": "长安",
-    "series": "长安UNI-K"
-  },
-  {
-    "heat": 2,
-    "car_id": "6264",
-    "brand": "长安",
-    "series": "长安UNI-K 智电iDD"
-  },
-  {
-    "heat": 2,
-    "car_id": "5565",
-    "brand": "长安",
-    "series": "长安UNI-T"
-  },
-  {
-    "heat": 2,
     "car_id": "6335",
     "brand": "长安",
     "series": "长安UNI-V"
@@ -1552,12 +4096,6 @@
     "car_id": "6735",
     "brand": "长安",
     "series": "长安UNI-V 智电iDD"
-  },
-  {
-    "heat": 2,
-    "car_id": "7821",
-    "brand": "长安",
-    "series": "长安UNI-Z"
   },
   {
     "heat": 2,
@@ -1576,18 +4114,6 @@
     "car_id": "2316",
     "brand": "长安",
     "series": "长安VOSS"
-  },
-  {
-    "heat": 2,
-    "car_id": "7552",
-    "brand": "长安",
-    "series": "长安X5 PLUS"
-  },
-  {
-    "heat": 2,
-    "car_id": "7543",
-    "brand": "长安",
-    "series": "长安X7 PLUS"
   },
   {
     "heat": 2,
@@ -1813,12 +4339,6 @@
   },
   {
     "heat": 3,
-    "car_id": "7680",
-    "brand": "奇瑞",
-    "series": "探索06 C-DM"
-  },
-  {
-    "heat": 3,
     "car_id": "85",
     "brand": "奇瑞",
     "series": "旗云"
@@ -1846,12 +4366,6 @@
     "car_id": "2331",
     "brand": "奇瑞",
     "series": "旗云5"
-  },
-  {
-    "heat": 3,
-    "car_id": "6227",
-    "brand": "奇瑞",
-    "series": "欧萌达"
   },
   {
     "heat": 3,
@@ -1897,33 +4411,9 @@
   },
   {
     "heat": 3,
-    "car_id": "4099",
-    "brand": "奇瑞",
-    "series": "瑞虎3x"
-  },
-  {
-    "heat": 3,
     "car_id": "8656",
     "brand": "奇瑞",
     "series": "瑞虎4"
-  },
-  {
-    "heat": 3,
-    "car_id": "3195",
-    "brand": "奇瑞",
-    "series": "瑞虎5"
-  },
-  {
-    "heat": 3,
-    "car_id": "4531",
-    "brand": "奇瑞",
-    "series": "瑞虎5x"
-  },
-  {
-    "heat": 3,
-    "car_id": "3766",
-    "brand": "奇瑞",
-    "series": "瑞虎7"
   },
   {
     "heat": 3,
@@ -1933,39 +4423,9 @@
   },
   {
     "heat": 3,
-    "car_id": "6288",
-    "brand": "奇瑞",
-    "series": "瑞虎7 PLUS"
-  },
-  {
-    "heat": 3,
     "car_id": "6861",
     "brand": "奇瑞",
     "series": "瑞虎7 PLUS新能源"
-  },
-  {
-    "heat": 3,
-    "car_id": "4693",
-    "brand": "奇瑞",
-    "series": "瑞虎8"
-  },
-  {
-    "heat": 3,
-    "car_id": "7745",
-    "brand": "奇瑞",
-    "series": "瑞虎8L"
-  },
-  {
-    "heat": 3,
-    "car_id": "5884",
-    "brand": "奇瑞",
-    "series": "瑞虎8 PLUS"
-  },
-  {
-    "heat": 3,
-    "car_id": "7858",
-    "brand": "奇瑞",
-    "series": "瑞虎8 PLUS C-DM"
   },
   {
     "heat": 3,
@@ -1975,27 +4435,9 @@
   },
   {
     "heat": 3,
-    "car_id": "6547",
-    "brand": "奇瑞",
-    "series": "瑞虎8 PRO"
-  },
-  {
-    "heat": 3,
     "car_id": "6707",
     "brand": "奇瑞",
     "series": "瑞虎8 PRO新能源"
-  },
-  {
-    "heat": 3,
-    "car_id": "7072",
-    "brand": "奇瑞",
-    "series": "瑞虎9"
-  },
-  {
-    "heat": 3,
-    "car_id": "7214",
-    "brand": "奇瑞",
-    "series": "瑞虎9 C-DM"
   },
   {
     "heat": 3,
@@ -2056,12 +4498,6 @@
     "car_id": "4223",
     "brand": "奇瑞",
     "series": "艾瑞泽7e"
-  },
-  {
-    "heat": 3,
-    "car_id": "6664",
-    "brand": "奇瑞",
-    "series": "艾瑞泽8"
   },
   {
     "heat": 3,
@@ -2527,24 +4963,6 @@
   },
   {
     "heat": 4,
-    "car_id": "7628",
-    "brand": "大众",
-    "series": "与众06"
-  },
-  {
-    "heat": 4,
-    "car_id": "8312",
-    "brand": "大众",
-    "series": "与众07"
-  },
-  {
-    "heat": 4,
-    "car_id": "8429",
-    "brand": "大众",
-    "series": "与众08"
-  },
-  {
-    "heat": 4,
     "car_id": "8608",
     "brand": "大众",
     "series": "与众09"
@@ -2761,6 +5179,12 @@
   },
   {
     "heat": 4,
+    "car_id": "528",
+    "brand": "大众",
+    "series": "帕萨特"
+  },
+  {
+    "heat": 4,
     "car_id": "4904",
     "brand": "大众",
     "series": "帕萨特插电混动"
@@ -2785,27 +5209,9 @@
   },
   {
     "heat": 4,
-    "car_id": "4744",
-    "brand": "大众",
-    "series": "探岳"
-  },
-  {
-    "heat": 4,
     "car_id": "5061",
     "brand": "大众",
     "series": "探岳 GTE"
-  },
-  {
-    "heat": 4,
-    "car_id": "8710",
-    "brand": "大众",
-    "series": "探岳L PHEV"
-  },
-  {
-    "heat": 4,
-    "car_id": "5246",
-    "brand": "大众",
-    "series": "探岳X"
   },
   {
     "heat": 4,
@@ -2827,18 +5233,6 @@
   },
   {
     "heat": 4,
-    "car_id": "5245",
-    "brand": "大众",
-    "series": "揽境"
-  },
-  {
-    "heat": 4,
-    "car_id": "6738",
-    "brand": "大众",
-    "series": "揽巡"
-  },
-  {
-    "heat": 4,
     "car_id": "3197",
     "brand": "大众",
     "series": "朗境"
@@ -2848,6 +5242,12 @@
     "car_id": "3103",
     "brand": "大众",
     "series": "朗行"
+  },
+  {
+    "heat": 4,
+    "car_id": "614",
+    "brand": "大众",
+    "series": "朗逸"
   },
   {
     "heat": 4,
@@ -2923,9 +5323,9 @@
   },
   {
     "heat": 4,
-    "car_id": "5062",
+    "car_id": "496",
     "brand": "大众",
-    "series": "迈腾 PHEV"
+    "series": "迈腾"
   },
   {
     "heat": 4,
@@ -2947,21 +5347,9 @@
   },
   {
     "heat": 4,
-    "car_id": "4745",
-    "brand": "大众",
-    "series": "途岳"
-  },
-  {
-    "heat": 4,
     "car_id": "5558",
     "brand": "大众",
     "series": "途岳新能源"
-  },
-  {
-    "heat": 4,
-    "car_id": "4232",
-    "brand": "大众",
-    "series": "途昂"
   },
   {
     "heat": 4,
@@ -2989,15 +5377,15 @@
   },
   {
     "heat": 4,
-    "car_id": "82",
-    "brand": "大众",
-    "series": "途锐"
-  },
-  {
-    "heat": 4,
     "car_id": "5063",
     "brand": "大众",
     "series": "途锐新能源"
+  },
+  {
+    "heat": 4,
+    "car_id": "442",
+    "brand": "大众",
+    "series": "速腾"
   },
   {
     "heat": 4,
@@ -3601,12 +5989,6 @@
   },
   {
     "heat": 6,
-    "car_id": "7713",
-    "brand": "丰田",
-    "series": "丰田bZ5"
-  },
-  {
-    "heat": 6,
     "car_id": "8147",
     "brand": "丰田",
     "series": "丰田bZ Woodland"
@@ -3859,6 +6241,12 @@
   },
   {
     "heat": 6,
+    "car_id": "4962",
+    "brand": "丰田",
+    "series": "亚洲龙"
+  },
+  {
+    "heat": 6,
     "car_id": "2055",
     "brand": "丰田",
     "series": "亚洲龙(海外)"
@@ -3898,6 +6286,12 @@
     "car_id": "6077",
     "brand": "丰田",
     "series": "凌放HARRIER"
+  },
+  {
+    "heat": 6,
+    "car_id": "110",
+    "brand": "丰田",
+    "series": "凯美瑞"
   },
   {
     "heat": 6,
@@ -3943,12 +6337,6 @@
   },
   {
     "heat": 6,
-    "car_id": "6428",
-    "brand": "丰田",
-    "series": "卡罗拉锐放"
-  },
-  {
-    "heat": 6,
     "car_id": "2354",
     "brand": "丰田",
     "series": "坦途"
@@ -3979,12 +6367,6 @@
   },
   {
     "heat": 6,
-    "car_id": "5472",
-    "brand": "丰田",
-    "series": "威兰达"
-  },
-  {
-    "heat": 6,
     "car_id": "5977",
     "brand": "丰田",
     "series": "威兰达新能源"
@@ -4000,12 +6382,6 @@
     "car_id": "7392",
     "brand": "丰田",
     "series": "威尔法新能源"
-  },
-  {
-    "heat": 6,
-    "car_id": "6385",
-    "brand": "丰田",
-    "series": "威飒"
   },
   {
     "heat": 6,
@@ -4048,12 +6424,6 @@
     "car_id": "7235",
     "brand": "丰田",
     "series": "悦动空间"
-  },
-  {
-    "heat": 6,
-    "car_id": "46",
-    "brand": "丰田",
-    "series": "普拉多"
   },
   {
     "heat": 6,
@@ -4123,12 +6493,6 @@
   },
   {
     "heat": 6,
-    "car_id": "771",
-    "brand": "丰田",
-    "series": "汉兰达"
-  },
-  {
-    "heat": 6,
     "car_id": "8551",
     "brand": "丰田",
     "series": "汉兰达新能源(海外)"
@@ -4183,12 +6547,6 @@
   },
   {
     "heat": 6,
-    "car_id": "6030",
-    "brand": "丰田",
-    "series": "皇冠陆放"
-  },
-  {
-    "heat": 6,
     "car_id": "964",
     "brand": "丰田",
     "series": "红杉"
@@ -4213,27 +6571,9 @@
   },
   {
     "heat": 6,
-    "car_id": "7712",
-    "brand": "丰田",
-    "series": "铂智3X"
-  },
-  {
-    "heat": 6,
-    "car_id": "7520",
-    "brand": "丰田",
-    "series": "铂智4X"
-  },
-  {
-    "heat": 6,
     "car_id": "7724",
     "brand": "丰田",
     "series": "铂智7"
-  },
-  {
-    "heat": 6,
-    "car_id": "6414",
-    "brand": "丰田",
-    "series": "锋兰达"
   },
   {
     "heat": 6,
@@ -4471,12 +6811,6 @@
   },
   {
     "heat": 8,
-    "car_id": "7676",
-    "brand": "本田",
-    "series": "东风本田S7"
-  },
-  {
-    "heat": 8,
     "car_id": "5031",
     "brand": "本田",
     "series": "享域"
@@ -4486,12 +6820,6 @@
     "car_id": "956",
     "brand": "本田",
     "series": "元素"
-  },
-  {
-    "heat": 8,
-    "car_id": "4102",
-    "brand": "本田",
-    "series": "冠道"
   },
   {
     "heat": 8,
@@ -4528,12 +6856,6 @@
     "car_id": "8121",
     "brand": "本田",
     "series": "广汽本田GT"
-  },
-  {
-    "heat": 8,
-    "car_id": "7677",
-    "brand": "本田",
-    "series": "广汽本田P7"
   },
   {
     "heat": 8,
@@ -4693,12 +7015,6 @@
   },
   {
     "heat": 8,
-    "car_id": "6825",
-    "brand": "本田",
-    "series": "本田HR-V"
-  },
-  {
-    "heat": 8,
     "car_id": "3605",
     "brand": "本田",
     "series": "本田HR-V(海外)"
@@ -4819,12 +7135,6 @@
   },
   {
     "heat": 8,
-    "car_id": "3582",
-    "brand": "本田",
-    "series": "本田XR-V"
-  },
-  {
-    "heat": 8,
     "car_id": "6829",
     "brand": "本田",
     "series": "本田ZR-V(海外)"
@@ -4861,12 +7171,6 @@
   },
   {
     "heat": 8,
-    "car_id": "5393",
-    "brand": "本田",
-    "series": "皓影"
-  },
-  {
-    "heat": 8,
     "car_id": "5994",
     "brand": "本田",
     "series": "皓影新能源"
@@ -4876,12 +7180,6 @@
     "car_id": "4179",
     "brand": "本田",
     "series": "竞瑞"
-  },
-  {
-    "heat": 8,
-    "car_id": "3460",
-    "brand": "本田",
-    "series": "缤智"
   },
   {
     "heat": 8,
@@ -4933,6 +7231,12 @@
   },
   {
     "heat": 8,
+    "car_id": "78",
+    "brand": "本田",
+    "series": "雅阁"
+  },
+  {
+    "heat": 8,
     "car_id": "7127",
     "brand": "本田",
     "series": "雅阁新能源"
@@ -4972,12 +7276,6 @@
     "car_id": "6524",
     "brand": "日产",
     "series": "Ariya Single Seater"
-  },
-  {
-    "heat": 9,
-    "car_id": "6714",
-    "brand": "日产",
-    "series": "ARIYA艾睿雅"
   },
   {
     "heat": 9,
@@ -5299,12 +7597,6 @@
   },
   {
     "heat": 9,
-    "car_id": "4305",
-    "brand": "日产",
-    "series": "劲客"
-  },
-  {
-    "heat": 9,
     "car_id": "5763",
     "brand": "日产",
     "series": "劲客新能源(海外)"
@@ -5323,21 +7615,9 @@
   },
   {
     "heat": 9,
-    "car_id": "656",
-    "brand": "日产",
-    "series": "奇骏"
-  },
-  {
-    "heat": 9,
     "car_id": "208",
     "brand": "日产",
     "series": "奇骏(进口)"
-  },
-  {
-    "heat": 9,
-    "car_id": "7396",
-    "brand": "日产",
-    "series": "探陆"
   },
   {
     "heat": 9,
@@ -5431,12 +7711,6 @@
   },
   {
     "heat": 9,
-    "car_id": "8243",
-    "brand": "日产",
-    "series": "日产N6"
-  },
-  {
-    "heat": 9,
     "car_id": "7935",
     "brand": "日产",
     "series": "日产N7"
@@ -5482,12 +7756,6 @@
     "car_id": "2550",
     "brand": "日产",
     "series": "日产NV3500"
-  },
-  {
-    "heat": 9,
-    "car_id": "8459",
-    "brand": "日产",
-    "series": "日产NX8"
   },
   {
     "heat": 9,
@@ -5641,15 +7909,15 @@
   },
   {
     "heat": 9,
-    "car_id": "4766",
+    "car_id": "448",
     "brand": "日产",
-    "series": "轩逸·纯电"
+    "series": "轩逸"
   },
   {
     "heat": 9,
-    "car_id": "564",
+    "car_id": "4766",
     "brand": "日产",
-    "series": "逍客"
+    "series": "轩逸·纯电"
   },
   {
     "heat": 9,
@@ -5905,12 +8173,6 @@
   },
   {
     "heat": 10,
-    "car_id": "7272",
-    "brand": "五菱汽车",
-    "series": "五菱星云"
-  },
-  {
-    "heat": 10,
     "car_id": "7349",
     "brand": "五菱汽车",
     "series": "五菱星光"
@@ -5920,18 +8182,6 @@
     "car_id": "7671",
     "brand": "五菱汽车",
     "series": "五菱星光S"
-  },
-  {
-    "heat": 10,
-    "car_id": "6117",
-    "brand": "五菱汽车",
-    "series": "五菱星辰"
-  },
-  {
-    "heat": 10,
-    "car_id": "6777",
-    "brand": "五菱汽车",
-    "series": "五菱星驰"
   },
   {
     "heat": 10,
@@ -5950,12 +8200,6 @@
     "car_id": "7045",
     "brand": "五菱汽车",
     "series": "五菱缤果"
-  },
-  {
-    "heat": 10,
-    "car_id": "7572",
-    "brand": "五菱汽车",
-    "series": "五菱缤果PLUS"
   },
   {
     "heat": 10,
@@ -6043,12 +8287,6 @@
   },
   {
     "heat": 10,
-    "car_id": "8217",
-    "brand": "五菱汽车",
-    "series": "星光560"
-  },
-  {
-    "heat": 10,
     "car_id": "8216",
     "brand": "五菱汽车",
     "series": "星光560新能源"
@@ -6064,12 +8302,6 @@
     "car_id": "8187",
     "brand": "五菱汽车",
     "series": "星光730新能源"
-  },
-  {
-    "heat": 10,
-    "car_id": "8468",
-    "brand": "五菱汽车",
-    "series": "星光L"
   },
   {
     "heat": 10,
@@ -6211,12 +8443,6 @@
   },
   {
     "heat": 11,
-    "car_id": "7043",
-    "brand": "别克",
-    "series": "别克E5"
-  },
-  {
-    "heat": 11,
     "car_id": "4487",
     "brand": "别克",
     "series": "别克GL6"
@@ -6244,12 +8470,6 @@
     "car_id": "7109",
     "brand": "别克",
     "series": "别克Series B"
-  },
-  {
-    "heat": 11,
-    "car_id": "8510",
-    "brand": "别克",
-    "series": "别克至境E7"
   },
   {
     "heat": 11,
@@ -6328,12 +8548,6 @@
     "car_id": "3554",
     "brand": "别克",
     "series": "昂科威Plus"
-  },
-  {
-    "heat": 11,
-    "car_id": "8038",
-    "brand": "别克",
-    "series": "昂科威S"
   },
   {
     "heat": 11,
@@ -6625,15 +8839,15 @@
   },
   {
     "heat": 12,
-    "car_id": "3230",
-    "brand": "宝马",
-    "series": "宝马2系(进口)"
-  },
-  {
-    "heat": 12,
     "car_id": "6168",
     "brand": "宝马",
     "series": "宝马328"
+  },
+  {
+    "heat": 12,
+    "car_id": "66",
+    "brand": "宝马",
+    "series": "宝马3系"
   },
   {
     "heat": 12,
@@ -6655,15 +8869,15 @@
   },
   {
     "heat": 12,
-    "car_id": "2968",
-    "brand": "宝马",
-    "series": "宝马4系"
-  },
-  {
-    "heat": 12,
     "car_id": "7107",
     "brand": "宝马",
     "series": "宝马502"
+  },
+  {
+    "heat": 12,
+    "car_id": "65",
+    "brand": "宝马",
+    "series": "宝马5系"
   },
   {
     "heat": 12,
@@ -6703,21 +8917,9 @@
   },
   {
     "heat": 12,
-    "car_id": "153",
-    "brand": "宝马",
-    "series": "宝马7系"
-  },
-  {
-    "heat": 12,
     "car_id": "4345",
     "brand": "宝马",
     "series": "宝马7系新能源"
-  },
-  {
-    "heat": 12,
-    "car_id": "3464",
-    "brand": "宝马",
-    "series": "宝马8系"
   },
   {
     "heat": 12,
@@ -6793,18 +8995,6 @@
   },
   {
     "heat": 12,
-    "car_id": "4942",
-    "brand": "宝马",
-    "series": "宝马iX"
-  },
-  {
-    "heat": 12,
-    "car_id": "7223",
-    "brand": "宝马",
-    "series": "宝马iX1"
-  },
-  {
-    "heat": 12,
     "car_id": "5988",
     "brand": "宝马",
     "series": "宝马iX1(进口)"
@@ -6814,12 +9004,6 @@
     "car_id": "7032",
     "brand": "宝马",
     "series": "宝马iX2"
-  },
-  {
-    "heat": 12,
-    "car_id": "5758",
-    "brand": "宝马",
-    "series": "宝马iX3"
   },
   {
     "heat": 12,
@@ -6847,12 +9031,6 @@
   },
   {
     "heat": 12,
-    "car_id": "3357",
-    "brand": "宝马",
-    "series": "宝马M2"
-  },
-  {
-    "heat": 12,
     "car_id": "7945",
     "brand": "宝马",
     "series": "宝马M235L"
@@ -6868,12 +9046,6 @@
     "car_id": "2196",
     "brand": "宝马",
     "series": "宝马M3"
-  },
-  {
-    "heat": 12,
-    "car_id": "3189",
-    "brand": "宝马",
-    "series": "宝马M4"
   },
   {
     "heat": 12,
@@ -6919,12 +9091,6 @@
   },
   {
     "heat": 12,
-    "car_id": "2561",
-    "brand": "宝马",
-    "series": "宝马X1"
-  },
-  {
-    "heat": 12,
     "car_id": "7944",
     "brand": "宝马",
     "series": "宝马X1 M35Li"
@@ -6967,24 +9133,6 @@
   },
   {
     "heat": 12,
-    "car_id": "3386",
-    "brand": "宝马",
-    "series": "宝马X2(进口)"
-  },
-  {
-    "heat": 12,
-    "car_id": "4658",
-    "brand": "宝马",
-    "series": "宝马X3"
-  },
-  {
-    "heat": 12,
-    "car_id": "4928",
-    "brand": "宝马",
-    "series": "宝马X3 M"
-  },
-  {
-    "heat": 12,
     "car_id": "7953",
     "brand": "宝马",
     "series": "宝马X3 M40i"
@@ -7003,69 +9151,15 @@
   },
   {
     "heat": 12,
-    "car_id": "271",
-    "brand": "宝马",
-    "series": "宝马X3(进口)"
-  },
-  {
-    "heat": 12,
-    "car_id": "3053",
-    "brand": "宝马",
-    "series": "宝马X4"
-  },
-  {
-    "heat": 12,
-    "car_id": "4929",
-    "brand": "宝马",
-    "series": "宝马X4 M"
-  },
-  {
-    "heat": 12,
     "car_id": "7954",
     "brand": "宝马",
     "series": "宝马X4 M40i"
   },
   {
     "heat": 12,
-    "car_id": "6548",
-    "brand": "宝马",
-    "series": "宝马X5"
-  },
-  {
-    "heat": 12,
-    "car_id": "2728",
-    "brand": "宝马",
-    "series": "宝马X5 M"
-  },
-  {
-    "heat": 12,
     "car_id": "4348",
     "brand": "宝马",
     "series": "宝马X5新能源(进口)"
-  },
-  {
-    "heat": 12,
-    "car_id": "159",
-    "brand": "宝马",
-    "series": "宝马X5(进口)"
-  },
-  {
-    "heat": 12,
-    "car_id": "587",
-    "brand": "宝马",
-    "series": "宝马X6"
-  },
-  {
-    "heat": 12,
-    "car_id": "2729",
-    "brand": "宝马",
-    "series": "宝马X6 M"
-  },
-  {
-    "heat": 12,
-    "car_id": "3362",
-    "brand": "宝马",
-    "series": "宝马X7"
   },
   {
     "heat": 12,
@@ -7084,12 +9178,6 @@
     "car_id": "5364",
     "brand": "宝马",
     "series": "宝马X7皮卡"
-  },
-  {
-    "heat": 12,
-    "car_id": "6303",
-    "brand": "宝马",
-    "series": "宝马XM"
   },
   {
     "heat": 12,
@@ -7465,9 +9553,9 @@
   },
   {
     "heat": 13,
-    "car_id": "2717",
+    "car_id": "588",
     "brand": "奔驰",
-    "series": "奔驰C级AMG"
+    "series": "奔驰C级"
   },
   {
     "heat": 13,
@@ -7501,21 +9589,9 @@
   },
   {
     "heat": 13,
-    "car_id": "6149",
-    "brand": "奔驰",
-    "series": "奔驰EQA"
-  },
-  {
-    "heat": 13,
     "car_id": "4537",
     "brand": "奔驰",
     "series": "奔驰EQA(进口)"
-  },
-  {
-    "heat": 13,
-    "car_id": "6150",
-    "brand": "奔驰",
-    "series": "奔驰EQB"
   },
   {
     "heat": 13,
@@ -7549,12 +9625,6 @@
   },
   {
     "heat": 13,
-    "car_id": "6975",
-    "brand": "奔驰",
-    "series": "奔驰EQE SUV"
-  },
-  {
-    "heat": 13,
     "car_id": "6980",
     "brand": "奔驰",
     "series": "奔驰EQE SUV AMG"
@@ -7585,12 +9655,6 @@
   },
   {
     "heat": 13,
-    "car_id": "6637",
-    "brand": "奔驰",
-    "series": "奔驰EQS SUV"
-  },
-  {
-    "heat": 13,
     "car_id": "6176",
     "brand": "奔驰",
     "series": "奔驰EQT"
@@ -7600,6 +9664,12 @@
     "car_id": "5159",
     "brand": "奔驰",
     "series": "奔驰EQV"
+  },
+  {
+    "heat": 13,
+    "car_id": "197",
+    "brand": "奔驰",
+    "series": "奔驰E级"
   },
   {
     "heat": 13,
@@ -7627,12 +9697,6 @@
   },
   {
     "heat": 13,
-    "car_id": "450",
-    "brand": "奔驰",
-    "series": "奔驰E级(进口)"
-  },
-  {
-    "heat": 13,
     "car_id": "3700",
     "brand": "奔驰",
     "series": "奔驰F 015"
@@ -7648,18 +9712,6 @@
     "car_id": "2065",
     "brand": "奔驰",
     "series": "奔驰F800"
-  },
-  {
-    "heat": 13,
-    "car_id": "3248",
-    "brand": "奔驰",
-    "series": "奔驰GLA"
-  },
-  {
-    "heat": 13,
-    "car_id": "3264",
-    "brand": "奔驰",
-    "series": "奔驰GLA AMG"
   },
   {
     "heat": 13,
@@ -7681,33 +9733,9 @@
   },
   {
     "heat": 13,
-    "car_id": "5348",
-    "brand": "奔驰",
-    "series": "奔驰GLB"
-  },
-  {
-    "heat": 13,
-    "car_id": "5038",
-    "brand": "奔驰",
-    "series": "奔驰GLB AMG"
-  },
-  {
-    "heat": 13,
     "car_id": "4914",
     "brand": "奔驰",
     "series": "奔驰GLB(海外)"
-  },
-  {
-    "heat": 13,
-    "car_id": "3862",
-    "brand": "奔驰",
-    "series": "奔驰GLC"
-  },
-  {
-    "heat": 13,
-    "car_id": "4074",
-    "brand": "奔驰",
-    "series": "奔驰GLC AMG"
   },
   {
     "heat": 13,
@@ -7726,18 +9754,6 @@
     "car_id": "5417",
     "brand": "奔驰",
     "series": "奔驰GLC新能源(进口)"
-  },
-  {
-    "heat": 13,
-    "car_id": "3339",
-    "brand": "奔驰",
-    "series": "奔驰GLC轿跑"
-  },
-  {
-    "heat": 13,
-    "car_id": "6210",
-    "brand": "奔驰",
-    "series": "奔驰GLC轿跑 AMG"
   },
   {
     "heat": 13,
@@ -7765,12 +9781,6 @@
   },
   {
     "heat": 13,
-    "car_id": "3704",
-    "brand": "奔驰",
-    "series": "奔驰GLE AMG"
-  },
-  {
-    "heat": 13,
     "car_id": "7454",
     "brand": "奔驰",
     "series": "奔驰GLE AMG新能源"
@@ -7780,18 +9790,6 @@
     "car_id": "4346",
     "brand": "奔驰",
     "series": "奔驰GLE新能源"
-  },
-  {
-    "heat": 13,
-    "car_id": "6207",
-    "brand": "奔驰",
-    "series": "奔驰GLE轿跑"
-  },
-  {
-    "heat": 13,
-    "car_id": "6209",
-    "brand": "奔驰",
-    "series": "奔驰GLE轿跑 AMG"
   },
   {
     "heat": 13,
@@ -7807,12 +9805,6 @@
   },
   {
     "heat": 13,
-    "car_id": "3683",
-    "brand": "奔驰",
-    "series": "奔驰GLE(进口)"
-  },
-  {
-    "heat": 13,
     "car_id": "2562",
     "brand": "奔驰",
     "series": "奔驰GLK级"
@@ -7825,18 +9817,6 @@
   },
   {
     "heat": 13,
-    "car_id": "3688",
-    "brand": "奔驰",
-    "series": "奔驰GLS"
-  },
-  {
-    "heat": 13,
-    "car_id": "3901",
-    "brand": "奔驰",
-    "series": "奔驰GLS AMG"
-  },
-  {
-    "heat": 13,
     "car_id": "467",
     "brand": "奔驰",
     "series": "奔驰GL级"
@@ -7846,18 +9826,6 @@
     "car_id": "2833",
     "brand": "奔驰",
     "series": "奔驰GL级AMG"
-  },
-  {
-    "heat": 13,
-    "car_id": "60",
-    "brand": "奔驰",
-    "series": "奔驰G级"
-  },
-  {
-    "heat": 13,
-    "car_id": "2723",
-    "brand": "奔驰",
-    "series": "奔驰G级AMG"
   },
   {
     "heat": 13,
@@ -8047,18 +10015,6 @@
   },
   {
     "heat": 13,
-    "car_id": "6376",
-    "brand": "奔驰",
-    "series": "迈巴赫EQS SUV"
-  },
-  {
-    "heat": 13,
-    "car_id": "5462",
-    "brand": "奔驰",
-    "series": "迈巴赫GLS"
-  },
-  {
-    "heat": 13,
     "car_id": "4300",
     "brand": "奔驰",
     "series": "迈巴赫G级"
@@ -8068,12 +10024,6 @@
     "car_id": "6755",
     "brand": "奔驰",
     "series": "迈巴赫SL级"
-  },
-  {
-    "heat": 13,
-    "car_id": "3665",
-    "brand": "奔驰",
-    "series": "迈巴赫S级"
   },
   {
     "heat": 13,
@@ -8209,6 +10159,12 @@
   },
   {
     "heat": 14,
+    "car_id": "3170",
+    "brand": "奥迪",
+    "series": "奥迪A3"
+  },
+  {
+    "heat": 14,
     "car_id": "4325",
     "brand": "奥迪",
     "series": "奥迪A3新能源(进口)"
@@ -8224,6 +10180,12 @@
     "car_id": "19",
     "brand": "奥迪",
     "series": "奥迪A4"
+  },
+  {
+    "heat": 14,
+    "car_id": "692",
+    "brand": "奥迪",
+    "series": "奥迪A4L"
   },
   {
     "heat": 14,
@@ -8260,6 +10222,12 @@
     "car_id": "509",
     "brand": "奥迪",
     "series": "奥迪A6"
+  },
+  {
+    "heat": 14,
+    "car_id": "18",
+    "brand": "奥迪",
+    "series": "奥迪A6L"
   },
   {
     "heat": 14,
@@ -8401,27 +10369,9 @@
   },
   {
     "heat": 14,
-    "car_id": "4871",
-    "brand": "奥迪",
-    "series": "奥迪Q2L"
-  },
-  {
-    "heat": 14,
     "car_id": "5240",
     "brand": "奥迪",
     "series": "奥迪Q2L e-tron"
-  },
-  {
-    "heat": 14,
-    "car_id": "2951",
-    "brand": "奥迪",
-    "series": "奥迪Q3"
-  },
-  {
-    "heat": 14,
-    "car_id": "5933",
-    "brand": "奥迪",
-    "series": "奥迪Q3 Sportback"
   },
   {
     "heat": 14,
@@ -8455,12 +10405,6 @@
   },
   {
     "heat": 14,
-    "car_id": "6504",
-    "brand": "奥迪",
-    "series": "奥迪Q4 e-tron"
-  },
-  {
-    "heat": 14,
     "car_id": "5149",
     "brand": "奥迪",
     "series": "奥迪Q4 e-tron(进口)"
@@ -8476,18 +10420,6 @@
     "car_id": "812",
     "brand": "奥迪",
     "series": "奥迪Q5"
-  },
-  {
-    "heat": 14,
-    "car_id": "6336",
-    "brand": "奥迪",
-    "series": "奥迪Q5 e-tron"
-  },
-  {
-    "heat": 14,
-    "car_id": "5912",
-    "brand": "奥迪",
-    "series": "奥迪Q5L Sportback"
   },
   {
     "heat": 14,
@@ -8509,45 +10441,15 @@
   },
   {
     "heat": 14,
-    "car_id": "6526",
-    "brand": "奥迪",
-    "series": "奥迪Q6"
-  },
-  {
-    "heat": 14,
     "car_id": "6295",
     "brand": "奥迪",
     "series": "奥迪Q6 e-tron(海外)"
   },
   {
     "heat": 14,
-    "car_id": "7413",
-    "brand": "奥迪",
-    "series": "奥迪Q6L e-tron"
-  },
-  {
-    "heat": 14,
-    "car_id": "7936",
-    "brand": "奥迪",
-    "series": "奥迪Q6L Sportback e-tron"
-  },
-  {
-    "heat": 14,
-    "car_id": "412",
-    "brand": "奥迪",
-    "series": "奥迪Q7"
-  },
-  {
-    "heat": 14,
     "car_id": "4460",
     "brand": "奥迪",
     "series": "奥迪Q7新能源"
-  },
-  {
-    "heat": 14,
-    "car_id": "4288",
-    "brand": "奥迪",
-    "series": "奥迪Q8"
   },
   {
     "heat": 14,
@@ -8599,12 +10501,6 @@
   },
   {
     "heat": 14,
-    "car_id": "2735",
-    "brand": "奥迪",
-    "series": "奥迪RS 5"
-  },
-  {
-    "heat": 14,
     "car_id": "2737",
     "brand": "奥迪",
     "series": "奥迪RS 6"
@@ -8641,12 +10537,6 @@
   },
   {
     "heat": 14,
-    "car_id": "5508",
-    "brand": "奥迪",
-    "series": "奥迪RS Q8"
-  },
-  {
-    "heat": 14,
     "car_id": "4998",
     "brand": "奥迪",
     "series": "奥迪RS Q e-tron"
@@ -8677,12 +10567,6 @@
   },
   {
     "heat": 14,
-    "car_id": "2734",
-    "brand": "奥迪",
-    "series": "奥迪S5"
-  },
-  {
-    "heat": 14,
     "car_id": "2736",
     "brand": "奥迪",
     "series": "奥迪S6"
@@ -8710,18 +10594,6 @@
     "car_id": "4907",
     "brand": "奥迪",
     "series": "奥迪SQ2"
-  },
-  {
-    "heat": 14,
-    "car_id": "2841",
-    "brand": "奥迪",
-    "series": "奥迪SQ5"
-  },
-  {
-    "heat": 14,
-    "car_id": "6899",
-    "brand": "奥迪",
-    "series": "奥迪SQ5 Sportback"
   },
   {
     "heat": 14,
@@ -8857,39 +10729,9 @@
   },
   {
     "heat": 16,
-    "car_id": "8183",
-    "brand": "理想汽车",
-    "series": "理想i6"
-  },
-  {
-    "heat": 16,
-    "car_id": "7727",
-    "brand": "理想汽车",
-    "series": "理想i8"
-  },
-  {
-    "heat": 16,
-    "car_id": "6950",
-    "brand": "理想汽车",
-    "series": "理想L6"
-  },
-  {
-    "heat": 16,
     "car_id": "6949",
     "brand": "理想汽车",
     "series": "理想L7"
-  },
-  {
-    "heat": 16,
-    "car_id": "6910",
-    "brand": "理想汽车",
-    "series": "理想L8"
-  },
-  {
-    "heat": 16,
-    "car_id": "6576",
-    "brand": "理想汽车",
-    "series": "理想L9"
   },
   {
     "heat": 16,
@@ -8911,51 +10753,15 @@
   },
   {
     "heat": 17,
-    "car_id": "5569",
-    "brand": "蔚来",
-    "series": "蔚来EC6"
-  },
-  {
-    "heat": 17,
-    "car_id": "6994",
-    "brand": "蔚来",
-    "series": "蔚来EC7"
-  },
-  {
-    "heat": 17,
     "car_id": "4265",
     "brand": "蔚来",
     "series": "蔚来EP9"
   },
   {
     "heat": 17,
-    "car_id": "4881",
-    "brand": "蔚来",
-    "series": "蔚来ES6"
-  },
-  {
-    "heat": 17,
     "car_id": "6700",
     "brand": "蔚来",
     "series": "蔚来ES7"
-  },
-  {
-    "heat": 17,
-    "car_id": "4427",
-    "brand": "蔚来",
-    "series": "蔚来ES8"
-  },
-  {
-    "heat": 17,
-    "car_id": "6453",
-    "brand": "蔚来",
-    "series": "蔚来ET5"
-  },
-  {
-    "heat": 17,
-    "car_id": "7306",
-    "brand": "蔚来",
-    "series": "蔚来ET5T"
   },
   {
     "heat": 17,
@@ -8976,34 +10782,10 @@
     "series": "蔚来EVE"
   },
   {
-    "heat": 19,
-    "car_id": "6388",
-    "brand": "AITO 问界",
-    "series": "问界M5"
-  },
-  {
-    "heat": 19,
-    "car_id": "8003",
-    "brand": "AITO 问界",
-    "series": "问界M8"
-  },
-  {
-    "heat": 19,
-    "car_id": "7207",
-    "brand": "AITO 问界",
-    "series": "问界M9"
-  },
-  {
     "heat": 20,
     "car_id": "8569",
     "brand": "零跑汽车",
     "series": "零跑A05"
-  },
-  {
-    "heat": 20,
-    "car_id": "8433",
-    "brand": "零跑汽车",
-    "series": "零跑A10"
   },
   {
     "heat": 20,
@@ -9013,39 +10795,9 @@
   },
   {
     "heat": 20,
-    "car_id": "7877",
-    "brand": "零跑汽车",
-    "series": "零跑B10"
-  },
-  {
-    "heat": 20,
     "car_id": "6161",
     "brand": "零跑汽车",
     "series": "零跑C01"
-  },
-  {
-    "heat": 20,
-    "car_id": "7382",
-    "brand": "零跑汽车",
-    "series": "零跑C10"
-  },
-  {
-    "heat": 20,
-    "car_id": "5205",
-    "brand": "零跑汽车",
-    "series": "零跑C11"
-  },
-  {
-    "heat": 20,
-    "car_id": "7674",
-    "brand": "零跑汽车",
-    "series": "零跑C16"
-  },
-  {
-    "heat": 20,
-    "car_id": "8273",
-    "brand": "零跑汽车",
-    "series": "零跑D19"
   },
   {
     "heat": 20,
@@ -9157,33 +10909,9 @@
   },
   {
     "heat": 22,
-    "car_id": "7162",
-    "brand": "小鹏",
-    "series": "小鹏G6"
-  },
-  {
-    "heat": 22,
-    "car_id": "8014",
-    "brand": "小鹏",
-    "series": "小鹏G7"
-  },
-  {
-    "heat": 22,
-    "car_id": "6492",
-    "brand": "小鹏",
-    "series": "小鹏G9"
-  },
-  {
-    "heat": 22,
     "car_id": "8659",
     "brand": "小鹏",
     "series": "小鹏G9L"
-  },
-  {
-    "heat": 22,
-    "car_id": "8224",
-    "brand": "小鹏",
-    "series": "小鹏GX"
   },
   {
     "heat": 22,
@@ -9253,12 +10981,6 @@
   },
   {
     "heat": 24,
-    "car_id": "4221",
-    "brand": "领克",
-    "series": "领克01"
-  },
-  {
-    "heat": 24,
     "car_id": "4840",
     "brand": "领克",
     "series": "领克01 EM-P"
@@ -9283,33 +11005,21 @@
   },
   {
     "heat": 24,
+    "car_id": "4402",
+    "brand": "领克",
+    "series": "领克03"
+  },
+  {
+    "heat": 24,
     "car_id": "5113",
     "brand": "领克",
     "series": "领克03新能源"
   },
   {
     "heat": 24,
-    "car_id": "5194",
-    "brand": "领克",
-    "series": "领克05"
-  },
-  {
-    "heat": 24,
     "car_id": "6135",
     "brand": "领克",
     "series": "领克05 EM-P"
-  },
-  {
-    "heat": 24,
-    "car_id": "5555",
-    "brand": "领克",
-    "series": "领克06"
-  },
-  {
-    "heat": 24,
-    "car_id": "5557",
-    "brand": "领克",
-    "series": "领克06 EM-P"
   },
   {
     "heat": 24,
@@ -9325,39 +11035,9 @@
   },
   {
     "heat": 24,
-    "car_id": "7243",
-    "brand": "领克",
-    "series": "领克08 EM-P"
-  },
-  {
-    "heat": 24,
-    "car_id": "6144",
-    "brand": "领克",
-    "series": "领克09"
-  },
-  {
-    "heat": 24,
-    "car_id": "6334",
-    "brand": "领克",
-    "series": "领克09 EM-P"
-  },
-  {
-    "heat": 24,
-    "car_id": "8176",
-    "brand": "领克",
-    "series": "领克10"
-  },
-  {
-    "heat": 24,
     "car_id": "8669",
     "brand": "领克",
     "series": "领克20"
-  },
-  {
-    "heat": 24,
-    "car_id": "8002",
-    "brand": "领克",
-    "series": "领克900"
   },
   {
     "heat": 24,
@@ -9370,12 +11050,6 @@
     "car_id": "5845",
     "brand": "领克",
     "series": "领克Z10"
-  },
-  {
-    "heat": 24,
-    "car_id": "7812",
-    "brand": "领克",
-    "series": "领克Z20"
   },
   {
     "heat": 25,
@@ -9457,21 +11131,9 @@
   },
   {
     "heat": 25,
-    "car_id": "7092",
-    "brand": "哈弗",
-    "series": "哈弗H5"
-  },
-  {
-    "heat": 25,
     "car_id": "2027",
     "brand": "哈弗",
     "series": "哈弗H5经典"
-  },
-  {
-    "heat": 25,
-    "car_id": "2123",
-    "brand": "哈弗",
-    "series": "哈弗H6"
   },
   {
     "heat": 25,
@@ -9517,12 +11179,6 @@
   },
   {
     "heat": 25,
-    "car_id": "3298",
-    "brand": "哈弗",
-    "series": "哈弗H9"
-  },
-  {
-    "heat": 25,
     "car_id": "4100",
     "brand": "哈弗",
     "series": "哈弗HB-02"
@@ -9565,18 +11221,6 @@
   },
   {
     "heat": 25,
-    "car_id": "5770",
-    "brand": "哈弗",
-    "series": "哈弗大狗"
-  },
-  {
-    "heat": 25,
-    "car_id": "6926",
-    "brand": "哈弗",
-    "series": "哈弗大狗 PLUS"
-  },
-  {
-    "heat": 25,
     "car_id": "6900",
     "brand": "哈弗",
     "series": "哈弗大狗 PLUS 新能源"
@@ -9586,12 +11230,6 @@
     "car_id": "7147",
     "brand": "哈弗",
     "series": "哈弗枭龙"
-  },
-  {
-    "heat": 25,
-    "car_id": "7150",
-    "brand": "哈弗",
-    "series": "哈弗枭龙MAX"
   },
   {
     "heat": 25,
@@ -9634,12 +11272,6 @@
     "car_id": "8586",
     "brand": "哈弗",
     "series": "长城H10"
-  },
-  {
-    "heat": 25,
-    "car_id": "8545",
-    "brand": "哈弗",
-    "series": "长城猛龙 PLUS"
   },
   {
     "heat": 26,
@@ -9877,12 +11509,6 @@
   },
   {
     "heat": 27,
-    "car_id": "5425",
-    "brand": "红旗",
-    "series": "红旗E-HS9"
-  },
-  {
-    "heat": 27,
     "car_id": "6914",
     "brand": "红旗",
     "series": "红旗E-LS"
@@ -9910,6 +11536,12 @@
     "car_id": "8615",
     "brand": "红旗",
     "series": "红旗Global SUV"
+  },
+  {
+    "heat": 27,
+    "car_id": "4410",
+    "brand": "红旗",
+    "series": "红旗H5"
   },
   {
     "heat": 27,
@@ -9961,39 +11593,9 @@
   },
   {
     "heat": 27,
-    "car_id": "7130",
-    "brand": "红旗",
-    "series": "红旗HS3"
-  },
-  {
-    "heat": 27,
-    "car_id": "7673",
-    "brand": "红旗",
-    "series": "红旗HS3 PHEV"
-  },
-  {
-    "heat": 27,
-    "car_id": "5048",
-    "brand": "红旗",
-    "series": "红旗HS5"
-  },
-  {
-    "heat": 27,
     "car_id": "8203",
     "brand": "红旗",
     "series": "红旗HS6 PHEV"
-  },
-  {
-    "heat": 27,
-    "car_id": "4150",
-    "brand": "红旗",
-    "series": "红旗HS7"
-  },
-  {
-    "heat": 27,
-    "car_id": "7590",
-    "brand": "红旗",
-    "series": "红旗HS7 PHEV"
   },
   {
     "heat": 27,
@@ -10075,18 +11677,6 @@
   },
   {
     "heat": 27,
-    "car_id": "7704",
-    "brand": "红旗",
-    "series": "红旗天工06"
-  },
-  {
-    "heat": 27,
-    "car_id": "6913",
-    "brand": "红旗",
-    "series": "红旗天工08"
-  },
-  {
-    "heat": 27,
     "car_id": "8130",
     "brand": "红旗",
     "series": "红旗天辇一号"
@@ -10126,12 +11716,6 @@
     "car_id": "3108",
     "brand": "红旗",
     "series": "红旗金葵花国礼"
-  },
-  {
-    "heat": 27,
-    "car_id": "6461",
-    "brand": "红旗",
-    "series": "红旗金葵花国耀"
   },
   {
     "heat": 27,
@@ -10321,18 +11905,6 @@
   },
   {
     "heat": 28,
-    "car_id": "3495",
-    "brand": "广汽传祺",
-    "series": "传祺GS3"
-  },
-  {
-    "heat": 28,
-    "car_id": "3691",
-    "brand": "广汽传祺",
-    "series": "传祺GS4"
-  },
-  {
-    "heat": 28,
     "car_id": "5812",
     "brand": "广汽传祺",
     "series": "传祺GS4 COUPE"
@@ -10375,12 +11947,6 @@
   },
   {
     "heat": 28,
-    "car_id": "4094",
-    "brand": "广汽传祺",
-    "series": "传祺GS8"
-  },
-  {
-    "heat": 28,
     "car_id": "4662",
     "brand": "广汽传祺",
     "series": "传祺M6"
@@ -10405,18 +11971,6 @@
   },
   {
     "heat": 28,
-    "car_id": "7928",
-    "brand": "广汽传祺",
-    "series": "传祺向往S7"
-  },
-  {
-    "heat": 28,
-    "car_id": "8083",
-    "brand": "广汽传祺",
-    "series": "传祺向往S9"
-  },
-  {
-    "heat": 28,
     "car_id": "8627",
     "brand": "广汽传祺",
     "series": "传祺越7"
@@ -10432,12 +11986,6 @@
     "car_id": "5944",
     "brand": "广汽传祺",
     "series": "影豹"
-  },
-  {
-    "heat": 28,
-    "car_id": "6495",
-    "brand": "广汽传祺",
-    "series": "影酷"
   },
   {
     "heat": 31,
@@ -10546,12 +12094,6 @@
     "car_id": "6126",
     "brand": "长安欧尚",
     "series": "长安欧尚X7 PLUS"
-  },
-  {
-    "heat": 31,
-    "car_id": "6476",
-    "brand": "长安欧尚",
-    "series": "长安欧尚Z6"
   },
   {
     "heat": 31,
@@ -10717,21 +12259,9 @@
   },
   {
     "heat": 34,
-    "car_id": "7275",
-    "brand": "沃尔沃",
-    "series": "沃尔沃EX30"
-  },
-  {
-    "heat": 34,
     "car_id": "8021",
     "brand": "沃尔沃",
     "series": "沃尔沃EX30(海外)"
-  },
-  {
-    "heat": 34,
-    "car_id": "7230",
-    "brand": "沃尔沃",
-    "series": "沃尔沃EX90"
   },
   {
     "heat": 34,
@@ -10825,12 +12355,6 @@
   },
   {
     "heat": 34,
-    "car_id": "2190",
-    "brand": "沃尔沃",
-    "series": "沃尔沃V60"
-  },
-  {
-    "heat": 34,
     "car_id": "5719",
     "brand": "沃尔沃",
     "series": "沃尔沃V60新能源"
@@ -10855,12 +12379,6 @@
   },
   {
     "heat": 34,
-    "car_id": "5198",
-    "brand": "沃尔沃",
-    "series": "沃尔沃XC40"
-  },
-  {
-    "heat": 34,
     "car_id": "5904",
     "brand": "沃尔沃",
     "series": "沃尔沃XC40新能源"
@@ -10876,12 +12394,6 @@
     "car_id": "3689",
     "brand": "沃尔沃",
     "series": "沃尔沃XC40(进口)"
-  },
-  {
-    "heat": 34,
-    "car_id": "3411",
-    "brand": "沃尔沃",
-    "series": "沃尔沃XC60"
   },
   {
     "heat": 34,
@@ -10903,21 +12415,9 @@
   },
   {
     "heat": 34,
-    "car_id": "405",
-    "brand": "沃尔沃",
-    "series": "沃尔沃XC70"
-  },
-  {
-    "heat": 34,
     "car_id": "8138",
     "brand": "沃尔沃",
     "series": "沃尔沃XC70插电式混动"
-  },
-  {
-    "heat": 34,
-    "car_id": "177",
-    "brand": "沃尔沃",
-    "series": "沃尔沃XC90"
   },
   {
     "heat": 34,
@@ -10987,21 +12487,9 @@
   },
   {
     "heat": 35,
-    "car_id": "7332",
-    "brand": "凯迪拉克",
-    "series": "IQ傲歌"
-  },
-  {
-    "heat": 35,
     "car_id": "7894",
     "brand": "凯迪拉克",
     "series": "IQ傲歌(进口)"
-  },
-  {
-    "heat": 35,
-    "car_id": "6404",
-    "brand": "凯迪拉克",
-    "series": "IQ锐歌"
   },
   {
     "heat": 35,
@@ -11059,12 +12547,6 @@
   },
   {
     "heat": 35,
-    "car_id": "8471",
-    "brand": "凯迪拉克",
-    "series": "凯威德"
-  },
-  {
-    "heat": 35,
     "car_id": "3207",
     "brand": "凯迪拉克",
     "series": "凯迪拉克ATS-L"
@@ -11092,6 +12574,12 @@
     "car_id": "5304",
     "brand": "凯迪拉克",
     "series": "凯迪拉克CT4(海外)"
+  },
+  {
+    "heat": 35,
+    "car_id": "5349",
+    "brand": "凯迪拉克",
+    "series": "凯迪拉克CT5"
   },
   {
     "heat": 35,
@@ -11143,12 +12631,6 @@
   },
   {
     "heat": 35,
-    "car_id": "6774",
-    "brand": "凯迪拉克",
-    "series": "凯迪拉克GT4"
-  },
-  {
-    "heat": 35,
     "car_id": "2036",
     "brand": "凯迪拉克",
     "series": "凯迪拉克SLS(海外)"
@@ -11173,21 +12655,9 @@
   },
   {
     "heat": 35,
-    "car_id": "4856",
-    "brand": "凯迪拉克",
-    "series": "凯迪拉克XT4"
-  },
-  {
-    "heat": 35,
     "car_id": "4647",
     "brand": "凯迪拉克",
     "series": "凯迪拉克XT4(海外)"
-  },
-  {
-    "heat": 35,
-    "car_id": "3989",
-    "brand": "凯迪拉克",
-    "series": "凯迪拉克XT5"
   },
   {
     "heat": 35,
@@ -11200,12 +12670,6 @@
     "car_id": "3647",
     "brand": "凯迪拉克",
     "series": "凯迪拉克XT5(海外)"
-  },
-  {
-    "heat": 35,
-    "car_id": "5102",
-    "brand": "凯迪拉克",
-    "series": "凯迪拉克XT6"
   },
   {
     "heat": 35,
@@ -11251,12 +12715,6 @@
   },
   {
     "heat": 36,
-    "car_id": "802",
-    "brand": "路虎",
-    "series": "发现"
-  },
-  {
-    "heat": 36,
     "car_id": "3435",
     "brand": "路虎",
     "series": "发现 Vision"
@@ -11299,33 +12757,15 @@
   },
   {
     "heat": 36,
-    "car_id": "69",
-    "brand": "路虎",
-    "series": "揽胜"
-  },
-  {
-    "heat": 36,
     "car_id": "4579",
     "brand": "路虎",
     "series": "揽胜新能源"
   },
   {
     "heat": 36,
-    "car_id": "4316",
-    "brand": "路虎",
-    "series": "揽胜星脉"
-  },
-  {
-    "heat": 36,
     "car_id": "5909",
     "brand": "路虎",
     "series": "揽胜星脉新能源"
-  },
-  {
-    "heat": 36,
-    "car_id": "3521",
-    "brand": "路虎",
-    "series": "揽胜极光"
   },
   {
     "heat": 36,
@@ -11344,12 +12784,6 @@
     "car_id": "754",
     "brand": "路虎",
     "series": "揽胜极光(进口)"
-  },
-  {
-    "heat": 36,
-    "car_id": "850",
-    "brand": "路虎",
-    "series": "揽胜运动"
   },
   {
     "heat": 36,
@@ -11509,21 +12943,9 @@
   },
   {
     "heat": 37,
-    "car_id": "4175",
-    "brand": "保时捷",
-    "series": "保时捷718"
-  },
-  {
-    "heat": 37,
     "car_id": "6742",
     "brand": "保时捷",
     "series": "保时捷718新能源"
-  },
-  {
-    "heat": 37,
-    "car_id": "162",
-    "brand": "保时捷",
-    "series": "保时捷911"
   },
   {
     "heat": 37,
@@ -11587,6 +13009,12 @@
   },
   {
     "heat": 38,
+    "car_id": "403",
+    "brand": "雷克萨斯",
+    "series": "雷克萨斯ES"
+  },
+  {
+    "heat": 38,
     "car_id": "8113",
     "brand": "雷克萨斯",
     "series": "雷克萨斯ES新能源"
@@ -11602,12 +13030,6 @@
     "car_id": "3755",
     "brand": "雷克萨斯",
     "series": "雷克萨斯GS F"
-  },
-  {
-    "heat": 38,
-    "car_id": "112",
-    "brand": "雷克萨斯",
-    "series": "雷克萨斯GX"
   },
   {
     "heat": 38,
@@ -11632,12 +13054,6 @@
     "car_id": "7290",
     "brand": "雷克萨斯",
     "series": "雷克萨斯LBX"
-  },
-  {
-    "heat": 38,
-    "car_id": "2623",
-    "brand": "雷克萨斯",
-    "series": "雷克萨斯LC"
   },
   {
     "heat": 38,
@@ -11761,12 +13177,6 @@
   },
   {
     "heat": 38,
-    "car_id": "3442",
-    "brand": "雷克萨斯",
-    "series": "雷克萨斯NX"
-  },
-  {
-    "heat": 38,
     "car_id": "6261",
     "brand": "雷克萨斯",
     "series": "雷克萨斯NX新能源"
@@ -11785,12 +13195,6 @@
   },
   {
     "heat": 38,
-    "car_id": "3934",
-    "brand": "雷克萨斯",
-    "series": "雷克萨斯RX"
-  },
-  {
-    "heat": 38,
     "car_id": "6767",
     "brand": "雷克萨斯",
     "series": "雷克萨斯RX新能源"
@@ -11800,12 +13204,6 @@
     "car_id": "351",
     "brand": "雷克萨斯",
     "series": "雷克萨斯RX经典"
-  },
-  {
-    "heat": 38,
-    "car_id": "6525",
-    "brand": "雷克萨斯",
-    "series": "雷克萨斯RZ"
   },
   {
     "heat": 38,
@@ -11845,33 +13243,15 @@
   },
   {
     "heat": 40,
-    "car_id": "5810",
-    "brand": "坦克",
-    "series": "坦克300"
-  },
-  {
-    "heat": 40,
     "car_id": "7210",
     "brand": "坦克",
     "series": "坦克300新能源"
   },
   {
     "heat": 40,
-    "car_id": "6359",
-    "brand": "坦克",
-    "series": "坦克400"
-  },
-  {
-    "heat": 40,
     "car_id": "7213",
     "brand": "坦克",
     "series": "坦克400新能源"
-  },
-  {
-    "heat": 40,
-    "car_id": "6284",
-    "brand": "坦克",
-    "series": "坦克500"
   },
   {
     "heat": 40,
@@ -11917,12 +13297,6 @@
   },
   {
     "heat": 41,
-    "car_id": "4683",
-    "brand": "捷途",
-    "series": "捷途X70"
-  },
-  {
-    "heat": 41,
     "car_id": "7508",
     "brand": "捷途",
     "series": "捷途X70 C-DM"
@@ -11941,33 +13315,9 @@
   },
   {
     "heat": 41,
-    "car_id": "8186",
-    "brand": "捷途",
-    "series": "捷途X70L"
-  },
-  {
-    "heat": 41,
     "car_id": "5550",
     "brand": "捷途",
     "series": "捷途X70M"
-  },
-  {
-    "heat": 41,
-    "car_id": "5941",
-    "brand": "捷途",
-    "series": "捷途X70 PLUS"
-  },
-  {
-    "heat": 41,
-    "car_id": "8095",
-    "brand": "捷途",
-    "series": "捷途X70 PLUS C-DM"
-  },
-  {
-    "heat": 41,
-    "car_id": "7319",
-    "brand": "捷途",
-    "series": "捷途X70 PRO"
   },
   {
     "heat": 41,
@@ -11983,42 +13333,6 @@
   },
   {
     "heat": 41,
-    "car_id": "4797",
-    "brand": "捷途",
-    "series": "捷途X90"
-  },
-  {
-    "heat": 41,
-    "car_id": "8073",
-    "brand": "捷途",
-    "series": "捷途X90 C-DM"
-  },
-  {
-    "heat": 41,
-    "car_id": "6146",
-    "brand": "捷途",
-    "series": "捷途X90 PLUS"
-  },
-  {
-    "heat": 41,
-    "car_id": "7597",
-    "brand": "捷途",
-    "series": "捷途X90 PRO"
-  },
-  {
-    "heat": 41,
-    "car_id": "5081",
-    "brand": "捷途",
-    "series": "捷途X95"
-  },
-  {
-    "heat": 41,
-    "car_id": "6291",
-    "brand": "捷途",
-    "series": "捷途大圣"
-  },
-  {
-    "heat": 41,
     "car_id": "6881",
     "brand": "捷途",
     "series": "捷途大圣i-DM"
@@ -12028,12 +13342,6 @@
     "car_id": "8423",
     "brand": "捷途",
     "series": "捷途旅行"
-  },
-  {
-    "heat": 41,
-    "car_id": "6606",
-    "brand": "捷途",
-    "series": "捷途旅行者"
   },
   {
     "heat": 41,
@@ -12055,12 +13363,6 @@
   },
   {
     "heat": 41,
-    "car_id": "7828",
-    "brand": "捷途",
-    "series": "捷途自由者"
-  },
-  {
-    "heat": 41,
     "car_id": "8644",
     "brand": "捷途",
     "series": "捷途自由者7"
@@ -12076,12 +13378,6 @@
     "car_id": "6756",
     "brand": "星途",
     "series": "AtlantiX"
-  },
-  {
-    "heat": 42,
-    "car_id": "7174",
-    "brand": "星途",
-    "series": "星纪元 ET"
   },
   {
     "heat": 42,
@@ -12121,12 +13417,6 @@
   },
   {
     "heat": 42,
-    "car_id": "8431",
-    "brand": "星途",
-    "series": "星途EX7"
-  },
-  {
-    "heat": 42,
     "car_id": "8624",
     "brand": "星途",
     "series": "星途EX9"
@@ -12157,45 +13447,9 @@
   },
   {
     "heat": 42,
-    "car_id": "5942",
-    "brand": "星途",
-    "series": "星途凌云"
-  },
-  {
-    "heat": 42,
     "car_id": "8120",
     "brand": "星途",
     "series": "星途天玑"
-  },
-  {
-    "heat": 42,
-    "car_id": "5306",
-    "brand": "星途",
-    "series": "星途揽月"
-  },
-  {
-    "heat": 42,
-    "car_id": "7227",
-    "brand": "星途",
-    "series": "星途揽月C-DM"
-  },
-  {
-    "heat": 42,
-    "car_id": "6170",
-    "brand": "星途",
-    "series": "星途瑶光"
-  },
-  {
-    "heat": 42,
-    "car_id": "4822",
-    "brand": "星途",
-    "series": "星途追风"
-  },
-  {
-    "heat": 42,
-    "car_id": "6593",
-    "brand": "星途",
-    "series": "星途追风C-DM"
   },
   {
     "heat": 42,
@@ -12226,18 +13480,6 @@
     "car_id": "7890",
     "brand": "捷达",
     "series": "捷达VA7"
-  },
-  {
-    "heat": 44,
-    "car_id": "5138",
-    "brand": "捷达",
-    "series": "捷达VS5"
-  },
-  {
-    "heat": 44,
-    "car_id": "5193",
-    "brand": "捷达",
-    "series": "捷达VS7"
   },
   {
     "heat": 44,
@@ -12325,27 +13567,9 @@
   },
   {
     "heat": 45,
-    "car_id": "6369",
-    "brand": "smart",
-    "series": "smart精灵#1"
-  },
-  {
-    "heat": 45,
     "car_id": "7450",
     "brand": "smart",
     "series": "smart精灵#2"
-  },
-  {
-    "heat": 45,
-    "car_id": "7044",
-    "brand": "smart",
-    "series": "smart精灵#3"
-  },
-  {
-    "heat": 45,
-    "car_id": "7684",
-    "brand": "smart",
-    "series": "smart精灵#5"
   },
   {
     "heat": 46,
@@ -12480,30 +13704,6 @@
     "series": "VISION URBANAUT"
   },
   {
-    "heat": 46,
-    "car_id": "7632",
-    "brand": "MINI",
-    "series": "电动MINI ACEMAN"
-  },
-  {
-    "heat": 46,
-    "car_id": "7576",
-    "brand": "MINI",
-    "series": "电动MINI COOPER"
-  },
-  {
-    "heat": 46,
-    "car_id": "7866",
-    "brand": "MINI",
-    "series": "电动MINI JCW"
-  },
-  {
-    "heat": 46,
-    "car_id": "7865",
-    "brand": "MINI",
-    "series": "电动MINI JCW ACEMAN"
-  },
-  {
     "heat": 47,
     "car_id": "7689",
     "brand": "埃安",
@@ -12625,12 +13825,6 @@
   },
   {
     "heat": 48,
-    "car_id": "7569",
-    "brand": "深蓝汽车",
-    "series": "深蓝G318"
-  },
-  {
-    "heat": 48,
     "car_id": "8244",
     "brand": "深蓝汽车",
     "series": "深蓝L06"
@@ -12640,24 +13834,6 @@
     "car_id": "7738",
     "brand": "深蓝汽车",
     "series": "深蓝L07"
-  },
-  {
-    "heat": 48,
-    "car_id": "7740",
-    "brand": "深蓝汽车",
-    "series": "深蓝S05"
-  },
-  {
-    "heat": 48,
-    "car_id": "6817",
-    "brand": "深蓝汽车",
-    "series": "深蓝S07"
-  },
-  {
-    "heat": 48,
-    "car_id": "7979",
-    "brand": "深蓝汽车",
-    "series": "深蓝S09"
   },
   {
     "heat": 48,
@@ -12721,12 +13897,6 @@
   },
   {
     "heat": 49,
-    "car_id": "5224",
-    "brand": "启辰",
-    "series": "启辰T60EV"
-  },
-  {
-    "heat": 49,
     "car_id": "3618",
     "brand": "启辰",
     "series": "启辰T70"
@@ -12769,36 +13939,6 @@
   },
   {
     "heat": 49,
-    "car_id": "7099",
-    "brand": "启辰",
-    "series": "启辰VX6"
-  },
-  {
-    "heat": 49,
-    "car_id": "6216",
-    "brand": "启辰",
-    "series": "启辰大V"
-  },
-  {
-    "heat": 49,
-    "car_id": "7104",
-    "brand": "启辰",
-    "series": "启辰大V DD-i"
-  },
-  {
-    "heat": 49,
-    "car_id": "7528",
-    "brand": "启辰",
-    "series": "启辰大V氢境"
-  },
-  {
-    "heat": 49,
-    "car_id": "5519",
-    "brand": "启辰",
-    "series": "启辰星"
-  },
-  {
-    "heat": 49,
     "car_id": "2955",
     "brand": "启辰",
     "series": "晨风"
@@ -12811,21 +13951,9 @@
   },
   {
     "heat": 50,
-    "car_id": "7652",
-    "brand": "阿维塔",
-    "series": "阿维塔07"
-  },
-  {
-    "heat": 50,
     "car_id": "8663",
     "brand": "阿维塔",
     "series": "阿维塔07 L"
-  },
-  {
-    "heat": 50,
-    "car_id": "6354",
-    "brand": "阿维塔",
-    "series": "阿维塔11"
   },
   {
     "heat": 50,
@@ -12844,12 +13972,6 @@
     "car_id": "7242",
     "brand": "岚图汽车",
     "series": "ICOZY"
-  },
-  {
-    "heat": 52,
-    "car_id": "5924",
-    "brand": "岚图汽车",
-    "series": "岚图FREE"
   },
   {
     "heat": 52,
@@ -12877,12 +13999,6 @@
   },
   {
     "heat": 52,
-    "car_id": "7728",
-    "brand": "岚图汽车",
-    "series": "岚图知音"
-  },
-  {
-    "heat": 52,
     "car_id": "6915",
     "brand": "岚图汽车",
     "series": "岚图追光"
@@ -12907,33 +14023,9 @@
   },
   {
     "heat": 54,
-    "car_id": "7514",
-    "brand": "智己汽车",
-    "series": "智己L6"
-  },
-  {
-    "heat": 54,
     "car_id": "6012",
     "brand": "智己汽车",
     "series": "智己L7"
-  },
-  {
-    "heat": 54,
-    "car_id": "7305",
-    "brand": "智己汽车",
-    "series": "智己LS6"
-  },
-  {
-    "heat": 54,
-    "car_id": "6013",
-    "brand": "智己汽车",
-    "series": "智己LS7"
-  },
-  {
-    "heat": 54,
-    "car_id": "8215",
-    "brand": "智己汽车",
-    "series": "智己LS9"
   },
   {
     "heat": 56,
@@ -12985,24 +14077,6 @@
   },
   {
     "heat": 56,
-    "car_id": "7797",
-    "brand": "ARCFOX极狐",
-    "series": "极狐 考拉S"
-  },
-  {
-    "heat": 56,
-    "car_id": "8190",
-    "brand": "ARCFOX极狐",
-    "series": "极狐贝塔S3"
-  },
-  {
-    "heat": 56,
-    "car_id": "8086",
-    "brand": "ARCFOX极狐",
-    "series": "极狐贝塔T1"
-  },
-  {
-    "heat": 56,
     "car_id": "8440",
     "brand": "ARCFOX极狐",
     "series": "极狐问道V9"
@@ -13033,18 +14107,6 @@
   },
   {
     "heat": 56,
-    "car_id": "7125",
-    "brand": "ARCFOX极狐",
-    "series": "极狐 阿尔法T5"
-  },
-  {
-    "heat": 56,
-    "car_id": "8056",
-    "brand": "ARCFOX极狐",
-    "series": "极狐 阿尔法T6"
-  },
-  {
-    "heat": 56,
     "car_id": "8702",
     "brand": "ARCFOX极狐",
     "series": "极狐 阿尔法T7"
@@ -13060,12 +14122,6 @@
     "car_id": "6669",
     "brand": "腾势",
     "series": "腾势D9"
-  },
-  {
-    "heat": 57,
-    "car_id": "6898",
-    "brand": "腾势",
-    "series": "腾势N7"
   },
   {
     "heat": 57,
@@ -13129,24 +14185,6 @@
   },
   {
     "heat": 58,
-    "car_id": "7177",
-    "brand": "方程豹",
-    "series": "豹5"
-  },
-  {
-    "heat": 58,
-    "car_id": "7353",
-    "brand": "方程豹",
-    "series": "豹8"
-  },
-  {
-    "heat": 58,
-    "car_id": "7356",
-    "brand": "方程豹",
-    "series": "钛3"
-  },
-  {
-    "heat": 58,
     "car_id": "8171",
     "brand": "方程豹",
     "series": "钛7"
@@ -13162,24 +14200,6 @@
     "car_id": "7391",
     "brand": "仰望",
     "series": "仰望U7"
-  },
-  {
-    "heat": 59,
-    "car_id": "7003",
-    "brand": "仰望",
-    "series": "仰望U8"
-  },
-  {
-    "heat": 59,
-    "car_id": "8266",
-    "brand": "仰望",
-    "series": "仰望U8 L"
-  },
-  {
-    "heat": 59,
-    "car_id": "7116",
-    "brand": "仰望",
-    "series": "仰望U9"
   },
   {
     "heat": 59,
@@ -13279,18 +14299,6 @@
   },
   {
     "heat": 61,
-    "car_id": "7915",
-    "brand": "小米汽车",
-    "series": "小米SU7 Ultra"
-  },
-  {
-    "heat": 61,
-    "car_id": "7793",
-    "brand": "小米汽车",
-    "series": "小米YU7"
-  },
-  {
-    "heat": 61,
     "car_id": "8194",
     "brand": "小米汽车",
     "series": "小米YU7 Ultra"
@@ -13300,12 +14308,6 @@
     "car_id": "8326",
     "brand": "小米汽车",
     "series": "小米增程式SUV"
-  },
-  {
-    "heat": 62,
-    "car_id": "7730",
-    "brand": "智界",
-    "series": "智界R7"
   },
   {
     "heat": 62,
@@ -13333,21 +14335,9 @@
   },
   {
     "heat": 63,
-    "car_id": "7630",
-    "brand": "享界",
-    "series": "享界S9"
-  },
-  {
-    "heat": 63,
     "car_id": "8207",
     "brand": "享界",
     "series": "享界S9T"
-  },
-  {
-    "heat": 64,
-    "car_id": "8205",
-    "brand": "尚界",
-    "series": "尚界H5"
   },
   {
     "heat": 65,
@@ -13366,24 +14356,6 @@
     "car_id": "8661",
     "brand": "尊界",
     "series": "尊界V800"
-  },
-  {
-    "heat": 66,
-    "car_id": "7687",
-    "brand": "乐道",
-    "series": "乐道L60"
-  },
-  {
-    "heat": 66,
-    "car_id": "8591",
-    "brand": "乐道",
-    "series": "乐道L80"
-  },
-  {
-    "heat": 66,
-    "car_id": "8045",
-    "brand": "乐道",
-    "series": "乐道L90"
   },
   {
     "heat": 66,
@@ -13579,18 +14551,6 @@
   },
   {
     "heat": 69,
-    "car_id": "7575",
-    "brand": "长安启源",
-    "series": "长安启源E07"
-  },
-  {
-    "heat": 69,
-    "car_id": "8241",
-    "brand": "长安启源",
-    "series": "长安启源Q05"
-  },
-  {
-    "heat": 69,
     "car_id": "7351",
     "brand": "长安启源",
     "series": "长安启源Q05经典"
@@ -13600,12 +14560,6 @@
     "car_id": "8589",
     "brand": "长安启源",
     "series": "长安启源Q06"
-  },
-  {
-    "heat": 69,
-    "car_id": "7975",
-    "brand": "长安启源",
-    "series": "长安启源Q07"
   },
   {
     "heat": 69,
@@ -13663,39 +14617,9 @@
   },
   {
     "heat": 70,
-    "car_id": "5771",
-    "brand": "北京越野",
-    "series": "北京越野BJ30"
-  },
-  {
-    "heat": 70,
     "car_id": "7697",
     "brand": "北京越野",
     "series": "北京越野BJ30新能源"
-  },
-  {
-    "heat": 70,
-    "car_id": "623",
-    "brand": "北京越野",
-    "series": "北京越野BJ40"
-  },
-  {
-    "heat": 70,
-    "car_id": "7696",
-    "brand": "北京越野",
-    "series": "北京越野BJ40增程"
-  },
-  {
-    "heat": 70,
-    "car_id": "6590",
-    "brand": "北京越野",
-    "series": "北京越野BJ60"
-  },
-  {
-    "heat": 70,
-    "car_id": "7513",
-    "brand": "北京越野",
-    "series": "北京越野BJ60增程"
   },
   {
     "heat": 70,
@@ -13816,12 +14740,6 @@
     "car_id": "5803",
     "brand": "北京汽车",
     "series": "北京X5"
-  },
-  {
-    "heat": 71,
-    "car_id": "5624",
-    "brand": "北京汽车",
-    "series": "北京X7"
   },
   {
     "heat": 71,
@@ -14041,12 +14959,6 @@
   },
   {
     "heat": 73,
-    "car_id": "8457",
-    "brand": "东风风行",
-    "series": "星海T5"
-  },
-  {
-    "heat": 73,
     "car_id": "8600",
     "brand": "东风风行",
     "series": "星海V6"
@@ -14191,18 +15103,6 @@
   },
   {
     "heat": 73,
-    "car_id": "4767",
-    "brand": "东风风行",
-    "series": "风行T5"
-  },
-  {
-    "heat": 73,
-    "car_id": "5835",
-    "brand": "东风风行",
-    "series": "风行T5 EVO"
-  },
-  {
-    "heat": 73,
     "car_id": "4921",
     "brand": "东风风行",
     "series": "风行T5L"
@@ -14236,12 +15136,6 @@
     "car_id": "7540",
     "brand": "东风风行",
     "series": "风行游艇新能源"
-  },
-  {
-    "heat": 73,
-    "car_id": "6633",
-    "brand": "东风风行",
-    "series": "风行雷霆"
   },
   {
     "heat": 75,
@@ -14407,27 +15301,9 @@
   },
   {
     "heat": 75,
-    "car_id": "5696",
-    "brand": "东风风神",
-    "series": "奕炫GS"
-  },
-  {
-    "heat": 75,
     "car_id": "6114",
     "brand": "东风风神",
     "series": "奕炫MAX"
-  },
-  {
-    "heat": 75,
-    "car_id": "6583",
-    "brand": "东风风神",
-    "series": "皓极"
-  },
-  {
-    "heat": 75,
-    "car_id": "7136",
-    "brand": "东风风神",
-    "series": "皓瀚"
   },
   {
     "heat": 75,
@@ -14512,12 +15388,6 @@
     "car_id": "2743",
     "brand": "荣威",
     "series": "荣威950"
-  },
-  {
-    "heat": 77,
-    "car_id": "7394",
-    "brand": "荣威",
-    "series": "荣威D5X DMH"
   },
   {
     "heat": 77,
@@ -14623,12 +15493,6 @@
   },
   {
     "heat": 77,
-    "car_id": "4080",
-    "brand": "荣威",
-    "series": "荣威RX5"
-  },
-  {
-    "heat": 77,
     "car_id": "5375",
     "brand": "荣威",
     "series": "荣威RX5 eMAX"
@@ -14692,12 +15556,6 @@
     "car_id": "5746",
     "brand": "荣威",
     "series": "飞凡MARVEL R"
-  },
-  {
-    "heat": 77,
-    "car_id": "6072",
-    "brand": "荣威",
-    "series": "飞凡R7"
   },
   {
     "heat": 77,
@@ -15064,12 +15922,6 @@
     "car_id": "4801",
     "brand": "东风",
     "series": "帅客新能源"
-  },
-  {
-    "heat": 79,
-    "car_id": "5879",
-    "brand": "东风",
-    "series": "帕拉索"
   },
   {
     "heat": 79,
@@ -15451,12 +16303,6 @@
   },
   {
     "heat": 80,
-    "car_id": "4167",
-    "brand": "标致",
-    "series": "标致4008"
-  },
-  {
-    "heat": 80,
     "car_id": "5414",
     "brand": "标致",
     "series": "标致4008新能源"
@@ -15502,12 +16348,6 @@
     "car_id": "6793",
     "brand": "标致",
     "series": "标致408(海外)"
-  },
-  {
-    "heat": 80,
-    "car_id": "4271",
-    "brand": "标致",
-    "series": "标致5008"
   },
   {
     "heat": 80,
@@ -15868,12 +16708,6 @@
     "car_id": "388",
     "brand": "雪铁龙",
     "series": "凯旋"
-  },
-  {
-    "heat": 81,
-    "car_id": "4370",
-    "brand": "雪铁龙",
-    "series": "天逸 C5 AIRCROSS"
   },
   {
     "heat": 81,
@@ -16261,12 +17095,6 @@
   },
   {
     "heat": 82,
-    "car_id": "3335",
-    "brand": "雪佛兰",
-    "series": "创酷"
-  },
-  {
-    "heat": 82,
     "car_id": "2869",
     "brand": "雪佛兰",
     "series": "创酷(海外)"
@@ -16279,12 +17107,6 @@
   },
   {
     "heat": 82,
-    "car_id": "5476",
-    "brand": "雪佛兰",
-    "series": "开拓者"
-  },
-  {
-    "heat": 82,
     "car_id": "6668",
     "brand": "雪佛兰",
     "series": "开拓者新能源(海外)"
@@ -16294,18 +17116,6 @@
     "car_id": "4876",
     "brand": "雪佛兰",
     "series": "开拓者(海外)"
-  },
-  {
-    "heat": 82,
-    "car_id": "4235",
-    "brand": "雪佛兰",
-    "series": "探界者"
-  },
-  {
-    "heat": 82,
-    "car_id": "7393",
-    "brand": "雪佛兰",
-    "series": "探界者Plus"
   },
   {
     "heat": 82,
@@ -16330,12 +17140,6 @@
     "car_id": "808",
     "brand": "雪佛兰",
     "series": "斯帕可"
-  },
-  {
-    "heat": 82,
-    "car_id": "6718",
-    "brand": "雪佛兰",
-    "series": "星迈罗"
   },
   {
     "heat": 82,
@@ -16801,12 +17605,6 @@
   },
   {
     "heat": 83,
-    "car_id": "5556",
-    "brand": "福特",
-    "series": "探险者"
-  },
-  {
-    "heat": 83,
     "car_id": "7196",
     "brand": "福特",
     "series": "探险者EV"
@@ -16969,18 +17767,6 @@
   },
   {
     "heat": 83,
-    "car_id": "8213",
-    "brand": "福特",
-    "series": "福特智趣烈马"
-  },
-  {
-    "heat": 83,
-    "car_id": "7224",
-    "brand": "福特",
-    "series": "福特烈马"
-  },
-  {
-    "heat": 83,
     "car_id": "6029",
     "brand": "福特",
     "series": "福特电马"
@@ -17083,21 +17869,9 @@
   },
   {
     "heat": 83,
-    "car_id": "3615",
-    "brand": "福特",
-    "series": "锐界"
-  },
-  {
-    "heat": 83,
     "car_id": "684",
     "brand": "福特",
     "series": "锐界(进口)"
-  },
-  {
-    "heat": 83,
-    "car_id": "5211",
-    "brand": "福特",
-    "series": "锐际"
   },
   {
     "heat": 83,
@@ -17137,21 +17911,9 @@
   },
   {
     "heat": 83,
-    "car_id": "6430",
-    "brand": "福特",
-    "series": "领睿"
-  },
-  {
-    "heat": 83,
     "car_id": "7744",
     "brand": "福特",
     "series": "领睿新能源"
-  },
-  {
-    "heat": 83,
-    "car_id": "5910",
-    "brand": "福特",
-    "series": "领裕"
   },
   {
     "heat": 83,
@@ -17347,12 +18109,6 @@
   },
   {
     "heat": 84,
-    "car_id": "4824",
-    "brand": "起亚",
-    "series": "奕跑"
-  },
-  {
-    "heat": 84,
     "car_id": "2420",
     "brand": "起亚",
     "series": "斯汀格"
@@ -17401,12 +18157,6 @@
   },
   {
     "heat": 84,
-    "car_id": "6853",
-    "brand": "起亚",
-    "series": "狮铂拓界"
-  },
-  {
-    "heat": 84,
     "car_id": "813",
     "brand": "起亚",
     "series": "福瑞迪"
@@ -17428,18 +18178,6 @@
     "car_id": "5878",
     "brand": "起亚",
     "series": "索兰托新能源"
-  },
-  {
-    "heat": 84,
-    "car_id": "7439",
-    "brand": "起亚",
-    "series": "索奈"
-  },
-  {
-    "heat": 84,
-    "car_id": "7201",
-    "brand": "起亚",
-    "series": "赛图斯"
   },
   {
     "heat": 84,
@@ -17488,12 +18226,6 @@
     "car_id": "7432",
     "brand": "起亚",
     "series": "起亚EV4"
-  },
-  {
-    "heat": 84,
-    "car_id": "7352",
-    "brand": "起亚",
-    "series": "起亚EV5"
   },
   {
     "heat": 84,
@@ -17911,12 +18643,6 @@
   },
   {
     "heat": 85,
-    "car_id": "5586",
-    "brand": "马自达",
-    "series": "马自达CX-30"
-  },
-  {
-    "heat": 85,
     "car_id": "6141",
     "brand": "马自达",
     "series": "马自达CX-30 EV"
@@ -17935,21 +18661,9 @@
   },
   {
     "heat": 85,
-    "car_id": "2987",
-    "brand": "马自达",
-    "series": "马自达CX-5"
-  },
-  {
-    "heat": 85,
     "car_id": "6480",
     "brand": "马自达",
     "series": "马自达CX-50(海外)"
-  },
-  {
-    "heat": 85,
-    "car_id": "7082",
-    "brand": "马自达",
-    "series": "马自达CX-50行也"
   },
   {
     "heat": 85,
@@ -18040,12 +18754,6 @@
     "car_id": "7692",
     "brand": "马自达",
     "series": "马自达EZ-6"
-  },
-  {
-    "heat": 85,
-    "car_id": "7717",
-    "brand": "马自达",
-    "series": "马自达EZ-60"
   },
   {
     "heat": 85,
@@ -18373,33 +19081,9 @@
   },
   {
     "heat": 86,
-    "car_id": "4453",
-    "brand": "斯柯达",
-    "series": "柯珞克"
-  },
-  {
-    "heat": 86,
     "car_id": "4451",
     "brand": "斯柯达",
     "series": "柯珞克(海外)"
-  },
-  {
-    "heat": 86,
-    "car_id": "4690",
-    "brand": "斯柯达",
-    "series": "柯米克"
-  },
-  {
-    "heat": 86,
-    "car_id": "4217",
-    "brand": "斯柯达",
-    "series": "柯迪亚克"
-  },
-  {
-    "heat": 86,
-    "car_id": "4986",
-    "brand": "斯柯达",
-    "series": "柯迪亚克GT"
   },
   {
     "heat": 86,
@@ -18952,12 +19636,6 @@
     "car_id": "287",
     "brand": "斯巴鲁",
     "series": "力狮"
-  },
-  {
-    "heat": 88,
-    "car_id": "2557",
-    "brand": "斯巴鲁",
-    "series": "斯巴鲁BRZ"
   },
   {
     "heat": 88,
@@ -22087,12 +22765,6 @@
   },
   {
     "heat": 999,
-    "car_id": "8103",
-    "brand": "现代",
-    "series": "EO 羿欧"
-  },
-  {
-    "heat": 999,
     "car_id": "6043",
     "brand": "莲花跑车",
     "series": "E-R9"
@@ -22462,12 +23134,6 @@
     "car_id": "4079",
     "brand": "菲亚特",
     "series": "Fiorino"
-  },
-  {
-    "heat": 999,
-    "car_id": "7990",
-    "brand": "firefly萤火虫",
-    "series": "firefly萤火虫"
   },
   {
     "heat": 999,
@@ -23197,12 +23863,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7649",
-    "brand": "iCAR",
-    "series": "iCAR 超级V23"
-  },
-  {
-    "heat": 999,
     "car_id": "5463",
     "brand": "大发",
     "series": "ICO ICO"
@@ -23290,12 +23950,6 @@
     "car_id": "7140",
     "brand": "兰博基尼",
     "series": "Invencible"
-  },
-  {
-    "heat": 999,
-    "car_id": "7325",
-    "brand": "现代",
-    "series": "IONIQ 5 N(艾尼氪5N)"
   },
   {
     "heat": 999,
@@ -23815,12 +24469,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7880",
-    "brand": "Lorinser罗伦士",
-    "series": "Lorinser 星际战车"
-  },
-  {
-    "heat": 999,
     "car_id": "4815",
     "brand": "江汽集团",
     "series": "LSEV"
@@ -23884,12 +24532,6 @@
     "car_id": "8268",
     "brand": "LUMMA",
     "series": "LUMMA UG850 盖世"
-  },
-  {
-    "heat": 999,
-    "car_id": "7847",
-    "brand": "LUMMA",
-    "series": "LUMMA 捍卫者"
   },
   {
     "heat": 999,
@@ -24430,12 +25072,6 @@
     "car_id": "4220",
     "brand": "双龙",
     "series": "Musso"
-  },
-  {
-    "heat": 999,
-    "car_id": "3576",
-    "brand": "五十铃",
-    "series": "mu-X牧游侠"
   },
   {
     "heat": 999,
@@ -25939,12 +26575,6 @@
   },
   {
     "heat": 999,
-    "car_id": "2854",
-    "brand": "道朗格",
-    "series": "TAHOE太浩"
-  },
-  {
-    "heat": 999,
     "car_id": "5627",
     "brand": "菲亚特",
     "series": "Talento"
@@ -27037,12 +27667,6 @@
   },
   {
     "heat": 999,
-    "car_id": "947",
-    "brand": "道朗格",
-    "series": "YUKON育空"
-  },
-  {
-    "heat": 999,
     "car_id": "5970",
     "brand": "欧宝",
     "series": "Zafira Life"
@@ -27256,12 +27880,6 @@
     "car_id": "2982",
     "brand": "上海",
     "series": "上海SH760"
-  },
-  {
-    "heat": 999,
-    "car_id": "7388",
-    "brand": "世极",
-    "series": "世极"
   },
   {
     "heat": 999,
@@ -27937,12 +28555,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7124",
-    "brand": "云度",
-    "series": "云兔"
-  },
-  {
-    "heat": 999,
     "car_id": "4432",
     "brand": "Jeep",
     "series": "云图"
@@ -28513,12 +29125,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6864",
-    "brand": "克蒂汽车",
-    "series": "克蒂怪兽SV7"
-  },
-  {
-    "heat": 999,
     "car_id": "8272",
     "brand": "克蒂汽车",
     "series": "克蒂昆仑"
@@ -28618,12 +29224,6 @@
     "car_id": "2502",
     "brand": "力帆汽车",
     "series": "兴顺"
-  },
-  {
-    "heat": 999,
-    "car_id": "5385",
-    "brand": "林肯",
-    "series": "冒险家"
   },
   {
     "heat": 999,
@@ -28927,18 +29527,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6188",
-    "brand": "创维汽车",
-    "series": "创维EV6"
-  },
-  {
-    "heat": 999,
-    "car_id": "6686",
-    "brand": "创维汽车",
-    "series": "创维HT-i"
-  },
-  {
-    "heat": 999,
     "car_id": "7831",
     "brand": "创维汽车",
     "series": "创维K10L"
@@ -28954,12 +29542,6 @@
     "car_id": "7891",
     "brand": "创维汽车",
     "series": "创维Q"
-  },
-  {
-    "heat": 999,
-    "car_id": "8685",
-    "brand": "创维汽车",
-    "series": "创维S710"
   },
   {
     "heat": 999,
@@ -29194,12 +29776,6 @@
     "car_id": "7108",
     "brand": "劳斯莱斯",
     "series": "劳斯莱斯银影"
-  },
-  {
-    "heat": 999,
-    "car_id": "622",
-    "brand": "北京汽车制造厂",
-    "series": "勇士"
   },
   {
     "heat": 999,
@@ -29521,18 +30097,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6552",
-    "brand": "北汽瑞翔",
-    "series": "北汽瑞翔X3"
-  },
-  {
-    "heat": 999,
-    "car_id": "6262",
-    "brand": "北汽瑞翔",
-    "series": "北汽瑞翔X5"
-  },
-  {
-    "heat": 999,
     "car_id": "6800",
     "brand": "北汽瑞翔",
     "series": "北汽瑞翔X5新能源"
@@ -29572,12 +30136,6 @@
     "car_id": "3911",
     "brand": "华凯",
     "series": "华凯皮卡"
-  },
-  {
-    "heat": 999,
-    "car_id": "8283",
-    "brand": "华境",
-    "series": "华境S"
   },
   {
     "heat": 999,
@@ -30199,21 +30757,9 @@
   },
   {
     "heat": 999,
-    "car_id": "6639",
-    "brand": "吉利几何",
-    "series": "吉利几何E萤火虫"
-  },
-  {
-    "heat": 999,
     "car_id": "6863",
     "brand": "吉利几何",
     "series": "吉利几何G6"
-  },
-  {
-    "heat": 999,
-    "car_id": "6862",
-    "brand": "吉利几何",
-    "series": "吉利几何M6"
   },
   {
     "heat": 999,
@@ -30358,12 +30904,6 @@
     "car_id": "4696",
     "brand": "君马汽车",
     "series": "君马SEEK 5(赛克5)"
-  },
-  {
-    "heat": 999,
-    "car_id": "8424",
-    "brand": "启境",
-    "series": "启境GT7"
   },
   {
     "heat": 999,
@@ -30889,12 +31429,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6293",
-    "brand": "Jeep",
-    "series": "大切诺基4xe(进口)"
-  },
-  {
-    "heat": 999,
     "car_id": "3048",
     "brand": "Jeep",
     "series": "大切诺基 SRT"
@@ -31024,12 +31558,6 @@
     "car_id": "5781",
     "brand": "福田",
     "series": "大将军G9"
-  },
-  {
-    "heat": 999,
-    "car_id": "6712",
-    "brand": "福田",
-    "series": "大将军G9SUV"
   },
   {
     "heat": 999,
@@ -31327,12 +31855,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7088",
-    "brand": "奇瑞新能源",
-    "series": "奇瑞舒享家"
-  },
-  {
-    "heat": 999,
     "car_id": "6198",
     "brand": "奇鲁汽车",
     "series": "奇鲁eC1"
@@ -31354,12 +31876,6 @@
     "car_id": "632",
     "brand": "奔腾",
     "series": "奔腾B50"
-  },
-  {
-    "heat": 999,
-    "car_id": "466",
-    "brand": "奔腾",
-    "series": "奔腾B70"
   },
   {
     "heat": 999,
@@ -31414,12 +31930,6 @@
     "car_id": "4800",
     "brand": "奔腾",
     "series": "奔腾T77"
-  },
-  {
-    "heat": 999,
-    "car_id": "7149",
-    "brand": "奔腾",
-    "series": "奔腾T90"
   },
   {
     "heat": 999,
@@ -31570,12 +32080,6 @@
     "car_id": "7925",
     "brand": "奥迪AUDI",
     "series": "奥迪E5 Sportback"
-  },
-  {
-    "heat": 999,
-    "car_id": "8449",
-    "brand": "奥迪AUDI",
-    "series": "奥迪E7X"
   },
   {
     "heat": 999,
@@ -32245,18 +32749,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7212",
-    "brand": "东风风度",
-    "series": "帕拉丁"
-  },
-  {
-    "heat": 999,
-    "car_id": "5003",
-    "brand": "现代",
-    "series": "帕里斯帝"
-  },
-  {
-    "heat": 999,
     "car_id": "4416",
     "brand": "汉腾汽车",
     "series": "幸福e+"
@@ -32350,12 +32842,6 @@
     "car_id": "6118",
     "brand": "现代",
     "series": "库斯途"
-  },
-  {
-    "heat": 999,
-    "car_id": "3778",
-    "brand": "劳斯莱斯",
-    "series": "库里南"
   },
   {
     "heat": 999,
@@ -32671,12 +33157,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6897",
-    "brand": "思皓",
-    "series": "思皓X8 PLUS"
-  },
-  {
-    "heat": 999,
     "car_id": "6319",
     "brand": "思皓",
     "series": "思皓曜"
@@ -32716,12 +33196,6 @@
     "car_id": "7999",
     "brand": "恒信致远",
     "series": "恒信致远威霆"
-  },
-  {
-    "heat": 999,
-    "car_id": "4946",
-    "brand": "恒天",
-    "series": "恒天L4600"
   },
   {
     "heat": 999,
@@ -32887,24 +33361,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7899",
-    "brand": "奔腾",
-    "series": "悦意03"
-  },
-  {
-    "heat": 999,
-    "car_id": "7978",
-    "brand": "奔腾",
-    "series": "悦意07"
-  },
-  {
-    "heat": 999,
-    "car_id": "8109",
-    "brand": "奔腾",
-    "series": "悦意08"
-  },
-  {
-    "heat": 999,
     "car_id": "4107",
     "brand": "现代",
     "series": "悦纳"
@@ -32914,12 +33370,6 @@
     "car_id": "4222",
     "brand": "现代",
     "series": "悦纳RV"
-  },
-  {
-    "heat": 999,
-    "car_id": "5583",
-    "brand": "大运",
-    "series": "悦虎"
   },
   {
     "heat": 999,
@@ -33259,18 +33709,6 @@
   },
   {
     "heat": 999,
-    "car_id": "5475",
-    "brand": "捷尼赛思",
-    "series": "捷尼赛思GV70"
-  },
-  {
-    "heat": 999,
-    "car_id": "4397",
-    "brand": "捷尼赛思",
-    "series": "捷尼赛思GV80"
-  },
-  {
-    "heat": 999,
     "car_id": "7645",
     "brand": "捷尼赛思",
     "series": "捷尼赛思GV80轿跑"
@@ -33346,12 +33784,6 @@
     "car_id": "3094",
     "brand": "捷豹",
     "series": "捷豹D-TYPE"
-  },
-  {
-    "heat": 999,
-    "car_id": "4663",
-    "brand": "捷豹",
-    "series": "捷豹E-PACE"
   },
   {
     "heat": 999,
@@ -33475,45 +33907,9 @@
   },
   {
     "heat": 999,
-    "car_id": "7238",
-    "brand": "捷途山海",
-    "series": "捷途山海L6"
-  },
-  {
-    "heat": 999,
-    "car_id": "7711",
-    "brand": "捷途山海",
-    "series": "捷途山海L7"
-  },
-  {
-    "heat": 999,
-    "car_id": "8106",
-    "brand": "捷途山海",
-    "series": "捷途山海L7 PLUS"
-  },
-  {
-    "heat": 999,
-    "car_id": "7397",
-    "brand": "捷途山海",
-    "series": "捷途山海L9"
-  },
-  {
-    "heat": 999,
-    "car_id": "7506",
-    "brand": "捷途山海",
-    "series": "捷途山海T1"
-  },
-  {
-    "heat": 999,
     "car_id": "7693",
     "brand": "捷途山海",
     "series": "捷途山海T5"
-  },
-  {
-    "heat": 999,
-    "car_id": "7345",
-    "brand": "捷途山海",
-    "series": "捷途旅行者C-DM"
   },
   {
     "heat": 999,
@@ -33961,24 +34357,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7929",
-    "brand": "广汽昊铂",
-    "series": "昊铂HL"
-  },
-  {
-    "heat": 999,
-    "car_id": "7395",
-    "brand": "广汽昊铂",
-    "series": "昊铂HT"
-  },
-  {
-    "heat": 999,
-    "car_id": "6934",
-    "brand": "广汽昊铂",
-    "series": "昊铂SSR"
-  },
-  {
-    "heat": 999,
     "car_id": "4689",
     "brand": "北汽昌河",
     "series": "昌河北斗星"
@@ -34012,12 +34390,6 @@
     "car_id": "6720",
     "brand": "江铃集团新能源",
     "series": "易至EV2"
-  },
-  {
-    "heat": 999,
-    "car_id": "4949",
-    "brand": "江铃集团新能源",
-    "series": "易至EV3"
   },
   {
     "heat": 999,
@@ -34138,12 +34510,6 @@
     "car_id": "7808",
     "brand": "大通",
     "series": "星际X"
-  },
-  {
-    "heat": 999,
-    "car_id": "8226",
-    "brand": "大通",
-    "series": "星际X SUV"
   },
   {
     "heat": 999,
@@ -34342,12 +34708,6 @@
     "car_id": "3854",
     "brand": "开瑞",
     "series": "杰虎"
-  },
-  {
-    "heat": 999,
-    "car_id": "7302",
-    "brand": "ROX极石",
-    "series": "极石01"
   },
   {
     "heat": 999,
@@ -34753,12 +35113,6 @@
   },
   {
     "heat": 999,
-    "car_id": "5823",
-    "brand": "欧拉",
-    "series": "欧拉好猫"
-  },
-  {
-    "heat": 999,
     "car_id": "6322",
     "brand": "欧拉",
     "series": "欧拉好猫GT"
@@ -35131,12 +35485,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7217",
-    "brand": "江淮汽车",
-    "series": "江淮QX PHEV"
-  },
-  {
-    "heat": 999,
     "car_id": "4085",
     "brand": "江汽集团",
     "series": "江淮SC-5"
@@ -35170,18 +35518,6 @@
     "car_id": "4710",
     "brand": "江汽集团",
     "series": "江淮V7"
-  },
-  {
-    "heat": 999,
-    "car_id": "7589",
-    "brand": "江淮汽车",
-    "series": "江淮X8 E家"
-  },
-  {
-    "heat": 999,
-    "car_id": "7435",
-    "brand": "江淮汽车",
-    "series": "江淮X8 PLUS"
   },
   {
     "heat": 999,
@@ -35551,12 +35887,6 @@
   },
   {
     "heat": 999,
-    "car_id": "8289",
-    "brand": "法拉利",
-    "series": "法拉利849"
-  },
-  {
-    "heat": 999,
     "car_id": "6484",
     "brand": "法拉利",
     "series": "法拉利BR20"
@@ -35839,12 +36169,6 @@
   },
   {
     "heat": 999,
-    "car_id": "2685",
-    "brand": "宾利",
-    "series": "添越"
-  },
-  {
-    "heat": 999,
     "car_id": "4714",
     "brand": "宾利",
     "series": "添越插电混动"
@@ -35929,21 +36253,9 @@
   },
   {
     "heat": 999,
-    "car_id": "5540",
-    "brand": "凯翼",
-    "series": "炫界"
-  },
-  {
-    "heat": 999,
     "car_id": "6396",
     "brand": "凯翼",
     "series": "炫界Pro"
-  },
-  {
-    "heat": 999,
-    "car_id": "6413",
-    "brand": "凯翼",
-    "series": "炫界Pro EV"
   },
   {
     "heat": 999,
@@ -35974,12 +36286,6 @@
     "car_id": "8071",
     "brand": "焜驰",
     "series": "焜驰威霆"
-  },
-  {
-    "heat": 999,
-    "car_id": "6924",
-    "brand": "吉利银河",
-    "series": "熊猫"
   },
   {
     "heat": 999,
@@ -36022,12 +36328,6 @@
     "car_id": "5221",
     "brand": "爱驰",
     "series": "爱驰U7"
-  },
-  {
-    "heat": 999,
-    "car_id": "121",
-    "brand": "Jeep",
-    "series": "牧马人"
   },
   {
     "heat": 999,
@@ -36139,24 +36439,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6907",
-    "brand": "猛士",
-    "series": "猛士917"
-  },
-  {
-    "heat": 999,
-    "car_id": "7542",
-    "brand": "猛士",
-    "series": "猛士M800"
-  },
-  {
-    "heat": 999,
-    "car_id": "8091",
-    "brand": "猛士",
-    "series": "猛士M817"
-  },
-  {
-    "heat": 999,
     "car_id": "7668",
     "brand": "猛士",
     "series": "猛士M HUNTER"
@@ -36166,12 +36448,6 @@
     "car_id": "2709",
     "brand": "玛莎拉蒂",
     "series": "玛莎拉蒂MC12"
-  },
-  {
-    "heat": 999,
-    "car_id": "5646",
-    "brand": "玛莎拉蒂",
-    "series": "玛莎拉蒂MC20"
   },
   {
     "heat": 999,
@@ -36799,21 +37075,9 @@
   },
   {
     "heat": 999,
-    "car_id": "6788",
-    "brand": "睿蓝汽车",
-    "series": "睿蓝7"
-  },
-  {
-    "heat": 999,
     "car_id": "7904",
     "brand": "睿蓝汽车",
     "series": "睿蓝8"
-  },
-  {
-    "heat": 999,
-    "car_id": "6792",
-    "brand": "睿蓝汽车",
-    "series": "睿蓝9"
   },
   {
     "heat": 999,
@@ -36856,12 +37120,6 @@
     "car_id": "7577",
     "brand": "知豆",
     "series": "知豆彩虹"
-  },
-  {
-    "heat": 999,
-    "car_id": "8043",
-    "brand": "示界",
-    "series": "示界06"
   },
   {
     "heat": 999,
@@ -37231,18 +37489,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7364",
-    "brand": "东风奕派",
-    "series": "纳米01"
-  },
-  {
-    "heat": 999,
-    "car_id": "8026",
-    "brand": "东风奕派",
-    "series": "纳米06"
-  },
-  {
-    "heat": 999,
     "car_id": "6763",
     "brand": "东风奕派",
     "series": "纳米BOX"
@@ -37258,12 +37504,6 @@
     "car_id": "8024",
     "brand": "纵横",
     "series": "纵横F700"
-  },
-  {
-    "heat": 999,
-    "car_id": "8023",
-    "brand": "纵横",
-    "series": "纵横G700"
   },
   {
     "heat": 999,
@@ -37345,24 +37585,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6955",
-    "brand": "江铃集团新能源",
-    "series": "羿驰01"
-  },
-  {
-    "heat": 999,
-    "car_id": "8017",
-    "brand": "江铃集团新能源",
-    "series": "羿驰05"
-  },
-  {
-    "heat": 999,
-    "car_id": "8218",
-    "brand": "江铃集团新能源",
-    "series": "羿驰05S"
-  },
-  {
-    "heat": 999,
     "car_id": "2212",
     "brand": "黄海",
     "series": "翱龙CUV"
@@ -37402,12 +37624,6 @@
     "car_id": "3194",
     "brand": "九龙",
     "series": "考斯特"
-  },
-  {
-    "heat": 999,
-    "car_id": "2927",
-    "brand": "现代",
-    "series": "胜达"
   },
   {
     "heat": 999,
@@ -37507,12 +37723,6 @@
   },
   {
     "heat": 999,
-    "car_id": "5757",
-    "brand": "林肯",
-    "series": "航海家"
-  },
-  {
-    "heat": 999,
     "car_id": "4635",
     "brand": "林肯",
     "series": "航海家(进口)"
@@ -37564,12 +37774,6 @@
     "car_id": "5973",
     "brand": "思皓",
     "series": "花仙子"
-  },
-  {
-    "heat": 999,
-    "car_id": "5798",
-    "brand": "英力士掷弹兵",
-    "series": "英力士掷弹兵"
   },
   {
     "heat": 999,
@@ -37717,12 +37921,6 @@
   },
   {
     "heat": 999,
-    "car_id": "3591",
-    "brand": "英菲尼迪",
-    "series": "英菲尼迪QX50"
-  },
-  {
-    "heat": 999,
     "car_id": "3098",
     "brand": "英菲尼迪",
     "series": "英菲尼迪QX50(进口)"
@@ -37732,12 +37930,6 @@
     "car_id": "5502",
     "brand": "英菲尼迪",
     "series": "英菲尼迪QX55"
-  },
-  {
-    "heat": 999,
-    "car_id": "6342",
-    "brand": "英菲尼迪",
-    "series": "英菲尼迪QX60"
   },
   {
     "heat": 999,
@@ -37756,12 +37948,6 @@
     "car_id": "3099",
     "brand": "英菲尼迪",
     "series": "英菲尼迪QX70"
-  },
-  {
-    "heat": 999,
-    "car_id": "3100",
-    "brand": "英菲尼迪",
-    "series": "英菲尼迪QX80"
   },
   {
     "heat": 999,
@@ -38026,24 +38212,6 @@
     "car_id": "7144",
     "brand": "江汽集团",
     "series": "蓝猫"
-  },
-  {
-    "heat": 999,
-    "car_id": "7270",
-    "brand": "蓝电",
-    "series": "蓝电E3"
-  },
-  {
-    "heat": 999,
-    "car_id": "6977",
-    "brand": "蓝电",
-    "series": "蓝电E5"
-  },
-  {
-    "heat": 999,
-    "car_id": "7832",
-    "brand": "蓝电",
-    "series": "蓝电E5 PLUS"
   },
   {
     "heat": 999,
@@ -39265,12 +39433,6 @@
   },
   {
     "heat": 999,
-    "car_id": "5690",
-    "brand": "迈莎锐",
-    "series": "迈莎锐添越"
-  },
-  {
-    "heat": 999,
     "car_id": "7850",
     "brand": "迈莎锐",
     "series": "迈莎锐烈马"
@@ -39478,12 +39640,6 @@
     "car_id": "7429",
     "brand": "景飞汽车",
     "series": "途瑞欧雅典纳"
-  },
-  {
-    "heat": 999,
-    "car_id": "358",
-    "brand": "现代",
-    "series": "途胜"
   },
   {
     "heat": 999,
@@ -40141,12 +40297,6 @@
   },
   {
     "heat": 999,
-    "car_id": "5099",
-    "brand": "钧天",
-    "series": "钧天勇猛者"
-  },
-  {
-    "heat": 999,
     "car_id": "8142",
     "brand": "钧天",
     "series": "钧天格瑞维亚"
@@ -40219,12 +40369,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7650",
-    "brand": "吉利银河",
-    "series": "银河E5"
-  },
-  {
-    "heat": 999,
     "car_id": "7168",
     "brand": "吉利银河",
     "series": "银河E6"
@@ -40261,18 +40405,6 @@
   },
   {
     "heat": 999,
-    "car_id": "8466",
-    "brand": "吉利银河",
-    "series": "银河M7"
-  },
-  {
-    "heat": 999,
-    "car_id": "7165",
-    "brand": "吉利银河",
-    "series": "银河M9"
-  },
-  {
-    "heat": 999,
     "car_id": "8658",
     "brand": "吉利银河",
     "series": "银河TT"
@@ -40294,12 +40426,6 @@
     "car_id": "8211",
     "brand": "吉利银河",
     "series": "银河星耀6"
-  },
-  {
-    "heat": 999,
-    "car_id": "8313",
-    "brand": "吉利银河",
-    "series": "银河星耀7"
   },
   {
     "heat": 999,
@@ -40735,12 +40861,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6421",
-    "brand": "劳斯莱斯",
-    "series": "闪灵"
-  },
-  {
-    "heat": 999,
     "car_id": "4877",
     "brand": "红星汽车",
     "series": "闪闪X2"
@@ -40849,12 +40969,6 @@
   },
   {
     "heat": 999,
-    "car_id": "7293",
-    "brand": "阿斯顿·马丁",
-    "series": "阿斯顿·马丁DB12"
-  },
-  {
-    "heat": 999,
     "car_id": "7258",
     "brand": "阿斯顿·马丁",
     "series": "阿斯顿·马丁DB4"
@@ -40888,12 +41002,6 @@
     "car_id": "582",
     "brand": "阿斯顿·马丁",
     "series": "阿斯顿·马丁DBS"
-  },
-  {
-    "heat": 999,
-    "car_id": "3742",
-    "brand": "阿斯顿·马丁",
-    "series": "阿斯顿·马丁DBX"
   },
   {
     "heat": 999,
@@ -41365,12 +41473,6 @@
   },
   {
     "heat": 999,
-    "car_id": "6830",
-    "brand": "大通",
-    "series": "领地"
-  },
-  {
-    "heat": 999,
     "car_id": "5011",
     "brand": "金杯",
     "series": "领坤EV"
@@ -41422,12 +41524,6 @@
     "car_id": "690",
     "brand": "现代",
     "series": "领翔"
-  },
-  {
-    "heat": 999,
-    "car_id": "95",
-    "brand": "林肯",
-    "series": "领航员"
   },
   {
     "heat": 999,
@@ -41545,63 +41641,15 @@
   },
   {
     "heat": 999,
-    "car_id": "7633",
-    "brand": "奇瑞风云",
-    "series": "风云T10"
-  },
-  {
-    "heat": 999,
-    "car_id": "7411",
-    "brand": "奇瑞风云",
-    "series": "风云T11"
-  },
-  {
-    "heat": 999,
-    "car_id": "7216",
-    "brand": "奇瑞风云",
-    "series": "风云T6"
-  },
-  {
-    "heat": 999,
     "car_id": "8660",
     "brand": "奇瑞风云",
     "series": "风云T7"
   },
   {
     "heat": 999,
-    "car_id": "7898",
-    "brand": "奇瑞风云",
-    "series": "风云T8"
-  },
-  {
-    "heat": 999,
     "car_id": "8212",
     "brand": "奇瑞风云",
     "series": "风云T8L"
-  },
-  {
-    "heat": 999,
-    "car_id": "7442",
-    "brand": "奇瑞风云",
-    "series": "风云T9"
-  },
-  {
-    "heat": 999,
-    "car_id": "8209",
-    "brand": "奇瑞风云",
-    "series": "风云X3"
-  },
-  {
-    "heat": 999,
-    "car_id": "8208",
-    "brand": "奇瑞风云",
-    "series": "风云X3L"
-  },
-  {
-    "heat": 999,
-    "car_id": "8089",
-    "brand": "奇瑞风云",
-    "series": "风云X3 PLUS"
   },
   {
     "heat": 999,
@@ -41641,18 +41689,6 @@
   },
   {
     "heat": 999,
-    "car_id": "5871",
-    "brand": "东风风光",
-    "series": "风光500"
-  },
-  {
-    "heat": 999,
-    "car_id": "4023",
-    "brand": "东风风光",
-    "series": "风光580"
-  },
-  {
-    "heat": 999,
     "car_id": "5384",
     "brand": "东风风光",
     "series": "风光580Pro"
@@ -41683,39 +41719,15 @@
   },
   {
     "heat": 999,
-    "car_id": "4759",
-    "brand": "东风风光",
-    "series": "风光ix5"
-  },
-  {
-    "heat": 999,
     "car_id": "5070",
     "brand": "东风风光",
     "series": "风光ix7"
   },
   {
     "heat": 999,
-    "car_id": "6431",
-    "brand": "东风风光",
-    "series": "风光MINIEV"
-  },
-  {
-    "heat": 999,
     "car_id": "6137",
     "brand": "东风风光",
     "series": "风光S-007"
-  },
-  {
-    "heat": 999,
-    "car_id": "4468",
-    "brand": "东风风光",
-    "series": "风光S560"
-  },
-  {
-    "heat": 999,
-    "car_id": "7644",
-    "brand": "东风风光",
-    "series": "风光S580"
   },
   {
     "heat": 999,
@@ -41929,12 +41941,6 @@
   },
   {
     "heat": 999,
-    "car_id": "5554",
-    "brand": "林肯",
-    "series": "飞行家"
-  },
-  {
-    "heat": 999,
     "car_id": "5045",
     "brand": "林肯",
     "series": "飞行家新能源(进口)"
@@ -42070,12 +42076,6 @@
     "car_id": "8364",
     "brand": "宇通房车",
     "series": "骏迈M"
-  },
-  {
-    "heat": 999,
-    "car_id": "7964",
-    "brand": "骏驰",
-    "series": "骏驰EA"
   },
   {
     "heat": 999,
