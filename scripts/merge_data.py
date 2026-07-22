@@ -29,6 +29,23 @@ DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 FILTER_CONFIG_PATH = os.path.join(DIR, "config", "filter_conditions.json")
 
+YICHE_COMMERCIAL_LEVEL_KEYWORDS = (
+    "货车",
+    "卡车",
+    "皮卡",
+    "微货",
+    "微卡",
+    "轻卡",
+    "轻客",
+    "微面",
+    "客车",
+    "面包车",
+    "厢式",
+    "载货",
+    "牵引",
+    "自卸",
+)
+
 HEADER_MAP = {
     "全速自适应巡航控制_ACC_": "全速自适应巡航",
     "全速自适应巡航": "全速自适应巡航",
@@ -1319,11 +1336,21 @@ def write_json(path, rows):
 
 def partition_publishable_rows(rows):
     kept = []
-    stats = {"invalid_brand": 0, "invalid_model_name": 0, "invalid_yiche_identity": 0}
+    stats = {
+        "invalid_brand": 0,
+        "invalid_model_name": 0,
+        "invalid_yiche_identity": 0,
+        "excluded_yiche_commercial_level": 0,
+    }
     for row in rows:
-        if is_yiche_row(row) and not yiche_publish_identity_valid(row):
-            stats["invalid_yiche_identity"] += 1
-            continue
+        if is_yiche_row(row):
+            level = str(row.get("级别") or "").strip()
+            if any(keyword in level for keyword in YICHE_COMMERCIAL_LEVEL_KEYWORDS):
+                stats["excluded_yiche_commercial_level"] += 1
+                continue
+            if not yiche_publish_identity_valid(row):
+                stats["invalid_yiche_identity"] += 1
+                continue
         if is_autohome_row(row) and not autohome_publish_identity_valid(row):
             stats.setdefault("invalid_autohome_identity", 0)
             stats["invalid_autohome_identity"] += 1
@@ -1393,7 +1420,8 @@ def main():
         f"发布身份门禁: valid={len(all_rows)} invalid_brand={publish_stats['invalid_brand']} "
         f"invalid_model_name={publish_stats['invalid_model_name']} "
         f"invalid_autohome_identity={publish_stats.get('invalid_autohome_identity', 0)} "
-        f"invalid_yiche_identity={publish_stats['invalid_yiche_identity']}"
+        f"invalid_yiche_identity={publish_stats['invalid_yiche_identity']} "
+        f"excluded_yiche_commercial_level={publish_stats['excluded_yiche_commercial_level']}"
     )
     # 按 identity_key 去重，避免 preserve_publish_baseline.py 报 duplicate identities
     seen_keys = set()

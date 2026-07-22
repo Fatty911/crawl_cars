@@ -125,7 +125,46 @@ def test_publish_boundary_rejects_blank_brand_and_model():
     ]
     kept, stats = merge_data.partition_publishable_rows(rows)
     assert kept == [rows[0]]
-    assert stats == {"invalid_brand": 0, "invalid_model_name": 0, "invalid_yiche_identity": 2}
+    assert stats == {
+        "invalid_brand": 0,
+        "invalid_model_name": 0,
+        "invalid_yiche_identity": 2,
+        "excluded_yiche_commercial_level": 0,
+    }
+
+
+def test_publish_boundary_filters_yiche_commercial_levels_without_brand_blacklist():
+    passenger_mpv = make("仅易车", "锐胜王牌M7", level="中大型MPV", brand="北京汽车制造厂") | {
+        "易车上市状态": "approved",
+        "车款ID": "185728",
+    }
+    passenger_suv = make("仅易车", "牧游侠", level="中型SUV", brand="五十铃") | {
+        "易车上市状态": "approved",
+        "车款ID": "185729",
+    }
+    passenger_micro = make("仅易车", "乘用微型车", level="微型车", brand="北京汽车制造厂") | {
+        "易车上市状态": "approved",
+        "车款ID": "185730",
+    }
+    light_truck = make("仅易车", "跨越王X1", level="轻型卡车", brand="长安跨越") | {
+        "易车上市状态": "approved",
+        "车款ID": "185731",
+    }
+    pickup = make("仅易车", "测试皮卡", level="皮卡", brand="任意品牌") | {
+        "易车上市状态": "approved",
+        "车款ID": "185732",
+    }
+    van = make("仅易车", "测试面包车", level="微型面包车", brand="任意品牌") | {
+        "易车上市状态": "approved",
+        "车款ID": "185733",
+    }
+
+    kept, stats = merge_data.partition_publishable_rows(
+        [passenger_mpv, passenger_suv, passenger_micro, light_truck, pickup, van]
+    )
+
+    assert kept == [passenger_mpv, passenger_suv, passenger_micro]
+    assert stats["excluded_yiche_commercial_level"] == 3
 
 
 def test_publish_boundary_rejects_autohome_without_numeric_car_id():
