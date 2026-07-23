@@ -260,11 +260,7 @@ jobs:
             echo "Step1 incomplete, committing progress and ending this workflow run..."
             sleep $((RANDOM % 30 + 15))
             if [ "$DEBUG_MODE" != "true" ]; then
-              git config --local user.email "xuerui911@gmail.com"
-              git config --local user.name "github-actions[bot]"
-              git add -A
-              git diff --staged --quiet || git commit -m "Update progress - $(date +%H:%M)"
-              bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+              echo "Autohome progress is runtime state; cache/artifact persists it without Git commits"
             fi
             echo "complete=false" >> "$GITHUB_OUTPUT"
             echo "failed=false" >> "$GITHUB_OUTPUT"
@@ -280,11 +276,7 @@ jobs:
           echo "failed=false" >> "$GITHUB_OUTPUT"
           touch step1_done
           if [ "$DEBUG_MODE" != "true" ]; then
-            git config --local user.email "xuerui911@gmail.com"
-            git config --local user.name "github-actions[bot]"
-            git add -A
-            git diff --staged --quiet || git commit -m "Step1 complete - $(date +%H:%M)"
-            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            echo "Autohome completion marker remains runtime-only and is not committed"
           fi
 
       - name: Upload Autohome HTML cache (early, after step1)
@@ -296,7 +288,7 @@ jobs:
           path: |
             crawl_state/autohome/
             crawl_state/model_registry_autohome.json
-          retention-days: 90
+          retention-days: 3
 
       - name: Classify step1 failure
         id: classify_step1
@@ -330,11 +322,7 @@ jobs:
           if [ $EXIT_CODE -eq 10 ]; then
             echo "修复后 step1 仍未完成，提交进度并结束本次运行"
             if [ "$DEBUG_MODE" != "true" ]; then
-              git config --local user.email "xuerui911@gmail.com"
-              git config --local user.name "github-actions[bot]"
-              git add -A
-              git diff --staged --quiet || git commit -m "Update progress after fix - $(date +%H:%M)"
-              bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+              echo "Autohome progress is runtime state; cache/artifact persists it without Git commits"
             fi
             echo "complete=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -345,11 +333,7 @@ jobs:
           echo "complete=true" >> "$GITHUB_OUTPUT"
           touch step1_done
           if [ "$DEBUG_MODE" != "true" ]; then
-            git config --local user.email "xuerui911@gmail.com"
-            git config --local user.name "github-actions[bot]"
-            git add -A
-            git diff --staged --quiet || git commit -m "Step1 complete after fix - $(date +%H:%M)"
-            bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            echo "Autohome completion marker remains runtime-only and is not committed"
           fi
 
       - name: Fail unresolved step1 error
@@ -568,7 +552,7 @@ jobs:
           path: |
             autoHome_*.json
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 3
 
       - name: Trigger merge-and-filter workflow
         if: steps.upload_autohome.outcome == 'success'

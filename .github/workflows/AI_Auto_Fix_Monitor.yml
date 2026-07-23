@@ -165,7 +165,7 @@ jobs:
 
           git config --local user.email "xuerui911@gmail.com"
           git config --local user.name "Codex"
-          git add -A
+          python scripts/ensure_codex_autofix_scope.py --stage
           git diff --staged --quiet && {
             echo "fixed=false" >> "$GITHUB_OUTPUT"
             exit 0

@@ -447,6 +447,7 @@ jobs:
           path: |
             docs/analysis/merge_evidence_report.json
             docs/analysis/merge_stats_${{ steps.date.outputs.date }}.json
+          retention-days: 3
 
       - name: 上传合并产物
         if: steps.validate.outputs.ready == 'true'
@@ -459,7 +460,7 @@ jobs:
             filtered_cars_${{ steps.date.outputs.date }}.csv
             filtered_cars_${{ steps.date.outputs.date }}.json
             zero_to_whole_ratios_${{ steps.date.outputs.date }}.json
-          retention-days: 90
+          retention-days: 3
 
   create-release:
     runs-on: ubuntu-latest

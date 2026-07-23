@@ -223,7 +223,7 @@ jobs:
           if [ -f scripts/dongchedi/progress.json ] && [ "$DEBUG_MODE" != "true" ]; then
             git config --local user.email "xuerui911@gmail.com"
             git config --local user.name "github-actions[bot]"
-            git add -A
+            git add -A -- scripts/dongchedi/progress.json
             git diff --staged --quiet || git commit -m "Dongchedi step1 - series list - $(date +%H:%M)"
             bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           fi
@@ -276,7 +276,7 @@ jobs:
             if [ "$DEBUG_MODE" != "true" ]; then
               git config --local user.email "xuerui911@gmail.com"
               git config --local user.name "github-actions[bot]"
-              git add -A
+              git add -A -- scripts/dongchedi/progress.json
               git diff --staged --quiet || git commit -m "Update dongchedi progress - $(date +%H:%M)"
               bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
             fi
@@ -297,7 +297,7 @@ jobs:
           if [ "$DEBUG_MODE" != "true" ]; then
             git config --local user.email "xuerui911@gmail.com"
             git config --local user.name "github-actions[bot]"
-            git add -A
+            git add -A -- scripts/dongchedi/progress.json
             git diff --staged --quiet || git commit -m "Dongchedi step2 complete - $(date +%H:%M)"
             bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           fi
@@ -312,7 +312,7 @@ jobs:
             scripts/dongchedi/json/
             scripts/dongchedi/progress.json
             crawl_state/model_registry_dongchedi.json
-          retention-days: 90
+          retention-days: 3
 
       - name: Classify step2 failure
         id: classify_step2
@@ -353,7 +353,7 @@ jobs:
             if [ "$DEBUG_MODE" != "true" ]; then
               git config --local user.email "xuerui911@gmail.com"
               git config --local user.name "github-actions[bot]"
-              git add -A
+              git add -A -- scripts/dongchedi/progress.json
               git diff --staged --quiet || git commit -m "Update dongchedi progress after fix - $(date +%H:%M)"
               bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
             fi
@@ -368,7 +368,7 @@ jobs:
           if [ "$DEBUG_MODE" != "true" ]; then
             git config --local user.email "xuerui911@gmail.com"
             git config --local user.name "github-actions[bot]"
-            git add -A
+            git add -A -- scripts/dongchedi/progress.json
             git diff --staged --quiet || git commit -m "Dongchedi step2 complete after fix - $(date +%H:%M)"
             bash scripts/git_sync_progress.sh "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           fi
@@ -538,7 +538,7 @@ jobs:
           path: |
             dongchedi_*.json
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 3
 
       - name: Trigger merge-and-filter workflow
         if: steps.upload_dongchedi.outcome == 'success'
