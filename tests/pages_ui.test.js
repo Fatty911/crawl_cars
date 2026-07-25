@@ -363,17 +363,25 @@ test("Pages defaults to filter center and shares filters with table result set",
 });
 
 
-test("Pages enables the eight core filters by default and after reset", () => {
+test("Pages enables the eleven core filters by default and after reset", () => {
   const { elements, hooks } = loadAppForTest();
   hooks.state.config.conditions = [
-    { id: "zero_to_hundred", label: "百公里加速", type: "range", field: "百公里加速(s)", max: 7 },
-    { id: "ev_range", label: "纯电续航", type: "range", field: "纯电续航(km)", min: 150 },
+    { id: "zero_to_hundred", label: "百公里加速", type: "range", field: "百公里加速(s)" },
+    { id: "ev_range", label: "纯电续航", type: "range", field: "纯电续航(km)" },
     { id: "city_navigation", label: "NOA城市领航", type: "feature", fields: ["NOA城市领航"], keywords: ["支持"] },
     { id: "remote_start", label: "远程启动", type: "feature", fields: ["远程启动"], keywords: ["支持"] },
     { id: "remote_control", label: "手机远程控制", type: "feature", fields: ["远程控制"], keywords: ["支持"] },
     { id: "bluetooth_key", label: "蓝牙/数字钥匙", type: "feature", fields: ["蓝牙/数字钥匙"], keywords: ["支持"] },
     { id: "seat_memory", label: "座椅记忆", type: "feature", fields: ["座椅记忆"], keywords: ["支持"] },
-    { id: "mirror_memory", label: "外后视镜记忆", type: "feature", fields: ["外后视镜记忆"], keywords: ["支持"] }
+    { id: "mirror_memory", label: "外后视镜记忆", type: "feature", fields: ["外后视镜记忆"], keywords: ["支持"] },
+    { id: "app_remote_control", label: "手机APP远程控制", type: "feature", fields: ["手机App远程控制 - 远程控制"], keywords: ["支持"] },
+    { id: "rain_sensor_wiper", label: "雨量感应式雨刷", type: "feature", fields: ["雨量感应式雨刷"], keywords: ["支持"] },
+    { id: "auto_headlight", label: "自动头灯", type: "feature", fields: ["自动大灯"], keywords: ["支持"] }
+  ];
+  hooks.state.config.centerConditionGroups = [
+    { id: "performance", label: "性能/续航", conditionIds: ["zero_to_hundred", "ev_range"] },
+    { id: "smart", label: "核心配置", conditionIds: ["city_navigation", "remote_start", "remote_control", "bluetooth_key", "seat_memory", "mirror_memory"] },
+    { id: "comfort", label: "舒适/便利", conditionIds: ["app_remote_control", "rain_sensor_wiper", "auto_headlight"] }
   ];
   const passing = Object.assign(row("仅懂车帝", 2026, "默认通过"), {
     "百公里加速(s)": "6.9",
@@ -383,7 +391,10 @@ test("Pages enables the eight core filters by default and after reset", () => {
     "远程控制": "支持",
     "蓝牙/数字钥匙": "支持",
     "座椅记忆": "支持",
-    "外后视镜记忆": "支持"
+    "外后视镜记忆": "支持",
+    "手机App远程控制 - 远程控制": "支持",
+    "雨量感应式雨刷": "支持",
+    "自动大灯": "支持"
   });
   const failing = Object.assign(row("仅懂车帝", 2026, "默认不过"), passing, { "车型名称": "默认不过", "百公里加速(s)": "8.0" });
 
@@ -391,22 +402,37 @@ test("Pages enables the eight core filters by default and after reset", () => {
   hooks.renderEverything();
 
   assert.deepEqual(Object.keys(hooks.state.featureFilters).sort(), [
-    "bluetooth_key", "city_navigation", "mirror_memory", "remote_control", "remote_start", "seat_memory"
+    "app_remote_control", "auto_headlight", "bluetooth_key", "city_navigation", "mirror_memory", "rain_sensor_wiper", "remote_control", "remote_start", "seat_memory"
   ].sort());
-  assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: 7 }, ev_range: { min: 150, max: "" } });
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: "" }, ev_range: { min: "", max: "" } });
+  // Without hardcoded range defaults, both rows pass initially
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.getFilteredRows().map((item) => item["车型名称"]))), ["默认通过", "默认不过"]);
+  // Set range values manually to verify filtering still works
+  hooks.state.rangeFilters.zero_to_hundred = { min: "", max: "7" };
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.getFilteredRows().map((item) => item["车型名称"]))), ["默认通过"]);
-  assert.equal(elements.get("selectedTags").children.map((tag) => tag.textContent).join("|"), "百公里加速 ≤7|纯电续航 ≥150|NOA城市领航|远程启动|手机远程控制|蓝牙/数字钥匙|座椅记忆|外后视镜记忆");
-  assert.equal(elements.get("conditionList").children[0].children[0].children[0].children[0].textContent, "百公里加速 ≤7");
-  assert.equal(elements.get("centerConditionList").children[0].children[1].textContent, "百公里加速 ≤7");
-  assert.equal(elements.get("centerConditionList").children.filter((label) => label.children[0].checked).length, 8);
+  hooks.state.rangeFilters.zero_to_hundred = { min: "", max: "" };
+  assert.equal(elements.get("selectedTags").children.map((tag) => tag.textContent).join("|"), "百公里加速|纯电续航|NOA城市领航|远程启动|手机远程控制|蓝牙/数字钥匙|座椅记忆|外后视镜记忆|手机APP远程控制|雨量感应式雨刷|自动头灯");
+  // All conditions are in centerConditionGroups, so sidebar conditionList fragment has no items
+  assert.equal(elements.get("conditionList").children[0].children.length, 0);
+  // centerConditionList renders 3 group divs; collect condition items across groups
+  const centerItems = [];
+  elements.get("centerConditionList").children.forEach((group) => {
+    group.children.forEach((child) => { if (child.className === "center-condition-item") { centerItems.push(child); } });
+  });
+  assert.equal(centerItems.length, 11);
+  assert.equal(centerItems.filter((item) => item.children[0] && item.children[0].children[0] && item.children[0].children[0].checked).length, 11);
 
   hooks.state.rangeFilters = {};
   hooks.state.featureFilters = {};
   elements.get("resetFilters").dispatch("click");
-  assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: 7 }, ev_range: { min: 150, max: "" } });
-  assert.equal(Object.keys(hooks.state.featureFilters).length, 6);
-  assert.equal(elements.get("conditionList").children[0].children.filter((item) => item.children[0].children[0] && item.children[0].children[0].checked).length, 6);
-  assert.equal(elements.get("centerConditionList").children.filter((label) => label.children[0].checked).length, 8);
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: "" }, ev_range: { min: "", max: "" } });
+  assert.equal(Object.keys(hooks.state.featureFilters).length, 9);
+  assert.equal(elements.get("conditionList").children[0].children.length, 0);
+  const centerItemsAfterReset = [];
+  elements.get("centerConditionList").children.forEach((group) => {
+    group.children.forEach((child) => { if (child.className === "center-condition-item") { centerItemsAfterReset.push(child); } });
+  });
+  assert.equal(centerItemsAfterReset.filter((item) => item.children[0] && item.children[0].children[0] && item.children[0].children[0].checked).length, 11);
 });
 
 test("Pages default visible columns include listing time and core feature columns", () => {
