@@ -44,9 +44,7 @@
     "驱动方式",
     "前轮胎规格尺寸",
     "后轮胎规格尺寸",
-    "前排座椅功能 - 加热",
-    "前排座椅功能 - 通风",
-    "前排座椅功能 - 记忆",
+    "前排座椅功能",
     "前排座椅放平",
     "后排座椅放倒比例",
     "整备质量(kg)",
@@ -56,10 +54,9 @@
     "后排隐私玻璃",
     "行李舱12V电源接口",
     "辅助驾驶级别",
-    "手机互联映射 - CarPlay",
-    "手机互联映射 - CarLife",
-    "换挡形式 - 机械挡把",
-    "方向盘功能 - 多功能控制",
+    "手机互联映射",
+    "换挡形式",
+    "方向盘功能",
     "6万公里保养总成本预估",
     "最小转弯半径",
     "电池组质保",
@@ -68,7 +65,7 @@
     "驱动电机数",
     "OTA升级",
     "毫米波雷达数量(个)",
-    "辅助驾驶芯片算力(TOPS) - 128"
+    "辅助驾驶芯片算力(TOPS)"
   ],
   "defaultAllowedLevels": {
     "_comment": "按 5 大类组织：轿车、SUV、轿跑、跑车、MPV；嵌套数组是各级别。这些视为允许的级别值列表",
@@ -171,14 +168,27 @@
       "label": "百公里加速",
       "type": "range",
       "field": "百公里加速(s)",
-      "unit": "s"
+      "unit": "s",
+      "defaultMin": "0",
+      "defaultMax": "7"
     },
     {
       "id": "ev_range",
       "label": "纯电续航",
       "type": "range",
       "field": "纯电续航(km)",
-      "unit": "km"
+      "unit": "km",
+      "defaultMin": "100",
+      "defaultMax": "600"
+    },
+    {
+      "id": "top_speed",
+      "label": "最高车速",
+      "type": "range",
+      "field": "最高车速(km/h)",
+      "unit": "km/h",
+      "defaultMin": "180",
+      "defaultMax": ""
     },
     {
       "id": "city_navigation",
@@ -294,11 +304,7 @@
       "label": "手机APP远程控制",
       "type": "feature",
       "fields": [
-        "手机App远程控制 - 充电管理",
-        "手机App远程控制 - 智能寻车助手",
-        "手机App远程控制 - 服务预约",
-        "手机App远程控制 - 车辆监控",
-        "手机App远程控制 - 远程控制"
+        "手机App远程控制"
       ],
       "keywords": [
         "手机App",
@@ -342,7 +348,8 @@
       "label": "性能/续航",
       "conditionIds": [
         "zero_to_hundred",
-        "ev_range"
+        "ev_range",
+        "top_speed"
       ]
     },
     {
@@ -366,5 +373,11 @@
         "auto_headlight"
       ]
     }
-  ]
+  ],
+  "columnAliases": {
+    "百公里加速(s)": [
+      "官方0—50Km/h加速时间(s)",
+      "0-100km/h加速(s)"
+    ]
+  }
 }

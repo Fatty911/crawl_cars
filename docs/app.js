@@ -29,9 +29,11 @@
   ];
 
   var DEFAULT_RANGE_FILTERS = {
-    zero_to_hundred: { min: "", max: "" },
-    ev_range: { min: "", max: "" }
+    zero_to_hundred: { min: "0", max: "7" },
+    top_speed: { min: "180", max: "" },
+    ev_range: { min: "100", max: "600" }
   };
+  var VALUE_COLUMN_PATTERN = /^(.+?)\s+-\s+(\S+.*)$/;
   var DEFAULT_FEATURE_FILTERS = {
     city_navigation: true,
     remote_start: true,
@@ -159,7 +161,16 @@
   }
 
   function cloneDefaultRangeFilters() {
-    return JSON.parse(JSON.stringify(DEFAULT_RANGE_FILTERS));
+    var result = {};
+    (state.config.conditions || []).forEach(function (condition) {
+      if (condition.type === "range") {
+        result[condition.id] = {
+          min: condition.defaultMin != null ? String(condition.defaultMin) : "",
+          max: condition.defaultMax != null ? String(condition.defaultMax) : ""
+        };
+      }
+    });
+    return result;
   }
 
   function cloneDefaultFeatureFilters() {
@@ -347,6 +358,50 @@
       return values.length > 0 && values.every(hasPositiveValue);
     }
     return false;
+  }
+
+  function columnAliasMap() {
+    var map = {};
+    var aliases = (state.config && state.config.columnAliases) || {};
+    Object.keys(aliases).forEach(function (standard) {
+      (aliases[standard] || []).forEach(function (alias) {
+        map[alias] = standard;
+      });
+    });
+    return map;
+  }
+
+  function normalizeRowColumns(rows) {
+    var aliasMap = columnAliasMap();
+    return rows.map(function (row) {
+      var next = Object.assign({}, row);
+      Object.keys(row).forEach(function (column) {
+        var value = row[column];
+        var valueMatch = VALUE_COLUMN_PATTERN.exec(column);
+        if (valueMatch) {
+          var parent = valueMatch[1].trim();
+          if (hasPositiveValue(value)) {
+            var val = String(value).trim();
+            var existing = next[parent];
+            if (!hasPositiveValue(existing)) {
+              next[parent] = val;
+            } else if (String(existing).split(/[,，]\s*/).indexOf(val) === -1) {
+              next[parent] = existing + ", " + val;
+            }
+          }
+          delete next[column];
+          return;
+        }
+        var standard = aliasMap[column];
+        if (standard && standard !== column) {
+          if (hasPositiveValue(value) && !hasPositiveValue(next[standard])) {
+            next[standard] = value;
+          }
+          delete next[column];
+        }
+      });
+      return next;
+    });
   }
 
   function buildColumns(rows) {
@@ -1807,6 +1862,7 @@
       return keepDisplayYear(row);
     });
     state.rows = withDerivedDimensions(displayRows);
+    state.rows = normalizeRowColumns(state.rows);
     state.expandedSeries.clear();
     state.seriesViewSignature = "";
     state.cardLimit = 24;
