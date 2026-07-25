@@ -29,8 +29,8 @@
   ];
 
   var DEFAULT_RANGE_FILTERS = {
-    zero_to_hundred: { min: "", max: 7 },
-    ev_range: { min: 150, max: "" }
+    zero_to_hundred: { min: "", max: "" },
+    ev_range: { min: "", max: "" }
   };
   var DEFAULT_FEATURE_FILTERS = {
     city_navigation: true,
@@ -38,15 +38,19 @@
     remote_control: true,
     bluetooth_key: true,
     seat_memory: true,
-    mirror_memory: true
+    mirror_memory: true,
+    app_remote_control: true,
+    rain_sensor_wiper: true,
+    auto_headlight: true
   };
 
   var fallbackConfig = {
     defaultDataset: "latest",
     hiddenByDefault: ["数据来源", "ABS防抱死", "制动防抱死", "刹车防抱死"],
     dropIfUniformPositive: ["ABS防抱死", "制动防抱死", "刹车防抱死"],
-    defaultVisibleColumns: ["车型名称", "品牌", "车系", "年款", "级别", "能源类型", "官方指导价", "上市时间", "交叉核验", "百公里加速(s)", "纯电续航(km)", "NOA城市领航", "远程启动", "远程控制", "蓝牙/数字钥匙", "座椅记忆", "外后视镜记忆"],
-    conditions: []
+    defaultVisibleColumns: ["车型名称", "品牌", "车系", "年款", "级别", "能源类型", "官方指导价", "上市时间", "交叉核验", "百公里加速(s)", "纯电续航(km)", "NOA城市领航", "远程启动", "远程控制", "蓝牙/数字钥匙", "座椅记忆", "外后视镜记忆", "最高车速(km/h)", "前悬挂形式", "后悬挂形式", "车门数(个)", "驱动方式", "整备质量(kg)", "辅助驾驶级别", "OTA升级", "驱动电机数"],
+    conditions: [],
+    centerConditionGroups: []
   };
 
   var state = {
@@ -723,7 +727,11 @@
   function renderConditions() {
     var fragment = document.createDocumentFragment();
     els.conditionList.textContent = "";
+    var centerIds = centerConditionIds();
     (state.config.conditions || []).forEach(function (condition) {
+      if (centerIds.has(condition.id)) {
+        return;
+      }
       var item = document.createElement("div");
       item.className = "condition-item";
       item.dataset.conditionId = condition.id;
@@ -932,6 +940,14 @@
     els.tableMode.className = center ? "segment" : "segment active";
   }
 
+  function centerConditionIds() {
+    var ids = new Set();
+    (state.config.centerConditionGroups || []).forEach(function (group) {
+      (group.conditionIds || []).forEach(function (id) { ids.add(id); });
+    });
+    return ids;
+  }
+
   function renderCenterFilters() {
     if (els.centerBrandFilter && els.centerSeriesFilter) {
       renderOptions(els.centerBrandFilter, uniqueValues(state.rows, "品牌"), "品牌");
@@ -940,16 +956,70 @@
       els.centerSeriesFilter.value = state.series;
     }
     els.centerConditionList.textContent = "";
-    (state.config.conditions || []).forEach(function (condition) {
+    var conditions = state.config.conditions || [];
+    var groups = state.config.centerConditionGroups || [];
+    if (groups.length) {
+      groups.forEach(function (group) {
+        var groupEl = document.createElement("div");
+        groupEl.className = "center-condition-group";
+        var groupTitle = document.createElement("h4");
+        groupTitle.className = "center-group-title";
+        groupTitle.textContent = group.label;
+        groupEl.appendChild(groupTitle);
+        (group.conditionIds || []).forEach(function (conditionId) {
+          var condition = conditions.find(function (c) { return c.id === conditionId; });
+          if (!condition) { return; }
+          groupEl.appendChild(buildCenterConditionItem(condition));
+        });
+        els.centerConditionList.appendChild(groupEl);
+      });
+    } else {
+      conditions.forEach(function (condition) {
+        els.centerConditionList.appendChild(buildCenterConditionItem(condition));
+      });
+    }
+  }
+
+  function buildCenterConditionItem(condition) {
+    var wrapper = document.createElement("div");
+    wrapper.className = "center-condition-item";
+    if (condition.type === "range") {
       var label = document.createElement("label");
-      var input = document.createElement("input");
-      input.type = "checkbox";
-      input.dataset.conditionId = condition.id;
-      input.checked = condition.type === "feature" ? Boolean(state.featureFilters[condition.id]) : Boolean(state.rangeFilters[condition.id]);
-      label.appendChild(input);
-      label.appendChild(document.createTextNode(conditionTagLabel(condition)));
-      els.centerConditionList.appendChild(label);
-    });
+      label.className = "center-range-label";
+      var checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.conditionId = condition.id;
+      checkbox.dataset.conditionType = "range";
+      checkbox.checked = Boolean(state.rangeFilters[condition.id]);
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(condition.label + (condition.unit ? "(" + condition.unit + ")" : "")));
+      wrapper.appendChild(label);
+      var rangeInputs = document.createElement("div");
+      rangeInputs.className = "center-range-inputs";
+      ["min", "max"].forEach(function (side) {
+        var input = document.createElement("input");
+        input.type = "number";
+        input.inputMode = "decimal";
+        input.placeholder = side === "min" ? "最小" : "最大";
+        input.dataset.conditionId = condition.id;
+        input.dataset.side = side;
+        var active = state.rangeFilters[condition.id] || {};
+        input.value = active[side] != null && active[side] !== "" ? active[side] : "";
+        rangeInputs.appendChild(input);
+      });
+      wrapper.appendChild(rangeInputs);
+    } else {
+      var label2 = document.createElement("label");
+      var input2 = document.createElement("input");
+      input2.type = "checkbox";
+      input2.dataset.conditionId = condition.id;
+      input2.dataset.conditionType = "feature";
+      input2.checked = Boolean(state.featureFilters[condition.id]);
+      label2.appendChild(input2);
+      label2.appendChild(document.createTextNode(condition.label));
+      wrapper.appendChild(label2);
+    }
+    return wrapper;
   }
 
   function conditionTagLabel(condition) {
@@ -1429,13 +1499,20 @@
       var condition = (state.config.conditions || []).find(function (item) { return item.id === event.target.dataset.conditionId; });
       if (!condition) { return; }
       if (condition.type === "range") {
-        if (event.target.checked) { state.rangeFilters[condition.id] = { min: condition.min || "", max: condition.max || "" }; }
+        if (event.target.checked) { state.rangeFilters[condition.id] = { min: "", max: "" }; }
         else { delete state.rangeFilters[condition.id]; }
       } else {
         state.featureFilters[condition.id] = event.target.checked;
         if (!event.target.checked) { delete state.featureFilters[condition.id]; }
       }
       state.page = 1; state.cardLimit = 24; renderConditions(); renderCenterFilters(); renderResultsOnly();
+    });
+    els.centerConditionList.addEventListener("input", function (event) {
+      if (!event.target.dataset.side) { return; }
+      var id = event.target.dataset.conditionId;
+      if (!state.rangeFilters[id]) { state.rangeFilters[id] = { min: "", max: "" }; }
+      state.rangeFilters[id][event.target.dataset.side] = event.target.value;
+      state.page = 1; state.cardLimit = 24; renderCenterFilters(); renderResultsOnly();
     });
     els.cardList.addEventListener("click", function (event) {
       var toggle = event.target.closest(".series-card-toggle");
