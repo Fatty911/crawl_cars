@@ -345,10 +345,32 @@
     });
   }
 
+  var EQUIPMENT_COLUMN_PATTERN = /_(\d+)$/;
+  var EQUIPMENT_KEYWORDS = [
+    "轮毂", "轮圈", "轮辋", "轮胎", "音响", "扬声器", "套装", "选装包",
+    "升级包", "运动包", "外观", "碳纤维", "氛围灯", "车标", "拖挂",
+    "充电桩", "脚垫", "遮阳", "贴膜", "行李架", "踏板", "包围", "尾翼",
+    "扰流", "排气", "刹车卡钳", "避震", "减振", "弹簧", "稳定杆",
+    "差速锁", "绞盘", "拖车钩", "纪念版", "专属", "定制", "限量版",
+    "组件", "套件", "包_", "英寸轮毂", "吋轮毂", "寸轮毂"
+  ];
+
+  function isEquipmentColumn(column) {
+    if (EQUIPMENT_COLUMN_PATTERN.test(column)) { return true; }
+    var text = String(column || "");
+    for (var i = 0; i < EQUIPMENT_KEYWORDS.length; i++) {
+      if (text.indexOf(EQUIPMENT_KEYWORDS[i]) !== -1) { return true; }
+    }
+    return false;
+  }
+
   function shouldHideColumn(column, rows) {
     var hidden = state.config.hiddenByDefault || [];
     var dropUniform = state.config.dropIfUniformPositive || [];
     if (hidden.indexOf(column) !== -1) {
+      return true;
+    }
+    if (isEquipmentColumn(column)) {
       return true;
     }
     if (dropUniform.indexOf(column) !== -1) {
