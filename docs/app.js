@@ -177,10 +177,14 @@
     return result;
   }
 
+  function isFeatureCondition(condition) {
+    return Boolean(condition) && (condition.type === "feature" || condition.type === "pagesFeature");
+  }
+
   function cloneDefaultFeatureFilters() {
     var result = {};
     (state.config.conditions || []).forEach(function (condition) {
-      if (condition.type === "feature" && condition.defaultEnabled !== false) {
+      if (isFeatureCondition(condition) && condition.defaultEnabled !== false) {
         result[condition.id] = true;
       }
     });
@@ -516,7 +520,7 @@
       return true;
     }
 
-    if (condition.type === "feature") {
+    if (isFeatureCondition(condition)) {
       if (!state.featureFilters[condition.id]) {
         return true;
       }
@@ -787,7 +791,7 @@
       if (condition.type === "range" && !activeRange) {
         return;
       }
-      if (condition.type === "feature" && !activeFeature) {
+      if (isFeatureCondition(condition) && !activeFeature) {
         return;
       }
       rows = rows.filter(function (row) { return conditionMatches(row, condition); });
@@ -868,7 +872,7 @@
 
       var title = document.createElement("label");
       title.className = "condition-title";
-      if (condition.type === "feature") {
+      if (isFeatureCondition(condition)) {
         var checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.checked = Boolean(state.featureFilters[condition.id]);

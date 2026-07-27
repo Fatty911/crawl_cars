@@ -658,6 +658,10 @@ test("Pages mobile filter center exposes a config-driven major/minor taxonomy", 
   const conditionIds = config.conditions.map((condition) => condition.id).sort();
   assert.deepEqual(assignments.slice().sort(), conditionIds);
   assert.equal(new Set(assignments).size, assignments.length, "every condition belongs to exactly one minor section");
+  const pagesOnly = ["app_remote_control", "rain_sensor_wiper", "auto_headlight"];
+  assert.deepEqual(config.conditions.filter((condition) => pagesOnly.includes(condition.id)).map((condition) => condition.type), [
+    "pagesFeature", "pagesFeature", "pagesFeature"
+  ], "Pages-only controls must not silently expand the merge-data filter contract");
 });
 
 test("Pages mobile filter center has semantic rail, minor pane, live result actions, and safe-area layout", () => {
@@ -736,7 +740,7 @@ test("Pages first load renders and applies acceleration, speed, and EV range def
       "最高车速(km/h)": String(speed),
       "纯电续航(km)": String(range)
     });
-    config.conditions.filter((condition) => condition.type === "feature").forEach((condition) => {
+    config.conditions.filter((condition) => ["feature", "pagesFeature"].includes(condition.type)).forEach((condition) => {
       result[condition.fields[0]] = condition.requireKeyword ? condition.keywords[0] : "支持";
     });
     return result;

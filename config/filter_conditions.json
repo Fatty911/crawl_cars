@@ -170,7 +170,8 @@
       "field": "百公里加速(s)",
       "unit": "s",
       "defaultMin": "0",
-      "defaultMax": "7"
+      "defaultMax": "7",
+      "max": 7
     },
     {
       "id": "ev_range",
@@ -179,7 +180,8 @@
       "field": "纯电续航(km)",
       "unit": "km",
       "defaultMin": "150",
-      "defaultMax": ""
+      "defaultMax": "",
+      "min": 150
     },
     {
       "id": "top_speed",
@@ -308,7 +310,7 @@
     {
       "id": "app_remote_control",
       "label": "手机APP远程控制",
-      "type": "feature",
+      "type": "pagesFeature",
       "fields": [
         "手机App远程控制"
       ],
@@ -325,7 +327,7 @@
     {
       "id": "rain_sensor_wiper",
       "label": "雨量感应式雨刷",
-      "type": "feature",
+      "type": "pagesFeature",
       "fields": [
         "雨量感应式雨刷"
       ],
@@ -339,7 +341,7 @@
     {
       "id": "auto_headlight",
       "label": "自动头灯",
-      "type": "feature",
+      "type": "pagesFeature",
       "fields": [
         "自动大灯"
       ],
