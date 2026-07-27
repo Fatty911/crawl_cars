@@ -61,6 +61,12 @@ HEADER_MAP = {
     "百公里加速时间": "百公里加速(s)",
     "0-100km/h加速(s)": "百公里加速(s)",
     "0-100km/h加速时间(s)": "百公里加速(s)",
+    "官方0-100km/h加速(s)": "百公里加速(s)",
+    "官方0-100km_h加速(s)": "百公里加速(s)",
+    "官方0-50km_h加速_s_": "官方0-50km/h加速(s)",
+    "官方0-50km_h加速(s)": "官方0-50km/h加速(s)",
+    "官方0—50Km/h加速时间(s)": "官方0-50km/h加速(s)",
+    "官方0-50Km/h加速时间(s)": "官方0-50km/h加速(s)",
     "远程启动功能": "远程启动",
     "发动机远程启动": "远程启动",
     "远程操控": "远程控制",
@@ -100,6 +106,9 @@ HEADER_MAP = {
     "NEDC纯电续航里程_km_": "纯电续航(km)",
     "CLTC纯电续航": "纯电续航(km)",
     "纯电续航": "纯电续航(km)",
+    "N-Box增强娱乐主机_1": "N-BOX增强娱乐主机_1",
+    "N-Box增强娱乐主机_2": "N-BOX增强娱乐主机_2",
+    "智能驾驶辅助系统pro": "智能驾驶辅助系统Pro",
     # === 懂车帝 _v4 后缀 → 中文名 ===
     "laser_radar_v4": "激光雷达",
     "driving_assist_chip_computing_v4": "辅助驾驶芯片算力",
@@ -781,10 +790,39 @@ def filter_car(row):
         return False
 
 
+SCHEMA_UNIT_TOKENS = (
+    "L/100km", "kWh/100km", "Wh/kg", "万/秒", "km/h", "N·m",
+    "英寸", "rpm", "kWh", "mL", "km", "mm", "kg", "kW", "GB",
+    "Ps", "Cd", "个", "座", "门", "秒", "°", "%", "L", "m", "W", "s",
+)
+SCHEMA_UNDERSCORE_UNITS = {
+    "L_100km": "L/100km",
+    "kWh_100km": "kWh/100km",
+    "Wh_kg": "Wh/kg",
+    "万_秒": "万/秒",
+    "km_h": "km/h",
+    **{unit: unit for unit in SCHEMA_UNIT_TOKENS if "/" not in unit},
+}
+
+
+def normalize_schema_unit_header(header):
+    """Normalize punctuation-only unit spellings without changing the measured metric."""
+    normalized = str(header).strip().translate(str.maketrans({"（": "(", "）": ")", "—": "-", "–": "-"}))
+    unit_pattern = "|".join(re.escape(unit) for unit in sorted(SCHEMA_UNIT_TOKENS, key=len, reverse=True))
+    normalized = re.sub(rf"\[({unit_pattern})\]$", r"(\1)", normalized)
+    for encoded, display in sorted(SCHEMA_UNDERSCORE_UNITS.items(), key=lambda item: len(item[0]), reverse=True):
+        suffix = f"_{encoded}_"
+        if normalized.endswith(suffix):
+            normalized = f"{normalized[:-len(suffix)]}({display})"
+            break
+    return normalized
+
+
 def norm(header):
     header = str(header).strip()
-    if header in HEADER_MAP:
-        return HEADER_MAP[header]
+    header = HEADER_MAP.get(header, header)
+    header = normalize_schema_unit_header(header)
+    header = HEADER_MAP.get(header, header)
     # Only the documented v4 schema may use a structured suffix mapping.
     m_v4 = re.match(r'^(.+)_v4_(.+)$', header)
     if m_v4:
@@ -792,6 +830,30 @@ def norm(header):
         if base_v4_key in HEADER_MAP:
             return HEADER_MAP[base_v4_key]
     return header
+
+
+AUDITED_PUBLISH_EXACT_HEADERS = {
+    "燃料形式",
+    "官方0-100km/h加速[s]",
+    "官方0-100km_h加速_s_",
+    "官方0-50km_h加速_s_",
+    "官方0—50Km/h加速时间(s)",
+    "官方0-50Km/h加速时间(s)",
+    "N-Box增强娱乐主机_1",
+    "N-Box增强娱乐主机_2",
+    "智能驾驶辅助系统pro",
+}
+
+
+def normalize_audited_publish_header(header):
+    """Apply only the audited punctuation/unit/scope aliases to carried Pages rows."""
+    original = str(header)
+    stripped = original.strip()
+    normalized = normalize_schema_unit_header(stripped)
+    canonical_unit = any(stripped.endswith(f"({unit})") for unit in SCHEMA_UNIT_TOKENS)
+    if original != stripped or normalized != stripped or canonical_unit or stripped in AUDITED_PUBLISH_EXACT_HEADERS:
+        return HEADER_MAP.get(normalized, normalized)
+    return stripped
 
 
 def find_latest(pattern):

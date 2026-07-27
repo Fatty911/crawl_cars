@@ -281,8 +281,38 @@ def test_zero_to_fifty_acceleration_is_not_aliased_to_zero_to_one_hundred():
         "百公里加速(s)": "7.0",
     }], "懂车帝")[0]
 
-    assert normalized["官方0—50Km/h加速时间(s)"] == "3.5"
+    assert normalized["官方0-50km/h加速(s)"] == "3.5"
     assert normalized["百公里加速(s)"] == "7.0"
+
+
+def test_schema_unit_variants_and_acceleration_scopes_have_safe_canonical_headers():
+    equivalent_groups = {
+        "前电动机最大扭矩(N·m)": [
+            "前电动机最大扭矩[N·m]",
+            "前电动机最大扭矩_N·m_",
+        ],
+        "NEDC综合油耗(L/100km)": [
+            "NEDC综合油耗[L/100km]",
+            "NEDC综合油耗_L_100km_",
+        ],
+        "电能当量燃料消耗量(L/100km)": [
+            "电能当量燃料消耗量[L/100km]",
+            "电能当量燃料消耗量_L_100km_",
+        ],
+        "接近角(°)": ["接近角[°]", "接近角_°_"],
+        "车机系统存储(GB)": ["车机系统存储[GB]", "车机系统存储_GB_"],
+    }
+    for canonical, variants in equivalent_groups.items():
+        assert merge_data.norm(canonical) == canonical
+        assert {merge_data.norm(variant) for variant in variants} == {canonical}
+
+    assert merge_data.norm("官方0-100km/h加速[s]") == "百公里加速(s)"
+    assert merge_data.norm("官方0-50km_h加速_s_") == "官方0-50km/h加速(s)"
+    assert merge_data.norm("官方0—50Km/h加速时间(s)") == "官方0-50km/h加速(s)"
+    assert merge_data.norm("官方0-50km_h加速_s_") != "百公里加速(s)"
+    assert merge_data.norm("功放最大输出功率（W）") == "功放最大输出功率(W)"
+    assert merge_data.norm("N-Box增强娱乐主机_1") == "N-BOX增强娱乐主机_1"
+    assert merge_data.norm("智能驾驶辅助系统pro") == "智能驾驶辅助系统Pro"
 
 
 def test_legacy_heat_pump_suffixes_and_quick_charge_schema_key_use_exact_aliases():

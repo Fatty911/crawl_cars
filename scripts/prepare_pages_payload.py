@@ -34,6 +34,11 @@ except ModuleNotFoundError:
         yiche_publish_identity_valid,
     )
 
+try:
+    from merge_data import _merge_distinct_values, normalize_audited_publish_header
+except ModuleNotFoundError:
+    from scripts.merge_data import _merge_distinct_values, normalize_audited_publish_header
+
 YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 
 
@@ -57,6 +62,17 @@ def has_chinese(value: Any) -> bool:
     return bool(re.search(r"[\u4e00-\u9fff]", str(value or "")))
 
 
+def normalize_publish_row_headers(row: dict[str, Any]) -> dict[str, Any]:
+    normalized = {}
+    for key, value in row.items():
+        canonical = normalize_audited_publish_header(key)
+        if canonical in normalized:
+            normalized[canonical] = _merge_distinct_values(normalized[canonical], value)
+        else:
+            normalized[canonical] = value
+    return normalized
+
+
 def prepare_rows_with_stats(rows: Any, min_year: int) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if not isinstance(rows, list):
         raise ValueError("Pages payload input must be a JSON array")
@@ -69,6 +85,7 @@ def prepare_rows_with_stats(rows: Any, min_year: int) -> tuple[list[dict[str, An
     for row in rows:
         if not isinstance(row, dict):
             continue
+        row = normalize_publish_row_headers(row)
         brand = str(row.get("品牌") or "").strip()
         model = str(row.get("车型名称") or "").strip()
         if brand in {"", "-"} or model in {"", "-"} or not yiche_publish_identity_valid(row):

@@ -182,6 +182,37 @@ def test_prepare_rows_rejects_blank_listing_time_accepts_combined_past_and_rejec
     assert MODULE.prepare_rows([blank, combined, future], 2022) == [combined]
 
 
+def test_prepare_rows_normalizes_audited_headers_without_losing_conflicts_or_acceleration_scope():
+    row = listed({
+        "数据来源": "仅懂车帝",
+        "品牌": "甲",
+        "车系": "甲车系",
+        "车型名称": "甲 2026款",
+        "年款": "2026",
+        " 能源类型 ": "纯电动",
+        "燃料形式": "增程式",
+        "轴距[mm]": "2800",
+        "轴距_mm_": "2810",
+        "电能当量燃料消耗量[L/100km]": "1.20",
+        "电能当量燃料消耗量_L_100km_": "1.25",
+        "官方0-100km/h加速[s]": "7.0",
+        "官方0-50km_h加速_s_": "3.5",
+        "官方0—50Km/h加速时间(s)": "3.6",
+    })
+
+    prepared = MODULE.prepare_rows([row], 2022)
+
+    assert len(prepared) == 1
+    normalized = prepared[0]
+    assert normalized["能源类型"] == "纯电动|增程式"
+    assert normalized["轴距(mm)"] == "2800|2810"
+    assert normalized["电能当量燃料消耗量(L/100km)"] == "1.20|1.25"
+    assert normalized["百公里加速(s)"] == "7.0"
+    assert normalized["官方0-50km/h加速(s)"] == "3.5|3.6"
+    assert not any(key != key.strip() for key in normalized)
+    assert "官方0-50km/h加速(s)" != "百公里加速(s)"
+
+
 def test_prepare_rows_reports_price_and_listing_drop_stats():
     base = {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "甲车系", "车型名称": "甲 2026款", "年款": "2026"}
     rows = [
