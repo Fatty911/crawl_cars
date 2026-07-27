@@ -23,7 +23,7 @@
             <span>搜索</span>
             <input id="globalSearch" type="search" placeholder="车型名称、功能与配置项...">
           </label>
-          <button class="icon-button" id="resetFilters" type="button" title="清空筛选" aria-label="清空筛选">
+          <button class="icon-button" id="resetFilters" type="button" title="恢复默认筛选" aria-label="恢复默认筛选">
             <span aria-hidden="true">↺</span>
           </button>
           <button class="text-button" id="saveHistory" type="button">保存筛选</button>
@@ -79,8 +79,12 @@
               <div class="center-condition-list" id="centerConditionList"></div>
             </section>
           </div>
-          <div class="selected-tags" id="selectedTags"></div>
-          <div class="card-list" id="cardList"></div>
+          <div class="selected-tags" id="selectedTags" aria-label="已选条件"></div>
+          <div class="mobile-filter-actions" aria-label="移动端筛选操作">
+            <button id="mobileRestoreDefaults" type="button">恢复默认</button>
+            <button id="mobileViewResults" type="button" aria-controls="cardList">查看 <strong id="mobileResultCount">0</strong> 个车系</button>
+          </div>
+          <div class="card-list" id="cardList" tabindex="-1" aria-label="匹配车系结果"></div>
           <div class="center-actions"><button class="text-button" id="loadMoreCards" type="button">加载更多</button></div>
         </section>
 
@@ -114,7 +118,7 @@
             </table>
             <div class="empty-state" id="emptyState" hidden>
               <h2>没有匹配的数据</h2>
-              <p>清空筛选或等待合并工作流生成最新数据。</p>
+              <p>恢复默认筛选或等待合并工作流生成最新数据。</p>
             </div>
           </div>
 

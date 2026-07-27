@@ -105,6 +105,10 @@ function loadAppForTest() {
       normalizeRowColumns: normalizeRowColumns,
       isEquipmentColumn: isEquipmentColumn,
       shouldHideColumn: shouldHideColumn,
+      getFilterTaxonomy: getFilterTaxonomy,
+      selectedCountForCategory: selectedCountForCategory,
+      activateMobileCategory: activateMobileCategory,
+      restoreDefaultFilters: restoreDefaultFilters,
       state: state
     };
   }());`
@@ -624,4 +628,140 @@ test("Pages canonicalizes only evidenced legacy heat-pump duplicates and the qui
     assert.equal(legacy in rows[0], false);
   });
   assert.equal(rows[0]["安全轮胎_1"], "支持");
+});
+
+
+test("Pages mobile filter center exposes a config-driven major/minor taxonomy", () => {
+  const configPath = path.join(__dirname, "..", "config", "filter_conditions.json");
+  const docsPath = path.join(__dirname, "..", "docs", "filter_conditions.json");
+  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  const docsConfig = JSON.parse(fs.readFileSync(docsPath, "utf8"));
+  assert.deepEqual(config, docsConfig, "deploy and Pages filter schemas must stay identical");
+  assert.ok(Array.isArray(config.filterTaxonomy));
+  assert.ok(Array.isArray(config.desktopConditionGroups));
+  assert.deepEqual(config.filterTaxonomy.map((category) => category.label), [
+    "动力参数", "辅助/操控", "外部/防盗", "座椅", "灯光", "玻璃/后视镜", "智能硬件"
+  ]);
+  const assignments = [];
+  config.filterTaxonomy.forEach((category) => {
+    assert.ok(category.id);
+    assert.ok(category.label);
+    assert.ok(Array.isArray(category.sections) && category.sections.length > 0);
+    category.sections.forEach((section) => {
+      assert.ok(section.id);
+      assert.ok(section.label);
+      assert.ok(section.desktopGroupId);
+      assert.ok(Array.isArray(section.conditionIds) && section.conditionIds.length > 0);
+      section.conditionIds.forEach((id) => assignments.push(id));
+    });
+  });
+  const conditionIds = config.conditions.map((condition) => condition.id).sort();
+  assert.deepEqual(assignments.slice().sort(), conditionIds);
+  assert.equal(new Set(assignments).size, assignments.length, "every condition belongs to exactly one minor section");
+});
+
+test("Pages mobile filter center has semantic rail, minor pane, live result actions, and safe-area layout", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "docs", "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "docs", "styles.css"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "..", "docs", "app.js"), "utf8");
+  assert.match(html, /id="mobileRestoreDefaults"[^>]*>恢复默认</);
+  assert.match(html, /id="mobileViewResults"[^>]*aria-controls="cardList"/);
+  assert.match(html, /id="mobileResultCount"/);
+  assert.match(app, /createElement\("nav"\)/);
+  assert.match(app, /major-category-rail/);
+  assert.match(app, /createElement\("section"\)/);
+  assert.match(app, /minor-content-pane/);
+  assert.match(app, /aria-selected/);
+  assert.match(app, /aria-controls/);
+  assert.match(app, /event\.key === "Enter" \|\| event\.key === " "/);
+  assert.match(app, /scrollIntoView/);
+  assert.match(css, /@media \(max-width: 720px\)/);
+  assert.match(css, /\.mobile-filter-layout\s*\{[^}]*grid-template-columns:\s*(?:9[0-9]|10[0-4])px\s+minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.mobile-filter-actions\s*\{[^}]*position:\s*fixed[^}]*padding-bottom:\s*calc\([^)]*env\(safe-area-inset-bottom\)/s);
+  assert.match(css, /\.center-region\s*\{[^}]*padding-bottom:\s*calc\(/s);
+  assert.match(css, /\.major-category-button\s*\{[^}]*min-height:\s*(?:4[4-9]|[5-9][0-9])px/s);
+  assert.match(css, /\.minor-content-pane\s*\{[^}]*min-width:\s*0/s);
+  assert.match(css, /\.mobile-option-grid[^}]*:has\(input:checked\)\s*\{[^}]*border-color:\s*var\(--accent\)[^}]*background:\s*var\(--accent-soft\)/s);
+});
+
+test("Pages mobile category activation and badges use the same filter state", () => {
+  const { hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  assert.equal(typeof hooks.selectedCountForCategory, "function");
+  assert.equal(typeof hooks.activateMobileCategory, "function");
+  hooks.state.rangeFilters = {
+    zero_to_hundred: { min: "0", max: "7" },
+    top_speed: { min: "180", max: "" },
+    ev_range: { min: "150", max: "" }
+  };
+  hooks.state.featureFilters = { city_navigation: true, auto_headlight: true };
+  const taxonomy = hooks.getFilterTaxonomy();
+  const power = taxonomy.find((category) => category.id === "power");
+  const assist = taxonomy.find((category) => category.id === "assist");
+  const lighting = taxonomy.find((category) => category.id === "lighting");
+  assert.equal(hooks.selectedCountForCategory(power), 3);
+  assert.equal(hooks.selectedCountForCategory(assist), 1);
+  assert.equal(hooks.selectedCountForCategory(lighting), 1);
+  hooks.activateMobileCategory("lighting", false);
+  assert.equal(hooks.state.mobileCategoryId, "lighting");
+});
+
+test("Pages restore-default semantics are schema-driven and preserve the three required range defaults", () => {
+  const { elements, hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  hooks.state.rangeFilters = { ev_range: { min: "999", max: "1000" } };
+  hooks.state.featureFilters = {};
+  hooks.state.search = "temporary";
+  assert.equal(typeof hooks.restoreDefaultFilters, "function");
+  hooks.restoreDefaultFilters();
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), {
+    zero_to_hundred: { min: "0", max: "7" },
+    ev_range: { min: "150", max: "" },
+    top_speed: { min: "180", max: "" }
+  });
+  assert.equal(hooks.state.search, "");
+  assert.equal(elements.get("globalSearch").value, "");
+  assert.equal(Object.keys(hooks.state.featureFilters).length, 9);
+});
+
+test("Pages first load renders and applies acceleration, speed, and EV range defaults", () => {
+  const { elements, hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  function model(name, acceleration, speed, range) {
+    const result = Object.assign(row("仅懂车帝", 2026, name), {
+      "百公里加速(s)": String(acceleration),
+      "最高车速(km/h)": String(speed),
+      "纯电续航(km)": String(range)
+    });
+    config.conditions.filter((condition) => condition.type === "feature").forEach((condition) => {
+      result[condition.fields[0]] = condition.requireKeyword ? condition.keywords[0] : "支持";
+    });
+    return result;
+  }
+  hooks.initializeRows([
+    model("全部通过", 6.9, 181, 151),
+    model("加速失败", 7.1, 181, 151),
+    model("车速失败", 6.9, 179, 151),
+    model("续航失败", 6.9, 181, 149)
+  ]);
+  hooks.renderEverything();
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.getFilteredRows().map((item) => item["车型名称"]))), ["全部通过"]);
+  const tags = elements.get("selectedTags").children.map((tag) => tag.textContent);
+  assert.ok(tags.includes("百公里加速 ≤7 ≥0"));
+  assert.ok(tags.includes("最高车速 ≥180"));
+  assert.ok(tags.includes("纯电续航 ≥150"));
+  const values = {};
+  elements.get("centerConditionList").children.forEach((group) => group.children.forEach((item) => {
+    if (item.className !== "center-condition-item") return;
+    item.children.forEach((child) => child.children && child.children.forEach((input) => {
+      if (input.dataset && input.dataset.side) values[input.dataset.conditionId + ":" + input.dataset.side] = input.value;
+    }));
+  }));
+  assert.equal(values["zero_to_hundred:max"], "7");
+  assert.equal(values["top_speed:min"], "180");
+  assert.equal(values["ev_range:min"], "150");
+  assert.equal(values["ev_range:max"], "");
 });

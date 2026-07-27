@@ -211,7 +211,8 @@
         "城市",
         "领航",
         "导航辅助"
-      ]
+      ],
+      "defaultEnabled": true
     },
     {
       "id": "remote_start",
@@ -227,7 +228,8 @@
         "车辆启动",
         "发动机启动",
         "启动"
-      ]
+      ],
+      "defaultEnabled": true
     },
     {
       "id": "remote_control",
@@ -246,7 +248,8 @@
         "车门控制",
         "空调控制",
         "车辆启动"
-      ]
+      ],
+      "defaultEnabled": true
     },
     {
       "id": "bluetooth_key",
@@ -267,7 +270,8 @@
         "UWB钥匙",
         "NFC钥匙"
       ],
-      "requireKeyword": true
+      "requireKeyword": true,
+      "defaultEnabled": true
     },
     {
       "id": "seat_memory",
@@ -283,7 +287,8 @@
         "电动座椅记忆",
         "主驾驶位",
         "驾驶位"
-      ]
+      ],
+      "defaultEnabled": true
     },
     {
       "id": "mirror_memory",
@@ -297,7 +302,8 @@
         "后视镜记忆",
         "外后视镜记忆",
         "记忆"
-      ]
+      ],
+      "defaultEnabled": true
     },
     {
       "id": "app_remote_control",
@@ -313,7 +319,8 @@
         "充电管理",
         "寻车",
         "车辆监控"
-      ]
+      ],
+      "defaultEnabled": true
     },
     {
       "id": "rain_sensor_wiper",
@@ -326,7 +333,8 @@
         "雨量感应",
         "感应雨刷",
         "自动雨刷"
-      ]
+      ],
+      "defaultEnabled": true
     },
     {
       "id": "auto_headlight",
@@ -339,38 +347,147 @@
         "自动大灯",
         "自动头灯",
         "自动灯光"
-      ]
+      ],
+      "defaultEnabled": true
     }
   ],
-  "centerConditionGroups": [
+  "desktopConditionGroups": [
     {
       "id": "performance",
-      "label": "性能/续航",
-      "conditionIds": [
-        "zero_to_hundred",
-        "ev_range",
-        "top_speed"
-      ]
+      "label": "性能/续航"
     },
     {
       "id": "smart",
-      "label": "核心配置",
-      "conditionIds": [
-        "city_navigation",
-        "remote_start",
-        "remote_control",
-        "bluetooth_key",
-        "seat_memory",
-        "mirror_memory"
-      ]
+      "label": "核心配置"
     },
     {
       "id": "comfort",
-      "label": "舒适/便利",
-      "conditionIds": [
-        "app_remote_control",
-        "rain_sensor_wiper",
-        "auto_headlight"
+      "label": "舒适/便利"
+    }
+  ],
+  "filterTaxonomy": [
+    {
+      "id": "power",
+      "label": "动力参数",
+      "sections": [
+        {
+          "id": "acceleration",
+          "label": "加速性能",
+          "desktopGroupId": "performance",
+          "conditionIds": [
+            "zero_to_hundred"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "续航里程",
+          "desktopGroupId": "performance",
+          "conditionIds": [
+            "ev_range"
+          ]
+        },
+        {
+          "id": "speed",
+          "label": "最高车速",
+          "desktopGroupId": "performance",
+          "conditionIds": [
+            "top_speed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "assist",
+      "label": "辅助/操控",
+      "sections": [
+        {
+          "id": "navigation",
+          "label": "智能驾驶",
+          "desktopGroupId": "smart",
+          "conditionIds": [
+            "city_navigation"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "external",
+      "label": "外部/防盗",
+      "sections": [
+        {
+          "id": "remote",
+          "label": "远程功能与钥匙",
+          "desktopGroupId": "smart",
+          "conditionIds": [
+            "remote_start",
+            "remote_control",
+            "bluetooth_key"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seats",
+      "label": "座椅",
+      "sections": [
+        {
+          "id": "seat-memory",
+          "label": "座椅记忆",
+          "desktopGroupId": "smart",
+          "conditionIds": [
+            "seat_memory"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lighting",
+      "label": "灯光",
+      "sections": [
+        {
+          "id": "headlights",
+          "label": "灯光功能",
+          "desktopGroupId": "comfort",
+          "conditionIds": [
+            "auto_headlight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "glass",
+      "label": "玻璃/后视镜",
+      "sections": [
+        {
+          "id": "mirrors",
+          "label": "后视镜",
+          "desktopGroupId": "smart",
+          "conditionIds": [
+            "mirror_memory"
+          ]
+        },
+        {
+          "id": "wipers",
+          "label": "雨刷",
+          "desktopGroupId": "comfort",
+          "conditionIds": [
+            "rain_sensor_wiper"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hardware",
+      "label": "智能硬件",
+      "sections": [
+        {
+          "id": "mobile-control",
+          "label": "手机互联",
+          "desktopGroupId": "comfort",
+          "conditionIds": [
+            "app_remote_control"
+          ]
+        }
       ]
     }
   ],
