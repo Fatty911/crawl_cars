@@ -31,7 +31,7 @@
   var DEFAULT_RANGE_FILTERS = {
     zero_to_hundred: { min: "0", max: "7" },
     top_speed: { min: "180", max: "" },
-    ev_range: { min: "100", max: "600" }
+    ev_range: { min: "150", max: "" }
   };
   var VALUE_COLUMN_PATTERN = /^(.+?)\s+-\s+(\S+.*)$/;
   var DEFAULT_FEATURE_FILTERS = {
@@ -345,32 +345,66 @@
     });
   }
 
-  var EQUIPMENT_COLUMN_PATTERN = /_(\d+)$/;
-  var EQUIPMENT_KEYWORDS = [
-    "轮毂", "轮圈", "轮辋", "轮胎", "音响", "扬声器", "套装", "选装包",
-    "升级包", "运动包", "外观", "碳纤维", "氛围灯", "车标", "拖挂",
-    "充电桩", "脚垫", "遮阳", "贴膜", "行李架", "踏板", "包围", "尾翼",
-    "扰流", "排气", "刹车卡钳", "避震", "减振", "弹簧", "稳定杆",
-    "差速锁", "绞盘", "拖车钩", "纪念版", "专属", "定制", "限量版",
-    "组件", "套件", "包_", "英寸轮毂", "吋轮毂", "寸轮毂"
-  ];
+  var OPTION_SUFFIX_PATTERN = /^(.+?)_(\d+)$/;
 
-  function isEquipmentColumn(column) {
-    if (EQUIPMENT_COLUMN_PATTERN.test(column)) { return true; }
-    var text = String(column || "");
-    for (var i = 0; i < EQUIPMENT_KEYWORDS.length; i++) {
-      if (text.indexOf(EQUIPMENT_KEYWORDS[i]) !== -1) { return true; }
-    }
-    return false;
+  function addOptionPackageColumns(target, name) {
+    var base = String(name || "").trim();
+    if (!base) { return; }
+    target.add(base);
+    target.add(base + "_1");
+    target.add(base + "_2");
   }
 
-  function shouldHideColumn(column, rows) {
+  function collectEquipmentColumns(rows) {
+    var columns = new Set();
+    (rows || []).forEach(function (row) {
+      var rawPackages = row["选装包列表"];
+      if (rawPackages && rawPackages !== "-") {
+        try {
+          var packages = typeof rawPackages === "string" ? JSON.parse(rawPackages) : rawPackages;
+          if (packages && typeof packages === "object" && !Array.isArray(packages)) {
+            Object.keys(packages).forEach(function (name) { addOptionPackageColumns(columns, name); });
+          }
+        } catch (error) {
+          // Invalid legacy package metadata is ignored instead of hiding unrelated columns.
+        }
+      }
+
+      var pairs = {};
+      Object.keys(row).forEach(function (column) {
+        var match = OPTION_SUFFIX_PATTERN.exec(column);
+        if (!match) { return; }
+        if (!pairs[match[1]]) { pairs[match[1]] = {}; }
+        pairs[match[1]][match[2]] = row[column];
+      });
+      Object.keys(pairs).forEach(function (base) {
+        var suffixes = Object.keys(pairs[base]).sort();
+        var first = pairs[base]["1"];
+        var second = pairs[base]["2"];
+        if (suffixes.length === 2 && suffixes[0] === "1" && suffixes[1] === "2" &&
+            hasPositiveValue(first) && hasPositiveValue(second) && String(first).trim() !== String(second).trim()) {
+          addOptionPackageColumns(columns, base);
+        }
+      });
+    });
+    return columns;
+  }
+
+  function isEquipmentColumn(column, rows, equipmentColumns) {
+    return (equipmentColumns || collectEquipmentColumns(rows)).has(String(column || ""));
+  }
+
+  function shouldHideColumn(column, rows, equipmentColumns) {
+    var defaultVisible = state.config.defaultVisibleColumns || [];
     var hidden = state.config.hiddenByDefault || [];
     var dropUniform = state.config.dropIfUniformPositive || [];
+    if (defaultVisible.indexOf(column) !== -1) {
+      return false;
+    }
     if (hidden.indexOf(column) !== -1) {
       return true;
     }
-    if (isEquipmentColumn(column)) {
+    if (isEquipmentColumn(column, rows, equipmentColumns)) {
       return true;
     }
     if (dropUniform.indexOf(column) !== -1) {
@@ -393,6 +427,14 @@
     return map;
   }
 
+  function mergeDistinctColumnValues(existing, incoming) {
+    if (!hasPositiveValue(existing)) { return incoming; }
+    if (!hasPositiveValue(incoming)) { return existing; }
+    var incomingText = String(incoming).trim();
+    var parts = String(existing).split("|").map(function (part) { return part.trim(); });
+    return parts.indexOf(incomingText) === -1 ? String(existing) + "|" + incomingText : existing;
+  }
+
   function normalizeRowColumns(rows) {
     var aliasMap = columnAliasMap();
     return rows.map(function (row) {
@@ -403,21 +445,15 @@
         if (valueMatch) {
           var parent = valueMatch[1].trim();
           if (hasPositiveValue(value)) {
-            var val = String(value).trim();
-            var existing = next[parent];
-            if (!hasPositiveValue(existing)) {
-              next[parent] = val;
-            } else if (String(existing).split(/[,，]\s*/).indexOf(val) === -1) {
-              next[parent] = existing + ", " + val;
-            }
+            next[parent] = mergeDistinctColumnValues(next[parent], valueMatch[2].trim());
           }
           delete next[column];
           return;
         }
         var standard = aliasMap[column];
         if (standard && standard !== column) {
-          if (hasPositiveValue(value) && !hasPositiveValue(next[standard])) {
-            next[standard] = value;
+          if (hasPositiveValue(value)) {
+            next[standard] = mergeDistinctColumnValues(next[standard], value);
           }
           delete next[column];
         }
@@ -429,15 +465,16 @@
   function buildColumns(rows) {
     var seen = new Set();
     var columns = [];
+    var equipmentColumns = collectEquipmentColumns(rows);
     (state.config.defaultVisibleColumns || []).forEach(function (column) {
-      if (rows.some(function (row) { return Object.prototype.hasOwnProperty.call(row, column); }) && !shouldHideColumn(column, rows)) {
+      if (rows.some(function (row) { return Object.prototype.hasOwnProperty.call(row, column); }) && !shouldHideColumn(column, rows, equipmentColumns)) {
         seen.add(column);
         columns.push(column);
       }
     });
     rows.forEach(function (row) {
       Object.keys(row).forEach(function (column) {
-        if (isDimensionColumn(column) || shouldHideColumn(column, rows) || seen.has(column)) {
+        if (isDimensionColumn(column) || shouldHideColumn(column, rows, equipmentColumns) || seen.has(column)) {
           return;
         }
         seen.add(column);

@@ -101,6 +101,10 @@ function loadAppForTest() {
       snapshotFilters: snapshotFilters,
       applySnapshot: applySnapshot,
       getFilteredRows: getFilteredRows,
+      defaultRangeFilters: DEFAULT_RANGE_FILTERS,
+      normalizeRowColumns: normalizeRowColumns,
+      isEquipmentColumn: isEquipmentColumn,
+      shouldHideColumn: shouldHideColumn,
       state: state
     };
   }());`
@@ -442,4 +446,76 @@ test("Pages default visible columns include listing time and core feature column
   });
   assert.ok(config.defaultVisibleColumns.indexOf("官方指导价") < config.defaultVisibleColumns.indexOf("上市时间"));
   assert.ok(config.defaultVisibleColumns.indexOf("上市时间") < config.defaultVisibleColumns.indexOf("NOA城市领航"));
+});
+
+
+test("Pages range defaults keep acceleration at most 7, speed at least 180, and EV range at least 150 without a cap", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  const ranges = Object.fromEntries(config.conditions.filter((condition) => condition.type === "range").map((condition) => [
+    condition.id,
+    { min: condition.defaultMin, max: condition.defaultMax }
+  ]));
+  assert.deepEqual(ranges.zero_to_hundred, { min: "0", max: "7" });
+  assert.deepEqual(ranges.top_speed, { min: "180", max: "" });
+  assert.deepEqual(ranges.ev_range, { min: "150", max: "" });
+
+  const { hooks } = loadAppForTest();
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.defaultRangeFilters)), {
+    zero_to_hundred: { min: "0", max: "7" },
+    top_speed: { min: "180", max: "" },
+    ev_range: { min: "150", max: "" }
+  });
+});
+
+test("Pages never hides configured default-visible or legitimate equipment-related attribute columns", () => {
+  const { hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  assert.ok(config.defaultVisibleColumns.includes("前轮胎规格"));
+  assert.ok(config.defaultVisibleColumns.includes("后轮胎规格"));
+  assert.equal(config.defaultVisibleColumns.includes("前轮胎规格尺寸"), false);
+  assert.equal(config.defaultVisibleColumns.includes("后轮胎规格尺寸"), false);
+  config.defaultVisibleColumns.forEach((column) => {
+    assert.equal(hooks.shouldHideColumn(column, []), false, column);
+  });
+  ["前轮胎规格", "后轮胎规格", "安全轮胎", "扬声器数量", "车顶行李架"].forEach((column) => {
+    assert.equal(hooks.shouldHideColumn(column, []), false, column);
+  });
+});
+
+test("Pages identifies legacy option-package columns only from structured package data", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = { hiddenByDefault: [], dropIfUniformPositive: [] };
+  const rows = [{
+    "冬季包_1": "方向盘加热",
+    "选装包列表": JSON.stringify({ "冬季包": { "描述": "方向盘加热", "状态": "选装" } }),
+    "冬季包": "方向盘加热",
+    "安全轮胎_1": "支持",
+    "camera_count_v4_1": "前视",
+    "camera_count_v4_2": "后视",
+    "camera_count_v4_3": "环视",
+    "扬声器数量": "12"
+  }];
+  assert.equal(hooks.shouldHideColumn("冬季包_1", rows), true);
+  assert.equal(hooks.shouldHideColumn("冬季包", rows), true);
+  assert.equal(hooks.shouldHideColumn("安全轮胎_1", rows), false);
+  assert.equal(hooks.shouldHideColumn("camera_count_v4_1", rows), false);
+  assert.equal(hooks.shouldHideColumn("扬声器数量", rows), false);
+});
+
+test("Pages canonicalizes value columns and aliases without dropping conflicts", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = {
+    columnAliases: { "前轮胎规格": ["前轮胎规格尺寸"] }
+  };
+  const rows = hooks.normalizeRowColumns([{
+    "音响品牌": "Bose",
+    "音响品牌 - Harman Kardon": "支持",
+    "前轮胎规格": "235/50 R19",
+    "前轮胎规格尺寸": "245/45 R20"
+  }]);
+  assert.equal(rows[0]["音响品牌"], "Bose|Harman Kardon");
+  assert.equal(rows[0]["前轮胎规格"], "235/50 R19|245/45 R20");
+  assert.equal("音响品牌 - Harman Kardon" in rows[0], false);
+  assert.equal("前轮胎规格尺寸" in rows[0], false);
 });

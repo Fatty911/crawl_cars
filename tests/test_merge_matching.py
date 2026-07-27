@@ -192,3 +192,46 @@ def test_publish_boundary_keeps_autohome_latin_commercial_series():
 
     assert kept == [model3, ds9, mini]
     assert stats["invalid_autohome_identity"] == 1
+
+
+def test_header_normalization_is_exact_and_does_not_capture_longer_unrelated_attributes():
+    assert merge_data.norm("前轮胎规格尺寸") == "前轮胎规格"
+    assert merge_data.norm("前轮胎规格安全监测") == "前轮胎规格安全监测"
+
+
+def test_single_one_hot_attribute_becomes_a_canonical_attribute_value():
+    rows = [{"扬声器品牌 - Bose": "支持"}]
+    assert merge_data.normalize_attribute_keys(rows) == [{"扬声器品牌": "Bose"}]
+
+
+def test_attribute_normalization_preserves_existing_conflicting_values():
+    rows = [{"音响品牌": "Bose", "音响品牌 - Harman Kardon": "支持"}]
+    assert merge_data.normalize_attribute_keys(rows) == [{"音响品牌": "Bose|Harman Kardon"}]
+
+
+def test_cross_source_header_aliases_merge_without_losing_conflicting_values():
+    ah = merge_data.norm_rows([make("汽车之家", "同义列测试") | {"前轮胎规格尺寸": "235/50 R19"}], "汽车之家")[0]
+    dcd = merge_data.norm_rows([make("懂车帝", "同义列测试") | {"前轮胎规格": "245/45 R20"}], "懂车帝")[0]
+    merged = merge_single_row(ah, dcd)
+    assert "前轮胎规格尺寸" not in merged
+    assert merged["前轮胎规格"] == "汽车之家:235/50 R19|懂车帝:245/45 R20"
+
+
+def test_option_package_pairs_become_structured_without_hiding_unpaired_suffix_attributes():
+    rows = merge_data.norm_rows([
+        make("懂车帝", "结构套餐测试") | {
+            "冬季包_1": "方向盘加热",
+            "冬季包_2": "选装",
+            "安全轮胎_1": "支持",
+            "camera_count_v4_1": "前视",
+            "camera_count_v4_2": "后视",
+            "camera_count_v4_3": "环视",
+        }
+    ], "懂车帝")
+    row = rows[0]
+    packages = merge_data.json.loads(row["选装包列表"])
+    assert packages["冬季包"] == {"描述": "方向盘加热", "状态": "选装"}
+    assert "冬季包_1" not in row
+    assert "冬季包_2" not in row
+    assert row["安全轮胎_1"] == "支持"
+    assert row["摄像头数量"] == "前视|后视|环视"

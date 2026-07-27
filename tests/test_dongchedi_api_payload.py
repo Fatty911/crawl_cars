@@ -268,5 +268,38 @@ class DongchediApiPayloadTest(unittest.TestCase):
         self.assertEqual(rows[0]["年款"], "2026")
 
 
+    def test_option_package_pair_is_published_only_as_structured_data(self):
+        api_payload = {
+            "source": "dongchedi_entity_api",
+            "series_info": {"id": "3507", "name": "银河E5", "brand": "吉利银河"},
+            "data": {
+                "car_info": [{
+                    "car_name": "银河E5 2026款 探索版",
+                    "car_year": "2026款",
+                    "brand_name": "吉利银河",
+                    "info": {
+                        "冬季包_1": {"value": "方向盘加热"},
+                        "冬季包_2": {"value": "选装"},
+                        "安全轮胎_1": {"value": "支持"},
+                        "camera_count_v4_1": {"value": "前视"},
+                        "camera_count_v4_2": {"value": "后视"},
+                        "camera_count_v4_3": {"value": "环视"},
+                    },
+                }],
+                "properties": [],
+            },
+        }
+        Path(self.module.dcd_json_dir, "3507.json").write_text(json.dumps(api_payload, ensure_ascii=False), encoding="utf-8")
+
+        rows, headers = self.module.parse_config_pages([{"id": "3507", "name": "银河E5", "brand": "吉利银河"}])
+
+        packages = json.loads(rows[0]["选装包列表"])
+        self.assertEqual(packages["冬季包"], {"描述": "方向盘加热", "状态": "选装"})
+        self.assertNotIn("冬季包", rows[0])
+        self.assertNotIn("冬季包", headers)
+        self.assertEqual(rows[0]["安全轮胎_1"], "支持")
+        self.assertEqual(rows[0]["摄像头数量"], "前视|后视|环视")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -544,41 +544,27 @@ def _split_attr_key(key):
     return prefix, suffix
 
 
+def _merge_distinct_values(existing, incoming):
+    if not has_positive_value(existing):
+        return incoming
+    if not has_positive_value(incoming):
+        return existing
+    parts = [part.strip() for part in str(existing).split("|")]
+    incoming_text = str(incoming).strip()
+    return existing if incoming_text in parts else f"{existing}|{incoming_text}"
+
+
 def normalize_attribute_keys(rows):
-    """将 one-hot 编码的属性键（如 '辅助驾驶操作系统 - Toyota Pilot'）
-    归一化为统一的属性列名，并用后缀作为该行的值。"""
-    if not rows:
-        return rows
-
-    from collections import defaultdict
-
-    # 收集所有带 " - " 的键
-    attrs = defaultdict(list)  # prefix -> [(suffix, full_key)]
+    """Collapse each selected ``attribute - value`` key without losing conflicts."""
     for row in rows:
         for key in list(row.keys()):
             split = _split_attr_key(key)
-            if split and (split[1], key) not in attrs[split[0]]:
-                attrs[split[0]].append((split[1], key))
-
-    # 只处理有多种后缀的组（真正的 one-hot 编码）
-    for prefix, entries in attrs.items():
-        if len(entries) <= 1:
-            continue
-        for row in rows:
-            value = None
-            for suffix, key in entries:
-                val = str(row.get(key, "-") or "-")
-                if val and val != "-":
-                    if value is None:
-                        value = suffix
-                    else:
-                        value = f"{value}|{suffix}"
-                    row.pop(key, None)
-                else:
-                    row.pop(key, None)
-            if value is not None:
-                row[prefix] = value
-
+            if not split:
+                continue
+            prefix, suffix = split
+            raw_value = row.pop(key, None)
+            if has_positive_value(raw_value):
+                row[prefix] = _merge_distinct_values(row.get(prefix), suffix)
     return rows
 
 
@@ -769,47 +755,7 @@ def filter_car(row):
 def norm(header):
     if header in HEADER_MAP:
         return HEADER_MAP[header]
-    for key, value in HEADER_MAP.items():
-        if key in header or header in key:
-            return value
-    # 选装包/套装 _数字 后缀归一化：将 "包名_1" / "包名_2" 归一化为 "包名"
-    m = re.match(r'^(.+)_(\d+)$', header)
-    if m:
-        base = m.group(1)
-        # 判断是否为选装包类字段
-        _pkg_kw = ['套装', '套件', '订阅', 'NOA', '领航', '装备',
-                   'CO2', '热泵', '包', '舒适', '科技', '智驾', '智享',
-                   '臻选', '尊享', '豪华', '定制', '冬季', '夏季',
-                   '氛围', '灯光', '音响', '座椅', '泊车', '智能',
-                   '温控', '音效', '密友', '家庭', '全能', '选装',
-                   '酷炫', '睿智', '智控', '舒享', '臻享', '悦享',
-                   '至尊', '铂金', '钻石', '璀璨', '曜夜', '黑曜',
-                   '动感', '炫酷', '电控', '电驱', '电享', '静谧',
-                   '奢侈', '炯炯', '双零', '辅助', '驾驶', '新装备',
-                   '性能', '尊贵', '典藏', '极夜', '博速', '氮气',
-                   '四驱', '哑光', '外部', '旅行', '全球', '夜色',
-                   '暗夜', '碳纤维', '空气动力学', '冰雪', '越野',
-                   '车轮', '合金', '竞技', '勒芒', '法式', '车神',
-                   '全维', '深色', '浅色', '个性', '户外', '手机',
-                   '全新', '专属', '升级', '黑色', '金属', '磨砂',
-                   '哑光', '高光', '耀夜', '铂金', '钻石', 'M碳',
-                   'AMG', 'RS', 'AT', 'P', 'Audi', 'S-line',
-                   'M运', 'M高', 'R', 'E', 'Pro', 'Max',
-                   '高清', '矩阵', '激光', 'LED', '深色', '浅色',
-                   '木饰', '铝饰', '碳纤维', 'Alcantara', 'alcantara',
-                   '皮', '织物', '翻毛', '麂皮', '打孔', '纳帕', 'Nappa',
-                   'nappa', '真皮', '仿皮', '手动', '电动', '遥控',
-                   '防盗', '安全', '智能', '主动', '被动', '前方',
-                   '后方', '侧面', '侧方', '全景', '环绕', '360',
-                   '540', '720', '1080', '3D', '2D', '夜视',
-                   '流媒体', 'AR', 'VR', '数字', '模拟', '抬头',
-                   '阅读', '照明', '迎宾', '氛围', '充电', '无线',
-                   'USB', 'Type-C', 'HDMI', 'AUX', 'SD', 'SIM',
-                   '手机', '手表', '平板', '屏幕', '触摸', '语音',
-                   '手势', '面部', '指纹', '声纹', '虹膜']
-        if any(kw in base for kw in _pkg_kw):
-            return base
-    # _v4_值 归一化：将 "driving_assist_chip_v4_NVIDIA DRIVE Orin X" 归一化为 "辅助驾驶芯片"
+    # Only the documented v4 schema may use a structured suffix mapping.
     m_v4 = re.match(r'^(.+)_v4_(.+)$', header)
     if m_v4:
         base_v4_key = m_v4.group(1) + "_v4"
@@ -1018,9 +964,48 @@ def derive_brand(series_name):
     return SERIES_TO_BRAND.get(series_name, '')
 
 
+def normalize_option_package_fields(rows):
+    """Extract packages only when a row proves the source's description/status pair schema."""
+    package_bases = set()
+    for row in rows:
+        grouped = {}
+        for key, value in row.items():
+            match = re.match(r"^(.+)_(\d+)$", key)
+            if match:
+                grouped.setdefault(match.group(1), {})[match.group(2)] = value
+        for base, pair in grouped.items():
+            first, second = pair.get("1"), pair.get("2")
+            if set(pair) == {"1", "2"} and has_positive_value(first) and has_positive_value(second) and str(first).strip() != str(second).strip():
+                package_bases.add(base)
+
+    normalized_rows = []
+    for original in rows:
+        row = dict(original)
+        packages = {}
+        raw_packages = row.get("选装包列表")
+        if isinstance(raw_packages, dict):
+            packages.update(raw_packages)
+        elif has_positive_value(raw_packages):
+            try:
+                parsed = json.loads(raw_packages)
+                if isinstance(parsed, dict):
+                    packages.update(parsed)
+            except (TypeError, ValueError):
+                pass
+        for base in package_bases:
+            description = row.pop(f"{base}_1", "")
+            status = row.pop(f"{base}_2", "")
+            if has_positive_value(description) or has_positive_value(status):
+                packages[base] = {"描述": description, "状态": status}
+        if packages:
+            row["选装包列表"] = json.dumps(packages, ensure_ascii=False, sort_keys=True)
+        normalized_rows.append(row)
+    return normalized_rows
+
+
 def norm_rows(rows, source):
     out = []
-    for row in rows:
+    for row in normalize_option_package_fields(rows):
         normalized = {"数据来源": source}
         for key in ["品牌", "车系", "车系ID", "车型名称", "年款"]:
             if key in row:
