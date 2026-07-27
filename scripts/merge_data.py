@@ -371,6 +371,12 @@ HEADER_MAP = {
     "热泵管理系统": "热泵空调",
     "CO2热泵空调包": "热泵空调",
     "CO2热泵空调系统": "热泵空调",
+    "CO2热泵空调系统_1": "热泵空调",
+    "CO2热泵空调系统_2": "热泵空调",
+    "CO2热泵空调包_1": "热泵空调",
+    "CO2热泵空调包_2": "热泵空调",
+    "快充接口": "快充接口",
+    "quick_charge_interface_v3": "快充接口",
     "快充接口位置": "快充接口位置",
     "慢充接口位置": "慢充接口位置",
     "快充时间": "快充时间",
@@ -1061,8 +1067,8 @@ def norm_rows(rows, source):
                 continue
             unified = norm(key)
             if unified in normalized and normalized[unified] not in ("", "-"):
-                if val not in ("", "-") and val != normalized[unified]:
-                    normalized[unified] = f"{normalized[unified]}|{val}"
+                if val not in ("", "-"):
+                    normalized[unified] = _merge_distinct_values(normalized[unified], val)
             else:
                 normalized[unified] = val
 

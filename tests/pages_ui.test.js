@@ -591,3 +591,37 @@ test("Pages mobile layout keeps text readable, controls touchable, and the wide 
   assert.equal(pixels(declarations(css.slice(0, mobileStart), ".brand-block h1"), "font-size"), 22);
   assert.equal(pixels(declarations(css.slice(0, mobileStart), "th,\ntd"), "font-size"), 13);
 });
+
+
+test("Pages canonicalizes only evidenced legacy heat-pump duplicates and the quick-charge schema key", () => {
+  const { hooks } = loadAppForTest();
+  for (const configPath of ["config/filter_conditions.json", "docs/filter_conditions.json"]) {
+    const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", configPath), "utf8"));
+    assert.deepEqual(config.columnAliases["热泵空调"], [
+      "热泵管理系统",
+      "CO2热泵空调包",
+      "CO2热泵空调系统",
+      "CO2热泵空调系统_1",
+      "CO2热泵空调系统_2",
+      "CO2热泵空调包_1",
+      "CO2热泵空调包_2"
+    ]);
+    assert.ok(config.columnAliases["快充接口"].includes("quick_charge_interface_v3"));
+  }
+
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  const rows = hooks.normalizeRowColumns([{
+    "CO2热泵空调系统_1": "是",
+    "CO2热泵空调系统_2": "是",
+    "CO2热泵空调包_1": "支持",
+    "CO2热泵空调包_2": "支持",
+    "quick_charge_interface_v3": "●",
+    "安全轮胎_1": "支持"
+  }]);
+  assert.equal(rows[0]["热泵空调"], "是|支持");
+  assert.equal(rows[0]["快充接口"], "●");
+  ["CO2热泵空调系统_1", "CO2热泵空调系统_2", "CO2热泵空调包_1", "CO2热泵空调包_2", "quick_charge_interface_v3"].forEach((legacy) => {
+    assert.equal(legacy in rows[0], false);
+  });
+  assert.equal(rows[0]["安全轮胎_1"], "支持");
+});

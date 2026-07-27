@@ -283,3 +283,27 @@ def test_zero_to_fifty_acceleration_is_not_aliased_to_zero_to_one_hundred():
 
     assert normalized["官方0—50Km/h加速时间(s)"] == "3.5"
     assert normalized["百公里加速(s)"] == "7.0"
+
+
+def test_legacy_heat_pump_suffixes_and_quick_charge_schema_key_use_exact_aliases():
+    normalized = merge_data.norm_rows([{
+        "车型名称": "旧发布列测试",
+        "CO2热泵空调系统_1": "是",
+        "CO2热泵空调系统_2": "是",
+        "CO2热泵空调包_1": "支持",
+        "CO2热泵空调包_2": "支持",
+        "quick_charge_interface_v3": "●",
+        "安全轮胎_1": "支持",
+    }], "懂车帝")[0]
+
+    assert normalized["热泵空调"] == "是|支持"
+    assert normalized["快充接口"] == "●"
+    for legacy in (
+        "CO2热泵空调系统_1",
+        "CO2热泵空调系统_2",
+        "CO2热泵空调包_1",
+        "CO2热泵空调包_2",
+        "quick_charge_interface_v3",
+    ):
+        assert legacy not in normalized
+    assert normalized["安全轮胎_1"] == "支持"
