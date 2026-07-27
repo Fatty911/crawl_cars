@@ -540,3 +540,54 @@ test("Pages config uses existing canonical dimension names and never aliases 0-5
     assert.ok(config.columnAliases["电池组质保"].includes("battery_warranty_v3"));
   }
 });
+
+
+test("Pages mobile layout keeps text readable, controls touchable, and the wide table scrollable", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "docs", "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "docs", "styles.css"), "utf8");
+  const viewport = html.match(/<meta\s+name="viewport"\s+content="([^"]+)"/i);
+  assert.ok(viewport);
+  assert.equal(viewport[1], "width=device-width, initial-scale=1");
+  assert.match(css, /body\s*\{[^}]*-webkit-text-size-adjust:\s*100%/s);
+  assert.doesNotMatch(css, /\b(?:zoom|transform)\s*:/);
+
+  const mobileStart = css.lastIndexOf("@media (max-width: 640px)");
+  assert.notEqual(mobileStart, -1);
+  const mobile = css.slice(mobileStart);
+  function declarations(source, selector) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = source.match(new RegExp(escaped + "\\s*\\{([^}]*)\\}", "s"));
+    assert.ok(match, `missing declarations for ${selector}`);
+    return match[1];
+  }
+  function pixels(block, property) {
+    const match = block.match(new RegExp(property + "\\s*:\\s*([0-9.]+)px"));
+    assert.ok(match, `missing ${property}`);
+    return Number(match[1]);
+  }
+
+  assert.ok(pixels(declarations(mobile, "body"), "font-size") >= 16);
+  assert.ok(pixels(declarations(mobile, ".brand-block h1"), "font-size") >= 24);
+  assert.ok(pixels(declarations(mobile, ".brand-block p"), "font-size") >= 14);
+  assert.ok(pixels(declarations(mobile, ".center-hero p"), "font-size") >= 16);
+  assert.ok(pixels(declarations(mobile, ".summary-label"), "font-size") >= 14);
+  assert.ok(pixels(declarations(mobile, ".card-meta"), "font-size") >= 15);
+  assert.ok(pixels(declarations(mobile, ".selected-tags span"), "font-size") >= 15);
+  assert.ok(pixels(declarations(mobile, "th,\n  td"), "font-size") >= 14);
+
+  const buttons = declarations(mobile, "\n  button");
+  assert.ok(pixels(buttons, "font-size") >= 16);
+  assert.ok(pixels(buttons, "min-height") >= 44);
+  const controls = declarations(mobile, ".segment,\n  .text-button,\n  .icon-button,\n  .pager button,\n  .field-filter button,\n  .range-controls button,\n  .link-button,\n  .sort-level button,\n  input:not([type=\"checkbox\"]),\n  select,\n  textarea");
+  assert.ok(pixels(controls, "font-size") >= 16);
+  assert.ok(pixels(controls, "min-height") >= 44);
+  const tableWrap = declarations(mobile, ".table-wrap");
+  assert.match(tableWrap, /overflow-x:\s*auto/);
+  assert.match(tableWrap, /-webkit-overflow-scrolling:\s*touch/);
+  assert.match(declarations(mobile, ".toolbar"), /flex-direction:\s*column/);
+  assert.match(declarations(mobile, ".center-condition-item"), /max-width:\s*100%/);
+  assert.match(declarations(mobile, ".center-range-label"), /flex-wrap:\s*wrap/);
+
+  assert.equal(pixels(declarations(css.slice(0, mobileStart), ".brand-block h1"), "font-size"), 22);
+  assert.equal(pixels(declarations(css.slice(0, mobileStart), "th,\ntd"), "font-size"), 13);
+});

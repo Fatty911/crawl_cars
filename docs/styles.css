@@ -28,6 +28,7 @@ body {
   color: var(--text);
   font-family: Inter, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
   letter-spacing: 0;
+  -webkit-text-size-adjust: 100%;
 }
 
 button,
@@ -627,31 +628,6 @@ tbody tr:hover td {
   }
 }
 
-@media (max-width: 640px) {
-  .workspace {
-    padding: 10px;
-  }
-
-  .summary-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .summary-strip div {
-    border-right: 0;
-  }
-
-  .search-control,
-  .search-control input,
-  .text-button,
-  .segmented {
-    width: 100%;
-  }
-
-  .segment {
-    flex: 1;
-  }
-}
-
 .center-region {
   min-width: 0;
 }
@@ -713,4 +689,250 @@ tbody tr:hover td {
 @media (max-width: 860px) {
   .workspace, .center-filters { grid-template-columns: 1fr; }
   .center-hero { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 640px) {
+  .workspace {
+    padding: 10px;
+  }
+
+  .summary-strip div {
+    border-right: 0;
+  }
+
+  .search-control,
+  .search-control input,
+  .text-button,
+  .segmented {
+    width: 100%;
+  }
+
+  .segment {
+    flex: 1;
+  }
+
+  body {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .topbar {
+    padding: 14px;
+  }
+
+  .brand-block h1 {
+    font-size: 26px;
+  }
+
+  .brand-block p {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .toolbar .icon-button {
+    width: 100%;
+  }
+
+  .search-control {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  button {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .segment,
+  .text-button,
+  .icon-button,
+  .pager button,
+  .field-filter button,
+  .range-controls button,
+  .link-button,
+  .sort-level button,
+  input:not([type="checkbox"]),
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  #globalSearch,
+  #pageSize,
+  #pageJump,
+  .field-filter select,
+  .center-inline select,
+  .sort-level select,
+  .sort-level textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-label {
+    font-size: 14px;
+  }
+
+  .summary-strip strong {
+    font-size: 24px;
+  }
+
+  .center-hero,
+  .center-filters section,
+  .card-list article,
+  .custom-sort-panel {
+    padding: 14px;
+  }
+
+  .center-hero h2 {
+    font-size: 24px;
+    line-height: 1.25;
+  }
+
+  .center-hero p {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .eyebrow,
+  .condition-title,
+  .center-group-title,
+  .center-inline label,
+  .sort-level label,
+  .history-sync,
+  .history-status,
+  .history-item span,
+  .column-list label,
+  .download-list {
+    font-size: 14px;
+  }
+
+  .center-condition-item {
+    width: 100%;
+    max-width: 100%;
+    margin-right: 0;
+    flex-wrap: wrap;
+    font-size: 15px;
+  }
+
+  .condition-title,
+  .column-list label {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .center-condition-item > label,
+  .center-range-label {
+    min-height: 44px;
+    max-width: 100%;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    overflow-wrap: anywhere;
+  }
+
+  .center-range-inputs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .center-range-inputs input {
+    width: 100%;
+  }
+
+  .selected-tags span {
+    max-width: 100%;
+    font-size: 15px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .card-list {
+    grid-template-columns: 1fr;
+  }
+
+  .card-list h3 {
+    font-size: 18px;
+    line-height: 1.4;
+  }
+
+  .series-card-toggle,
+  .history-item button {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .filter-chip button {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+    line-height: 44px;
+  }
+
+  .series-match-count,
+  .series-expand-indicator,
+  .card-meta {
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .card-meta span {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .field-filter > * {
+    flex: 1 1 100%;
+  }
+
+  .range-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .range-controls button {
+    grid-column: 1 / -1;
+  }
+
+  .pager {
+    flex-wrap: wrap;
+  }
+
+  .table-wrap {
+    min-height: 360px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  th,
+  td {
+    min-width: 150px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  thead th {
+    white-space: nowrap;
+  }
+
+  .sort-button {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  thead tr.filter-row th {
+    top: 61px;
+  }
 }
