@@ -219,7 +219,7 @@ class DongchediApiPayloadTest(unittest.TestCase):
                 ],
                 "properties": [
                     {"key": "energy", "text": "能源类型"},
-                    {"key": "range", "text": "CLTC纯电续航"},
+                    {"key": "range", "text": " CLTC纯电续航 "},
                 ],
             },
         }
@@ -278,8 +278,8 @@ class DongchediApiPayloadTest(unittest.TestCase):
                     "car_year": "2026款",
                     "brand_name": "吉利银河",
                     "info": {
-                        "冬季包_1": {"value": "方向盘加热"},
-                        "冬季包_2": {"value": "选装"},
+                        " 冬季包_1": {"value": "方向盘加热"},
+                        " 冬季包_2": {"value": "选装"},
                         "安全轮胎_1": {"value": "支持"},
                         "camera_count_v4_1": {"value": "前视"},
                         "camera_count_v4_2": {"value": "后视"},

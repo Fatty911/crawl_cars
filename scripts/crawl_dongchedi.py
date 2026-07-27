@@ -1086,7 +1086,7 @@ def parse_config_pages(series_list):
 
                         for prop in properties:
                             prop_key = prop.get("key")
-                            prop_text = prop.get("text")
+                            prop_text = str(prop.get("text") or "").strip()
                             prop_type = prop.get("type")
 
                             if prop_key and prop_text:
@@ -1099,7 +1099,7 @@ def parse_config_pages(series_list):
                                 if sub_list:
                                     for sub in sub_list:
                                         sub_key = sub.get("key")
-                                        sub_text = sub.get("text")
+                                        sub_text = str(sub.get("text") or "").strip()
                                         if sub_key and sub_text:
                                             # 使用父级text作为前缀
                                             full_text = f"{prop_text} - {sub_text}"
@@ -1256,7 +1256,7 @@ def parse_config_pages(series_list):
                                             else:
                                                 _pkg_status = v
                                     if _pkg_desc or _pkg_status:
-                                        _car_pkgs[pkg_name] = {
+                                        _car_pkgs[pkg_name.strip()] = {
                                             "描述": _pkg_desc,
                                             "状态": _pkg_status,
                                         }

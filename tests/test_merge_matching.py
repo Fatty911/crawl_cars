@@ -235,3 +235,51 @@ def test_option_package_pairs_become_structured_without_hiding_unpaired_suffix_a
     assert "冬季包_2" not in row
     assert row["安全轮胎_1"] == "支持"
     assert row["摄像头数量"] == "前视|后视|环视"
+
+
+def test_schema_headers_strip_boundary_whitespace_and_canonicalize_exact_source_units_without_losing_conflicts():
+    row = make("懂车帝", "列名结构测试") | {
+        " 能源类型 ": "纯电",
+        "轴距[mm]": "2800",
+        "轴距_mm_": "2810",
+        "整备质量[kg]": "1900",
+        "最高车速[km/h]": "180",
+        "前轮距[mm]": "1600",
+        "后轮距_mm_": "1610",
+        "最大功率[kW]": "200",
+        "最大扭矩_N·m_": "350",
+        "USB_Type-C接口数量": "前排2个",
+        "蓝牙_车载电话": "支持",
+        "车门数": "5",
+        "车门数_个_": "4",
+        "battery_temperature_management_system_heating_v3": "支持",
+        "battery_warranty_v3": "8年或16万公里",
+    }
+
+    normalized = merge_data.norm_rows([row], "懂车帝")[0]
+
+    assert normalized["能源类型"] == "纯电"
+    assert normalized["轴距(mm)"] == "2800|2810"
+    assert normalized["整备质量(kg)"] == "1900"
+    assert normalized["最高车速(km/h)"] == "180"
+    assert normalized["前轮距(mm)"] == "1600"
+    assert normalized["后轮距(mm)"] == "1610"
+    assert normalized["最大功率(kW)"] == "200"
+    assert normalized["最大扭矩(N·m)"] == "350"
+    assert normalized["USB/Type-C接口数量"] == "前排2个"
+    assert normalized["蓝牙/车载电话"] == "支持"
+    assert normalized["车门数(个)"] == "5|4"
+    assert normalized["电池温控(加热)"] == "支持"
+    assert normalized["电池组质保"] == "8年或16万公里"
+    assert not any(key != key.strip() for key in normalized)
+
+
+def test_zero_to_fifty_acceleration_is_not_aliased_to_zero_to_one_hundred():
+    normalized = merge_data.norm_rows([{
+        "车型名称": "加速语义测试",
+        "官方0—50Km/h加速时间(s)": "3.5",
+        "百公里加速(s)": "7.0",
+    }], "懂车帝")[0]
+
+    assert normalized["官方0—50Km/h加速时间(s)"] == "3.5"
+    assert normalized["百公里加速(s)"] == "7.0"

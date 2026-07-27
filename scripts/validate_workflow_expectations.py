@@ -11,6 +11,33 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PAGES_PUSH_DEPENDENCIES = (
+    "docs/index.html",
+    "docs/app.js",
+    "docs/styles.css",
+    "docs/config.js",
+    "docs/filter_conditions.json",
+    "docs/analysis/merge_evidence_report.json",
+    "config/filter_conditions.json",
+    "scripts/prepare_pages_payload.py",
+    "scripts/publish_identity.py",
+    "scripts/verify_publish_superset.py",
+    "scripts/prepare_debug_merge_inputs.py",
+    "scripts/preserve_publish_baseline.py",
+    "scripts/filter_pages_source_baseline.py",
+    "scripts/download_latest_crawler_artifact.py",
+    "scripts/analysis/merge_evidence_report.py",
+    "scripts/crawl_zero_to_whole_ratio.py",
+    "scripts/merge_data.py",
+    "scripts/test_autohome.py",
+    "scripts/crawl_dongchedi.py",
+    "scripts/crawl_yiche.py",
+    ".github/workflows/merge-and-filter.yml",
+    ".github/workflows/crawl-autohome.yml",
+    ".github/workflows/crawl-dongchedi.yml",
+    ".github/workflows/crawl-yiche.yml",
+    ".github/workflows/deploy-pages.yml",
+)
 WINDOW_TEXT = "8:00-12:30"
 AFTERNOON_TEXT = "13:00-22:00"
 
@@ -23,6 +50,26 @@ def load_yaml(path: Path) -> dict:
 def assert_condition(condition: bool, message: str, errors: list[str]) -> None:
     if not condition:
         errors.append(message)
+
+
+def github_path_pattern_matches(path: str, pattern: str) -> bool:
+    """Match the positive subset of GitHub Actions path globs used by this workflow."""
+    marker = "__DOUBLE_STAR__"
+    expression = re.escape(pattern.replace("**", marker))
+    expression = expression.replace(re.escape(marker), ".*")
+    expression = expression.replace(r"\*", "[^/]*").replace(r"\?", "[^/]")
+    return re.fullmatch(expression, path) is not None
+
+
+def pages_push_paths_cover(path: Path, dependencies: tuple[str, ...]) -> list[str]:
+    data = load_yaml(path)
+    push = data.get(True, {}).get("push", {})
+    patterns = push.get("paths", []) if isinstance(push, dict) else []
+    return [
+        dependency
+        for dependency in dependencies
+        if not any(github_path_pattern_matches(dependency, pattern) for pattern in patterns)
+    ]
 
 
 def check_crawler_workflow(path: Path, errors: list[str]) -> None:
@@ -394,7 +441,12 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
 def check_deploy_workflow(path: Path, errors: list[str]) -> None:
     data = load_yaml(path)
     text = path.read_text(encoding="utf-8")
-    inputs = data.get(True, {}).get("workflow_dispatch", {}).get("inputs", {})
+    triggers = data.get(True, {})
+    inputs = triggers.get("workflow_dispatch", {}).get("inputs", {})
+    push = triggers.get("push", {})
+    missing_dependencies = pages_push_paths_cover(path, PAGES_PUSH_DEPENDENCIES)
+    assert_condition(not missing_dependencies, f"deploy-pages.yml push paths 漏掉 Pages 依赖: {missing_dependencies}", errors)
+    assert_condition(not push.get("paths-ignore"), "deploy-pages.yml 不得用 paths-ignore 绕过 Pages 依赖", errors)
     assert_condition("release_tag" in inputs, "deploy-pages.yml 缺少可选 release_tag", errors)
     assert_condition(
         'if [ -n "$RELEASE_TAG" ]; then' in text and 'TAGS=("$RELEASE_TAG")' in text,

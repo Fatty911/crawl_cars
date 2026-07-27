@@ -439,8 +439,12 @@
     var aliasMap = columnAliasMap();
     return rows.map(function (row) {
       var next = Object.assign({}, row);
-      Object.keys(row).forEach(function (column) {
-        var value = row[column];
+      Object.keys(row).forEach(function (sourceColumn) {
+        var value = row[sourceColumn];
+        var column = String(sourceColumn).trim();
+        if (column !== sourceColumn) {
+          delete next[sourceColumn];
+        }
         var valueMatch = VALUE_COLUMN_PATTERN.exec(column);
         if (valueMatch) {
           var parent = valueMatch[1].trim();
@@ -456,6 +460,8 @@
             next[standard] = mergeDistinctColumnValues(next[standard], value);
           }
           delete next[column];
+        } else if (column !== sourceColumn && hasPositiveValue(value)) {
+          next[column] = mergeDistinctColumnValues(next[column], value);
         }
       });
       return next;

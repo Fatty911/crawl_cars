@@ -506,16 +506,37 @@ test("Pages identifies legacy option-package columns only from structured packag
 test("Pages canonicalizes value columns and aliases without dropping conflicts", () => {
   const { hooks } = loadAppForTest();
   hooks.state.config = {
-    columnAliases: { "前轮胎规格": ["前轮胎规格尺寸"] }
+    columnAliases: {
+      "前轮胎规格": ["前轮胎规格尺寸"],
+      "轴距(mm)": ["轴距[mm]"]
+    }
   };
   const rows = hooks.normalizeRowColumns([{
     "音响品牌": "Bose",
     "音响品牌 - Harman Kardon": "支持",
     "前轮胎规格": "235/50 R19",
-    "前轮胎规格尺寸": "245/45 R20"
+    "前轮胎规格尺寸": "245/45 R20",
+    "轴距(mm)": "2800",
+    " 轴距[mm] ": "2810"
   }]);
   assert.equal(rows[0]["音响品牌"], "Bose|Harman Kardon");
   assert.equal(rows[0]["前轮胎规格"], "235/50 R19|245/45 R20");
+  assert.equal(rows[0]["轴距(mm)"], "2800|2810");
   assert.equal("音响品牌 - Harman Kardon" in rows[0], false);
   assert.equal("前轮胎规格尺寸" in rows[0], false);
+  assert.equal(" 轴距[mm] " in rows[0], false);
+});
+
+
+test("Pages config uses existing canonical dimension names and never aliases 0-50 acceleration to 0-100", () => {
+  for (const configPath of ["config/filter_conditions.json", "docs/filter_conditions.json"]) {
+    const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", configPath), "utf8"));
+    ["长(mm)", "宽(mm)", "高(mm)"].forEach((column) => assert.ok(config.defaultVisibleColumns.includes(column), `${configPath}: ${column}`));
+    ["长度(mm)", "宽度(mm)", "高度(mm)"].forEach((column) => assert.equal(config.defaultVisibleColumns.includes(column), false, `${configPath}: ${column}`));
+    assert.equal(config.columnAliases["百公里加速(s)"].includes("官方0—50Km/h加速时间(s)"), false);
+    assert.ok(config.columnAliases["最高车速(km/h)"].includes("最高车速[km/h]"));
+    assert.ok(config.columnAliases["轴距(mm)"].includes("轴距[mm]"));
+    assert.ok(config.columnAliases["电池温控(加热)"].includes("battery_temperature_management_system_heating_v3"));
+    assert.ok(config.columnAliases["电池组质保"].includes("battery_warranty_v3"));
+  }
 });

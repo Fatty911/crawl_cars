@@ -8,6 +8,23 @@ on:
     paths:
       - docs/**
       - config/filter_conditions.json
+      - scripts/prepare_pages_payload.py
+      - scripts/publish_identity.py
+      - scripts/verify_publish_superset.py
+      - scripts/prepare_debug_merge_inputs.py
+      - scripts/preserve_publish_baseline.py
+      - scripts/filter_pages_source_baseline.py
+      - scripts/download_latest_crawler_artifact.py
+      - scripts/analysis/merge_evidence_report.py
+      - scripts/crawl_zero_to_whole_ratio.py
+      - scripts/merge_data.py
+      - scripts/test_autohome.py
+      - scripts/crawl_dongchedi.py
+      - scripts/crawl_yiche.py
+      - .github/workflows/merge-and-filter.yml
+      - .github/workflows/crawl-autohome.yml
+      - .github/workflows/crawl-dongchedi.yml
+      - .github/workflows/crawl-yiche.yml
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
     inputs:

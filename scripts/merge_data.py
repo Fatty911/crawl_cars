@@ -75,6 +75,21 @@ HEADER_MAP = {
     "手机钥匙": "蓝牙/数字钥匙",
     "钥匙类型": "蓝牙/数字钥匙",
     "最高车速_km_h_": "最高车速(km/h)",
+    "最高车速[km/h]": "最高车速(km/h)",
+    "轴距[mm]": "轴距(mm)",
+    "轴距_mm_": "轴距(mm)",
+    "前轮距[mm]": "前轮距(mm)",
+    "前轮距_mm_": "前轮距(mm)",
+    "后轮距[mm]": "后轮距(mm)",
+    "后轮距_mm_": "后轮距(mm)",
+    "整备质量[kg]": "整备质量(kg)",
+    "最大功率[kW]": "最大功率(kW)",
+    "最大功率_kW_": "最大功率(kW)",
+    "最大扭矩[N·m]": "最大扭矩(N·m)",
+    "最大扭矩_N·m_": "最大扭矩(N·m)",
+    "USB_Type-C接口数量": "USB/Type-C接口数量",
+    "蓝牙_车载电话": "蓝牙/车载电话",
+    "制动力分配_EBD_CBC等_": "制动力分配(EBD/CBC等)",
     "后视镜记忆": "外后视镜记忆",
     "外后视镜功能": "外后视镜记忆",
     "主驾驶座椅记忆": "座椅记忆",
@@ -127,6 +142,8 @@ HEADER_MAP = {
     "low_speed_driving_warning_v3": "低速行车警示",
     "battery_type_v3": "电池类型",
     "battery_temperature_management_system_cooling_v3": "电池温控(冷却)",
+    "battery_temperature_management_system_heating_v3": "电池温控(加热)",
+    "battery_warranty_v3": "电池组质保",
     # === filter_group_ 前缀 → 中文名 ===
     "filter_group_car_year": "年款分组",
     "filter_group_capacity_l": "排量(L)分组",
@@ -148,9 +165,9 @@ HEADER_MAP = {
     "每缸气门数(个)": "每缸气门数",
     "每缸气门数_个_": "每缸气门数",
     "每缸气门数[个]": "每缸气门数",
-    "车门数(个)": "车门数",
-    "车门数_个_": "车门数",
-    "车门数[个]": "车门数",
+    "车门数(个)": "车门数(个)",
+    "车门数_个_": "车门数(个)",
+    "车门数[个]": "车门数(个)",
     "后备厢容积_L_": "行李舱容积(L)",
     "行李舱容积(L)": "行李舱容积(L)",
     "后座出风口": "后排出风口",
@@ -218,6 +235,10 @@ HEADER_MAP = {
     "驾驶员疲劳提醒": "疲劳驾驶提示",
     "透明底盘_540度影像": "透明底盘/540°影像",
     "哨兵模式_千里眼": "哨兵模式/千里眼",
+    "哨兵(千里眼)模式": "哨兵模式/千里眼",
+    "哨兵（千里眼）模式": "哨兵模式/千里眼",
+    "功放最大输出功率（W）": "功放最大输出功率(W)",
+    "超清电⼦外后视镜": "超清电子外后视镜",
     "USB/Type-C接口数量": "USB/Type-C接口数量",
     "USB/Type-C接口": "USB/Type-C接口数量",
     "多媒体接口": "USB/Type-C接口",
@@ -344,8 +365,8 @@ HEADER_MAP = {
     "排量(mL)": "排量(mL)",
     "排量(L)": "排量(L)",
     "排量": "排量(L)",
-    "燃料形式": "燃料形式",
-    "能源类型": "燃料形式",
+    "燃料形式": "能源类型",
+    "能源类型": "能源类型",
     "热泵空调": "热泵空调",
     "热泵管理系统": "热泵空调",
     "CO2热泵空调包": "热泵空调",
@@ -366,9 +387,11 @@ HEADER_MAP = {
     "车体结构": "车体结构",
     "车身结构": "车体结构",
     "车门开启方式": "车门开启方式",
-    "车门数": "车门数",
-    "座位数(个)": "座位数",
-    "座位数": "座位数",
+    "车门数": "车门数(个)",
+    "座位数(个)": "座位数(个)",
+    "座位数_个_": "座位数(个)",
+    "座位数[个]": "座位数(个)",
+    "座位数": "座位数(个)",
     "上市时间": "上市时间",
     "官方指导价": "官方指导价",
     "经销商报价": "经销商参考价",
@@ -753,6 +776,7 @@ def filter_car(row):
 
 
 def norm(header):
+    header = str(header).strip()
     if header in HEADER_MAP:
         return HEADER_MAP[header]
     # Only the documented v4 schema may use a structured suffix mapping.
@@ -964,8 +988,21 @@ def derive_brand(series_name):
     return SERIES_TO_BRAND.get(series_name, '')
 
 
+def normalize_source_row_headers(row):
+    """Strip only boundary whitespace from source keys and preserve collisions."""
+    normalized = {}
+    for key, value in row.items():
+        clean_key = str(key).strip()
+        if clean_key in normalized:
+            normalized[clean_key] = _merge_distinct_values(normalized[clean_key], value)
+        else:
+            normalized[clean_key] = value
+    return normalized
+
+
 def normalize_option_package_fields(rows):
     """Extract packages only when a row proves the source's description/status pair schema."""
+    rows = [normalize_source_row_headers(row) for row in rows]
     package_bases = set()
     for row in rows:
         grouped = {}
