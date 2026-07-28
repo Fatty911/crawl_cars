@@ -433,6 +433,8 @@ python scripts/auto_fix_workflow.py error.log scripts/test_autohome.py
 - `AI_Auto_Fix_Monitor.yml` 会先用 `custom_scripts/check_workflow_expectations.py` 判断是否需要代码修复：失败日志属于站点结构/解析异常或未知代码问题时才修，成功但长爬虫跑到允许窗口外时也会触发修复。
 - 监控工作流优先调用官方 `openai/codex-action@v1` 作为 Codex 自修复代理；需要仓库 Secret `OPENAI_API_KEY`。Codex 修完后必须通过 `ensure_codex_autofix_scope.py`、`validate_syntax.py` 和 `validate_workflow_expectations.py`，才会提交并推送到 `main`。
 - 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，监控工作流才退回 `scripts/auto_fix_workflow.py` 多 Provider 旧修复器兜底。
+- 仓库虽包含 OpenCode/OMO 配置文件，但当前 GitHub Actions 没有安装或调用它们；现有主修复器仍是 Codex Action。
+- 发布前审计、AI 有界自愈、跨 run 记忆及是否引入 Hermes 的完整设计见 [`docs/operations/ai-self-healing.md`](docs/operations/ai-self-healing.md)。该设计尚未上线，不应把它描述成当前已启用能力。
 - `scripts/auto_fix_workflow.py` 未能产出可用修复时，监控工作流记录为跳过并正常结束；只有真正生成改动、语法校验通过、提交并推送成功后才标记 `fixed=true`。
 - 分类逻辑位于 `custom_scripts/classify_crawl_failure.py`，两个爬虫 workflow 和 `AI_Auto_Fix_Monitor.yml` 都会调用。
 
@@ -461,7 +463,7 @@ python scripts/auto_fix_workflow.py error.log scripts/test_autohome.py
 | `crawl-trigger.yml` | cron-job.org 外部触发器，仅在指定时间窗口触发目标爬虫 |
 | `merge-and-filter.yml` | 抓取零整比、合并过滤、Release、GitHub Pages 发布 |
 | `deploy-pages.yml` | 静态网页独立发布 |
-| `AI_Auto_Fix_Monitor.yml` | Codex 优先的 AI 自动修复监控 |
+| `AI_Auto_Fix_Monitor.yml` | Codex 优先的 AI 自动修复监控；当前只监听汽车之家/懂车帝，发布前自愈尚未上线 |
 | `ci.yml` | CI 语法校验和冒烟测试 |
 | `auto-merge.yml` | PR 自动合并（squash） |
 
