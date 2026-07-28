@@ -11,6 +11,7 @@ on:
       - scripts/prepare_pages_payload.py
       - scripts/publish_identity.py
       - scripts/verify_publish_superset.py
+      - scripts/audit_pages_payload.py
       - scripts/prepare_debug_merge_inputs.py
       - scripts/preserve_publish_baseline.py
       - scripts/filter_pages_source_baseline.py
@@ -150,6 +151,11 @@ jobs:
               --input site/data/filtered.json \
               --output site/data/filtered.json \
               --min-year 2022
+            python scripts/audit_pages_payload.py \
+              --baseline /tmp/current-pages-latest.json \
+              --candidate site/data/latest.json \
+              --report pages-audit-report.json \
+              --head-sha "$GITHUB_SHA"
             cp "${MERGED_CSV_FILES[0]}" "site/data/merged_${DATE}.csv"
             cp "${FILTERED_CSV_FILES[0]}" "site/data/filtered_cars_${DATE}.csv"
 
@@ -190,6 +196,17 @@ jobs:
           fi
 
           touch site/.nojekyll
+
+      - name: 上传 Pages 发布审计证据
+        if: ${{ always() && hashFiles('pages-audit-report.json') != '' }}
+        uses: actions/upload-artifact@main
+        with:
+          name: pages-audit-report
+          path: |
+            pages-audit-report.json
+            /tmp/current-pages-latest.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: 配置 GitHub Pages
         uses: actions/configure-pages@v6
