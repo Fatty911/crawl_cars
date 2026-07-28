@@ -510,7 +510,8 @@ def match_score(ah_row, dcd_row, require_year):
     return score, reasons
 
 
-def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_candidates=20000):
+def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_candidates=20000, score_func=None, require_degree_one=False):
+    score_func = score_func or match_score
     ah_unused = sorted(ah_rows, key=model_sort_key)
     dcd_unused = sorted(dcd_rows, key=model_sort_key)
     pairs = []
@@ -529,7 +530,7 @@ def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_c
         return pairs
     for ai, ah_row in enumerate(ah_unused):
         for di, dcd_row in enumerate(dcd_unused):
-            score, reasons = match_score(ah_row, dcd_row, require_year)
+            score, reasons = score_func(ah_row, dcd_row, require_year)
             if score >= threshold:
                 candidates.append((score, ai, di, reasons))
     candidates.sort(key=lambda item: (-item[0], model_sort_key(ah_unused[item[1]]), model_sort_key(dcd_unused[item[2]])))
@@ -549,6 +550,15 @@ def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_c
     }
     blocked_a = set(ambiguous_a)
     blocked_d = set(ambiguous_d)
+    if require_degree_one:
+        degree_a = {ai: sum(1 for _, candidate_ai, _, _ in candidates if candidate_ai == ai) for ai in top_by_a}
+        degree_d = {di: sum(1 for _, _, candidate_di, _ in candidates if candidate_di == di) for di in top_by_d}
+        degree_ambiguous_a = {ai for ai, degree in degree_a.items() if degree != 1}
+        degree_ambiguous_d = {di for di, degree in degree_d.items() if degree != 1}
+        for _, ai, di, _ in candidates:
+            if ai in degree_ambiguous_a or di in degree_ambiguous_d:
+                blocked_a.add(ai)
+                blocked_d.add(di)
     for _, ai, di, _ in candidates:
         if ai in ambiguous_a or di in ambiguous_d:
             blocked_a.add(ai)
@@ -1354,40 +1364,317 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
     return merged
 
 
+YICHE_MODEL_TERMS = (
+    "标准续航", "长续航", "超长续航", "高性能", "皇家剧院", "暗夜骑士",
+    "四驱", "后驱", "前驱", "纯电", "增程", "插混", "混动", "改款",
+    "旗舰", "尊享", "豪华", "智驾", "运动", "行政", "冠军",
+    "ultra", "elite", "premium", "performance", "luxury", "sport",
+    "pro+", "max+", "pro", "max", "plus", "air", "gt", "rs",
+)
+
+YICHE_MODEL_PATTERN = re.compile(
+    "|".join(re.escape(term) for term in sorted(YICHE_MODEL_TERMS, key=len, reverse=True)),
+    re.IGNORECASE,
+)
+
+
+def tokenize_yiche_model(row):
+    text = str(row.get("车型名称", "") or "").lower()
+    series = str(row.get("车系", "") or "").lower()
+    for fragment in {series, re.sub(r"\s+", "", series)}:
+        if fragment:
+            text = text.replace(fragment, " ")
+    text = re.sub(r"(?:19|20)?\d{2}\s*款", " ", text)
+    text = re.sub(r"\d+(?:\.\d+)?\s*(?:km|公里)", " ", text, flags=re.IGNORECASE)
+    token_pattern = r"[a-z]+(?:\+)?|\d+(?:\.\d+)?|[\u4e00-\u9fff]+"
+    tokens = []
+    cursor = 0
+    for match in YICHE_MODEL_PATTERN.finditer(text):
+        tokens.extend(re.findall(token_pattern, text[cursor:match.start()]))
+        tokens.append(match.group(0).lower())
+        cursor = match.end()
+    tokens.extend(re.findall(token_pattern, text[cursor:]))
+    stop = {"款", "版", "型", "汽车", "自动", "手动", "km", "公里"}
+    return {token for token in tokens if token and token not in stop}
+
+
+def _canonical_yiche_year_values(row):
+    raw_year = str(row.get("年款", "") or "")
+    model_name = str(row.get("车型名称", "") or "")
+    years = {int(value) for value in re.findall(r"(?:19|20)\d{2}", raw_year)}
+    years.update(int(value) for value in re.findall(r"((?:19|20)\d{2})\s*款", model_name))
+    return years
+
+
+def _base_yiche_match_score(current_row, yiche_row, require_year):
+    current_year = row_year(current_row)
+    yiche_year = row_year(yiche_row)
+    if require_year and (not current_year or not yiche_year):
+        return 0.0, ["year_missing"]
+    if current_year and yiche_year and current_year != yiche_year:
+        return 0.0, ["year_mismatch"]
+    current_tokens = tokenize_yiche_model(current_row)
+    yiche_tokens = tokenize_yiche_model(yiche_row)
+    union = current_tokens | yiche_tokens
+    intersection = current_tokens & yiche_tokens
+    token_score = (len(intersection) / len(union)) if union else 0.0
+    score = token_score * 0.70
+    reasons = ["yiche_token_jaccard=%.2f" % token_score]
+    if token_score < 0.35:
+        return score, reasons
+    if current_year and yiche_year and current_year == yiche_year:
+        score += 0.15
+        reasons.append("same_year")
+    current_level = normalize_match_text(current_row.get("级别"))
+    yiche_level = normalize_match_text(yiche_row.get("级别"))
+    if current_level and yiche_level and current_level == yiche_level:
+        score += 0.07
+        reasons.append("same_级别")
+    return score, reasons
+
+
+def _canonical_yiche_energy_atom(value):
+    text = normalize_match_text(value)
+    if not text:
+        return ""
+    if "增程" in text:
+        return "增程"
+    if "插电" in text or "插混" in text or "phev" in text:
+        return "插混"
+    if "纯电" in text or text == "ev":
+        return "纯电"
+    if "油混" in text or "油电" in text or "混动" in text or "混合动力" in text:
+        return "油混"
+    if "汽油" in text:
+        return "汽油"
+    if "柴油" in text:
+        return "柴油"
+    return text
+
+
+def _explicit_yiche_energy_values(value):
+    text = normalize_match_text(value)
+    values = set()
+    if "增程" in text:
+        values.add("增程")
+    plug_in_hybrid = "插电" in text or "插混" in text or "phev" in text
+    if plug_in_hybrid:
+        values.add("插混")
+    if "纯电" in text or re.search(r"(?:^|[^a-z])ev(?:$|[^a-z])", str(value or "").lower()):
+        values.add("纯电")
+    if not plug_in_hybrid and ("油混" in text or "油电" in text or "混动" in text or "混合动力" in text):
+        values.add("油混")
+    if "汽油" in text:
+        values.add("汽油")
+    if "柴油" in text:
+        values.add("柴油")
+    return values
+
+
+def _canonical_yiche_energy_values(value):
+    values = set()
+    for part in re.split(r"[|｜]", str(value or "")):
+        atomic = re.split(r"[:：]", part, maxsplit=1)[-1]
+        explicit = _explicit_yiche_energy_values(atomic)
+        if explicit:
+            values.update(explicit)
+        else:
+            normalized = _canonical_yiche_energy_atom(atomic)
+            if normalized:
+                values.add(normalized)
+    return values
+
+
+def _canonical_yiche_row_energy_values(row):
+    values = _canonical_yiche_energy_values(row.get("能源类型"))
+    values.update(_explicit_yiche_energy_values(row.get("车型名称")))
+    return values
+
+
+def yiche_match_score(current_row, yiche_row, require_year):
+    current_years = _canonical_yiche_year_values(current_row)
+    yiche_years = _canonical_yiche_year_values(yiche_row)
+    if require_year and (not current_years or not yiche_years):
+        return 0.0, ["year_missing"]
+    if len(current_years) > 1 or len(yiche_years) > 1:
+        return 0.0, ["year_ambiguous"]
+    if current_years and yiche_years and current_years != yiche_years:
+        return 0.0, ["year_mismatch"]
+    current_energies = _canonical_yiche_row_energy_values(current_row)
+    yiche_energies = _canonical_yiche_row_energy_values(yiche_row)
+    if not current_energies or not yiche_energies:
+        return 0.0, ["energy_missing"]
+    if len(current_energies) > 1 or len(yiche_energies) > 1:
+        return 0.0, ["energy_ambiguous"]
+    if current_energies and yiche_energies and current_energies != yiche_energies:
+        return 0.0, ["energy_mismatch"]
+    current_level = normalize_match_text(current_row.get("级别"))
+    yiche_level = normalize_match_text(yiche_row.get("级别"))
+    if current_level and yiche_level and current_level != yiche_level:
+        return 0.0, ["level_mismatch"]
+    return _base_yiche_match_score(current_row, yiche_row, require_year)
+
+
+def _preserved_value_parts(value):
+    parts = []
+    for raw_part in str(value or "").split("|"):
+        raw_part = raw_part.strip()
+        match = re.match(r"^(汽车之家|懂车帝|易车|汽车之家\+懂车帝):(.*)$", raw_part)
+        parts.append((match.group(1), match.group(2)) if match else ("", raw_part))
+    return parts
+
+
+def _merge_existing_with_source(current, current_source, source_name, incoming):
+    result = dict(current)
+    for key in set(current) | set(incoming):
+        if key == "数据来源":
+            continue
+        existing = str(current.get(key, "") or "")
+        added = str(incoming.get(key, "") or "")
+        if key in IDENTITY_FIELDS:
+            candidates = [value for value in (existing, added) if canonical_value(value) != "-"]
+            result[key] = max(candidates, key=len, default="-")
+            continue
+        if canonical_value(added) == "-":
+            if canonical_value(existing) == "-":
+                result[key] = "-"
+            continue
+        if canonical_value(existing) == "-":
+            result[key] = added
+            continue
+        parts = _preserved_value_parts(existing)
+        existing_norms = {canonical_value(value) for _, value in parts}
+        if canonical_value(added) in existing_norms:
+            continue
+        if parts and all(label for label, _ in parts):
+            result[key] = f"{existing}|{source_name}:{added}"
+        else:
+            existing_sources = atomic_source_names(current_source)
+            if existing_sources:
+                preserved = "|".join(f"{existing_source}:{existing}" for existing_source in existing_sources)
+            else:
+                preserved = f"{current_source or '已有来源'}:{existing}"
+            result[key] = f"{preserved}|{source_name}:{added}"
+    return result
+
+
+def _merge_yiche_into_target(merged, target_idx, yiche_row, used_yiche, stats, match_label):
+    current = dict(merged[target_idx])
+    current_source = current.pop("数据来源", "")
+    merged_row = _merge_existing_with_source(current, current_source, "易车", yiche_row)
+    sources = atomic_source_names(current_source)
+    if "易车" not in sources:
+        sources.append("易车")
+    merged_row["数据来源"] = "+".join(sources)
+    merged_row["易车匹配方式"] = match_label
+    merged[target_idx] = merged_row
+    used_yiche.add(id(yiche_row))
+    stats['易车补充'] += 1
+
+
+YICHE_HARD_REASONS = {"energy_missing", "energy_mismatch", "energy_ambiguous", "level_mismatch", "year_mismatch", "year_ambiguous", "year_missing"}
+
+
 def merge_yiche_rows(merged, yiche_rows, used_yiche, stats):
     merged_by_key = {}
+    used_targets = set()
     for idx, row in enumerate(merged):
         for name in {row.get("车型名称", ""), normalize_for_match(row.get("车型名称", ""))}:
             key = identity_match_key(row, str(name).replace(" ", ""))
             if key:
                 merged_by_key.setdefault(key, []).append(idx)
 
+    exact_candidates = {}
+    exact_target_to_yiche = {}
+    exact_hard_blocked_yiche = set()
+    exact_hard_blocked_targets = set()
     for yiche_row in yiche_rows:
-        candidates = []
+        candidates = set()
         for name in {yiche_row.get("车型名称", ""), normalize_for_match(yiche_row.get("车型名称", ""))}:
             key = identity_match_key(yiche_row, str(name).replace(" ", ""))
-            candidates.extend(merged_by_key.get(key, []))
-        if not candidates:
+            candidates.update(merged_by_key.get(key, []))
+        compatible = []
+        for target_idx in sorted(candidates):
+            _, hard_reasons = yiche_match_score(merged[target_idx], yiche_row, True)
+            if YICHE_HARD_REASONS.intersection(hard_reasons):
+                exact_hard_blocked_yiche.add(id(yiche_row))
+                exact_hard_blocked_targets.add(target_idx)
+            else:
+                compatible.append(target_idx)
+        if compatible:
+            exact_candidates[id(yiche_row)] = (yiche_row, compatible)
+
+    filtered_exact_candidates = {}
+    exact_target_to_yiche = {}
+    for yiche_id, (yiche_row, compatible) in exact_candidates.items():
+        if yiche_id in exact_hard_blocked_yiche:
             continue
-        target_idx = candidates[0]
-        current = dict(merged[target_idx])
-        current_source = current.get("数据来源", "")
-        current.pop("数据来源", None)
-        source_rows = []
-        for source_name in ("汽车之家", "懂车帝"):
-            if source_name in current_source:
-                source_rows.append((source_name, current))
-        if not source_rows:
-            source_rows.append((current_source or "已有来源", current))
-        source_rows.append(("易车", yiche_row))
-        merged_row = merge_source_rows(source_rows)
-        sources = atomic_source_names(current_source)
-        if "易车" not in sources:
-            sources.append("易车")
-        merged_row["数据来源"] = "+".join(sources)
-        merged[target_idx] = merged_row
-        used_yiche.add(id(yiche_row))
-        stats['易车补充'] += 1
+        compatible = [target_idx for target_idx in compatible if target_idx not in exact_hard_blocked_targets]
+        if not compatible:
+            continue
+        filtered_exact_candidates[yiche_id] = (yiche_row, compatible)
+        for target_idx in compatible:
+            exact_target_to_yiche.setdefault(target_idx, []).append(yiche_row)
+    exact_candidates = filtered_exact_candidates
+
+    exact_ambiguous_yiche = set()
+    exact_ambiguous_targets = set()
+    for yiche_row, compatible in sorted(exact_candidates.values(), key=lambda item: model_sort_key(item[0])):
+        if len(compatible) != 1:
+            exact_ambiguous_yiche.add(id(yiche_row))
+            exact_ambiguous_targets.update(compatible)
+            continue
+        target_idx = compatible[0]
+        claimants = exact_target_to_yiche.get(target_idx, [])
+        if len(claimants) != 1:
+            exact_ambiguous_targets.add(target_idx)
+            exact_ambiguous_yiche.update(id(row) for row in claimants)
+            continue
+        _merge_yiche_into_target(merged, target_idx, yiche_row, used_yiche, stats, "精确")
+        used_targets.add(target_idx)
+
+    exact_ambiguity_count = max(len(exact_ambiguous_yiche), len(exact_ambiguous_targets))
+    merged_by_series_year = {}
+    merged_index_by_id = {}
+    for idx, row in enumerate(merged):
+        if idx in used_targets or idx in exact_ambiguous_targets or idx in exact_hard_blocked_targets:
+            continue
+        key = series_year_key(row)
+        if key and len(_canonical_yiche_year_values(row)) == 1:
+            merged_by_series_year.setdefault(key, []).append(row)
+            merged_index_by_id[id(row)] = idx
+    yiche_by_series_year = {}
+    for row in yiche_rows:
+        if id(row) in used_yiche or id(row) in exact_ambiguous_yiche or id(row) in exact_hard_blocked_yiche:
+            continue
+        key = series_year_key(row)
+        if key and len(_canonical_yiche_year_values(row)) == 1:
+            yiche_by_series_year.setdefault(key, []).append(row)
+
+    yiche_match_stats = {}
+    for key, current_rows in merged_by_series_year.items():
+        candidate_yiche = yiche_by_series_year.get(key, [])
+        if not candidate_yiche:
+            continue
+        for current, yiche_row, score, reasons in pair_rows_by_features(
+            current_rows,
+            candidate_yiche,
+            yiche_match_stats,
+            "车系",
+            threshold=0.58,
+            score_func=yiche_match_score,
+            require_degree_one=True,
+        ):
+            target_idx = merged_index_by_id[id(current)]
+            if target_idx in used_targets or id(yiche_row) in used_yiche:
+                continue
+            label = f"车系年款:{score:.2f};" + ",".join(reasons)
+            _merge_yiche_into_target(merged, target_idx, yiche_row, used_yiche, stats, label)
+            used_targets.add(target_idx)
+    ambiguous_current = yiche_match_stats.get("_ambiguous_a", set())
+    ambiguous_yiche = yiche_match_stats.get("_ambiguous_d", set())
+    stats["易车歧义拒绝"] = exact_ambiguity_count + max(len(ambiguous_current), len(ambiguous_yiche))
+    stats["易车车系匹配"] = sum(1 for row in merged if str(row.get("易车匹配方式", "")).startswith("车系年款:"))
     return merged
 
 

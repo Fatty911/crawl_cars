@@ -337,3 +337,504 @@ def test_legacy_heat_pump_suffixes_and_quick_charge_schema_key_use_exact_aliases
     ):
         assert legacy not in normalized
     assert normalized["安全轮胎_1"] == "支持"
+
+
+
+def test_yiche_unique_same_series_year_feature_match_enriches_existing_row():
+    existing = make(
+        "汽车之家",
+        "阿维塔07 2026款 Ultra 四驱纯电版",
+        year="2026",
+        energy="纯电动",
+        level="中型SUV",
+        brand="阿维塔",
+        series="阿维塔07",
+    )
+    yiche = make(
+        "易车",
+        "26款 纯电版 610km 四驱 Ultra",
+        year="2026",
+        energy="纯电",
+        level="中型SUV",
+        brand="阿维塔",
+        series="阿维塔07",
+    ) | {"易车上市状态": "approved", "车款ID": "190001", "易车专属字段": "证据"}
+
+    rows = merge_rows([existing], [], [yiche])
+
+    assert len(rows) == 1
+    assert rows[0]["数据来源"] == "汽车之家+易车"
+    assert rows[0]["易车专属字段"] == "证据"
+    assert rows[0]["易车匹配方式"].startswith("车系年款:")
+
+
+
+def test_yiche_matching_rejects_incompatible_energy_as_hard_constraint():
+    existing = make(
+        "汽车之家",
+        "2026款 Ultra 四驱版",
+        year="2026",
+        energy="纯电动",
+        level="中型SUV",
+        brand="阿维塔",
+        series="阿维塔07",
+    )
+    yiche = make(
+        "易车",
+        "2026款 Ultra 四驱版",
+        year="2026",
+        energy="增程式纯电动",
+        level="中型SUV",
+        brand="阿维塔",
+        series="阿维塔07",
+    ) | {"易车上市状态": "approved", "车款ID": "190002"}
+
+    rows = merge_rows([existing], [], [yiche])
+
+    assert len(rows) == 2
+    assert {row["数据来源"] for row in rows} == {"仅汽车之家", "仅易车"}
+
+
+
+def test_yiche_tied_feature_candidates_are_blocked_and_counted():
+    existing = make(
+        "汽车之家",
+        "阿维塔07 2026款 Max 纯电版",
+        year="2026",
+        energy="纯电动",
+        level="中型SUV",
+        brand="阿维塔",
+        series="阿维塔07",
+    )
+    yiche = [
+        make("易车", "26款 纯电版 650km Max", year="2026", energy="纯电", level="中型SUV", brand="阿维塔", series="阿维塔07") | {"易车上市状态": "approved", "车款ID": "190003"},
+        make("易车", "26款 纯电版 700km Max", year="2026", energy="纯电", level="中型SUV", brand="阿维塔", series="阿维塔07") | {"易车上市状态": "approved", "车款ID": "190004"},
+    ]
+
+    rows = merge_rows([existing], [], yiche)
+
+    assert len(rows) == 3
+    assert all("+易车" not in row["数据来源"] for row in rows)
+    assert merge_data.MERGE_ANALYSIS_STATS["易车歧义拒绝"] >= 1
+
+
+
+def test_yiche_missing_levels_do_not_add_same_level_bonus():
+    current = make("汽车之家", "2026款 Pro", level="", brand="测试", series="测试S")
+    yiche = make("易车", "26款 Pro", level="", brand="测试", series="测试S")
+
+    _score, reasons = merge_data.yiche_match_score(current, yiche, True)
+
+    assert "same_级别" not in reasons
+
+
+
+def test_yiche_prefix_variants_pro_plus_and_max_plus_remain_distinct():
+    for base_trim, plus_trim in (("Pro", "Pro+"), ("Max", "Max+")):
+        existing = make(
+            "汽车之家", f"测试S 2026款 {plus_trim}", year="2026",
+            energy="纯电", level="SUV", brand="测试", series="测试S",
+        )
+        yiche = make(
+            "易车", f"26款 {base_trim}", year="2026",
+            energy="纯电", level="SUV", brand="测试", series="测试S",
+        ) | {"易车上市状态": "approved", "车款ID": f"prefix-{base_trim}"}
+
+        rows = merge_rows([existing], [], [yiche])
+
+        assert len(rows) == 2
+        assert {row["数据来源"] for row in rows} == {"仅汽车之家", "仅易车"}
+
+
+
+def test_yiche_exact_one_to_many_is_blocked_independent_of_input_order():
+    existing = make(
+        "汽车之家", "测试S 2026款 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    first = make(
+        "易车", "测试S 2026款 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "exact-1"}
+    second = make(
+        "易车", "测试S 2026款 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "exact-2"}
+
+    forward = merge_rows([existing], [], [first, second])
+    forward_stat = merge_data.MERGE_ANALYSIS_STATS["易车歧义拒绝"]
+    reverse = merge_rows([existing], [], [second, first])
+    reverse_stat = merge_data.MERGE_ANALYSIS_STATS["易车歧义拒绝"]
+
+    def signature(rows):
+        return sorted((row["数据来源"], row.get("车款ID", "")) for row in rows)
+
+    assert len(forward) == len(reverse) == 3
+    assert signature(forward) == signature(reverse)
+    assert all("+易车" not in row["数据来源"] for row in forward + reverse)
+    assert forward_stat == reverse_stat == 2
+
+
+
+def test_yiche_exact_identity_without_explicit_year_is_rejected():
+    existing = make(
+        "汽车之家", "测试S Pro", year="", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    )
+    yiche = make(
+        "易车", "测试S Pro", year="", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "missing-year-exact"}
+
+    rows = merge_rows([existing], [], [yiche])
+
+    assert len(rows) == 2
+    assert {row["数据来源"] for row in rows} == {"仅汽车之家", "仅易车"}
+
+
+
+def test_yiche_fuzzy_identity_without_explicit_year_is_rejected():
+    existing = make(
+        "汽车之家", "测试S Pro 四驱", year="", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    )
+    yiche = make(
+        "易车", "Pro 四驱", year="", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "missing-year-fuzzy"}
+
+    rows = merge_rows([existing], [], [yiche])
+
+    assert len(rows) == 2
+    assert {row["数据来源"] for row in rows} == {"仅汽车之家", "仅易车"}
+
+
+
+def test_yiche_rejects_composite_target_with_conflicting_source_energies():
+    autohome = make(
+        "汽车之家", "测试S 2026款 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    dongchedi = make(
+        "懂车帝", "测试S 2026款 Ultra", year="2026",
+        energy="增程", level="SUV", brand="测试", series="测试S",
+    )
+    yiche = make(
+        "易车", "测试S 2026款 Ultra", year="2026",
+        energy="增程", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "composite-energy"}
+
+    rows = merge_rows([autohome], [dongchedi], [yiche])
+
+    assert len(rows) == 2
+    assert {row["数据来源"] for row in rows} == {"汽车之家+懂车帝", "仅易车"}
+    assert all("+易车" not in row["数据来源"] for row in rows)
+
+
+
+def test_yiche_exact_hard_rejection_cannot_fall_through_to_fuzzy():
+    exact_conflict = make(
+        "汽车之家", "测试S 2026款 Pro 四驱", year="2026",
+        energy="增程", level="SUV", brand="测试", series="测试S",
+    )
+    fuzzy_candidate = make(
+        "汽车之家", "测试S 2026款 Pro 四驱 智驾", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    yiche = make(
+        "易车", "测试S 2026款 Pro 四驱", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "hard-reject"}
+
+    forward = merge_rows([exact_conflict, fuzzy_candidate], [], [yiche])
+    reverse = merge_rows([fuzzy_candidate, exact_conflict], [], [yiche])
+
+    def signature(rows):
+        return sorted((row["数据来源"], row.get("车型名称", ""), row.get("车款ID", "")) for row in rows)
+
+    assert len(forward) == len(reverse) == 3
+    assert signature(forward) == signature(reverse)
+    assert all("+易车" not in row["数据来源"] for row in forward + reverse)
+
+
+
+def test_yiche_rejects_composite_target_with_conflicting_source_years():
+    composite = make(
+        "汽车之家+懂车帝", "测试S 2026款 Ultra",
+        year="汽车之家:2026|懂车帝:2025", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    )
+    yiche = make(
+        "易车", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "year-ambiguous"}
+
+    rows = merge_rows([composite], [], [yiche])
+
+    assert len(rows) == 2
+    assert all("+易车" not in row["数据来源"] for row in rows)
+
+
+
+def test_yiche_incremental_merge_does_not_nest_composite_source_prefixes():
+    autohome = make(
+        "汽车之家", "测试S 2026款 Ultra", year="2026",
+        energy="纯电动", level="SUV", brand="测试", series="测试S",
+    )
+    dongchedi = make(
+        "懂车帝", "测试S 2026款 Ultra", year="2026",
+        energy="EV", level="SUV", brand="测试", series="测试S",
+    )
+    yiche = make(
+        "易车", "测试S 2026款 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "incremental-source"}
+
+    rows = merge_rows([autohome], [dongchedi], [yiche])
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["数据来源"] == "汽车之家+懂车帝+易车"
+    energy = row["能源类型"]
+    assert "汽车之家:汽车之家:" not in energy
+    assert "懂车帝:汽车之家:" not in energy
+    assert energy.count("汽车之家:") <= 1
+    assert energy.count("懂车帝:") <= 1
+    assert energy.count("易车:") <= 1
+
+
+
+def test_yiche_year_evidence_requires_year_marker_and_agrees_across_fields():
+    exact_target = make(
+        "汽车之家", "标致2008 Pro", year="", energy="汽油",
+        level="SUV", brand="标致", series="标致2008",
+    )
+    exact_yiche = make(
+        "易车", "标致2008 Pro", year="", energy="汽油",
+        level="SUV", brand="标致", series="标致2008",
+    ) | {"易车上市状态": "approved", "车款ID": "peugeot-exact"}
+    fuzzy_target = make(
+        "汽车之家", "标致2008 Pro 四驱 智驾", year="", energy="汽油",
+        level="SUV", brand="标致", series="标致2008",
+    )
+    fuzzy_yiche = make(
+        "易车", "标致2008 Pro 四驱", year="", energy="汽油",
+        level="SUV", brand="标致", series="标致2008",
+    ) | {"易车上市状态": "approved", "车款ID": "peugeot-fuzzy"}
+    conflicting_target = make(
+        "汽车之家", "测试S 2025款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    )
+    conflicting_yiche = make(
+        "易车", "测试S 2025款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "cross-field-year"}
+
+    exact_rows = merge_rows([exact_target], [], [exact_yiche])
+    fuzzy_rows = merge_rows([fuzzy_target], [], [fuzzy_yiche])
+    conflict_rows = merge_rows([conflicting_target], [], [conflicting_yiche])
+
+    for rows in (exact_rows, fuzzy_rows, conflict_rows):
+        assert len(rows) == 2
+        assert all("+易车" not in row["数据来源"] for row in rows)
+
+
+
+def test_yiche_incremental_merge_preserves_empty_third_source_schema_keys():
+    existing = make(
+        "汽车之家", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    )
+    yiche = make(
+        "易车", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {
+        "易车上市状态": "approved",
+        "车款ID": "schema-empty",
+        "易车空字段": "",
+        "易车无效字段": "-",
+    }
+
+    rows = merge_rows([existing], [], [yiche])
+
+    assert len(rows) == 1
+    assert rows[0]["易车空字段"] == "-"
+    assert rows[0]["易车无效字段"] == "-"
+
+
+
+def test_yiche_fuzzy_threshold_graph_requires_degree_one_on_both_sides():
+    left_target = make(
+        "汽车之家", "测试S 2026款 Pro 四驱 智驾 运动", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    first_yiche = make(
+        "易车", "Pro 四驱 智驾", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "degree-y1"}
+    second_yiche = make(
+        "易车", "Pro 四驱 智驾 运动 行政 旗舰", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "degree-y2"}
+
+    left_degree_two = merge_rows([left_target], [], [first_yiche, second_yiche])
+
+    first_target = make(
+        "汽车之家", "测试S 2026款 Pro 四驱 智驾", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    second_target = make(
+        "汽车之家", "测试S 2026款 Pro 四驱 智驾 运动 行政 旗舰", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    right_yiche = make(
+        "易车", "Pro 四驱 智驾 运动", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "degree-right"}
+    right_degree_two = merge_rows([first_target, second_target], [], [right_yiche])
+
+    assert len(left_degree_two) == 3
+    assert len(right_degree_two) == 3
+    assert all("+易车" not in row["数据来源"] for row in left_degree_two + right_degree_two)
+
+
+
+def test_yiche_energy_evidence_agrees_between_model_name_and_field():
+    exact_target = make(
+        "汽车之家", "测试S 2026款 增程版 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    exact_yiche = make(
+        "易车", "测试S 2026款 增程版 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "cross-energy-exact"}
+    fuzzy_target = make(
+        "汽车之家", "测试S 2026款 增程版 Pro 四驱 智驾", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    fuzzy_yiche = make(
+        "易车", "测试S 2026款 纯电版 Pro 四驱 智驾", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "cross-energy-fuzzy"}
+
+    exact_rows = merge_rows([exact_target], [], [exact_yiche])
+    fuzzy_rows = merge_rows([fuzzy_target], [], [fuzzy_yiche])
+
+    for rows in (exact_rows, fuzzy_rows):
+        assert len(rows) == 2
+        assert all("+易车" not in row["数据来源"] for row in rows)
+
+
+
+def test_yiche_exact_hard_blocked_target_rejects_all_exact_edges():
+    target = make(
+        "汽车之家", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    )
+    conflict = make(
+        "易车", "测试S 2026款 Ultra", year="2026", energy="增程",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "hard-target-conflict"}
+    compatible = make(
+        "易车", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "hard-target-compatible"}
+
+    forward = merge_rows([target], [], [conflict, compatible])
+    reverse = merge_rows([target], [], [compatible, conflict])
+
+    def signature(rows):
+        return sorted((row["数据来源"], row.get("车款ID", "")) for row in rows)
+
+    assert len(forward) == len(reverse) == 3
+    assert signature(forward) == signature(reverse)
+    assert all("+易车" not in row["数据来源"] for row in forward + reverse)
+
+
+
+def test_yiche_requires_nonempty_energy_evidence_for_exact_and_fuzzy():
+    exact_empty_target = make(
+        "汽车之家", "测试S 2026款 Ultra", year="2026", energy="",
+        level="SUV", brand="测试", series="测试S",
+    )
+    exact_empty_yiche = make(
+        "易车", "测试S 2026款 Ultra", year="2026", energy="",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "energy-both-empty"}
+    exact_one_empty_yiche = make(
+        "易车", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "energy-one-empty"}
+    fuzzy_empty_target = make(
+        "汽车之家", "测试S 2026款 Pro 四驱 智驾", year="2026", energy="",
+        level="SUV", brand="测试", series="测试S",
+    )
+    fuzzy_empty_yiche = make(
+        "易车", "Pro 四驱 智驾", year="2026", energy="",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "energy-fuzzy-empty"}
+
+    cases = (
+        merge_rows([exact_empty_target], [], [exact_empty_yiche]),
+        merge_rows([exact_empty_target], [], [exact_one_empty_yiche]),
+        merge_rows([fuzzy_empty_target], [], [fuzzy_empty_yiche]),
+    )
+    for rows in cases:
+        assert len(rows) == 2
+        assert all("+易车" not in row["数据来源"] for row in rows)
+
+
+
+def test_yiche_incremental_conflicts_use_atomic_existing_source_prefixes():
+    autohome = make(
+        "汽车之家", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"座椅材质": "真皮"}
+    dongchedi = make(
+        "懂车帝", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"座椅材质": "真皮"}
+    yiche = make(
+        "易车", "测试S 2026款 Ultra", year="2026", energy="纯电",
+        level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "source-prefix", "座椅材质": "仿皮"}
+
+    single = merge_rows([autohome], [], [yiche])
+    composite = merge_rows([autohome], [dongchedi], [yiche])
+
+    assert single[0]["座椅材质"] == "汽车之家:真皮|易车:仿皮"
+    assert composite[0]["座椅材质"] == "汽车之家:真皮|懂车帝:真皮|易车:仿皮"
+    assert "仅汽车之家:" not in single[0]["座椅材质"]
+
+
+
+def test_yiche_chinese_hybrid_abbreviations_are_hard_energy_evidence():
+    from scripts.merge_data import _explicit_yiche_energy_values
+
+    assert _explicit_yiche_energy_values("插混版") == {"插混"}
+    assert _explicit_yiche_energy_values("插电混动版") == {"插混"}
+    assert _explicit_yiche_energy_values("混动版") == {"油混"}
+    assert _explicit_yiche_energy_values("油混版") == {"油混"}
+
+    exact_target = make(
+        "汽车之家", "测试S 2026款 插混版 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    exact_yiche = make(
+        "易车", "测试S 2026款 插混版 Ultra", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "hybrid-exact"}
+    fuzzy_target = make(
+        "汽车之家", "测试S 2026款 插混版 Pro 四驱 智驾", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    )
+    fuzzy_yiche = make(
+        "易车", "测试S 2026款 纯电版 Pro 四驱 智驾", year="2026",
+        energy="纯电", level="SUV", brand="测试", series="测试S",
+    ) | {"易车上市状态": "approved", "车款ID": "hybrid-fuzzy"}
+
+    exact_rows = merge_rows([exact_target], [], [exact_yiche])
+    fuzzy_rows = merge_rows([fuzzy_target], [], [fuzzy_yiche])
+    for rows in (exact_rows, fuzzy_rows):
+        assert len(rows) == 2
+        assert all("+易车" not in row["数据来源"] for row in rows)
