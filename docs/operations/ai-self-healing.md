@@ -49,6 +49,13 @@
 - **已验证**：易车当前按接口返回原始顺序消费，缺少可靠的跨 run 游标。
 - **待核实**：懂车帝当前品牌顺序没有证据证明是动态销量或动态热度，因此文档和 UI 不应把它称为“实时热度”。
 
+### 1.5 Modal Sandbox 与排名 API 探测
+
+- **已验证**：Modal Sandbox 以 20 秒间隔连续完成 `probe-0` 到 `probe-18`，长时间执行期间未中断。
+- **已验证**：worker 结束并 cleanup 后 Sandbox 进入 detached 状态，随后 3 次 `sync_back` 都返回 `Unable to perform operation on a detached sandbox`。因此自愈 worker 必须在 Sandbox 终止前完成 commit/push、artifact 上传或显式结果回传，不能依赖结束后的补同步。
+- **已验证**：易车排名 API 探测成功生成 69,495 字节报告，包含车系 ID、名称和品牌信息。
+- **待核实**：这份报告只证明接口可返回排名列表，不能单独证明排序依据、实时性或跨 run 稳定性。
+
 ## 2. 当前自动化的真实状态
 
 | 组件 | 当前行为 | 缺口 |
