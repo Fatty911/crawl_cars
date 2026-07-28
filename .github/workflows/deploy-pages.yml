@@ -206,7 +206,7 @@ jobs:
             pages-audit-report.json
             /tmp/current-pages-latest.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3
 
       - name: 配置 GitHub Pages
         uses: actions/configure-pages@v6
