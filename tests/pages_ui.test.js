@@ -769,3 +769,27 @@ test("Pages first load renders and applies acceleration, speed, and EV range def
   assert.equal(values["ev_range:min"], "150");
   assert.equal(values["ev_range:max"], "");
 });
+
+test("Pages hides the side condition section when every condition lives in the filter center", () => {
+  const { elements, hooks } = loadAppForTest();
+  const html = fs.readFileSync(path.join(__dirname, "..", "docs", "index.html"), "utf8");
+  assert.match(html, /<section id="advancedConditionSection" hidden>/);
+
+  hooks.state.config.conditions = [
+    { id: "zero_to_hundred", label: "百公里加速", type: "range", field: "百公里加速(s)" },
+    { id: "ev_range", label: "纯电续航", type: "range", field: "纯电续航(km)" },
+    { id: "city_navigation", label: "NOA城市领航", type: "feature", fields: ["NOA城市领航"], keywords: ["支持"] }
+  ];
+  hooks.state.config.centerConditionGroups = [
+    { id: "core", label: "核心条件", conditionIds: ["zero_to_hundred", "ev_range", "city_navigation"] }
+  ];
+  hooks.initializeRows([row("仅懂车帝", 2026, "样例")]);
+  hooks.renderEverything();
+  assert.equal(elements.get("advancedConditionSection").hidden, true);
+  assert.equal(elements.get("conditionList").children[0].children.length, 0);
+
+  hooks.state.config.conditions.push({ id: "heat_pump", label: "热泵管理系统", type: "feature", fields: ["热泵管理系统"], keywords: ["支持"] });
+  hooks.renderEverything();
+  assert.equal(elements.get("advancedConditionSection").hidden, false);
+  assert.equal(elements.get("conditionList").children[0].children.length, 1);
+});

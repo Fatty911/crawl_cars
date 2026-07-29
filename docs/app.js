@@ -110,6 +110,7 @@
     pageJump: document.getElementById("pageJump"),
     goPage: document.getElementById("goPage"),
     conditionList: document.getElementById("conditionList"),
+    advancedConditionSection: document.getElementById("advancedConditionSection"),
     fieldSelect: document.getElementById("fieldSelect"),
     fieldOperator: document.getElementById("fieldOperator"),
     fieldValue: document.getElementById("fieldValue"),
@@ -862,10 +863,13 @@
     var fragment = document.createDocumentFragment();
     els.conditionList.textContent = "";
     var centerIds = centerConditionIds();
-    (state.config.conditions || []).forEach(function (condition) {
-      if (centerIds.has(condition.id)) {
-        return;
-      }
+    var sideConditions = (state.config.conditions || []).filter(function (condition) {
+      return !centerIds.has(condition.id);
+    });
+    if (els.advancedConditionSection) {
+      els.advancedConditionSection.hidden = sideConditions.length === 0;
+    }
+    sideConditions.forEach(function (condition) {
       var item = document.createElement("div");
       item.className = "condition-item";
       item.dataset.conditionId = condition.id;
