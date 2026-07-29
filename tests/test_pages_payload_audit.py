@@ -52,6 +52,33 @@ class PagesPayloadAuditTests(unittest.TestCase):
         self.assertEqual([], report["violations"])
         self.assertEqual(1, report["stats"]["added_identities"])
 
+    def test_alias_normalization_passes(self) -> None:
+        report = self.audit.audit_payload(
+            [self.row("1", "仅汽车之家")],
+            [self.row("1", "汽车之家+懂车帝")],
+            head_sha="abc",
+        )
+        self.assertEqual("pass", report["status"])
+        self.assertEqual([], report["violations"])
+
+    def test_unknown_source_replacement_blocks(self) -> None:
+        report = self.audit.audit_payload(
+            [self.row("1", "第三方A")],
+            [self.row("1", "汽车之家")],
+            head_sha="abc",
+        )
+        self.assertEqual("blocked", report["status"])
+        self.assertEqual("source_regression", report["violations"][0]["code"])
+
+    def test_mixed_unknown_token_preserved(self) -> None:
+        report = self.audit.audit_payload(
+            [self.row("1", "汽车之家+第三方A")],
+            [self.row("1", "汽车之家")],
+            head_sha="abc",
+        )
+        self.assertEqual("blocked", report["status"])
+        self.assertEqual("source_regression", report["violations"][0]["code"])
+
     def test_source_regression_is_blocked_without_raw_vehicle_fields(self) -> None:
         report = self.audit.audit_payload(
             [self.row("1", "汽车之家|易车")],

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
-from merge_data import partition_publishable_rows
+from merge_data import atomic_source_names, partition_publishable_rows
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 SCHEMA_VERSION = "pages-payload-audit-v1"
@@ -18,7 +18,14 @@ _SOURCE_SPLIT = re.compile(r"[|,，;/；、+]+")
 
 
 def _sources(value: object) -> set[str]:
-    return {part.strip() for part in _SOURCE_SPLIT.split(str(value or "")) if part.strip()}
+    sources: set[str] = set()
+    for part in _SOURCE_SPLIT.split(str(value or "")):
+        part = part.strip()
+        if not part:
+            continue
+        known = atomic_source_names([part])
+        sources.update(known or [part])
+    return sources
 
 
 def _key_hash(key: object) -> str:
