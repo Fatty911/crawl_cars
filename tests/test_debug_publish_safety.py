@@ -782,7 +782,60 @@ class PreservePublishBaselineTests(unittest.TestCase):
                 "candidate_input_rows": 2,
                 "overlap_kept_baseline": 1,
                 "candidate_added": 1,
+                "candidate_enriched": 0,
                 "candidate_output_rows": 3,
+            },
+            json.loads(result.stdout.strip().splitlines()[-1]),
+        )
+
+    def test_overlap_enriches_missing_fields_and_sources_without_overwriting_baseline(self) -> None:
+        baseline = {
+            "数据来源": "仅汽车之家",
+            "品牌": "测试品牌",
+            "车系": "A车系",
+            "车系ID": "100",
+            "车型名称": "A",
+            "年款": "2026",
+            "车款ID": "900",
+            "价格": "published",
+            "纯电续航里程": "",
+            "轴距": "-",
+            "baseline_only": "keep",
+        }
+        candidate = {
+            "数据来源": "汽车之家+懂车帝",
+            "品牌": "候选品牌",
+            "车系": "候选车系",
+            "车系ID": "100",
+            "车型名称": "A",
+            "年款": "2026",
+            "车款ID": "900",
+            "价格": "candidate",
+            "纯电续航里程": "500",
+            "轴距": "2800",
+            "candidate_only": "new",
+        }
+
+        result, outputs = self.run_preserve([baseline], [candidate])
+
+        expected = dict(
+            baseline,
+            数据来源="汽车之家+懂车帝",
+            纯电续航里程="500",
+            轴距="2800",
+            candidate_only="new",
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([expected], outputs["merged_json"])
+        self.assertEqual(1, len(outputs["merged_json"]))
+        self.assertEqual(
+            {
+                "baseline_rows": 1,
+                "candidate_input_rows": 1,
+                "overlap_kept_baseline": 1,
+                "candidate_added": 0,
+                "candidate_enriched": 1,
+                "candidate_output_rows": 1,
             },
             json.loads(result.stdout.strip().splitlines()[-1]),
         )

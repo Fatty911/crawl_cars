@@ -9,7 +9,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from merge_data import collect_fields, filter_car, keep_pages_year, partition_publishable_rows, write_csv, write_json
+from merge_data import IDENTITY_FIELDS, atomic_source_names, collect_fields, filter_car, keep_pages_year, partition_publishable_rows, write_csv, write_json
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 
@@ -18,6 +18,30 @@ def unique_keys(label: str, rows: list[dict]) -> list[tuple[str, ...]]:
     if len(set(keys)) != len(keys):
         raise ValueError(f"{label} input contains duplicate identities")
     return keys
+
+
+def missing_value(value: object) -> bool:
+    return value is None or str(value).strip() in {"", "-"}
+
+
+def enrich_baseline_row(baseline: dict, candidate: dict) -> tuple[dict, bool]:
+    enriched = dict(baseline)
+    changed = False
+    sources = atomic_source_names(baseline.get("数据来源"))
+    for source in atomic_source_names(candidate.get("数据来源")):
+        if source not in sources:
+            sources.append(source)
+            changed = True
+    if changed:
+        enriched["数据来源"] = "+".join(sources)
+
+    for field, value in candidate.items():
+        if field == "数据来源" or field in IDENTITY_FIELDS:
+            continue
+        if missing_value(enriched.get(field)) and not missing_value(value):
+            enriched[field] = value
+            changed = True
+    return enriched, changed
 
 
 def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tuple[list[dict], dict[str, int]]:
@@ -30,20 +54,26 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
 
     baseline_keys = unique_keys("baseline", baseline_rows)
     candidate_keys = unique_keys("candidate", candidate_rows)
-    output_keys = set(baseline_keys)
+    output_indexes = {key: index for index, key in enumerate(baseline_keys)}
     preserved = list(baseline_rows)
     candidate_added = 0
+    candidate_enriched = 0
     for row, key in zip(candidate_rows, candidate_keys):
-        if key not in output_keys:
+        if key not in output_indexes:
+            output_indexes[key] = len(preserved)
             preserved.append(row)
-            output_keys.add(key)
             candidate_added += 1
+            continue
+        index = output_indexes[key]
+        preserved[index], changed = enrich_baseline_row(preserved[index], row)
+        candidate_enriched += int(changed)
 
     return preserved, {
         "baseline_rows": len(baseline_rows),
         "candidate_input_rows": len(candidate_rows),
         "overlap_kept_baseline": len(candidate_rows) - candidate_added,
         "candidate_added": candidate_added,
+        "candidate_enriched": candidate_enriched,
         "candidate_output_rows": len(preserved),
     }
 
