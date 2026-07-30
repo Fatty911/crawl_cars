@@ -957,6 +957,70 @@ class PreservePublishBaselineTests(unittest.TestCase):
         self.assertEqual([current_autohome, current_dongchedi], outputs["merged_json"])
         self.assertEqual(1, json.loads(result.stdout.strip().splitlines()[-1])["candidate_deenriched"])
 
+    def test_basic_conflict_retires_source_when_current_autohome_row_is_missing(self) -> None:
+        published = {
+            "数据来源": "汽车之家+懂车帝",
+            "品牌": "理想",
+            "车系": "理想L6",
+            "车系ID": "100",
+            "车型名称": "理想L6 2026款 Ultra",
+            "年款": "2026",
+            "车款ID": "900",
+            "published_only": "keep",
+        }
+        current_dongchedi = {
+            "数据来源": "仅懂车帝",
+            "品牌": "理想",
+            "车系": "理想L6",
+            "车系ID": "101",
+            "车型名称": "基本型",
+            "年款": "2026",
+            "车型ID": "901",
+        }
+
+        result, outputs = self.run_preserve(
+            [published],
+            [current_dongchedi],
+        )
+
+        expected = dict(published, 数据来源="仅汽车之家")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([expected, current_dongchedi], outputs["merged_json"])
+        self.assertEqual(1, json.loads(result.stdout.strip().splitlines()[-1])["candidate_deenriched"])
+
+    def test_internal_battery_conflict_retires_source_without_identity_overlap(self) -> None:
+        published = {
+            "数据来源": "汽车之家+懂车帝",
+            "品牌": "乐道",
+            "车系": "乐道L60",
+            "车系ID": "100",
+            "车型名称": "乐道L60 2026款 85kWh Pro",
+            "年款": "2026",
+            "车款ID": "900",
+            "电池能量(kWh)": "85",
+            "电池容量(kWh)": "60",
+        }
+        current_dongchedi = {
+            "数据来源": "仅懂车帝",
+            "品牌": "乐道",
+            "车系": "乐道L60",
+            "车系ID": "101",
+            "车型名称": "后驱Pro",
+            "年款": "2026",
+            "车型ID": "901",
+            "电池容量(kWh)": "60",
+        }
+
+        result, outputs = self.run_preserve(
+            [published],
+            [current_dongchedi],
+        )
+
+        expected = dict(published, 数据来源="仅汽车之家")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([expected, current_dongchedi], outputs["merged_json"])
+        self.assertEqual(1, json.loads(result.stdout.strip().splitlines()[-1])["candidate_deenriched"])
+
     def test_matching_battery_name_and_fields_keep_previous_source(self) -> None:
         published = {
             "数据来源": "汽车之家+懂车帝",

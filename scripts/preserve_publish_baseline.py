@@ -17,6 +17,7 @@ from merge_data import (
     has_explicit_battery_field_inconsistency,
     keep_pages_year,
     model_variant_conflict_reason,
+    model_variant_signature,
     normalize_series_match_text,
     partition_publishable_rows,
     row_year,
@@ -89,6 +90,37 @@ def stale_source_retirement_is_proven(
     return True
 
 
+def format_sources(sources: set[str]) -> str:
+    ordered = [source for source in ("汽车之家", "懂车帝", "易车") if source in sources]
+    return f"仅{ordered[0]}" if len(ordered) == 1 else "+".join(ordered)
+
+
+def retired_sources_without_identity_overlap(
+    baseline: dict,
+    candidate_rows_by_bucket: dict[tuple[str, int], list[dict]],
+) -> set[str]:
+    sources = set(atomic_source_names(baseline.get("数据来源")))
+    if sources != {"汽车之家", "懂车帝"} or missing_value(baseline.get("车款ID")):
+        return set()
+    if has_explicit_battery_field_inconsistency(baseline):
+        return {"懂车帝"}
+
+    bucket = variant_bucket(baseline)
+    if bucket is None:
+        return set()
+    dongchedi_rows = [
+        row
+        for row in candidate_rows_by_bucket.get(bucket, [])
+        if "懂车帝" in atomic_source_names(row.get("数据来源"))
+    ]
+    if len(dongchedi_rows) != 1:
+        return set()
+    dongchedi_tiers = model_variant_signature(dongchedi_rows[0])["tier"]
+    if dongchedi_tiers == {"basic"} and model_variant_conflict_reason(baseline, dongchedi_rows[0]) == "tier_mismatch":
+        return {"懂车帝"}
+    return set()
+
+
 def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tuple[list[dict], dict[str, int]]:
     baseline_rows = [row for row in baseline_rows if keep_pages_year(row)]
     candidate_rows = [row for row in candidate_rows if keep_pages_year(row)]
@@ -134,6 +166,22 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
             continue
         preserved[index], changed = enrich_baseline_row(preserved[index], row)
         candidate_enriched += int(changed)
+
+    candidate_key_set = set(candidate_keys)
+    for index, key in enumerate(baseline_keys):
+        if key in candidate_key_set:
+            continue
+        retired_sources = retired_sources_without_identity_overlap(
+            preserved[index],
+            candidate_rows_by_bucket,
+        )
+        if not retired_sources:
+            continue
+        remaining_sources = set(atomic_source_names(preserved[index].get("数据来源"))) - retired_sources
+        if not remaining_sources:
+            continue
+        preserved[index] = dict(preserved[index], 数据来源=format_sources(remaining_sources))
+        candidate_deenriched += 1
 
     stats = {
         "baseline_rows": len(baseline_rows),
