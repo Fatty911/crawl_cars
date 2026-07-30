@@ -22,6 +22,30 @@ on:
         description: '调试模式：只验证配置的少量易车 URL'
         required: false
         default: 'false'
+      resume_run_id:
+        description: '显式恢复来源 run ID（与其余恢复字段全有或全无）'
+        required: false
+        default: ''
+      resume_artifact_id:
+        description: '显式恢复 checkpoint artifact ID'
+        required: false
+        default: ''
+      resume_artifact_sha256:
+        description: 'checkpoint artifact ZIP SHA-256'
+        required: false
+        default: ''
+      resume_checkpoint_sha256:
+        description: 'artifact 内 yiche_checkpoint.json SHA-256'
+        required: false
+        default: ''
+      source_head_sha:
+        description: '恢复来源完整 head SHA'
+        required: false
+        default: ''
+      resume_smoke_targets:
+        description: '恢复烟测新增目标数（0=正式续跑，1-10=仅 checkpoint 烟测）'
+        required: false
+        default: '0'
   repository_dispatch:
     types: [trigger-yiche]
 
@@ -38,6 +62,7 @@ env:
   YICHE_HEARTBEAT_INTERVAL_SECONDS: 60
   YICHE_CHECKPOINT_PATH: yiche_checkpoint.json
   MAX_SERIES: ${{ github.event.inputs.max_series || '0' }}
+  RESUME_SMOKE_TARGETS: ${{ github.event.inputs.resume_smoke_targets || '0' }}
 
 concurrency:
   group: yiche-crawl-${{ github.ref }}
@@ -45,10 +70,15 @@ concurrency:
 
 jobs:
   yiche-crawl:
+    permissions:
+      actions: read
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 390
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
+        with:
+          fetch-depth: 0
 
       - name: Configure crawl window
         id: window
@@ -75,7 +105,7 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/setup-python@main
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         if: steps.window.outputs.skip != 'true'
         with:
           python-version: '3.12'
@@ -83,6 +113,122 @@ jobs:
       - name: 安装依赖
         if: steps.window.outputs.skip != 'true'
         run: pip install requests beautifulsoup4 lxml PyYAML
+
+      - name: Restore authenticated Yiche checkpoint
+        if: steps.window.outputs.skip != 'true'
+        env:
+          RESUME_RUN_ID: ${{ github.event.inputs.resume_run_id || '' }}
+          RESUME_ARTIFACT_ID: ${{ github.event.inputs.resume_artifact_id || '' }}
+          RESUME_ARTIFACT_SHA256: ${{ github.event.inputs.resume_artifact_sha256 || '' }}
+          RESUME_CHECKPOINT_SHA256: ${{ github.event.inputs.resume_checkpoint_sha256 || '' }}
+          RESUME_SOURCE_HEAD_SHA: ${{ github.event.inputs.source_head_sha || '' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          fields=("$RESUME_RUN_ID" "$RESUME_ARTIFACT_ID" "$RESUME_ARTIFACT_SHA256" "$RESUME_CHECKPOINT_SHA256" "$RESUME_SOURCE_HEAD_SHA")
+          populated=0
+          for value in "${fields[@]}"; do
+            [ -n "$value" ] && populated=$((populated + 1))
+          done
+          if [ "$populated" -eq 0 ]; then
+            if [ "$RESUME_SMOKE_TARGETS" != "0" ]; then
+              echo "错误: resume_smoke_targets 只能与显式恢复输入一起使用"
+              exit 1
+            fi
+            exit 0
+          fi
+          if [ "$populated" -ne 5 ] || ! [[ "$RESUME_RUN_ID" =~ ^[0-9]+$ ]] || ! [[ "$RESUME_ARTIFACT_ID" =~ ^[0-9]+$ ]] \
+             || ! [[ "$RESUME_ARTIFACT_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || ! [[ "$RESUME_CHECKPOINT_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] \
+             || ! [[ "$RESUME_SOURCE_HEAD_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || ! [[ "$RESUME_SMOKE_TARGETS" =~ ^([0-9]|10)$ ]]; then
+            echo "错误: Yiche 恢复输入缺失或格式非法"
+            exit 1
+          fi
+          git merge-base --is-ancestor "$RESUME_SOURCE_HEAD_SHA" "$GITHUB_SHA" || {
+            echo "错误: 恢复来源 head 不是当前 head 的祖先"
+            exit 1
+          }
+          source_crawler_sha256="$(git show "$RESUME_SOURCE_HEAD_SHA:scripts/crawl_yiche.py" | sha256sum | cut -d' ' -f1)"
+          resume_dir="$RUNNER_TEMP/yiche-resume"
+          mkdir -p "$resume_dir"
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts/$RESUME_ARTIFACT_ID" \
+            -o "$resume_dir/artifact.json"
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN_ID" \
+            -o "$resume_dir/run.json"
+          python - "$resume_dir" <<'PY'
+          import json
+          import os
+          import sys
+          base = sys.argv[1]
+          artifact = json.load(open(os.path.join(base, "artifact.json"), encoding="utf-8"))
+          run = json.load(open(os.path.join(base, "run.json"), encoding="utf-8"))
+          expected_name = f"yiche-checkpoint-{os.environ['RESUME_RUN_ID']}-{run['run_attempt']}"
+          failures = []
+          if str(artifact.get("id")) != os.environ["RESUME_ARTIFACT_ID"]:
+              failures.append("artifact_id")
+          if artifact.get("name") != expected_name or artifact.get("expired"):
+              failures.append("artifact_name_or_expiry")
+          workflow_run = artifact.get("workflow_run") or {}
+          if str(workflow_run.get("id")) != os.environ["RESUME_RUN_ID"]:
+              failures.append("artifact_run_id")
+          if workflow_run.get("head_sha") != os.environ["RESUME_SOURCE_HEAD_SHA"]:
+              failures.append("artifact_head_sha")
+          if workflow_run.get("repository_id") != (run.get("repository") or {}).get("id"):
+              failures.append("artifact_repository_id")
+          if artifact.get("digest") != f"sha256:{os.environ['RESUME_ARTIFACT_SHA256'].lower()}":
+              failures.append("artifact_digest")
+          if str(run.get("id")) != os.environ["RESUME_RUN_ID"] or run.get("head_sha") != os.environ["RESUME_SOURCE_HEAD_SHA"]:
+              failures.append("run_identity")
+          if (run.get("repository") or {}).get("full_name") != os.environ["GITHUB_REPOSITORY"] or run.get("status") != "completed":
+              failures.append("run_repository_or_status")
+          if str(run.get("path", "")).split("@", 1)[0] != ".github/workflows/crawl-yiche.yml":
+              failures.append("workflow_path")
+          if failures:
+              raise SystemExit(f"Yiche 恢复来源身份不匹配: {failures}")
+          PY
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts/$RESUME_ARTIFACT_ID/zip" \
+            -o "$resume_dir/checkpoint.zip"
+          echo "$RESUME_ARTIFACT_SHA256  $resume_dir/checkpoint.zip" | sha256sum --check --strict
+          python - "$resume_dir" <<'PY'
+          import hashlib
+          import os
+          import stat
+          import sys
+          import zipfile
+          base = sys.argv[1]
+          archive = os.path.join(base, "checkpoint.zip")
+          output = os.path.join(base, "yiche_checkpoint.json")
+          with zipfile.ZipFile(archive) as source:
+              members = source.infolist()
+              if len(members) != 1 or members[0].filename != "yiche_checkpoint.json":
+                  raise SystemExit("Yiche checkpoint archive 成员不唯一或名称非法")
+              mode = members[0].external_attr >> 16
+              if stat.S_ISLNK(mode) or members[0].file_size > 64 * 1024 * 1024:
+                  raise SystemExit("Yiche checkpoint archive 类型或大小非法")
+              content = source.read(members[0])
+          digest = hashlib.sha256(content).hexdigest()
+          if digest != os.environ["RESUME_CHECKPOINT_SHA256"].lower():
+              raise SystemExit("Yiche checkpoint JSON SHA256 mismatch")
+          with open(output, "xb") as target:
+              target.write(content)
+          PY
+          {
+            echo "YICHE_RESUME_CHECKPOINT=$resume_dir/yiche_checkpoint.json"
+            echo "YICHE_RESUME_RUN_ID=$RESUME_RUN_ID"
+            echo "YICHE_RESUME_ARTIFACT_ID=$RESUME_ARTIFACT_ID"
+            echo "YICHE_RESUME_ARTIFACT_SHA256=${RESUME_ARTIFACT_SHA256,,}"
+            echo "YICHE_RESUME_CHECKPOINT_SHA256=${RESUME_CHECKPOINT_SHA256,,}"
+            echo "YICHE_RESUME_SOURCE_HEAD_SHA=${RESUME_SOURCE_HEAD_SHA,,}"
+            echo "YICHE_RESUME_SOURCE_CRAWLER_SHA256=$source_crawler_sha256"
+          } >> "$GITHUB_ENV"
+          echo "易车恢复来源已认证: run=$RESUME_RUN_ID artifact=$RESUME_ARTIFACT_ID head=${RESUME_SOURCE_HEAD_SHA,,}"
 
       - name: Setup environment
         if: steps.window.outputs.skip != 'true'
@@ -117,6 +263,21 @@ jobs:
           fi
           echo "易车运行约束: workflow_timeout=390m RUN_TIME=${RUN_TIME}s 北京时间窗口=08:00-12:30/13:00-22:00 安全收尾缓冲=${WINDOW_END_BUFFER_SECONDS}s"
           echo "易车预计 deadline_utc=$(date -u -d "+${RUN_TIME} seconds" --iso-8601=seconds)"
+          YICHE_OUTPUT_PATH="yiche_$(date +%Y%m%d).json"
+          echo "YICHE_OUTPUT_PATH=$YICHE_OUTPUT_PATH" >> "$GITHUB_ENV"
+          resume_args=()
+          if [ -n "${YICHE_RESUME_CHECKPOINT:-}" ]; then
+            resume_args=(
+              --resume-checkpoint "$YICHE_RESUME_CHECKPOINT"
+              --resume-source-run-id "$YICHE_RESUME_RUN_ID"
+              --resume-source-artifact-id "$YICHE_RESUME_ARTIFACT_ID"
+              --resume-source-artifact-sha256 "$YICHE_RESUME_ARTIFACT_SHA256"
+              --resume-source-checkpoint-sha256 "$YICHE_RESUME_CHECKPOINT_SHA256"
+              --resume-source-head-sha "$YICHE_RESUME_SOURCE_HEAD_SHA"
+              --resume-source-crawler-sha256 "$YICHE_RESUME_SOURCE_CRAWLER_SHA256"
+              --resume-smoke-targets "$RESUME_SMOKE_TARGETS"
+            )
+          fi
           forward_crawler_signal() {
             local signal_name="$1"
             local exit_code="$2"
@@ -124,7 +285,8 @@ jobs:
             wait "$crawler_pid" || true
             exit "$exit_code"
           }
-          python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series "$MAX_SERIES" &
+          python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series "$MAX_SERIES" \
+            --output "$YICHE_OUTPUT_PATH" "${resume_args[@]}" &
           crawler_pid=$!
           trap 'forward_crawler_signal INT 130' INT
           trap 'forward_crawler_signal TERM 143' TERM
@@ -153,7 +315,7 @@ jobs:
 
       - name: 上传易车检查点
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: yiche-checkpoint-${{ github.run_id }}-${{ github.run_attempt }}
           path: yiche_checkpoint.json
@@ -165,13 +327,12 @@ jobs:
         if: steps.window.outputs.skip != 'true' && steps.crawl_yiche.outputs.skipped != 'true'
         run: |
           python - <<'PY'
-          import glob
           import json
           import os
-          files = glob.glob("yiche_*.json")
-          if not files:
-              raise SystemExit("未生成 yiche_*.json，拒绝上传 artifact")
-          path = max(files)
+          import re
+          path = os.environ.get("YICHE_OUTPUT_PATH", "")
+          if not re.fullmatch(r"yiche_\d{8}\.json", os.path.basename(path)) or not os.path.isfile(path):
+              raise SystemExit("未生成精确命名的易车数据文件，拒绝上传 artifact")
           with open(path, "r", encoding="utf-8") as f:
               rows = json.load(f)
           from scripts.crawl_yiche import validate_real_rows
@@ -181,10 +342,15 @@ jobs:
           config_fields = {key for row in real_rows for key in row if key not in {"车系", "车型名称", "品牌", "年款", "数据来源"}}
           if not config_fields:
               raise SystemExit("易车质量门禁失败: 配置字段覆盖为 0")
+          with open(os.environ["YICHE_CHECKPOINT_PATH"], "r", encoding="utf-8") as f:
+              checkpoint = json.load(f)
+          stable_ready = checkpoint.get("status") == "completed"
           print(f"{path}: total={len(rows)} real_config_rows={len(real_rows)} config_fields={len(config_fields)}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write(f"row_count={len(real_rows)}\n")
               f.write("has_data=true\n")
+              f.write(f"data_path={path}\n")
+              f.write(f"stable_ready={'true' if stable_ready else 'false'}\n")
           PY
 
       - name: Disable proxy for Yiche artifact upload
@@ -201,11 +367,11 @@ jobs:
 
       - name: 上传易车 artifact
         id: upload_yiche
-        if: steps.verify_yiche.outputs.has_data == 'true'
-        uses: actions/upload-artifact@v4
+        if: steps.verify_yiche.outputs.has_data == 'true' && steps.verify_yiche.outputs.stable_ready == 'true' && env.RESUME_SMOKE_TARGETS == '0'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: yiche-data-${{ github.run_id }}-${{ github.run_attempt }}
-          path: yiche_*.json
+          path: ${{ steps.verify_yiche.outputs.data_path }}
           if-no-files-found: error
           retention-days: 3
 

@@ -37,6 +37,8 @@ YICHE_READ_TIMEOUT = float(os.getenv("YICHE_READ_TIMEOUT_SECONDS", "20"))
 YICHE_WALL_TIMEOUT = int(os.getenv("YICHE_WALL_TIMEOUT_SECONDS", "35"))
 YICHE_ITEM_TIMEOUT = float(os.getenv("YICHE_ITEM_TIMEOUT_SECONDS", "120"))
 YICHE_HEARTBEAT_INTERVAL = float(os.getenv("YICHE_HEARTBEAT_INTERVAL_SECONDS", "60"))
+YICHE_CHECKPOINT_SCHEMA_VERSION = 2
+YICHE_CHECKPOINT_STATE_COMPAT_VERSION = 1
 IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源", "易车车型ID", "易车上市状态", "车款ID"}
 NON_SERIES_SLUGS = {
     "api", "article", "assets", "authenservice", "citybase", "current",
@@ -44,6 +46,34 @@ NON_SERIES_SLUGS = {
 }
 YICHE_APPROVED_STATUS_TEXT = ("在售", "已上市")
 YICHE_UNAPPROVED_STATUS_TEXT = ("未上市", "即将上市", "即将", "预售", "预测", "概念", "未定名")
+LEGACY_INCIDENT = {
+    "run_id": "30538098345",
+    "artifact_id": "8761651220",
+    "artifact_sha256": "e0c4585eab10ff8f04c17a91c5e0ef9aa64ca2a990e12f854f2ccc68a886f177",
+    "checkpoint_sha256": "0eec901d948068cfdfdda9b3ea9bbb3732dd3988edb7cc55d53d8cf764879e9c",
+    "logs_sha256": "6bff3254de0e70f7b87163c4d822034a5de78dc61d75cf80c7dbeec5b9b4fc90",
+    "head_sha": "60e340af63f316785123ca38c958d7edfc570a4f",
+    "seen_serial_ids_count": 1420,
+    "seen_serial_ids_sha256": "b14570b0c720baed068e23b554ba678822062ffe54d27253cdf25ec5ac04d37f",
+    "scanned_master_ids": [
+        "9", "295", "619", "629", "819", "97", "92", "881", "555", "861", "848", "458",
+        "423", "313", "268", "536", "634", "528", "654", "318", "719", "712", "496", "753",
+        "766", "326", "393", "493", "473", "360", "319", "422", "474", "491", "499", "532",
+        "650", "653", "656", "679", "693", "715", "720", "755", "786", "844", "15", "2",
+        "3", "26", "127", "82", "163", "59", "5", "157", "85", "14", "195", "172", "135",
+        "744", "683", "427", "456", "129", "236", "211", "216", "806", "411", "168", "746",
+        "417", "352", "263", "671", "607", "286", "320", "282", "641", "548", "377",
+    ],
+    "pending_targets": [
+        ("https://car.yiche.com/puravision/peizhi/", {"serial_id": "6394", "brand": "进口宾尼法利纳·新能源", "series": "Pura Vision"}),
+        ("https://car.yiche.com/teorema/peizhi/", {"serial_id": "7598", "brand": "进口宾尼法利纳·新能源", "series": "Teorema"}),
+        ("https://car.yiche.com/enigmagt/peizhi/", {"serial_id": "10765", "brand": "进口宾尼法利纳·新能源", "series": "Enigma GT"}),
+        ("https://car.yiche.com/battista/peizhi/", {"serial_id": "6290", "brand": "进口宾尼法利纳·新能源", "series": "Battista"}),
+        ("https://car.yiche.com/pininfarinab95/peizhi/", {"serial_id": "10434", "brand": "进口宾尼法利纳·新能源", "series": "Pininfarina B95"}),
+        ("https://car.yiche.com/h2speed/peizhi/", {"serial_id": "6291", "brand": "进口宾尼法利纳·新能源", "series": "H2 Speed"}),
+        ("https://car.yiche.com/viritechapricaleconcept/peizhi/", {"serial_id": "9635", "brand": "进口宾尼法利纳·新能源", "series": "Viritech Apricale Concept"}),
+    ],
+}
 
 
 HEADER_MAP = {
@@ -180,6 +210,14 @@ class CrawlInterrupted(Exception):
         super().__init__(f"crawler interrupted by signal {signum}")
 
 
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 @contextmanager
 def wall_timeout(seconds, timeout_factory):
     if (
@@ -234,7 +272,22 @@ class CrawlObserver:
         self.last_progress_at = self.started_at
         self.last_checkpoint_at = 0.0
         self.checkpoint_interval = heartbeat_interval if heartbeat_interval > 0 else 60
-        self.state = {"status": "starting", "stage": "initializing", "stats": {}}
+        self.state = {
+            "format": "yiche-raw-progress",
+            "schema_version": YICHE_CHECKPOINT_SCHEMA_VERSION,
+            "state_compat_version": YICHE_CHECKPOINT_STATE_COMPAT_VERSION,
+            "producer": {
+                "repository": os.getenv("GITHUB_REPOSITORY", ""),
+                "workflow": ".github/workflows/crawl-yiche.yml",
+                "run_id": os.getenv("GITHUB_RUN_ID", ""),
+                "run_attempt": os.getenv("GITHUB_RUN_ATTEMPT", ""),
+                "head_sha": os.getenv("GITHUB_SHA", ""),
+                "crawler_sha256": file_sha256(__file__),
+            },
+            "status": "starting",
+            "stage": "initializing",
+            "stats": {},
+        }
         self.rows = []
         self.lock = threading.RLock()
         self.stop_event = threading.Event()
@@ -664,7 +717,18 @@ def extract_brand_series(payload):
 
 
 class YicheDiscoveryFrontier:
-    def __init__(self, session, max_brand_attempts=3, retry_backoff=1, max_init_attempts=3, initial_brands=None):
+    def __init__(
+        self,
+        session,
+        max_brand_attempts=3,
+        retry_backoff=1,
+        max_init_attempts=3,
+        initial_brands=None,
+        legacy_scanned_master_ids=None,
+        legacy_brands_total=0,
+        legacy_seen_serial_ids_count=0,
+        legacy_seen_serial_ids_sha256="",
+    ):
         self.session = session
         self.brand_queue = list(initial_brands or [])
         self.retry_queue = []
@@ -682,6 +746,43 @@ class YicheDiscoveryFrontier:
         self.brand_discovery_failures = 0
         self.last_failed_master_id = ""
         self.initialized = False
+        self.legacy_scanned_master_ids = list(legacy_scanned_master_ids or [])
+        self.legacy_seen_serial_ids_count = int(legacy_seen_serial_ids_count)
+        self.legacy_seen_serial_ids_sha256 = legacy_seen_serial_ids_sha256
+        if self.legacy_scanned_master_ids:
+            self.brands_scanned = len(self.legacy_scanned_master_ids)
+            self.pages_scanned = len(self.legacy_scanned_master_ids)
+            self.brands_total = int(legacy_brands_total)
+
+    def export_state(self):
+        return {
+            "brand_queue": [list(item) for item in self.brand_queue],
+            "retry_queue": [[master_id, brand_name] for _, master_id, brand_name in self.retry_queue],
+            "brand_attempts": dict(self.brand_attempts),
+            "brands_total": self.brands_total,
+            "brands_scanned": self.brands_scanned,
+            "pages_scanned": self.pages_scanned,
+            "seen_serial_ids": sorted(self.seen_serial_ids),
+            "duplicate_serial_ids": self.duplicate_serial_ids,
+            "brand_discovery_retries": self.brand_discovery_retries,
+            "brand_discovery_failures": self.brand_discovery_failures,
+            "last_failed_master_id": self.last_failed_master_id,
+            "initialized": self.initialized,
+        }
+
+    def restore_state(self, state):
+        self.brand_queue = [tuple(item) for item in state.get("brand_queue") or []]
+        self.retry_queue = [(time.monotonic(), *item) for item in state.get("retry_queue") or []]
+        self.brand_attempts = dict(state.get("brand_attempts") or {})
+        self.brands_total = int(state.get("brands_total", 0))
+        self.brands_scanned = int(state.get("brands_scanned", 0))
+        self.pages_scanned = int(state.get("pages_scanned", 0))
+        self.seen_serial_ids = set(state.get("seen_serial_ids") or [])
+        self.duplicate_serial_ids = int(state.get("duplicate_serial_ids", 0))
+        self.brand_discovery_retries = int(state.get("brand_discovery_retries", 0))
+        self.brand_discovery_failures = int(state.get("brand_discovery_failures", 0))
+        self.last_failed_master_id = clean_text(state.get("last_failed_master_id"))
+        self.initialized = bool(state.get("initialized"))
 
     @property
     def exhausted(self):
@@ -689,6 +790,8 @@ class YicheDiscoveryFrontier:
 
     @property
     def remaining_brands(self):
+        if self.legacy_scanned_master_ids and not self.initialized:
+            return max(0, self.brands_total - self.brands_scanned)
         return len(self.brand_queue) + len(self.retry_queue)
 
     def _next_brand(self):
@@ -729,6 +832,26 @@ class YicheDiscoveryFrontier:
                     self.brand_discovery_retries += 1
                     time.sleep(self.retry_backoff * (2 ** (attempt - 1)))
             self.brands_total = len(self.brand_queue)
+            if self.legacy_scanned_master_ids:
+                prefix = [master_id for master_id, _ in self.brand_queue[:len(self.legacy_scanned_master_ids)]]
+                if prefix != self.legacy_scanned_master_ids:
+                    raise RuntimeError("易车 legacy checkpoint 品牌前缀已变化，拒绝不确定恢复")
+                seen_serial_ids = set()
+                for master_id, _ in self.brand_queue[:len(self.legacy_scanned_master_ids)]:
+                    payload = fetch_yiche_api(self.session, YICHE_BRAND_API, {"masterId": master_id})
+                    seen_serial_ids.update(target_serial_id(target) for _, target in extract_brand_series(payload))
+                seen_digest = hashlib.sha256(
+                    ("\n".join(sorted(seen_serial_ids)) + "\n").encode()
+                ).hexdigest()
+                if (
+                    len(seen_serial_ids) != self.legacy_seen_serial_ids_count
+                    or seen_digest != self.legacy_seen_serial_ids_sha256
+                ):
+                    raise RuntimeError("易车 legacy checkpoint 历史 serialId 集合已变化，拒绝不确定恢复")
+                self.seen_serial_ids = seen_serial_ids
+                self.brand_queue = self.brand_queue[len(self.legacy_scanned_master_ids):]
+                self.brands_scanned = len(self.legacy_scanned_master_ids)
+                self.pages_scanned = len(self.legacy_scanned_master_ids)
             self.initialized = True
             print(
                 f"易车可信发现初始化: brands_total={self.brands_total} source={DEFAULT_DISCOVERY_URLS[0]} "
@@ -864,6 +987,221 @@ def is_real_config_row(row):
 
 def validate_real_rows(rows):
     return [row for row in rows if isinstance(row, dict) and is_real_config_row(row)]
+
+
+def is_nonnegative_int(value):
+    return type(value) is int and value >= 0
+
+
+def validate_frontier_resume_state(frontier):
+    required = {
+        "brand_queue", "retry_queue", "brand_attempts", "brands_total", "brands_scanned",
+        "pages_scanned", "seen_serial_ids", "duplicate_serial_ids", "brand_discovery_retries",
+        "brand_discovery_failures", "last_failed_master_id", "initialized",
+    }
+    if not isinstance(frontier, dict) or set(frontier) != required:
+        return False
+    brand_queue = frontier["brand_queue"]
+    retry_queue = frontier["retry_queue"]
+    brand_attempts = frontier["brand_attempts"]
+    seen_serial_ids = frontier["seen_serial_ids"]
+    if (
+        not isinstance(brand_queue, list)
+        or not isinstance(retry_queue, list)
+        or not isinstance(brand_attempts, dict)
+        or not isinstance(seen_serial_ids, list)
+    ):
+        return False
+    queue_ids = [item[0] for item in brand_queue if isinstance(item, list) and len(item) == 2]
+    retry_ids = [item[0] for item in retry_queue if isinstance(item, list) and len(item) == 2]
+    if (
+        len(queue_ids) != len(brand_queue)
+        or len(retry_ids) != len(retry_queue)
+        or any(not clean_text(item[0]).isdigit() or not clean_text(item[1]) for item in brand_queue + retry_queue)
+        or len(queue_ids) != len(set(queue_ids))
+        or len(retry_ids) != len(set(retry_ids))
+        or set(queue_ids) & set(retry_ids)
+        or any(not clean_text(key).isdigit() or not is_nonnegative_int(value) for key, value in brand_attempts.items())
+        or len(seen_serial_ids) != len(set(seen_serial_ids))
+        or any(not clean_text(value).isdigit() for value in seen_serial_ids)
+        or type(frontier["initialized"]) is not bool
+        or not all(is_nonnegative_int(frontier[key]) for key in (
+            "brands_total", "brands_scanned", "pages_scanned", "duplicate_serial_ids",
+            "brand_discovery_retries", "brand_discovery_failures",
+        ))
+        or frontier["brands_scanned"] > frontier["brands_total"]
+        or frontier["pages_scanned"] + frontier["brand_discovery_failures"] != frontier["brands_scanned"]
+        or not isinstance(frontier["last_failed_master_id"], str)
+        or (frontier["last_failed_master_id"] and not frontier["last_failed_master_id"].isdigit())
+    ):
+        return False
+    return True
+
+
+def load_resume_checkpoint(
+    path,
+    *,
+    source_run_id,
+    source_artifact_id,
+    source_artifact_sha256,
+    source_checkpoint_sha256,
+    source_head_sha,
+    source_crawler_sha256,
+):
+    with open(path, "rb") as checkpoint_file:
+        checkpoint_bytes = checkpoint_file.read()
+    actual_checkpoint_sha256 = hashlib.sha256(checkpoint_bytes).hexdigest()
+    if actual_checkpoint_sha256 != source_checkpoint_sha256:
+        raise ValueError("checkpoint SHA256 mismatch")
+    try:
+        payload = json.loads(checkpoint_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"checkpoint JSON invalid: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("checkpoint root must be an object")
+
+    if "schema_version" not in payload:
+        expected_identity = (
+            LEGACY_INCIDENT["run_id"],
+            LEGACY_INCIDENT["artifact_id"],
+            LEGACY_INCIDENT["artifact_sha256"],
+            LEGACY_INCIDENT["checkpoint_sha256"],
+            LEGACY_INCIDENT["head_sha"],
+        )
+        actual_identity = (
+            str(source_run_id),
+            str(source_artifact_id),
+            source_artifact_sha256.lower(),
+            source_checkpoint_sha256.lower(),
+            source_head_sha.lower(),
+        )
+        if actual_identity != expected_identity:
+            raise ValueError("legacy checkpoint source identity is not allowlisted")
+        required = {
+            "status", "stage", "stats", "targets_discovered", "current_url", "brands_scanned",
+            "remaining_brands", "queue_depth", "last_completed_url", "stop_reason", "rows",
+            "updated_at", "elapsed_seconds", "last_progress_age_seconds",
+        }
+        if set(payload) != required:
+            raise ValueError("legacy checkpoint schema mismatch")
+        rows = payload.get("rows")
+        if not isinstance(rows, list) or not rows or len(validate_real_rows(rows)) != len(rows):
+            raise ValueError("legacy checkpoint rows failed the original quality gate")
+        if (
+            payload.get("stop_reason") != "safety_buffer_reached"
+            or payload.get("brands_scanned") != 84
+            or payload.get("remaining_brands") != 651
+            or payload.get("queue_depth") != 7
+            or payload.get("last_completed_url") != LEGACY_INCIDENT["pending_targets"][0][0]
+        ):
+            raise ValueError("legacy checkpoint progress identity mismatch")
+        historical_stats = dict(payload.get("stats") or {})
+        stats = dict(historical_stats)
+        for key in ("attempted", "403", "failed"):
+            if not isinstance(stats.get(key), int) or stats[key] <= 0:
+                raise ValueError(f"legacy checkpoint invalid stats.{key}")
+            stats[key] -= 1
+        known_targets = {url: dict(target) for url, target in LEGACY_INCIDENT["pending_targets"]}
+        return {
+            "rows": [dict(row) for row in rows],
+            "stats": stats,
+            "historical_stats": historical_stats,
+            "known_targets": known_targets,
+            "pending": list(known_targets),
+            "attempts": {},
+            "completed": [],
+            "targets_discovered": int(payload["targets_discovered"]),
+            "legacy_frontier": {
+                "scanned_master_ids": list(LEGACY_INCIDENT["scanned_master_ids"]),
+                "brands_total": int(payload["brands_scanned"]) + int(payload["remaining_brands"]),
+                "seen_serial_ids_count": LEGACY_INCIDENT["seen_serial_ids_count"],
+                "seen_serial_ids_sha256": LEGACY_INCIDENT["seen_serial_ids_sha256"],
+                "logs_sha256": LEGACY_INCIDENT["logs_sha256"],
+            },
+            "source": {
+                "run_id": str(source_run_id),
+                "artifact_id": str(source_artifact_id),
+                "artifact_sha256": source_artifact_sha256.lower(),
+                "checkpoint_sha256": source_checkpoint_sha256.lower(),
+                "head_sha": source_head_sha.lower(),
+                "migration": "legacy-30538098345-safe-boundary-v1",
+            },
+        }
+
+    if (
+        payload.get("format") != "yiche-raw-progress"
+        or payload.get("schema_version") != YICHE_CHECKPOINT_SCHEMA_VERSION
+        or payload.get("state_compat_version") != YICHE_CHECKPOINT_STATE_COMPAT_VERSION
+    ):
+        raise ValueError("checkpoint schema/state compatibility mismatch")
+    producer = payload.get("producer") or {}
+    if (
+        producer.get("repository") != os.getenv("GITHUB_REPOSITORY", "Fatty911/crawl_cars")
+        or str(producer.get("run_id")) != str(source_run_id)
+        or producer.get("head_sha") != source_head_sha
+        or producer.get("workflow") != ".github/workflows/crawl-yiche.yml"
+        or producer.get("crawler_sha256") != source_crawler_sha256
+    ):
+        raise ValueError("checkpoint producer identity mismatch")
+    resume = payload.get("resume_state")
+    rows = payload.get("rows")
+    if not isinstance(resume, dict) or not isinstance(rows, list) or not rows:
+        raise ValueError("checkpoint resume state missing")
+    if len(validate_real_rows(rows)) != len(rows):
+        raise ValueError("checkpoint rows failed the original quality gate")
+    known_targets = resume.get("known_targets")
+    pending = resume.get("pending")
+    completed = resume.get("completed")
+    attempts = resume.get("attempts")
+    stats = resume.get("stats")
+    frontier = resume.get("frontier")
+    legacy_frontier = resume.get("legacy_frontier")
+    if (
+        not isinstance(known_targets, dict)
+        or any(
+            not isinstance(url, str)
+            or normalize_series_url(url) != url
+            or not isinstance(target, dict)
+            for url, target in known_targets.items()
+        )
+        or not isinstance(pending, list)
+        or any(not isinstance(url, str) for url in pending)
+        or not isinstance(completed, list)
+        or any(not isinstance(url, str) for url in completed)
+        or not isinstance(attempts, dict)
+        or not isinstance(stats, dict)
+        or any(not is_nonnegative_int(value) for value in stats.values())
+        or not is_nonnegative_int(stats.get("attempted"))
+        or stats["attempted"] <= 0
+        or len(pending) != len(set(pending))
+        or len(completed) != len(set(completed))
+        or not set(pending).issubset(known_targets)
+        or not set(completed).issubset(known_targets)
+        or set(pending) & set(completed)
+        or not set(attempts).issubset(known_targets)
+        or any(not is_nonnegative_int(value) or value <= 0 for value in attempts.values())
+        or not validate_frontier_resume_state(frontier)
+        or not isinstance(legacy_frontier, dict)
+    ):
+        raise ValueError("checkpoint resume state invariants failed")
+    if legacy_frontier and legacy_frontier != {
+        "scanned_master_ids": LEGACY_INCIDENT["scanned_master_ids"],
+        "brands_total": 735,
+        "seen_serial_ids_count": LEGACY_INCIDENT["seen_serial_ids_count"],
+        "seen_serial_ids_sha256": LEGACY_INCIDENT["seen_serial_ids_sha256"],
+        "logs_sha256": LEGACY_INCIDENT["logs_sha256"],
+    }:
+        raise ValueError("checkpoint legacy frontier identity mismatch")
+    result = dict(resume)
+    result["rows"] = [dict(row) for row in rows]
+    result["source"] = {
+        "run_id": str(source_run_id),
+        "artifact_id": str(source_artifact_id),
+        "artifact_sha256": source_artifact_sha256.lower(),
+        "checkpoint_sha256": source_checkpoint_sha256.lower(),
+        "head_sha": source_head_sha.lower(),
+    }
+    return result
 
 
 def identity_quality_counts(rows):
@@ -1085,27 +1423,76 @@ def crawl(
     heartbeat_interval=YICHE_HEARTBEAT_INTERVAL,
     checkpoint_path="",
     observer=None,
+    resume_state=None,
+    resume_smoke_targets=0,
 ):
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0"})
-    all_rows = []
-    stats = {"attempted": 0, "success": 0, "403": 0, "429": 0, "failed": 0, "degraded_identity": 0}
+    resume_state = dict(resume_state or {})
+    all_rows = [dict(row) for row in resume_state.get("rows") or []]
+    stats = dict(resume_state.get("stats") or {
+        "attempted": 0, "success": 0, "403": 0, "429": 0, "failed": 0, "degraded_identity": 0,
+    })
     start = start_time if start_time is not None else time.monotonic()
     deadline = start + time_limit if time_limit else 0
-    known_targets = dict(targets) if isinstance(targets, dict) else {url: {"serial_id": ""} for url in targets}
+    known_targets = {
+        url: target_meta(value) for url, value in (resume_state.get("known_targets") or {}).items()
+    }
+    incoming_targets = dict(targets) if isinstance(targets, dict) else {url: {"serial_id": ""} for url in targets}
+    for url, value in incoming_targets.items():
+        known_targets.setdefault(url, target_meta(value))
     if max_targets > 0:
         known_targets = dict(list(known_targets.items())[:max_targets])
-    pending = list(known_targets)
+    pending = list(resume_state["pending"]) if "pending" in resume_state else list(known_targets)
     known_serial_ids = {target_serial_id(value) for value in known_targets.values() if target_serial_id(value)}
-    attempts = {}
-    completed = set()
+    attempts = {url: int(value) for url, value in (resume_state.get("attempts") or {}).items()}
+    completed = set(resume_state.get("completed") or [])
     idle_discovery_rounds = 0
     stop_reason = "target_exhausted"
-    stats.update({"discovery_rounds": 0, "discovery_network_errors": 0, "retry_attempted": 0, "item_timeouts": 0, "invalid_brand": 0, "invalid_model_name": 0, "invalid_series": 0, "invalid_year": 0, "unapproved_status": 0})
+    for key in (
+        "attempted", "success", "403", "429", "failed", "degraded_identity",
+        "discovery_rounds", "discovery_network_errors", "retry_attempted", "item_timeouts",
+        "invalid_brand", "invalid_model_name", "invalid_series", "invalid_year", "unapproved_status",
+    ):
+        stats.setdefault(key, 0)
+    targets_discovered_count = int(resume_state.get("targets_discovered", len(known_targets)))
+    baseline_attempted = int(stats.get("attempted", 0))
+
+    def checkpoint_resume_state():
+        frontier_state = discovery_callback.export_state() if hasattr(discovery_callback, "export_state") else {}
+        legacy_frontier = resume_state.get("legacy_frontier") or {}
+        return {
+            "stats": dict(stats),
+            "known_targets": {url: target_meta(value) for url, value in known_targets.items()},
+            "pending": list(pending),
+            "attempts": dict(attempts),
+            "completed": sorted(completed),
+            "targets_discovered": targets_discovered_count,
+            "frontier": frontier_state,
+            "legacy_frontier": legacy_frontier if not frontier_state.get("initialized") else {},
+            "historical_stats": dict(resume_state.get("historical_stats") or {}),
+        }
+
     owns_observer = observer is None
     observer = observer or CrawlObserver(checkpoint_path, heartbeat_interval)
+    observer.update(
+        rows=all_rows,
+        stats=stats,
+        targets_discovered=targets_discovered_count,
+        resume_source=resume_state.get("source") or {},
+        resume_state=checkpoint_resume_state(),
+        brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
+        remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
+    )
     observer.start()
-    observer.update(stats=stats, targets_discovered=len(known_targets))
+    if resume_state:
+        print(
+            f"易车恢复: attempted={baseline_attempted} rows={len(all_rows)} "
+            f"pending={len(pending)} targets_discovered={targets_discovered_count} "
+            f"source_run={resume_state.get('source', {}).get('run_id', '-')}",
+            flush=True,
+        )
+
     print(
         f"易车预算: budget_seconds={time_limit} finish_buffer_seconds={finish_buffer} item_timeout_seconds={item_timeout} "
         f"deadline_monotonic={deadline:.3f} targets_initial={len(known_targets)} max_attempts={max_attempts}"
@@ -1117,6 +1504,9 @@ def crawl(
             or (not hasattr(discovery_callback, "discover") and idle_discovery_rounds < 2)
         )
     ):
+        if resume_smoke_targets > 0 and stats["attempted"] - baseline_attempted >= resume_smoke_targets:
+            stop_reason = "resume_smoke_limit_reached"
+            break
         if deadline and time.monotonic() >= deadline - finish_buffer:
             stop_reason = "safety_buffer_reached"
             break
@@ -1142,6 +1532,19 @@ def crawl(
             except RuntimeError as exc:
                 stop_reason = "discovery_unavailable_fail_closed" if max_targets == 0 else "discovery_unavailable_after_seed_rows"
                 print(f"易车结构化发现不可用: stop_reason={stop_reason} seed_rows={len(all_rows)} error={exc}")
+                if resume_state:
+                    observer.checkpoint(
+                        force=True,
+                        rows=all_rows,
+                        status="partial",
+                        stage="discovery",
+                        stop_reason="resume_discovery_identity_mismatch",
+                        stats=stats,
+                        queue_depth=len(pending),
+                        targets_discovered=targets_discovered_count,
+                        resume_state=checkpoint_resume_state(),
+                    )
+                    raise
                 if max_targets == 0:
                     all_rows = []
                 break
@@ -1157,6 +1560,7 @@ def crawl(
                 known_serial_ids.add(discovered_id)
                 pending.append(normalized)
                 added += 1
+            targets_discovered_count += added
             print(
                 f"易车发现队列: round={stats['discovery_rounds']} new_serial_ids={added} "
                 f"queue_depth={len(pending)} unique_serial_ids={len(known_serial_ids)}"
@@ -1170,7 +1574,8 @@ def crawl(
                 brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
                 remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
                 queue_depth=len(pending),
-                targets_discovered=len(known_targets),
+                targets_discovered=targets_discovered_count,
+                resume_state=checkpoint_resume_state(),
             )
             if not pending:
                 continue
@@ -1298,7 +1703,8 @@ def crawl(
             brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
             remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
             queue_depth=len(pending),
-            targets_discovered=len(known_targets),
+            targets_discovered=targets_discovered_count,
+            resume_state=checkpoint_resume_state(),
         )
         if not pending and discovery_callback and not hasattr(discovery_callback, "discover") and idle_discovery_rounds < 2:
             stats["discovery_rounds"] += 1
@@ -1338,7 +1744,7 @@ def crawl(
     print(
         "易车抓取统计: "
         + " ".join(f"{key}={value}" for key, value in stats.items())
-        + f" targets_discovered={len(known_targets)} unique_serial_ids_attempted={len({target_serial_id(known_targets[url]) for url in attempts if target_serial_id(known_targets.get(url, {}))})} "
+        + f" targets_discovered={targets_discovered_count} unique_serial_ids_attempted={len({target_serial_id(known_targets[url]) for url in attempts if target_serial_id(known_targets.get(url, {}))})} "
         + f"brands_total={getattr(discovery_callback, 'brands_total', 0)} brands_scanned={getattr(discovery_callback, 'brands_scanned', 0)} "
         + f"remaining_brands={getattr(discovery_callback, 'remaining_brands', 0)} pages_scanned={getattr(discovery_callback, 'pages_scanned', 0)} "
         + f"brand_discovery_retries={getattr(discovery_callback, 'brand_discovery_retries', 0)} "
@@ -1347,9 +1753,10 @@ def crawl(
         + f"elapsed_seconds={time.monotonic() - start:.1f} remaining_seconds={max(0, deadline - time.monotonic()):.1f} "
         + f"stop_reason={stop_reason}"
     )
+    final_status = "partial" if stop_reason in {"safety_buffer_reached", "resume_smoke_limit_reached"} else "completed"
     if owns_observer:
         observer.close(
-            "completed",
+            final_status,
             rows=deduped_rows,
             stage="finished",
             stop_reason=stop_reason,
@@ -1357,7 +1764,8 @@ def crawl(
             brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
             remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
             queue_depth=len(pending),
-            targets_discovered=len(known_targets),
+            targets_discovered=targets_discovered_count,
+            resume_state=checkpoint_resume_state(),
         )
     else:
         observer.update(
@@ -1369,7 +1777,8 @@ def crawl(
             brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
             remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
             queue_depth=len(pending),
-            targets_discovered=len(known_targets),
+            targets_discovered=targets_discovered_count,
+            resume_state=checkpoint_resume_state(),
         )
     return deduped_rows
 
@@ -1388,11 +1797,32 @@ def main():
     parser.add_argument("--item-timeout", type=float, default=YICHE_ITEM_TIMEOUT, help="单车系阶段墙钟上限(秒)")
     parser.add_argument("--heartbeat-interval", type=float, default=YICHE_HEARTBEAT_INTERVAL, help="心跳间隔(秒)")
     parser.add_argument("--checkpoint", default=os.getenv("YICHE_CHECKPOINT_PATH", "yiche_checkpoint.json"), help="运行检查点路径")
+    parser.add_argument("--resume-checkpoint", default="", help="已验证的恢复检查点路径")
+    parser.add_argument("--resume-source-run-id", default="")
+    parser.add_argument("--resume-source-artifact-id", default="")
+    parser.add_argument("--resume-source-artifact-sha256", default="")
+    parser.add_argument("--resume-source-checkpoint-sha256", default="")
+    parser.add_argument("--resume-source-head-sha", default="")
+    parser.add_argument("--resume-source-crawler-sha256", default="")
+    parser.add_argument("--resume-smoke-targets", type=int, default=0)
     args = parser.parse_args()
 
-    urls = load_urls(args)
-    targets = {normalize_series_url(url): serial_id_from_url(url) for url in urls}
-    if not targets:
+    resume_state = None
+    if args.resume_checkpoint:
+        resume_state = load_resume_checkpoint(
+            args.resume_checkpoint,
+            source_run_id=args.resume_source_run_id,
+            source_artifact_id=args.resume_source_artifact_id,
+            source_artifact_sha256=args.resume_source_artifact_sha256,
+            source_checkpoint_sha256=args.resume_source_checkpoint_sha256,
+            source_head_sha=args.resume_source_head_sha,
+            source_crawler_sha256=args.resume_source_crawler_sha256,
+        )
+        if args.max_series != 0:
+            raise SystemExit("恢复模式不接受 --max-series；短烟测请使用 --resume-smoke-targets")
+    urls = [] if resume_state else load_urls(args)
+    targets = {} if resume_state else {normalize_series_url(url): serial_id_from_url(url) for url in urls}
+    if not targets and not resume_state:
         discovery_urls = args.discover_url or split_urls(os.getenv("YICHE_DISCOVERY_URLS", "")) or DEFAULT_DISCOVERY_URLS
         session = requests.Session()
         session.headers.update({"User-Agent": "Mozilla/5.0"})
@@ -1400,10 +1830,23 @@ def main():
         targets.update(discover_series_urls(session, discovery_urls, args.max_discovery_pages))
     if args.max_series > 0:
         targets = dict(list(targets.items())[:args.max_series])
-    if not targets:
+    if not targets and not resume_state:
         print("未配置且未发现易车车系 URL，生成空数据文件。可通过 --url、--url-file、YICHE_SERIES_URLS 或 YICHE_DISCOVERY_URLS 配置。")
     discovery_callback = None
-    if not urls:
+    if resume_state:
+        session = requests.Session()
+        session.headers.update({"User-Agent": "Mozilla/5.0"})
+        legacy_frontier = resume_state.get("legacy_frontier") or {}
+        discovery_callback = YicheDiscoveryFrontier(
+            session,
+            legacy_scanned_master_ids=legacy_frontier.get("scanned_master_ids"),
+            legacy_brands_total=legacy_frontier.get("brands_total", 0),
+            legacy_seen_serial_ids_count=legacy_frontier.get("seen_serial_ids_count", 0),
+            legacy_seen_serial_ids_sha256=legacy_frontier.get("seen_serial_ids_sha256", ""),
+        )
+        if resume_state.get("frontier"):
+            discovery_callback.restore_state(resume_state["frontier"])
+    elif not urls:
         discovery_callback = YicheDiscoveryFrontier(session, initial_brands=LAST_DISCOVERED_MASTER_BRANDS)
     observer = CrawlObserver(args.checkpoint, args.heartbeat_interval)
     previous_handlers = {}
@@ -1426,7 +1869,9 @@ def main():
             start_time=started_at,
             item_timeout=args.item_timeout,
             observer=observer,
-        ) if targets else []
+            resume_state=resume_state,
+            resume_smoke_targets=args.resume_smoke_targets,
+        ) if targets or resume_state else []
     except CrawlInterrupted as exc:
         observer.close("cancelled", stage="interrupted", signal=exc.signum)
         print(f"易车爬虫收到取消信号 {exc.signum}，已刷新检查点", flush=True)
@@ -1435,7 +1880,9 @@ def main():
         observer.close("failed", stage="failed")
         raise
     else:
-        observer.close("completed", rows=rows, stage="finished")
+        stop_reason = observer.state.get("stop_reason")
+        final_status = "partial" if stop_reason in {"safety_buffer_reached", "resume_smoke_limit_reached"} else "completed"
+        observer.close(final_status, rows=rows, stage="finished")
     finally:
         for signum, previous_handler in previous_handlers.items():
             signal.signal(signum, previous_handler)

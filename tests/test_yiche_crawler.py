@@ -1,6 +1,8 @@
 import sys
 import types
+import hashlib
 import json
+import copy
 
 import requests
 import pytest
@@ -8,6 +10,48 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import scripts.crawl_yiche as yiche
+
+
+def valid_v2_checkpoint_payload():
+    target_url = "https://car.yiche.com/test/peizhi/"
+    return {
+        "format": "yiche-raw-progress",
+        "schema_version": yiche.YICHE_CHECKPOINT_SCHEMA_VERSION,
+        "state_compat_version": yiche.YICHE_CHECKPOINT_STATE_COMPAT_VERSION,
+        "producer": {
+            "repository": "Fatty911/crawl_cars",
+            "workflow": ".github/workflows/crawl-yiche.yml",
+            "run_id": "123",
+            "head_sha": "a" * 40,
+            "crawler_sha256": "b" * 64,
+        },
+        "rows": [{
+            "品牌": "测试品牌", "车系": "测试车系", "车型名称": "2026款 真车",
+            "年款": "2026", "易车上市状态": "approved", "价格": "1万",
+        }],
+        "resume_state": {
+            "stats": {"attempted": 1},
+            "known_targets": {target_url: {"serial_id": "1"}},
+            "pending": [target_url],
+            "completed": [],
+            "attempts": {},
+            "frontier": {
+                "brand_queue": [["2", "测试品牌"]],
+                "retry_queue": [],
+                "brand_attempts": {},
+                "brands_total": 1,
+                "brands_scanned": 0,
+                "pages_scanned": 0,
+                "seen_serial_ids": [],
+                "duplicate_serial_ids": 0,
+                "brand_discovery_retries": 0,
+                "brand_discovery_failures": 0,
+                "last_failed_master_id": "",
+                "initialized": True,
+            },
+            "legacy_frontier": {},
+        },
+    }
 
 
 def test_default_series_urls_seed_no_configured_urls(monkeypatch):
@@ -228,6 +272,270 @@ def test_main_flushes_cancelled_checkpoint_on_sigterm(monkeypatch, tmp_path):
     payload = json.loads(checkpoint.read_text(encoding="utf-8"))
     assert payload["status"] == "cancelled"
     assert payload["signal"] == yiche.signal.SIGTERM
+
+
+def test_legacy_incident_checkpoint_restores_authenticated_progress(monkeypatch, tmp_path):
+    checkpoint = tmp_path / "yiche_checkpoint.json"
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "status": "completed",
+                "stage": "finished",
+                "stats": {"attempted": 2229, "success": 613, "403": 1079, "429": 0, "failed": 1082,
+                          "degraded_identity": 534, "discovery_rounds": 84, "discovery_network_errors": 0,
+                          "retry_attempted": 806, "item_timeouts": 0, "invalid_brand": 0,
+                          "invalid_model_name": 0, "invalid_series": 0, "invalid_year": 0,
+                          "unapproved_status": 0},
+                "targets_discovered": 1429,
+                "current_url": "",
+                "brands_scanned": 84,
+                "remaining_brands": 651,
+                "queue_depth": 7,
+                "last_completed_url": "https://car.yiche.com/puravision/peizhi/",
+                "stop_reason": "safety_buffer_reached",
+                "rows": [{
+                    "品牌": "测试品牌", "车系": "测试车系", "车型名称": "2026款 真车",
+                    "年款": "2026", "易车上市状态": "approved", "价格": "1万",
+                }],
+                "updated_at": "2026-07-30T13:44:01+00:00",
+                "elapsed_seconds": 8649.19,
+                "last_progress_age_seconds": 0.006,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    checkpoint_sha256 = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+    monkeypatch.setitem(yiche.LEGACY_INCIDENT, "checkpoint_sha256", checkpoint_sha256)
+    resume = yiche.load_resume_checkpoint(
+        str(checkpoint),
+        source_run_id="30538098345",
+        source_artifact_id="8761651220",
+        source_artifact_sha256="e0c4585eab10ff8f04c17a91c5e0ef9aa64ca2a990e12f854f2ccc68a886f177",
+        source_checkpoint_sha256=checkpoint_sha256,
+        source_head_sha="60e340af63f316785123ca38c958d7edfc570a4f",
+        source_crawler_sha256="0" * 64,
+    )
+
+    assert resume["historical_stats"]["attempted"] == 2229
+    assert resume["stats"]["attempted"] == 2228
+    assert len(resume["rows"]) == 1
+    assert resume["targets_discovered"] == 1429
+    assert resume["legacy_frontier"]["scanned_master_ids"][-1] == "377"
+    assert resume["pending"][0] == "https://car.yiche.com/puravision/peizhi/"
+    assert resume["pending"][-1] == "https://car.yiche.com/viritechapricaleconcept/peizhi/"
+
+
+def test_legacy_checkpoint_rejects_wrong_source_identity(tmp_path):
+    checkpoint = tmp_path / "yiche_checkpoint.json"
+    checkpoint.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="legacy checkpoint"):
+        yiche.load_resume_checkpoint(
+            str(checkpoint),
+            source_run_id="30538098345",
+            source_artifact_id="8761651220",
+            source_artifact_sha256="0" * 64,
+            source_checkpoint_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+            source_head_sha="60e340af63f316785123ca38c958d7edfc570a4f",
+            source_crawler_sha256="0" * 64,
+        )
+
+
+def test_v2_checkpoint_rejects_wrong_crawler_identity(tmp_path):
+    checkpoint = tmp_path / "yiche_checkpoint.json"
+    source_head = "a" * 40
+    source_crawler = "b" * 64
+    payload = valid_v2_checkpoint_payload()
+    payload["producer"]["crawler_sha256"] = "c" * 64
+    checkpoint.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="producer identity"):
+        yiche.load_resume_checkpoint(
+            str(checkpoint),
+            source_run_id="123",
+            source_artifact_id="456",
+            source_artifact_sha256="d" * 64,
+            source_checkpoint_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+            source_head_sha=source_head,
+            source_crawler_sha256=source_crawler,
+        )
+
+
+def test_v2_checkpoint_rejects_corrupt_progress_invariants(tmp_path):
+    mutations = []
+    invalid_attempt = valid_v2_checkpoint_payload()
+    target_url = next(iter(invalid_attempt["resume_state"]["known_targets"]))
+    invalid_attempt["resume_state"]["attempts"][target_url] = -1
+    mutations.append(invalid_attempt)
+    invalid_completed = valid_v2_checkpoint_payload()
+    invalid_completed["resume_state"]["completed"] = ["https://car.yiche.com/unknown/peizhi/"]
+    mutations.append(invalid_completed)
+    invalid_frontier = valid_v2_checkpoint_payload()
+    invalid_frontier["resume_state"]["frontier"]["brand_queue"] = [["2"]]
+    mutations.append(invalid_frontier)
+
+    for index, payload in enumerate(mutations):
+        checkpoint = tmp_path / f"corrupt-{index}.json"
+        checkpoint.write_text(json.dumps(copy.deepcopy(payload)), encoding="utf-8")
+        with pytest.raises(ValueError, match="resume state invariants"):
+            yiche.load_resume_checkpoint(
+                str(checkpoint),
+                source_run_id="123",
+                source_artifact_id="456",
+                source_artifact_sha256="d" * 64,
+                source_checkpoint_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+                source_head_sha="a" * 40,
+                source_crawler_sha256="b" * 64,
+            )
+
+
+def test_v2_checkpoint_accepts_exhausted_brand_discovery_failure(tmp_path):
+    payload = valid_v2_checkpoint_payload()
+    frontier = payload["resume_state"]["frontier"]
+    frontier.update({
+        "brands_total": 2,
+        "brands_scanned": 1,
+        "pages_scanned": 0,
+        "brand_discovery_failures": 1,
+    })
+    checkpoint = tmp_path / "valid-brand-failure.json"
+    checkpoint.write_text(json.dumps(payload), encoding="utf-8")
+
+    resume = yiche.load_resume_checkpoint(
+        str(checkpoint),
+        source_run_id="123",
+        source_artifact_id="456",
+        source_artifact_sha256="d" * 64,
+        source_checkpoint_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+        source_head_sha="a" * 40,
+        source_crawler_sha256="b" * 64,
+    )
+
+    assert resume["frontier"]["brand_discovery_failures"] == 1
+    assert resume["rows"] == payload["rows"]
+
+
+def test_legacy_frontier_reconstructs_seen_ids_before_continuing(monkeypatch):
+    payloads = {
+        "1": {"data": [{"name": "品牌甲", "serialList": [
+            {"id": "101", "name": "旧车系", "brandName": "品牌甲", "allSpell": "old-series"},
+        ]}]},
+        "2": {"data": [{"name": "品牌乙", "serialList": [
+            {"id": "101", "name": "重复车系", "brandName": "品牌乙", "allSpell": "duplicate-series"},
+            {"id": "202", "name": "新车系", "brandName": "品牌乙", "allSpell": "new-series"},
+        ]}]},
+    }
+    monkeypatch.setattr(
+        yiche,
+        "fetch_yiche_api",
+        lambda session, url, params: payloads[params["masterId"]],
+    )
+    frontier = yiche.YicheDiscoveryFrontier(
+        requests.Session(),
+        initial_brands=[("1", "品牌甲"), ("2", "品牌乙")],
+        legacy_scanned_master_ids=["1"],
+        legacy_brands_total=2,
+        legacy_seen_serial_ids_count=1,
+        legacy_seen_serial_ids_sha256=hashlib.sha256(b"101\n").hexdigest(),
+    )
+
+    discovered = frontier.discover()
+
+    assert set(discovered) == {"https://car.yiche.com/new-series/peizhi/"}
+    assert discovered["https://car.yiche.com/new-series/peizhi/"]["serial_id"] == "202"
+    assert frontier.seen_serial_ids == {"101", "202"}
+
+
+def test_resume_discovery_identity_failure_preserves_authenticated_rows(tmp_path):
+    old_row = {
+        "品牌": "旧品牌", "车系": "旧车系", "车型名称": "2025款 旧车",
+        "年款": "2025", "易车上市状态": "approved", "价格": "1万",
+    }
+    resume = {
+        "rows": [old_row],
+        "stats": {"attempted": 5},
+        "known_targets": {},
+        "pending": [],
+        "attempts": {},
+        "completed": [],
+        "targets_discovered": 10,
+    }
+
+    class Frontier:
+        brands_scanned = 84
+        remaining_brands = 651
+        exhausted = False
+
+        def discover(self):
+            raise RuntimeError("legacy serial identity mismatch")
+
+        def export_state(self):
+            return {}
+
+    checkpoint = tmp_path / "preserved.json"
+    with pytest.raises(RuntimeError, match="identity mismatch"):
+        yiche.crawl(
+            {},
+            delay=0,
+            checkpoint_path=str(checkpoint),
+            heartbeat_interval=0,
+            resume_state=resume,
+            discovery_callback=Frontier(),
+        )
+
+    payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+    assert payload["status"] == "partial"
+    assert payload["stop_reason"] == "resume_discovery_identity_mismatch"
+    assert payload["stats"]["attempted"] == 5
+    assert payload["rows"] == [old_row]
+
+
+def test_resume_keeps_nonzero_rows_and_attempt_count(monkeypatch, tmp_path, capsys):
+    html = (
+        "<table><tr><th>车型</th><th>2026款 新车</th></tr>"
+        "<tr><td>品牌</td><td>真实品牌</td></tr><tr><td>车系</td><td>真实车系</td></tr>"
+        "<tr><td>价格</td><td>2万</td></tr><tr><td>上市状态</td><td>在售</td></tr></table>"
+    )
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: html)
+    old_row = {
+        "品牌": "旧品牌", "车系": "旧车系", "车型名称": "2025款 旧车",
+        "年款": "2025", "易车上市状态": "approved", "价格": "1万",
+    }
+    resume = {
+        "rows": [old_row],
+        "stats": {"attempted": 5, "success": 1, "403": 0, "429": 0, "failed": 0,
+                  "degraded_identity": 0, "discovery_rounds": 0, "discovery_network_errors": 0,
+                  "retry_attempted": 0, "item_timeouts": 0, "invalid_brand": 0,
+                  "invalid_model_name": 0, "invalid_series": 0, "invalid_year": 0,
+                  "unapproved_status": 0},
+        "known_targets": {
+            "https://car.yiche.com/new/peizhi/": {"brand": "真实品牌", "series": "真实车系", "serial_id": ""}
+        },
+        "pending": ["https://car.yiche.com/new/peizhi/"],
+        "attempts": {},
+        "completed": [],
+        "targets_discovered": 1,
+    }
+    checkpoint = tmp_path / "resumed.json"
+
+    rows = yiche.crawl(
+        {},
+        delay=0,
+        checkpoint_path=str(checkpoint),
+        heartbeat_interval=0,
+        resume_state=resume,
+        resume_smoke_targets=1,
+    )
+
+    payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+    assert payload["stats"]["attempted"] == 6
+    assert len(rows) == 2
+    assert len(payload["rows"]) == 2
+    assert payload["schema_version"] == yiche.YICHE_CHECKPOINT_SCHEMA_VERSION
+    assert payload["resume_state"]["pending"] == []
+    assert "易车恢复: attempted=5 rows=1" in capsys.readouterr().out
 
 
 def test_quality_gate_rejects_placeholder_rows():
@@ -504,6 +812,14 @@ def test_workflow_quality_gate_uses_real_row_validation():
     assert "if: always()" in workflow
     assert "yiche-checkpoint-" in workflow
     assert "yiche_checkpoint.json" in workflow
+    assert "resume_artifact_id:" in workflow
+    assert "resume_artifact_sha256:" in workflow
+    assert "resume_checkpoint_sha256:" in workflow
+    assert "source_head_sha:" in workflow
+    assert "--resume-source-crawler-sha256" in workflow
+    assert "git merge-base --is-ancestor" in workflow
+    assert 'path: ${{ steps.verify_yiche.outputs.data_path }}' in workflow
+    assert 'glob.glob("yiche_*.json")' not in workflow
 
 
 def test_crawl_skips_not_found_http_errors(monkeypatch):
