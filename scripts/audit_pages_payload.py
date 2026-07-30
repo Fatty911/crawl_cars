@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
-from merge_data import atomic_source_names, partition_publishable_rows
+from merge_data import atomic_source_names, partition_publishable_rows, series_year_key
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 SCHEMA_VERSION = "pages-payload-audit-v1"
@@ -56,6 +56,12 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
     candidate_rows, invalid_candidate = filter_valid_identity_rows(candidate_rows)
     baseline = _index(baseline_rows)
     candidate = _index(candidate_rows)
+    baseline_buckets = {identity_key(row): series_year_key(row) for row in baseline_rows}
+    candidate_bucket_sources: dict[str, set[str]] = {}
+    for row in candidate_rows:
+        bucket = series_year_key(row)
+        if bucket:
+            candidate_bucket_sources.setdefault(bucket, set()).update(_sources(row.get("数据来源")))
     violations: list[dict] = []
 
     def add(code: str, keys: Iterable[object]) -> None:
@@ -74,7 +80,17 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
 
     missing = set(baseline) - set(candidate)
     add("missing_identity", missing)
-    source_regressions = [key for key in set(baseline) & set(candidate) if not baseline[key].issubset(candidate[key])]
+    source_regressions = []
+    intentional_source_retirements = 0
+    for key in set(baseline) & set(candidate):
+        retired_sources = baseline[key] - candidate[key]
+        if not retired_sources:
+            continue
+        bucket_sources = candidate_bucket_sources.get(baseline_buckets.get(key, ""), set())
+        if retired_sources.issubset(bucket_sources):
+            intentional_source_retirements += 1
+        else:
+            source_regressions.append(key)
     add("source_regression", source_regressions)
     violations.sort(key=lambda item: item["code"])
 
@@ -100,6 +116,7 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
             "baseline_identities": len(baseline),
             "candidate_identities": len(candidate),
             "added_identities": len(set(candidate) - set(baseline)),
+            "intentional_source_retirements": intentional_source_retirements,
             "baseline_invalid_brand_dropped": baseline_publish_stats["invalid_brand"],
             "baseline_invalid_model_name_dropped": baseline_publish_stats["invalid_model_name"],
             "candidate_invalid_brand_dropped": candidate_publish_stats["invalid_brand"],

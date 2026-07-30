@@ -93,6 +93,16 @@ class PagesPayloadAuditTests(unittest.TestCase):
         self.assertNotIn("尊贵型", rendered)
         self.assertNotIn("易车", rendered)
 
+    def test_source_retirement_passes_when_source_remains_in_same_series_year(self) -> None:
+        report = self.audit.audit_payload(
+            [self.row("1", "汽车之家+懂车帝")],
+            [self.row("1", "汽车之家"), self.row("2", "懂车帝")],
+            head_sha="abc",
+        )
+        self.assertEqual("pass", report["status"])
+        self.assertEqual([], report["violations"])
+        self.assertEqual(1, report["stats"]["intentional_source_retirements"])
+
     def test_missing_identity_is_blocked(self) -> None:
         report = self.audit.audit_payload(
             [self.row("1", "汽车之家"), self.row("2", "易车")],
