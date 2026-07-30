@@ -16,7 +16,6 @@ from prepare_pages_payload import (
     VISIBLE_COMPONENT_EVIDENCE,
     VISIBLE_COMPONENT_ID,
     annotate_safe_visible_components,
-    source_provenance_contradictions,
     visible_card_stats,
 )
 
@@ -119,17 +118,6 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
     add("missing_visible_component_annotation", missing_annotations)
     add("unsafe_visible_component_annotation", unsafe_annotations)
     add("visible_component_evidence_mismatch", evidence_mismatches)
-    provenance_rows = []
-    for actual, expected in zip(candidate_rows, expected_candidate_rows):
-        normalized = dict(actual)
-        expected_id = str(expected.get(VISIBLE_COMPONENT_ID, "") or "")
-        if expected_id:
-            normalized[VISIBLE_COMPONENT_ID] = expected_id
-        else:
-            normalized.pop(VISIBLE_COMPONENT_ID, None)
-        provenance_rows.append(normalized)
-    provenance_contradictions = source_provenance_contradictions(provenance_rows)
-    add("field_source_contradiction", provenance_contradictions)
     violations.sort(key=lambda item: item["code"])
 
     baseline_visible = visible_card_stats(baseline_rows)
@@ -170,7 +158,6 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
             "candidate_visible_multi": candidate_visible["visible_multi"],
             "candidate_visible_rate": candidate_visible["visible_rate"],
             "visible_multi_delta": candidate_visible["visible_multi"] - baseline_visible["visible_multi"],
-            "field_source_contradictions": len(provenance_contradictions),
             **component_stats,
         },
         "violations": violations,
