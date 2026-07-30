@@ -222,6 +222,37 @@ test("Pages groups only rows carrying the same audited cross-source component id
   assert.equal(hooks.state.rows.find((item) => item["交叉核验"] === "单源数据")["车型名称"], unrelated["车型名称"]);
 });
 
+test("Pages source count, verification label, and card conservation share one component model", () => {
+  const { elements, hooks } = loadAppForTest();
+  const componentId = "visible-f-v1:absorbed";
+  const existingMulti = Object.assign(row("汽车之家+懂车帝", 2026, "示例车 2026款 Pro"), {
+    "车款ID": "70001",
+    "跨源归并ID": componentId
+  });
+  const duplicateDongchedi = Object.assign(row("仅懂车帝", 2026, "Pro"), {
+    "跨源归并ID": componentId
+  });
+  const yiche = Object.assign(row("仅易车", 2026, "26款 Pro"), {
+    "车款ID": "80001",
+    "跨源归并ID": componentId
+  });
+  const single = row("仅汽车之家", 2026, "独立款");
+
+  hooks.initializeRows([existingMulti, duplicateDongchedi, yiche, single]);
+  hooks.renderResultsOnly();
+
+  assert.equal(hooks.state.rows.length, 2);
+  assert.equal(elements.get("totalCount").textContent, "2");
+  assert.equal(elements.get("verifiedCount").textContent, "1");
+  assert.equal(elements.get("autohomeCount").textContent, "2");
+  assert.equal(elements.get("dongchediCount").textContent, "1");
+  assert.equal(elements.get("yicheCount").textContent, "1");
+  hooks.state.rows.forEach((item) => {
+    const sourceCount = hooks.atomicSources(item["核验来源"]).length;
+    assert.equal(sourceCount >= 2, item["交叉核验"] === "双源核验");
+  });
+});
+
 test("Pages page jump rejects invalid values and clamps valid integers", () => {
   const { elements, hooks } = loadAppForTest();
   const rows = Array.from({ length: 250 }, (_, index) => row("仅懂车帝", 2026, "车型" + index));

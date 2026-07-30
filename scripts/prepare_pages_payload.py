@@ -38,6 +38,8 @@ except ModuleNotFoundError:
 
 try:
     from merge_data import (
+        BRAND_NORMALIZE,
+        _base_yiche_match_score,
         _merge_distinct_values,
         atomic_source_names,
         match_score,
@@ -50,6 +52,8 @@ try:
     )
 except ModuleNotFoundError:
     from scripts.merge_data import (
+        BRAND_NORMALIZE,
+        _base_yiche_match_score,
         _merge_distinct_values,
         atomic_source_names,
         match_score,
@@ -64,10 +68,10 @@ except ModuleNotFoundError:
 YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 VISIBLE_COMPONENT_ID = "跨源归并ID"
 VISIBLE_COMPONENT_EVIDENCE = "跨源归并证据"
-VISIBLE_COMPONENT_SCHEMA = "visible-f-v1"
+VISIBLE_COMPONENT_SCHEMA = "visible-f-v2"
 _MODEL_TEXT_PUNCTUATION = re.compile(r"[·・,，.。/／\\()（）\-_+]")
 _EXTRA_TIER_PATTERN = re.compile(
-    r"(?<![a-z0-9])(pro\+|max\+|ultra|pro|max|plus|air)(?![a-z])",
+    r"(?<![a-z0-9])(ultra\+|pro\+|max\+|ultra|pro|max|plus|core|air)(?![a-z])",
     re.IGNORECASE,
 )
 _BODY_FIELDS = ("车体结构", "车身结构", "车身型式", "车身形式")
@@ -75,6 +79,34 @@ _NEGATIVE_EQUIPMENT_VALUES = {"", "-", "无", "不支持", "否", "没有", "未
 _SOURCE_ORDER = {"汽车之家": 0, "懂车帝": 1, "易车": 2}
 _NAMED_BATTERY_PATTERN = re.compile(r"(?<!\d)(\d{2,3}(?:\.\d+)?)\s*kwh", re.IGNORECASE)
 _NAMED_RANGE_PATTERN = re.compile(r"(?<!\d)(\d{3,4}(?:\.\d+)?)\s*(?:km|公里)", re.IGNORECASE)
+_SERIES_POWERTRAIN_SUFFIXES = (
+    "插电式混合动力",
+    "插电式混动",
+    "插电混动",
+    "phev",
+)
+_BATTERY_FIELDS = (
+    "电池能量(kWh)",
+    "电池能量_kWh_",
+    "电池容量(kWh)",
+    "电池容量_kWh_",
+    "电池能量",
+    "电池容量",
+    "动力电池容量",
+)
+_RANGE_FIELDS = (
+    "纯电续航(km)",
+    "纯电续航_km_",
+    "纯电续航里程(km)",
+    "纯电续航里程_km_",
+    "CLTC纯电续航(km)",
+    "CLTC纯电续航_km_",
+    "CLTC纯电续航里程(km)",
+    "CLTC纯电续航里程_km_",
+    "工信部纯电续航里程(km)",
+    "工信部纯电续航里程_km_",
+)
+_SOURCE_MARKER_PATTERN = re.compile(r"(?:^|\|)(汽车之家|懂车帝|易车):")
 
 
 def model_year(row: dict[str, Any]) -> int | None:
@@ -157,6 +189,29 @@ def _frontend_nodes(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(groups.values())
 
 
+def canonical_series_name(row: dict[str, Any]) -> str:
+    series = normalize_match_text(row.get("车系"))
+    brand = normalize_match_text(row.get("品牌"))
+    brand = BRAND_NORMALIZE.get(brand, brand)
+    if brand and series.startswith(brand):
+        series = series[len(brand):]
+    for suffix in _SERIES_POWERTRAIN_SUFFIXES:
+        if series.endswith(suffix) and len(series) > len(suffix):
+            series = series[:-len(suffix)]
+            break
+    return series
+
+
+def canonical_series_year_key(row: dict[str, Any]) -> str:
+    brand = normalize_match_text(row.get("品牌"))
+    brand = BRAND_NORMALIZE.get(brand, brand)
+    series = canonical_series_name(row)
+    year = model_year(row)
+    if not brand or not series or year is None:
+        return ""
+    return f"{brand}|{series}|{year}"
+
+
 def _energy_signature(row: dict[str, Any]) -> set[str]:
     text = " ".join(str(row.get(field, "") or "") for field in ("能源类型", "车型名称")).lower()
     compact = normalize_match_text(text)
@@ -165,7 +220,11 @@ def _energy_signature(row: dict[str, Any]) -> set[str]:
         values.add("range_extender")
     if "插电" in compact or "插混" in compact or "phev" in compact or "dmi" in compact or "dmp" in compact:
         values.add("plug_in_hybrid")
-    if "纯电" in compact or re.search(r"(?:^|[^a-z])ev(?:$|[^a-z])", text):
+    if (
+        "range_extender" not in values
+        and "plug_in_hybrid" not in values
+        and ("纯电" in compact or re.search(r"(?:^|[^a-z])ev(?:$|[^a-z])", text))
+    ):
         values.add("battery_electric")
     if "48v轻混" in compact:
         values.add("48v_mild_hybrid")
@@ -228,6 +287,21 @@ def _lidar_presence(row: dict[str, Any]) -> set[str]:
     return values
 
 
+def _lidar_line_signature(row: dict[str, Any]) -> set[str]:
+    text = " ".join(
+        str(value or "")
+        for field, value in row.items()
+        if field == "车型名称" or "激光雷达" in str(field)
+    )
+    return set(
+        re.findall(
+            r"(\d{2,4})\s*线[^|，,；;()（）]{0,20}激光雷达",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
 def _body_signature(row: dict[str, Any]) -> dict[str, set[str]]:
     text = normalize_match_text(
         " ".join(str(row.get(field, "") or "") for field in _BODY_FIELDS)
@@ -268,13 +342,52 @@ def _named_variant_evidence(row: dict[str, Any]) -> dict[str, set[str]]:
     return {"battery": battery, "range": driving_range, "range_class": range_class}
 
 
+def _field_measure_values(row: dict[str, Any], fields: tuple[str, ...]) -> set[str]:
+    values = set()
+    for field in fields:
+        for number in re.findall(r"\d+(?:\.\d+)?", str(row.get(field, "") or "")):
+            values.add(f"{float(number):g}")
+    return values
+
+
+def _optional_measure_values(row: dict[str, Any]) -> dict[str, set[str]]:
+    battery = set()
+    driving_range = set()
+    for field, value in row.items():
+        text = f"{field} {value}"
+        if "选装" not in text and "选配" not in text:
+            continue
+        battery.update(f"{float(number):g}" for number in _NAMED_BATTERY_PATTERN.findall(text))
+        driving_range.update(f"{float(number):g}" for number in _NAMED_RANGE_PATTERN.findall(text))
+    return {"battery": battery, "range": driving_range}
+
+
+def _measure_sets_disjoint(
+    left_values: set[str],
+    right_values: set[str],
+    *,
+    tolerance: float,
+) -> bool:
+    return not any(
+        abs(float(left) - float(right))
+        <= max(tolerance, 0.01 * max(abs(float(left)), abs(float(right))))
+        for left in left_values
+        for right in right_values
+    )
+
+
 def visible_component_conflict_reason(left: dict[str, Any], right: dict[str, Any]) -> str:
+    left_year = model_year(left)
+    right_year = model_year(right)
+    if left_year is not None and right_year is not None and left_year != right_year:
+        return "year_mismatch"
     reason = model_variant_conflict_reason(left, right)
     if reason:
         return reason
     for label, left_values, right_values in (
         ("tier_mismatch", _extra_tier_signature(left), _extra_tier_signature(right)),
         ("drive_mismatch", _generic_drive_signature(left), _generic_drive_signature(right)),
+        ("lidar_mismatch", _lidar_line_signature(left), _lidar_line_signature(right)),
         ("lidar_mismatch", _lidar_presence(left), _lidar_presence(right)),
         ("energy_mismatch", _energy_signature(left), _energy_signature(right)),
         ("powertrain_mismatch", _powertrain_signature(left), _powertrain_signature(right)),
@@ -303,6 +416,38 @@ def visible_component_conflict_reason(left: dict[str, Any], right: dict[str, Any
             and left_evidence[field].isdisjoint(right_evidence[field])
         ):
             return f"{field}_mismatch"
+    left_optional = _optional_measure_values(left)
+    right_optional = _optional_measure_values(right)
+    for field, fields in (("battery", _BATTERY_FIELDS), ("range", _RANGE_FIELDS)):
+        left_values = _field_measure_values(left, fields)
+        right_values = _field_measure_values(right, fields)
+        tolerance = 0.15 if field == "battery" else 1.0
+        if (
+            not left_values
+            or not right_values
+            or not _measure_sets_disjoint(
+                left_values,
+                right_values,
+                tolerance=tolerance,
+            )
+        ):
+            continue
+        if (
+            left_optional[field]
+            and not _measure_sets_disjoint(
+                left_optional[field],
+                right_values,
+                tolerance=tolerance,
+            )
+            or right_optional[field]
+            and not _measure_sets_disjoint(
+                right_optional[field],
+                left_values,
+                tolerance=tolerance,
+            )
+        ):
+            continue
+        return f"{field}_mismatch"
     left_signature = model_variant_signature(left)
     right_signature = model_variant_signature(right)
     for field in ("seat", "lidar", "drive"):
@@ -342,13 +487,47 @@ def _model_ids(row: dict[str, Any]) -> set[str]:
 def _component_pair_score(left: dict[str, Any], right: dict[str, Any]) -> tuple[float, list[str]]:
     left_sources = set(left["sources"])
     right_sources = set(right["sources"])
-    if left_sources & right_sources:
-        return 0.0, ["source_overlap"]
-    if "易车" in left_sources and "易车" not in right_sources:
-        return yiche_match_score(right["row"], left["row"], True)
-    if "易车" in right_sources and "易车" not in left_sources:
-        return yiche_match_score(left["row"], right["row"], True)
+    if left_sources == {"易车"} and right_sources != {"易车"}:
+        score, reasons = yiche_match_score(right["row"], left["row"], True)
+        if reasons == ["energy_ambiguous"]:
+            left_energy = _energy_signature(left["row"])
+            right_energy = _energy_signature(right["row"])
+            if len(left_energy) == len(right_energy) == 1 and left_energy == right_energy:
+                return _base_yiche_match_score(right["row"], left["row"], True)
+        return score, reasons
+    if right_sources == {"易车"} and left_sources != {"易车"}:
+        score, reasons = yiche_match_score(left["row"], right["row"], True)
+        if reasons == ["energy_ambiguous"]:
+            left_energy = _energy_signature(left["row"])
+            right_energy = _energy_signature(right["row"])
+            if len(left_energy) == len(right_energy) == 1 and left_energy == right_energy:
+                return _base_yiche_match_score(left["row"], right["row"], True)
+        return score, reasons
     return match_score(left["row"], right["row"], True)
+
+
+def _candidate_pairs(nodes: list[dict[str, Any]]) -> set[tuple[int, int]]:
+    pairs = set()
+    buckets: dict[str, list[int]] = {}
+    ids: dict[str, list[int]] = {}
+    for index, node in enumerate(nodes):
+        bucket = canonical_series_year_key(node["row"])
+        if bucket:
+            buckets.setdefault(bucket, []).append(index)
+        series = canonical_series_name(node["row"])
+        year = model_year(node["row"])
+        if series and year is not None:
+            buckets.setdefault(f"series|{series}|{year}", []).append(index)
+        series_id = str(node["row"].get("车系ID", "") or "").strip()
+        if series_id and series_id != "-" and year is not None:
+            buckets.setdefault(f"series-id|{series_id}|{year}", []).append(index)
+        for model_id in _model_ids(node["row"]):
+            ids.setdefault(model_id, []).append(index)
+    for indexes in [*buckets.values(), *ids.values()]:
+        for position, left in enumerate(indexes):
+            for right in indexes[position + 1:]:
+                pairs.add((min(left, right), max(left, right)))
+    return pairs
 
 
 def _component_evidence(
@@ -357,10 +536,22 @@ def _component_evidence(
     edges: list[tuple[int, int, float, list[str]]],
 ) -> str:
     members = []
-    for node in sorted(nodes, key=lambda item: _SOURCE_ORDER.get(next(iter(item["sources"])), 99)):
+    ordered_nodes = sorted(
+        nodes,
+        key=lambda item: (
+            tuple(_SOURCE_ORDER.get(source, 99) for source in sorted(item["sources"])),
+            str(item["row"].get("车型名称", "") or ""),
+        ),
+    )
+    for node in ordered_nodes:
         row = node["row"]
+        member_sources = sorted(
+            node["sources"],
+            key=lambda source: _SOURCE_ORDER.get(source, 99),
+        )
         members.append({
-            "source": next(iter(node["sources"])),
+            "source": "+".join(member_sources),
+            "sources": member_sources,
             "brand": str(row.get("品牌", "") or ""),
             "series": str(row.get("车系", "") or ""),
             "year": str(row.get("年款", "") or ""),
@@ -368,7 +559,9 @@ def _component_evidence(
             "ids": _model_id_fields(row),
         })
     source_by_node = {
-        id(node): next(iter(node["sources"]))
+        id(node): "+".join(
+            sorted(node["sources"], key=lambda source: _SOURCE_ORDER.get(source, 99))
+        )
         for node in nodes
     }
     edge_evidence = [
@@ -383,7 +576,10 @@ def _component_evidence(
     evidence = {
         "schema": VISIBLE_COMPONENT_SCHEMA,
         "component": component_id,
-        "sources": sorted(source_by_node.values(), key=lambda source: _SOURCE_ORDER.get(source, 99)),
+        "sources": sorted(
+            {source for node in nodes for source in node["sources"]},
+            key=lambda source: _SOURCE_ORDER.get(source, 99),
+        ),
         "members": members,
         "edges": sorted(edge_evidence, key=lambda item: (item["left"], item["right"])),
     }
@@ -398,29 +594,87 @@ def annotate_safe_visible_components(rows: list[dict[str, Any]]) -> tuple[list[d
         clean_row.pop(VISIBLE_COMPONENT_EVIDENCE, None)
         annotated.append(clean_row)
     nodes = _frontend_nodes(annotated)
-    buckets: dict[str, list[int]] = {}
-    for index, node in enumerate(nodes):
-        bucket = series_year_key(node["row"])
-        if bucket:
-            buckets.setdefault(bucket, []).append(index)
+    node_model_ids = [_model_ids(node["row"]) for node in nodes]
+    multi_indexes = {
+        index for index, node in enumerate(nodes) if len(node["sources"]) > 1
+    }
+    id_multi_targets: dict[str, set[int]] = {}
+    for index in multi_indexes:
+        for model_id in node_model_ids[index]:
+            id_multi_targets.setdefault(model_id, set()).add(index)
+
+    edge_records: dict[tuple[int, int], tuple[float, list[str], set[str]]] = {}
+    edges_by_node: dict[int, set[int]] = {}
+    for left_index, right_index in sorted(_candidate_pairs(nodes)):
+        left = nodes[left_index]
+        right = nodes[right_index]
+        if visible_component_conflict_reason(left["row"], right["row"]):
+            continue
+        left_brand = BRAND_NORMALIZE.get(
+            normalize_match_text(left["row"].get("品牌")),
+            normalize_match_text(left["row"].get("品牌")),
+        )
+        right_brand = BRAND_NORMALIZE.get(
+            normalize_match_text(right["row"].get("品牌")),
+            normalize_match_text(right["row"].get("品牌")),
+        )
+        left_series = canonical_series_name(left["row"])
+        right_series = canonical_series_name(right["row"])
+        shared_commercial_series = bool(
+            left_series
+            and left_series == right_series
+            and len(left_series) >= 4
+            and re.search(r"[\u4e00-\u9fff]", left_series)
+        )
+        if left_brand != right_brand and not shared_commercial_series:
+            continue
+        shared_ids = node_model_ids[left_index] & node_model_ids[right_index]
+        stable_id_match = bool(
+            shared_ids
+            and left_brand
+            and left_brand == right_brand
+            and model_year(left["row"]) == model_year(right["row"])
+        )
+        canonical_alias_match = bool(
+            canonical_series_year_key(left["row"])
+            and canonical_series_year_key(left["row"])
+            == canonical_series_year_key(right["row"])
+            and series_year_key(left["row"]) != series_year_key(right["row"])
+        )
+        score, reasons = _component_pair_score(left, right)
+        if canonical_alias_match:
+            alias_left = dict(left, row=dict(left["row"], 车系=left_series))
+            alias_right = dict(right, row=dict(right["row"], 车系=right_series))
+            alias_score, alias_reasons = _component_pair_score(alias_left, alias_right)
+            if alias_score > score:
+                score, reasons = alias_score, alias_reasons
+        if score < 0.58 and not stable_id_match:
+            continue
+        if stable_id_match:
+            reasons = [*reasons, "stable_model_id"]
+        if canonical_alias_match and "canonical_series_alias" not in reasons:
+            reasons = [*reasons, "canonical_series_alias"]
+        edge_records[(left_index, right_index)] = (score, reasons, shared_ids)
+        edges_by_node.setdefault(left_index, set()).add(right_index)
+        edges_by_node.setdefault(right_index, set()).add(left_index)
 
     adjacency: dict[int, set[int]] = {}
-    all_edges: list[tuple[int, int, float, list[str]]] = []
-    for indexes in buckets.values():
-        for position, left_index in enumerate(indexes):
-            for right_index in indexes[position + 1:]:
-                left = nodes[left_index]
-                right = nodes[right_index]
-                if set(left["sources"]) & set(right["sources"]):
-                    continue
-                score, reasons = _component_pair_score(left, right)
-                if score < 0.58:
-                    continue
-                adjacency.setdefault(left_index, set()).add(right_index)
-                adjacency.setdefault(right_index, set()).add(left_index)
-                all_edges.append((left_index, right_index, score, reasons))
+    for (left_index, right_index), (score, reasons, _ids) in edge_records.items():
+        left = nodes[left_index]
+        right = nodes[right_index]
+        if (
+            (
+                score >= 0.58
+                or "stable_model_id" in reasons
+            )
+            and len(left["sources"]) == 1
+            and len(right["sources"]) == 1
+            and not (set(left["sources"]) & set(right["sources"]))
+        ):
+            adjacency.setdefault(left_index, set()).add(right_index)
+            adjacency.setdefault(right_index, set()).add(left_index)
 
-    components = []
+    single_components = []
     visited = set()
     for start in sorted(adjacency):
         if start in visited:
@@ -435,15 +689,13 @@ def annotate_safe_visible_components(rows: list[dict[str, Any]]) -> tuple[list[d
                 if neighbor not in visited:
                     visited.add(neighbor)
                     pending.append(neighbor)
-        components.append(sorted(component))
+        single_components.append(sorted(component))
 
     rejection_counts: Counter[str] = Counter()
-    accepted = []
-    for component in components:
+    accepted_legacy = []
+    rejected_single_components = []
+    for component in single_components:
         component_nodes = [nodes[index] for index in component]
-        if not all(len(node["sources"]) == 1 for node in component_nodes):
-            rejection_counts["visibleFRejectedExistingMulti"] += 1
-            continue
         source_counts = Counter(
             source
             for node in component_nodes
@@ -451,9 +703,11 @@ def annotate_safe_visible_components(rows: list[dict[str, Any]]) -> tuple[list[d
         )
         if any(count != 1 for count in source_counts.values()):
             rejection_counts["visibleFRejectedDuplicateSource"] += 1
+            rejected_single_components.append(component)
             continue
         if any(len(node["indexes"]) != 1 for node in component_nodes):
             rejection_counts["visibleFRejectedSameSourceFold"] += 1
+            rejected_single_components.append(component)
             continue
         conflict = ""
         for left in range(len(component_nodes)):
@@ -467,38 +721,135 @@ def annotate_safe_visible_components(rows: list[dict[str, Any]]) -> tuple[list[d
                 break
         if conflict:
             rejection_counts["visibleFRejectedHardConflict"] += 1
+            rejected_single_components.append(component)
             continue
-        bucket = series_year_key(component_nodes[0]["row"])
-        multi_nodes = [
-            nodes[index]
-            for index in buckets.get(bucket, [])
-            if len(nodes[index]["sources"]) > 1
-        ]
         if any(
-            _model_ids(node["row"]) & _model_ids(multi["row"])
-            for node in component_nodes
-            for multi in multi_nodes
+            model_id in id_multi_targets
+            for node_index in component
+            for model_id in node_model_ids[node_index]
         ):
             rejection_counts["visibleFRejectedExistingMultiId"] += 1
+            rejected_single_components.append(component)
             continue
-        accepted.append(component)
+        accepted_legacy.append(component)
 
+    target_by_single: dict[int, tuple[int, bool]] = {}
+    for single_index, single in enumerate(nodes):
+        if (
+            len(single["sources"]) != 1
+            or len(single["indexes"]) != 1
+        ):
+            continue
+        candidate_targets = edges_by_node.get(single_index, set()) & multi_indexes
+        stable_targets = {
+            target
+            for model_id in node_model_ids[single_index]
+            for target in id_multi_targets.get(model_id, set())
+            if (min(single_index, target), max(single_index, target)) in edge_records
+        }
+        if len(stable_targets) == 1:
+            target_by_single[single_index] = (next(iter(stable_targets)), True)
+        elif len(candidate_targets) == 1:
+            target_by_single[single_index] = (next(iter(candidate_targets)), False)
+        elif len(candidate_targets) > 1 or len(stable_targets) > 1:
+            rejection_counts["visibleFRejectedMultipleMultiCompetitors"] += 1
+
+    retained_legacy = []
+    for component in accepted_legacy:
+        targets = {
+            target_by_single[index][0]
+            for index in component
+            if index in target_by_single
+        }
+        component_sources = {
+            source for index in component for source in nodes[index]["sources"]
+        }
+        if (
+            len(targets) == 1
+            and all(index in target_by_single for index in component)
+            and component_sources - nodes[next(iter(targets))]["sources"]
+        ):
+            continue
+        retained_legacy.append(component)
+        for index in component:
+            target_by_single.pop(index, None)
+    accepted_legacy = retained_legacy
+
+    for component in rejected_single_components:
+        selected = {
+            target_by_single[index][0]
+            for index in component
+            if index in target_by_single
+        }
+        if selected and (
+            len(selected) != 1
+            or any(index not in target_by_single for index in component)
+        ):
+            for index in component:
+                target_by_single.pop(index, None)
+            rejection_counts["visibleFRejectedExistingCompetition"] += 1
+
+    incoming_by_target: dict[int, list[int]] = {}
+    for single_index, (target, _stable) in target_by_single.items():
+        incoming_by_target.setdefault(target, []).append(single_index)
+
+    absorbed_components = []
+    absorbed_singles = 0
+    for target, incoming in sorted(incoming_by_target.items()):
+        source_groups: dict[str, list[int]] = {}
+        for single_index in incoming:
+            source = next(iter(nodes[single_index]["sources"]))
+            source_groups.setdefault(source, []).append(single_index)
+        duplicate_source_unsafe = any(
+            len(indexes) > 1
+            and not all(target_by_single[index][1] for index in indexes)
+            for indexes in source_groups.values()
+        )
+        if duplicate_source_unsafe:
+            rejection_counts["visibleFRejectedDuplicateSourceAbsorption"] += len(incoming)
+            continue
+        component = [target, *sorted(incoming)]
+        if any(
+            visible_component_conflict_reason(nodes[left]["row"], nodes[right]["row"])
+            for position, left in enumerate(component)
+            for right in component[position + 1:]
+        ):
+            rejection_counts["visibleFRejectedAbsorptionHardConflict"] += len(incoming)
+            continue
+        absorbed_components.append(component)
+        absorbed_singles += len(incoming)
+
+    accepted = [*accepted_legacy, *absorbed_components]
     for component in accepted:
         component_nodes = [nodes[index] for index in component]
         component_edges = [
-            (component.index(left), component.index(right), score, reasons)
-            for left, right, score, reasons in all_edges
+            (
+                component.index(left),
+                component.index(right),
+                edge_records[(left, right)][0],
+                edge_records[(left, right)][1],
+            )
+            for left, right in edge_records
             if left in component and right in component
         ]
         fingerprint = [
             {
-                "source": next(iter(node["sources"])),
+                "sources": sorted(
+                    node["sources"],
+                    key=lambda source: _SOURCE_ORDER.get(source, 99),
+                ),
                 "key": node["key"],
                 "ids": _model_id_fields(node["row"]),
             }
             for node in sorted(
                 component_nodes,
-                key=lambda item: _SOURCE_ORDER.get(next(iter(item["sources"])), 99),
+                key=lambda item: (
+                    tuple(
+                        _SOURCE_ORDER.get(source, 99)
+                        for source in sorted(item["sources"])
+                    ),
+                    item["key"],
+                ),
             )
         ]
         digest = hashlib.sha256(
@@ -507,18 +858,127 @@ def annotate_safe_visible_components(rows: list[dict[str, Any]]) -> tuple[list[d
         component_id = f"{VISIBLE_COMPONENT_SCHEMA}:{digest}"
         evidence = _component_evidence(component_id, component_nodes, component_edges)
         for node in component_nodes:
-            row_index = node["indexes"][0]
-            annotated[row_index][VISIBLE_COMPONENT_ID] = component_id
-            annotated[row_index][VISIBLE_COMPONENT_EVIDENCE] = evidence
+            for row_index in node["indexes"]:
+                annotated[row_index][VISIBLE_COMPONENT_ID] = component_id
+                annotated[row_index][VISIBLE_COMPONENT_EVIDENCE] = evidence
 
+    component_source_counts = [
+        len({source for index in component for source in nodes[index]["sources"]})
+        for component in accepted
+    ]
     stats = {
         "visibleFResolvedComponents": len(accepted),
         "visibleFResolvedRows": sum(len(component) for component in accepted),
-        "visibleFTwoSourceComponents": sum(len(component) == 2 for component in accepted),
-        "visibleFThreeSourceComponents": sum(len(component) == 3 for component in accepted),
+        "visibleFTwoSourceComponents": sum(count == 2 for count in component_source_counts),
+        "visibleFThreeSourceComponents": sum(count == 3 for count in component_source_counts),
+        "visibleFAbsorbedComponents": len(absorbed_components),
+        "visibleFAbsorbedSingles": absorbed_singles,
         **rejection_counts,
     }
     return annotated, {key: value for key, value in stats.items() if value}
+
+
+def _effective_sources(rows: list[dict[str, Any]]) -> list[set[str]]:
+    component_sources: dict[str, set[str]] = {}
+    for row in rows:
+        component_id = str(row.get(VISIBLE_COMPONENT_ID, "") or "").strip()
+        if component_id:
+            component_sources.setdefault(component_id, set()).update(
+                atomic_source_names(row.get("数据来源"))
+            )
+    effective = []
+    for row in rows:
+        component_id = str(row.get(VISIBLE_COMPONENT_ID, "") or "").strip()
+        if component_id:
+            effective.append(set(component_sources.get(component_id, set())))
+        else:
+            effective.append(set(atomic_source_names(row.get("数据来源"))))
+    return effective
+
+
+def _qualified_value_segments(value: Any) -> list[tuple[str, str]] | None:
+    text = str(value or "")
+    matches = list(_SOURCE_MARKER_PATTERN.finditer(text))
+    if not matches:
+        return None
+    segments = []
+    if matches[0].start() > 0:
+        prefix = text[:matches[0].start()].rstrip("|")
+        if prefix:
+            segments.append(("", prefix))
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        content = text[match.end():end]
+        if content.endswith("|"):
+            content = content[:-1]
+        segments.append((match.group(1), content))
+    return segments
+
+
+def source_provenance_contradictions(
+    rows: list[dict[str, Any]],
+) -> list[tuple[int, str, str]]:
+    contradictions = []
+    for index, (row, effective_sources) in enumerate(zip(rows, _effective_sources(rows))):
+        for field, value in row.items():
+            if field in {"数据来源", VISIBLE_COMPONENT_ID, VISIBLE_COMPONENT_EVIDENCE}:
+                continue
+            segments = _qualified_value_segments(value)
+            if segments is None:
+                continue
+            for source, _content in segments:
+                if source and source not in effective_sources:
+                    contradictions.append((index, str(field), source))
+    return contradictions
+
+
+def reconcile_source_provenance(
+    rows: list[dict[str, Any]],
+    *,
+    cleanup_retired: bool,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    reconciled = [dict(row) for row in rows]
+    effective_by_row = _effective_sources(reconciled)
+    contradiction_fields = set()
+    removed_segments = 0
+    removed_fields = 0
+    for index, (row, effective_sources) in enumerate(zip(reconciled, effective_by_row)):
+        for field in list(row):
+            if field in {"数据来源", VISIBLE_COMPONENT_ID, VISIBLE_COMPONENT_EVIDENCE}:
+                continue
+            segments = _qualified_value_segments(row[field])
+            if segments is None:
+                continue
+            retired = [
+                (source, content)
+                for source, content in segments
+                if source and source not in effective_sources
+            ]
+            if not retired:
+                continue
+            contradiction_fields.add((index, str(field)))
+            if not cleanup_retired:
+                continue
+            kept = [
+                (source, content)
+                for source, content in segments
+                if not source or source in effective_sources
+            ]
+            removed_segments += len(retired)
+            if not kept:
+                row.pop(field, None)
+                removed_fields += 1
+                continue
+            row[field] = "|".join(
+                f"{source}:{content}" if source else content
+                for source, content in kept
+            )
+    stats = {
+        "fieldSourceContradictions": len(contradiction_fields),
+        "retiredFieldSegmentsRemoved": removed_segments,
+        "retiredFieldsRemoved": removed_fields,
+    }
+    return reconciled, stats
 
 
 def visible_card_stats(rows: list[dict[str, Any]]) -> dict[str, int | float]:
@@ -587,6 +1047,11 @@ def prepare_rows_with_stats(rows: Any, min_year: int) -> tuple[list[dict[str, An
         prepared.append(prepared_row)
     prepared, component_stats = annotate_safe_visible_components(prepared)
     stats.update(component_stats)
+    prepared, provenance_stats = reconcile_source_provenance(
+        prepared,
+        cleanup_retired=True,
+    )
+    stats.update({key: value for key, value in provenance_stats.items() if value})
     return prepared, stats
 
 
@@ -637,6 +1102,8 @@ def main() -> int:
                     key: value
                     for key, value in stats.items()
                     if key.startswith("visibleF")
+                    or key.startswith("fieldSource")
+                    or key.startswith("retiredField")
                 },
             },
             ensure_ascii=False,
