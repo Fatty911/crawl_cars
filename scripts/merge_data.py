@@ -455,39 +455,101 @@ def canonical_value(value):
 
 
 _CHINESE_SEAT_DIGITS = {"二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
-_TIER_PATTERN = re.compile(r"(?<![a-z0-9])(pro\+|max\+|ultra|elite|pro|max|gt)(?![a-z])", re.I)
+_TIER_PATTERN = re.compile(r"(?<![a-z0-9])(ultra\+|pro\+|max\+|ultra|elite|pro|max|gt)(?![a-z])", re.I)
+_CHINESE_GRADE_PATTERN = re.compile(r"(?<![\u4e00-\u9fff])(闪充\s*)?(尊荣|尊越|旗舰|基本)\s*(?=[型版])")
+_BATTERY_NAME_PATTERN = re.compile(r"(?<!\d)(\d{2,3}(?:\.\d+)?)\s*kwh", re.I)
+_RANGE_NAME_PATTERN = re.compile(r"(?<!\d)(\d{3,4}(?:\.\d+)?)\s*(?:km|公里)", re.I)
+_SERIES_ALIASES = {"腾势n9dm": "腾势n9"}
+_SEAT_FIELDS = ("座位数(个)", "座位数", "座位数_个_")
+_DRIVE_FIELDS = ("驱动形式", "驱动方式", "驱动形式分组", "电机布局", "四驱形式", "四驱类型")
+_BATTERY_FIELDS = ("电池能量(kWh)", "电池容量(kWh)", "电池能量", "电池容量", "动力电池容量")
+_RANGE_FIELDS = (
+    "纯电续航(km)",
+    "纯电续航里程(km)",
+    "CLTC纯电续航(km)",
+    "CLTC纯电续航里程(km)",
+    "工信部纯电续航里程(km)",
+)
 
 
-def model_variant_signature(row):
+def normalize_series_match_text(value):
+    text = normalize_match_text(value)
+    return _SERIES_ALIASES.get(text, text)
+
+
+def _measure_values(values):
+    measured = set()
+    for value in values:
+        for number in re.findall(r"\d+(?:\.\d+)?", str(value or "")):
+            measured.add(f"{float(number):g}")
+    return measured
+
+
+def model_positive_evidence(row):
+    name = str(row.get("车型名称", "") or "").lower()
+    battery = _measure_values(_BATTERY_NAME_PATTERN.findall(name))
+    battery.update(_measure_values(row.get(field) for field in _BATTERY_FIELDS))
+    driving_range = _measure_values(_RANGE_NAME_PATTERN.findall(name))
+    driving_range.update(_measure_values(row.get(field) for field in _RANGE_FIELDS))
+    range_class = set()
+    if "超长续航" in name:
+        range_class.add("extra_long_range")
+    elif "长续航" in name:
+        range_class.add("long_range")
+    if "标准续航" in name or "标准版" in name:
+        range_class.add("standard_range")
+    return {"battery": battery, "range": driving_range, "range_class": range_class}
+
+
+def model_variant_signature(row, include_fields=True):
     text = str(row.get("车型名称", "") or "").lower().replace("＋", "+")
     for chinese, digit in _CHINESE_SEAT_DIGITS.items():
         text = re.sub(rf"{chinese}\s*座", f"{digit}座", text)
     tiers = {match.lower() for match in _TIER_PATTERN.findall(text)}
+    for match in _CHINESE_GRADE_PATTERN.finditer(text):
+        prefix = "flash_" if match.group(1) else ""
+        tiers.add(prefix + {"尊荣": "honor", "尊越": "premier", "旗舰": "flagship", "基本": "basic"}[match.group(2)])
     seats = set(re.findall(r"([2-9])\s*座", text))
+    if include_fields:
+        seats.update(
+            match.group(1)
+            for field in _SEAT_FIELDS
+            if (match := re.fullmatch(r"\s*([2-9])\s*(?:座)?\s*", str(row.get(field, "") or "")))
+        )
     lidar = set(re.findall(r"(\d{2,4})\s*线\s*激光雷达", text))
+    if include_fields:
+        lidar.update(
+            match.group(1)
+            for key, value in row.items()
+            if "激光雷达" in str(key)
+            if (match := re.search(r"(\d{2,4})\s*线", str(value or "")))
+        )
     drives = set()
-    if re.search(r"四驱|4wd|awd", text, re.I): drives.add("awd")
-    if re.search(r"后驱|rwd", text, re.I): drives.add("rwd")
-    if re.search(r"前驱|fwd", text, re.I): drives.add("fwd")
-    editions = set()
-    if "超长续航" in text: editions.add("extra_long_range")
-    elif "长续航" in text: editions.add("long_range")
-    if "标准续航" in text or "标准版" in text: editions.add("standard")
-    return {"tier": tiers, "seat": seats, "lidar": lidar, "drive": drives, "edition": editions}
+    drive_text = text
+    if include_fields:
+        drive_text = " ".join([drive_text, *(str(row.get(field, "") or "") for field in _DRIVE_FIELDS)])
+    if re.search(r"四驱|4wd|awd", drive_text, re.I): drives.add("awd")
+    if re.search(r"后驱|rwd", drive_text, re.I): drives.add("rwd")
+    if re.search(r"前驱|fwd", drive_text, re.I): drives.add("fwd")
+    return {"tier": tiers, "seat": seats, "lidar": lidar, "drive": drives}
 
 
 def tokenize_model(row):
     tokens = set()
-    signature = model_variant_signature(row)
+    signature = model_variant_signature(row, include_fields=False)
     for kind, values in signature.items(): tokens.update(f"{kind}:{value}" for value in values)
-    for field in ("车系", "车型名称", "能源类型", "发动机", "变速箱"):
-        text = str(row.get(field, "") or "").lower().replace("＋", "+")
+    for field in ("车系", "车型名称", "能源类型"):
+        value = normalize_series_match_text(row.get(field, "")) if field == "车系" else row.get(field, "")
+        text = str(value or "").lower().replace("＋", "+")
         for chinese, digit in _CHINESE_SEAT_DIGITS.items(): text = re.sub(rf"{chinese}\s*座", f"{digit}座", text)
         text = re.sub(r"(?:19|20)\d{2}款?", " ", text)
         text = _TIER_PATTERN.sub(" ", text)
+        text = _CHINESE_GRADE_PATTERN.sub(" ", text)
         text = re.sub(r"[2-9]\s*座", " ", text)
         text = re.sub(r"\d{2,4}\s*线\s*激光雷达", " ", text)
         text = re.sub(r"四驱|后驱|前驱|4wd|awd|rwd|fwd", " ", text, flags=re.I)
+        text = _BATTERY_NAME_PATTERN.sub(" ", text)
+        text = _RANGE_NAME_PATTERN.sub(" ", text)
         text = re.sub(r"超长续航|长续航|标准续航|标准版", " ", text)
         tokens.update(re.findall(r"[a-z]+|\d+(?:\.\d+)?|[\u4e00-\u9fff]+", text))
     stop = {"款", "版", "型", "汽车", "自动", "手动", "座"}
@@ -515,18 +577,25 @@ def identity_match_key(row, name):
     )
 
 
+def model_variant_conflict_reason(left_row, right_row):
+    left_signature = model_variant_signature(left_row)
+    right_signature = model_variant_signature(right_row)
+    for field in ("tier", "seat", "lidar", "drive"):
+        left_values = left_signature[field]
+        right_values = right_signature[field]
+        if left_values and right_values and left_values.isdisjoint(right_values):
+            return f"{field}_mismatch"
+    return ""
+
+
 def match_score(ah_row, dcd_row, require_year):
     ah_year = row_year(ah_row)
     dcd_year = row_year(dcd_row)
     if ah_year and dcd_year and ah_year != dcd_year:
         return 0.0, ["year_mismatch"]
-    ah_signature = model_variant_signature(ah_row)
-    dcd_signature = model_variant_signature(dcd_row)
-    for field in ("tier", "seat", "lidar", "drive", "edition"):
-        ah_values = ah_signature[field]
-        dcd_values = dcd_signature[field]
-        if ah_values and dcd_values and ah_values.isdisjoint(dcd_values):
-            return 0.0, [f"{field}_mismatch"]
+    conflict_reason = model_variant_conflict_reason(ah_row, dcd_row)
+    if conflict_reason:
+        return 0.0, [conflict_reason]
     ah_tokens = tokenize_model(ah_row)
     dcd_tokens = tokenize_model(dcd_row)
     union = ah_tokens | dcd_tokens
@@ -543,6 +612,12 @@ def match_score(ah_row, dcd_row, require_year):
         av = normalize_match_text(ah_row.get(field, ""))
         dv = normalize_match_text(dcd_row.get(field, ""))
         if av and dv and av == dv:
+            score += weight
+            reasons.append("same_" + field)
+    ah_evidence = model_positive_evidence(ah_row)
+    dcd_evidence = model_positive_evidence(dcd_row)
+    for field, weight in (("battery", 0.04), ("range", 0.04), ("range_class", 0.04)):
+        if ah_evidence[field] and dcd_evidence[field] and not ah_evidence[field].isdisjoint(dcd_evidence[field]):
             score += weight
             reasons.append("same_" + field)
     return score, reasons
@@ -731,7 +806,7 @@ def series_year_key(row):
     """生成车系+年款匹配键"""
     brand = normalize_match_text(row.get('品牌', ''))
     brand = BRAND_NORMALIZE.get(brand, brand)
-    series = normalize_match_text(row.get('车系', ''))
+    series = normalize_series_match_text(row.get('车系', ''))
     # 品牌为空时从车系名推导
     if not brand and series:
         derived = derive_brand(row.get('车系', ''))
@@ -756,7 +831,7 @@ def series_key(row):
     """生成车系匹配键（不含年款，更宽松）"""
     brand = normalize_match_text(row.get('品牌', ''))
     brand = BRAND_NORMALIZE.get(brand, brand)
-    series = normalize_match_text(row.get('车系', ''))
+    series = normalize_series_match_text(row.get('车系', ''))
     # 品牌为空时从车系名推导
     if not brand and series:
         derived = derive_brand(row.get('车系', ''))
@@ -1301,6 +1376,8 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
     for match_key, ah_rows in sorted(autohome_index.items()):
         dcd_rows = dongchedi_index.get(match_key, [])
         for ah_row, dcd_row in zip(sorted(ah_rows, key=model_sort_key), sorted(dcd_rows, key=model_sort_key)):
+            if model_variant_conflict_reason(ah_row, dcd_row):
+                continue
             merged_row = merge_single_row(ah_row, dcd_row)
             merged_row["数据来源"] = "汽车之家+懂车帝"
             merged.append(merged_row)
@@ -1316,6 +1393,8 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
         ah_available = sorted((row for row in ah_rows if id(row) not in used_autohome), key=model_sort_key)
         dcd_available = sorted((row for row in dcd_rows if id(row) not in used_dongchedi), key=model_sort_key)
         for ah_row, dcd_row in zip(ah_available, dcd_available):
+            if model_variant_conflict_reason(ah_row, dcd_row):
+                continue
             merged_row = merge_single_row(ah_row, dcd_row)
             merged_row["数据来源"] = "汽车之家+懂车帝"
             merged.append(merged_row)
