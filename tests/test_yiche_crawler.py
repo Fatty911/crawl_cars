@@ -153,6 +153,83 @@ def test_deadline_stops_before_new_request_and_reports_reason(monkeypatch, capsy
     assert "stop_reason=safety_buffer_reached" in capsys.readouterr().out
 
 
+def test_item_stall_is_bounded_heartbeated_and_checkpointed(monkeypatch, tmp_path, capsys):
+    html = (
+        "<table><tr><th>车型</th><th>2026款 真车</th></tr>"
+        "<tr><td>轴距</td><td>2900</td></tr>"
+        "<tr><td>上市状态</td><td>在售</td></tr></table>"
+    )
+
+    def fetch_with_stall(session, url):
+        if "stalled" in url:
+            yiche.time.sleep(0.2)
+        return html
+
+    monkeypatch.setattr(yiche, "fetch", fetch_with_stall)
+    checkpoint = tmp_path / "yiche_checkpoint.json"
+    started = yiche.time.monotonic()
+
+    rows = yiche.crawl(
+        {
+            "https://car.yiche.com/stalled/peizhi/": {"brand": "真实品牌", "series": "阻塞车系"},
+            "https://car.yiche.com/healthy/peizhi/": {"brand": "真实品牌", "series": "健康车系"},
+        },
+        delay=0,
+        item_timeout=0.05,
+        heartbeat_interval=0.01,
+        checkpoint_path=str(checkpoint),
+    )
+
+    assert yiche.time.monotonic() - started < 0.18
+    assert [row["车系"] for row in rows] == ["健康车系"]
+    output = capsys.readouterr().out
+    assert "易车心跳:" in output
+    assert "易车阶段超时:" in output
+    payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+    assert payload["status"] == "completed"
+    assert payload["stats"]["item_timeouts"] == 1
+    assert payload["rows"] == rows
+
+
+def test_nested_request_timer_preserves_shorter_item_deadline():
+    started = yiche.time.monotonic()
+
+    with pytest.raises(yiche.ItemStageTimeout):
+        with yiche.item_wall_timeout(0.04, "deterministic-stall"):
+            with yiche.request_wall_timeout(0.2):
+                yiche.time.sleep(0.1)
+
+    assert yiche.time.monotonic() - started < 0.09
+
+
+def test_main_flushes_cancelled_checkpoint_on_sigterm(monkeypatch, tmp_path):
+    checkpoint = tmp_path / "cancelled_checkpoint.json"
+
+    def interrupting_crawl(*args, **kwargs):
+        kwargs["observer"].start()
+        yiche.os.kill(yiche.os.getpid(), yiche.signal.SIGTERM)
+
+    monkeypatch.setattr(yiche, "crawl", interrupting_crawl)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "crawl_yiche.py",
+            "--url",
+            "https://car.yiche.com/test/peizhi/",
+            "--checkpoint",
+            str(checkpoint),
+            "--heartbeat-interval",
+            "0",
+        ],
+    )
+
+    assert yiche.main() == 128 + yiche.signal.SIGTERM
+    payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+    assert payload["status"] == "cancelled"
+    assert payload["signal"] == yiche.signal.SIGTERM
+
+
 def test_quality_gate_rejects_placeholder_rows():
     assert yiche.validate_real_rows([
         {"车系": "blocked", "车型名称": "blocked", "数据来源": "易车"}
@@ -424,6 +501,9 @@ def test_workflow_quality_gate_uses_real_row_validation():
     workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/crawl-yiche.yml").read_text(encoding="utf-8")
     assert "validate_real_rows" in workflow
     assert "real_config_rows" in workflow
+    assert "if: always()" in workflow
+    assert "yiche-checkpoint-" in workflow
+    assert "yiche_checkpoint.json" in workflow
 
 
 def test_crawl_skips_not_found_http_errors(monkeypatch):

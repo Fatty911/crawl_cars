@@ -34,6 +34,9 @@ env:
   WINDOW_END_BUFFER_SECONDS: 900
   CRAWL_MIN_DELAY_SECONDS: 3
   CRAWL_MAX_DELAY_SECONDS: 8
+  YICHE_ITEM_TIMEOUT_SECONDS: 120
+  YICHE_HEARTBEAT_INTERVAL_SECONDS: 60
+  YICHE_CHECKPOINT_PATH: yiche_checkpoint.json
   MAX_SERIES: ${{ github.event.inputs.max_series || '0' }}
 
 concurrency:
@@ -114,8 +117,48 @@ jobs:
           fi
           echo "易车运行约束: workflow_timeout=390m RUN_TIME=${RUN_TIME}s 北京时间窗口=08:00-12:30/13:00-22:00 安全收尾缓冲=${WINDOW_END_BUFFER_SECONDS}s"
           echo "易车预计 deadline_utc=$(date -u -d "+${RUN_TIME} seconds" --iso-8601=seconds)"
-          python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series "$MAX_SERIES"
+          forward_crawler_signal() {
+            local signal_name="$1"
+            local exit_code="$2"
+            kill "-$signal_name" "$crawler_pid" 2>/dev/null || true
+            wait "$crawler_pid" || true
+            exit "$exit_code"
+          }
+          python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series "$MAX_SERIES" &
+          crawler_pid=$!
+          trap 'forward_crawler_signal INT 130' INT
+          trap 'forward_crawler_signal TERM 143' TERM
+          if wait "$crawler_pid"; then
+            crawler_status=0
+          else
+            crawler_status=$?
+          fi
+          trap - INT TERM
+          if [ "$crawler_status" -ne 0 ]; then
+            exit "$crawler_status"
+          fi
           echo "skipped=false" >> "$GITHUB_OUTPUT"
+
+      - name: Disable proxy for Yiche checkpoint upload
+        if: always()
+        run: |
+          {
+            echo "HTTP_PROXY="
+            echo "HTTPS_PROXY="
+            echo "ALL_PROXY="
+            echo "http_proxy="
+            echo "https_proxy="
+            echo "all_proxy="
+          } >> "$GITHUB_ENV"
+
+      - name: 上传易车检查点
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yiche-checkpoint-${{ github.run_id }}-${{ github.run_attempt }}
+          path: yiche_checkpoint.json
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: 校验易车输出
         id: verify_yiche

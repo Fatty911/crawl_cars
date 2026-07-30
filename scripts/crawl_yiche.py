@@ -6,8 +6,9 @@ import json
 import os
 import re
 import signal
+import threading
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from html import unescape
 from contextlib import contextmanager
 from urllib.parse import urljoin, urlparse
@@ -34,6 +35,8 @@ YICHE_API_SECRET = "19DDD1FBDFF065D3A4DA777D2D7A81EC"
 YICHE_CONNECT_TIMEOUT = float(os.getenv("YICHE_CONNECT_TIMEOUT_SECONDS", "8"))
 YICHE_READ_TIMEOUT = float(os.getenv("YICHE_READ_TIMEOUT_SECONDS", "20"))
 YICHE_WALL_TIMEOUT = int(os.getenv("YICHE_WALL_TIMEOUT_SECONDS", "35"))
+YICHE_ITEM_TIMEOUT = float(os.getenv("YICHE_ITEM_TIMEOUT_SECONDS", "120"))
+YICHE_HEARTBEAT_INTERVAL = float(os.getenv("YICHE_HEARTBEAT_INTERVAL_SECONDS", "60"))
 IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源", "易车车型ID", "易车上市状态", "车款ID"}
 NON_SERIES_SLUGS = {
     "api", "article", "assets", "authenservice", "citybase", "current",
@@ -167,23 +170,149 @@ def normalize_key(key):
     return HEADER_MAP.get(key, key)
 
 
+class ItemStageTimeout(TimeoutError):
+    pass
+
+
+class CrawlInterrupted(Exception):
+    def __init__(self, signum):
+        self.signum = signum
+        super().__init__(f"crawler interrupted by signal {signum}")
+
+
 @contextmanager
-def request_wall_timeout(seconds):
-    if seconds <= 0 or not hasattr(signal, "SIGALRM"):
+def wall_timeout(seconds, timeout_factory):
+    if (
+        seconds <= 0
+        or not hasattr(signal, "SIGALRM")
+        or threading.current_thread() is not threading.main_thread()
+    ):
         yield
         return
 
     def timeout_handler(signum, frame):
-        raise requests.Timeout(f"request exceeded wall timeout {seconds}s")
+        raise timeout_factory()
 
     previous_handler = signal.getsignal(signal.SIGALRM)
-    previous_timer = signal.setitimer(signal.ITIMER_REAL, seconds)
-    signal.signal(signal.SIGALRM, timeout_handler)
+    previous_timer = signal.getitimer(signal.ITIMER_REAL)
+    started = time.monotonic()
+    if previous_timer[0] and previous_timer[0] <= seconds:
+        effective_seconds = previous_timer[0]
+    else:
+        effective_seconds = seconds
+        signal.signal(signal.SIGALRM, timeout_handler)
+    signal.setitimer(signal.ITIMER_REAL, effective_seconds)
     try:
         yield
     finally:
-        signal.setitimer(signal.ITIMER_REAL, previous_timer[0], previous_timer[1])
+        signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, previous_handler)
+        if previous_timer[0]:
+            elapsed = time.monotonic() - started
+            remaining = previous_timer[0] - elapsed
+            if remaining > 0:
+                signal.setitimer(signal.ITIMER_REAL, remaining, previous_timer[1])
+
+
+@contextmanager
+def request_wall_timeout(seconds):
+    with wall_timeout(seconds, lambda: requests.Timeout(f"request exceeded wall timeout {seconds}s")):
+        yield
+
+
+@contextmanager
+def item_wall_timeout(seconds, stage):
+    with wall_timeout(seconds, lambda: ItemStageTimeout(f"{stage} exceeded wall timeout {seconds}s")):
+        yield
+
+
+class CrawlObserver:
+    def __init__(self, checkpoint_path="", heartbeat_interval=YICHE_HEARTBEAT_INTERVAL):
+        self.checkpoint_path = checkpoint_path
+        self.heartbeat_interval = heartbeat_interval
+        self.started_at = time.monotonic()
+        self.last_progress_at = self.started_at
+        self.last_checkpoint_at = 0.0
+        self.checkpoint_interval = heartbeat_interval if heartbeat_interval > 0 else 60
+        self.state = {"status": "starting", "stage": "initializing", "stats": {}}
+        self.rows = []
+        self.lock = threading.RLock()
+        self.stop_event = threading.Event()
+        self.thread = None
+
+    def start(self):
+        self.checkpoint(progress=True, force=True, status="running", stage="initializing")
+        if self.heartbeat_interval > 0 and self.thread is None:
+            self.thread = threading.Thread(target=self._heartbeat_loop, name="yiche-heartbeat", daemon=True)
+            self.thread.start()
+
+    def update(self, *, progress=False, rows=None, **state):
+        with self.lock:
+            self.state.update(state)
+            if rows is not None:
+                self.rows = [dict(row) for row in rows]
+            if progress:
+                self.last_progress_at = time.monotonic()
+
+    def snapshot(self):
+        with self.lock:
+            payload = dict(self.state)
+            payload["stats"] = dict(self.state.get("stats") or {})
+            payload["rows"] = [dict(row) for row in self.rows]
+            payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+            payload["elapsed_seconds"] = round(time.monotonic() - self.started_at, 3)
+            payload["last_progress_age_seconds"] = round(time.monotonic() - self.last_progress_at, 3)
+        return payload
+
+    def persist(self):
+        if not self.checkpoint_path:
+            return
+        payload = self.snapshot()
+        temp_path = f"{self.checkpoint_path}.tmp"
+        with open(temp_path, "w", encoding="utf-8") as checkpoint_file:
+            json.dump(payload, checkpoint_file, ensure_ascii=False, indent=2)
+            checkpoint_file.flush()
+            os.fsync(checkpoint_file.fileno())
+        os.replace(temp_path, self.checkpoint_path)
+
+    def checkpoint(self, *, progress=False, rows=None, force=False, **state):
+        self.update(progress=progress, rows=rows, **state)
+        if not self.checkpoint_path:
+            return
+        now = time.monotonic()
+        if not force and now - self.last_checkpoint_at < self.checkpoint_interval:
+            return
+        self.persist()
+        self.last_checkpoint_at = now
+        payload = self.snapshot()
+        stats = payload.get("stats") or {}
+        print(
+            f"易车检查点: status={payload.get('status')} stage={payload.get('stage')} "
+            f"attempted={stats.get('attempted', 0)} brands_scanned={payload.get('brands_scanned', 0)} "
+            f"rows={len(payload.get('rows') or [])}",
+            flush=True,
+        )
+
+    def emit_heartbeat(self):
+        payload = self.snapshot()
+        stats = payload.get("stats") or {}
+        print(
+            f"易车心跳: status={payload.get('status')} stage={payload.get('stage')} "
+            f"attempted={stats.get('attempted', 0)} brands_scanned={payload.get('brands_scanned', 0)} "
+            f"rows={len(payload.get('rows') or [])} elapsed_seconds={payload.get('elapsed_seconds')} "
+            f"last_progress_age_seconds={payload.get('last_progress_age_seconds')}",
+            flush=True,
+        )
+
+    def _heartbeat_loop(self):
+        while not self.stop_event.wait(self.heartbeat_interval):
+            self.emit_heartbeat()
+
+    def close(self, status, *, rows=None, **state):
+        self.stop_event.set()
+        if self.thread is not None and self.thread is not threading.current_thread():
+            self.thread.join(timeout=1)
+        self.checkpoint(progress=True, rows=rows, force=True, status=status, **state)
 
 
 def session_get(session, url, **kwargs):
@@ -952,6 +1081,10 @@ def crawl(
     max_targets=0,
     finish_buffer=60,
     start_time=None,
+    item_timeout=YICHE_ITEM_TIMEOUT,
+    heartbeat_interval=YICHE_HEARTBEAT_INTERVAL,
+    checkpoint_path="",
+    observer=None,
 ):
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0"})
@@ -968,9 +1101,13 @@ def crawl(
     completed = set()
     idle_discovery_rounds = 0
     stop_reason = "target_exhausted"
-    stats.update({"discovery_rounds": 0, "discovery_network_errors": 0, "retry_attempted": 0, "invalid_brand": 0, "invalid_model_name": 0, "invalid_series": 0, "invalid_year": 0, "unapproved_status": 0})
+    stats.update({"discovery_rounds": 0, "discovery_network_errors": 0, "retry_attempted": 0, "item_timeouts": 0, "invalid_brand": 0, "invalid_model_name": 0, "invalid_series": 0, "invalid_year": 0, "unapproved_status": 0})
+    owns_observer = observer is None
+    observer = observer or CrawlObserver(checkpoint_path, heartbeat_interval)
+    observer.start()
+    observer.update(stats=stats, targets_discovered=len(known_targets))
     print(
-        f"易车预算: budget_seconds={time_limit} finish_buffer_seconds={finish_buffer} "
+        f"易车预算: budget_seconds={time_limit} finish_buffer_seconds={finish_buffer} item_timeout_seconds={item_timeout} "
         f"deadline_monotonic={deadline:.3f} targets_initial={len(known_targets)} max_attempts={max_attempts}"
     )
     while pending or (
@@ -988,6 +1125,12 @@ def crawl(
             break
         if not pending and hasattr(discovery_callback, "discover"):
             stats["discovery_rounds"] += 1
+            observer.update(
+                stage="discovery",
+                stats=stats,
+                brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
+                remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
+            )
             try:
                 discovered = discovery_callback.discover()
             except requests.RequestException as exc:
@@ -1018,6 +1161,17 @@ def crawl(
                 f"易车发现队列: round={stats['discovery_rounds']} new_serial_ids={added} "
                 f"queue_depth={len(pending)} unique_serial_ids={len(known_serial_ids)}"
             )
+            observer.checkpoint(
+                progress=True,
+                rows=all_rows,
+                status="running",
+                stage="discovery_complete",
+                stats=stats,
+                brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
+                remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
+                queue_depth=len(pending),
+                targets_discovered=len(known_targets),
+            )
             if not pending:
                 continue
         elif not pending and discovery_callback:
@@ -1045,9 +1199,20 @@ def crawl(
         if attempts[url] > 1:
             stats["retry_attempted"] += 1
         target_succeeded = False
+        target_timed_out = False
         page_url = normalize_series_url(url)
         stats["attempted"] += 1
+        observer.update(
+            stage="item",
+            current_url=page_url,
+            stats=stats,
+            brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
+            remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
+            queue_depth=len(pending),
+        )
         print(f"抓取易车: {page_url}")
+        item_timeout_context = item_wall_timeout(item_timeout, f"item {page_url}")
+        item_timeout_context.__enter__()
         try:
             html = ""
             rows = []
@@ -1086,6 +1251,11 @@ def crawl(
                 stats["degraded_identity"] += len(rows) or 1
                 page_title = clean_text(bs4.BeautifulSoup(html, "html.parser").title) if not serial_id else ""
                 print(f"  仅获得降级身份，未计入真实配置 (html_bytes={len(html.encode())} title={page_title!r})")
+        except ItemStageTimeout as exc:
+            target_timed_out = True
+            stats["item_timeouts"] += 1
+            stats["failed"] += 1
+            print(f"  易车阶段超时: url={page_url} timeout_seconds={item_timeout} error={exc}")
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else None
             if status_code in {403, 429}:
@@ -1109,12 +1279,27 @@ def crawl(
         except requests.RequestException as exc:
             stats["failed"] += 1
             print(f"  易车页面抓取失败，跳过: {exc}")
+        finally:
+            item_timeout_context.__exit__(None, None, None)
         if delay:
             time.sleep(delay)
         if target_succeeded:
             completed.add(url)
-        elif attempts[url] < max_attempts and serial_id:
+        elif not target_timed_out and attempts[url] < max_attempts and serial_id:
             pending.append(url)
+        observer.checkpoint(
+            progress=True,
+            rows=all_rows,
+            status="running",
+            stage="item_complete",
+            current_url="",
+            last_completed_url=page_url,
+            stats=stats,
+            brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
+            remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
+            queue_depth=len(pending),
+            targets_discovered=len(known_targets),
+        )
         if not pending and discovery_callback and not hasattr(discovery_callback, "discover") and idle_discovery_rounds < 2:
             stats["discovery_rounds"] += 1
             discovered = discovery_callback()
@@ -1162,6 +1347,30 @@ def crawl(
         + f"elapsed_seconds={time.monotonic() - start:.1f} remaining_seconds={max(0, deadline - time.monotonic()):.1f} "
         + f"stop_reason={stop_reason}"
     )
+    if owns_observer:
+        observer.close(
+            "completed",
+            rows=deduped_rows,
+            stage="finished",
+            stop_reason=stop_reason,
+            stats=stats,
+            brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
+            remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
+            queue_depth=len(pending),
+            targets_discovered=len(known_targets),
+        )
+    else:
+        observer.update(
+            progress=True,
+            rows=deduped_rows,
+            stage="finished",
+            stop_reason=stop_reason,
+            stats=stats,
+            brands_scanned=getattr(discovery_callback, "brands_scanned", 0),
+            remaining_brands=getattr(discovery_callback, "remaining_brands", 0),
+            queue_depth=len(pending),
+            targets_discovered=len(known_targets),
+        )
     return deduped_rows
 
 
@@ -1176,6 +1385,9 @@ def main():
     parser.add_argument("--time-limit", type=int, default=0, help="最大运行时间(秒)，0表示不限制")
     parser.add_argument("--max-series", type=int, default=0, help="最多爬取车系 URL 数，0表示不限制")
     parser.add_argument("--max-discovery-pages", type=int, default=30, help="自动发现时最多跟进的候选页数量")
+    parser.add_argument("--item-timeout", type=float, default=YICHE_ITEM_TIMEOUT, help="单车系阶段墙钟上限(秒)")
+    parser.add_argument("--heartbeat-interval", type=float, default=YICHE_HEARTBEAT_INTERVAL, help="心跳间隔(秒)")
+    parser.add_argument("--checkpoint", default=os.getenv("YICHE_CHECKPOINT_PATH", "yiche_checkpoint.json"), help="运行检查点路径")
     args = parser.parse_args()
 
     urls = load_urls(args)
@@ -1193,24 +1405,51 @@ def main():
     discovery_callback = None
     if not urls:
         discovery_callback = YicheDiscoveryFrontier(session, initial_brands=LAST_DISCOVERED_MASTER_BRANDS)
-    rows = crawl(
-        targets,
-        args.delay,
-        args.time_limit,
-        discovery_callback=discovery_callback,
-        max_attempts=2 if args.max_series == 0 else 1,
-        max_targets=args.max_series,
-        start_time=started_at,
-    ) if targets else []
+    observer = CrawlObserver(args.checkpoint, args.heartbeat_interval)
+    previous_handlers = {}
+
+    def interrupt_handler(signum, frame):
+        raise CrawlInterrupted(signum)
+
+    for signal_name in ("SIGINT", "SIGTERM"):
+        if hasattr(signal, signal_name):
+            signum = getattr(signal, signal_name)
+            previous_handlers[signum] = signal.signal(signum, interrupt_handler)
+    try:
+        rows = crawl(
+            targets,
+            args.delay,
+            args.time_limit,
+            discovery_callback=discovery_callback,
+            max_attempts=2 if args.max_series == 0 else 1,
+            max_targets=args.max_series,
+            start_time=started_at,
+            item_timeout=args.item_timeout,
+            observer=observer,
+        ) if targets else []
+    except CrawlInterrupted as exc:
+        observer.close("cancelled", stage="interrupted", signal=exc.signum)
+        print(f"易车爬虫收到取消信号 {exc.signum}，已刷新检查点", flush=True)
+        return 128 + exc.signum
+    except BaseException:
+        observer.close("failed", stage="failed")
+        raise
+    else:
+        observer.close("completed", rows=rows, stage="finished")
+    finally:
+        for signum, previous_handler in previous_handlers.items():
+            signal.signal(signum, previous_handler)
     output = args.output or f"yiche_{date.today().strftime('%Y%m%d')}.json"
     if not rows:
+        observer.close("failed", rows=rows, stage="quality_gate_failed", stop_reason="no_real_rows")
         if os.path.exists(output):
             os.remove(output)
         raise SystemExit("未抓到任何具有真实车型身份和配置字段的易车数据，拒绝生成输出")
     with open(output, "w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=2)
     print(f"易车数据已写入 {output}，共 {len(rows)} 条")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
