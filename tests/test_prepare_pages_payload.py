@@ -327,7 +327,9 @@ def test_safe_three_source_chain_gets_one_auditable_visible_component_id():
     component_ids = {row["跨源归并ID"] for row in prepared}
     assert len(component_ids) == 1
     evidence = json.loads(prepared[0]["跨源归并证据"])
+    assert evidence["schema"] == "visible-f-v1"
     assert evidence["sources"] == ["汽车之家", "懂车帝", "易车"]
+    assert all("sources" not in member for member in evidence["members"])
     assert sorted(edge["score"] for edge in evidence["edges"]) == [0.62, 0.6575]
     assert [row["车型名称"] for row in prepared] == [
         dongchedi["车型名称"],

@@ -723,15 +723,17 @@ def _component_evidence(
             node["sources"],
             key=lambda source: _SOURCE_ORDER.get(source, 99),
         )
-        members.append({
+        member = {
             "source": "+".join(member_sources),
-            "sources": member_sources,
             "brand": str(row.get("品牌", "") or ""),
             "series": str(row.get("车系", "") or ""),
             "year": str(row.get("年款", "") or ""),
             "model": str(row.get("车型名称", "") or ""),
             "ids": _model_id_fields(row),
-        })
+        }
+        if schema != VISIBLE_COMPONENT_SCHEMA:
+            member["sources"] = member_sources
+        members.append(member)
     source_by_node = {
         id(node): "+".join(
             sorted(node["sources"], key=lambda source: _SOURCE_ORDER.get(source, 99))
