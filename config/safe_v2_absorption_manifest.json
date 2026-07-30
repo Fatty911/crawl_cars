@@ -1,0 +1,537 @@
+{
+  "allowed_identities": [
+    {
+      "brand": "乐道",
+      "model": "六座版Pro",
+      "series": "乐道L90",
+      "year": "2026"
+    },
+    {
+      "brand": "乐道",
+      "model": "六座版Max+",
+      "series": "乐道L90",
+      "year": "2026"
+    },
+    {
+      "brand": "乐道",
+      "model": "六座版Ultra+",
+      "series": "乐道L90",
+      "year": "2026"
+    },
+    {
+      "brand": "乐道",
+      "model": "七座版Max+",
+      "series": "乐道L90",
+      "year": "2026"
+    },
+    {
+      "brand": "乐道",
+      "model": "七座版Ultra+",
+      "series": "乐道L90",
+      "year": "2026"
+    },
+    {
+      "brand": "乐道",
+      "model": "六座版Pro",
+      "series": "乐道L90",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "六座版Max",
+      "series": "乐道L90",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "六座版Ultra",
+      "series": "乐道L90",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "七座版Pro",
+      "series": "乐道L90",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "七座版Max",
+      "series": "乐道L90",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "七座版Ultra",
+      "series": "乐道L90",
+      "year": "2025"
+    },
+    {
+      "brand": "领克",
+      "model": "1.5T Halo 五座",
+      "series": "领克900",
+      "year": "2026"
+    },
+    {
+      "brand": "领克",
+      "model": "1.5T Ultra 五座",
+      "series": "领克900",
+      "year": "2026"
+    },
+    {
+      "brand": "领克",
+      "model": "2.0T Ultra 五座",
+      "series": "领克900",
+      "year": "2026"
+    },
+    {
+      "brand": "领克",
+      "model": "1.5T Halo 六座",
+      "series": "领克900",
+      "year": "2025"
+    },
+    {
+      "brand": "领克",
+      "model": "1.5T Ultra 六座",
+      "series": "领克900",
+      "year": "2025"
+    },
+    {
+      "brand": "领克",
+      "model": "2.0T Ultra 六座",
+      "series": "领克900",
+      "year": "2025"
+    },
+    {
+      "brand": "领克",
+      "model": "2.0T 探索版 六座",
+      "series": "领克900",
+      "year": "2025"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Elite 后驱增程版 39.05kWh",
+      "series": "阿维塔 07",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Elite 后驱增程版 52.01kWh",
+      "series": "阿维塔 07",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Max+ 后驱增程版 39.05kWh",
+      "series": "阿维塔 07",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Max+ 后驱增程版52.01kWh",
+      "series": "阿维塔 07",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Ultra 后驱增程版 52.01kWh",
+      "series": "阿维塔 07",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Elite 后驱纯电版",
+      "series": "阿维塔 07",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Max+ 后驱纯电版",
+      "series": "阿维塔 07",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Ultra 四驱纯电版",
+      "series": "阿维塔 07",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "改款 Pro+后驱增程版",
+      "series": "阿维塔 07",
+      "year": "2024"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "改款 Pro+后驱纯电版",
+      "series": "阿维塔 07",
+      "year": "2024"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Ultra四驱纯电版",
+      "series": "阿维塔 07",
+      "year": "2024"
+    },
+    {
+      "brand": "小鹏汽车",
+      "model": "纯电 625 Max 科技版",
+      "series": "小鹏G6",
+      "year": "2026"
+    },
+    {
+      "brand": "小鹏汽车",
+      "model": "纯电 625 Max 旗舰版",
+      "series": "小鹏G6",
+      "year": "2026"
+    },
+    {
+      "brand": "小鹏汽车",
+      "model": "纯电 625长续航Max科技版",
+      "series": "小鹏G6",
+      "year": "2025"
+    },
+    {
+      "brand": "小鹏汽车",
+      "model": "纯电 625长续航Max旗舰版",
+      "series": "小鹏G6",
+      "year": "2025"
+    },
+    {
+      "brand": "本田",
+      "model": "650km 开拓者版",
+      "series": "东风本田S7",
+      "year": "2025"
+    },
+    {
+      "brand": "本田",
+      "model": "620km 领航者版",
+      "series": "东风本田S7",
+      "year": "2025"
+    },
+    {
+      "brand": "大众",
+      "model": "Max",
+      "series": "与众08",
+      "year": "2026"
+    },
+    {
+      "brand": "领克",
+      "model": "05+ 2.0TD 探索版",
+      "series": "领克05",
+      "year": "2023"
+    },
+    {
+      "brand": "日产",
+      "model": "品牌大师版",
+      "series": "日产NX8",
+      "year": "2026"
+    },
+    {
+      "brand": "奥迪",
+      "model": "超长续航版",
+      "series": "奥迪Q6L e-tron",
+      "year": "2026"
+    },
+    {
+      "brand": "奥迪",
+      "model": "首发领航版",
+      "series": "奥迪Q6L e-tron",
+      "year": "2026"
+    },
+    {
+      "brand": "腾势",
+      "model": "闪充尊荣型",
+      "series": "腾势N9 DM",
+      "year": "2026"
+    },
+    {
+      "brand": "腾势",
+      "model": "闪充尊越型",
+      "series": "腾势N9 DM",
+      "year": "2026"
+    },
+    {
+      "brand": "腾势",
+      "model": "闪充旗舰型",
+      "series": "腾势N9 DM",
+      "year": "2026"
+    },
+    {
+      "brand": "腾势",
+      "model": "尊荣型",
+      "series": "腾势N9 DM",
+      "year": "2026"
+    },
+    {
+      "brand": "腾势",
+      "model": "尊越型",
+      "series": "腾势N9 DM",
+      "year": "2026"
+    },
+    {
+      "brand": "腾势",
+      "model": "旗舰型",
+      "series": "腾势N9 DM",
+      "year": "2026"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "改款 Max后驱增程版",
+      "series": "阿维塔 11",
+      "year": "2025"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "Max四驱纯电版",
+      "series": "阿维塔 11",
+      "year": "2025"
+    },
+    {
+      "brand": "阿维塔",
+      "model": "改款 Ultra四驱纯电版",
+      "series": "阿维塔 11",
+      "year": "2025"
+    },
+    {
+      "brand": "广汽传祺",
+      "model": "180km Ultra四驱激光雷达版",
+      "series": "传祺向往S7",
+      "year": "2025"
+    },
+    {
+      "brand": "ARCFOX极狐",
+      "model": "增程版 1215 元境智行版",
+      "series": "极狐 阿尔法T5",
+      "year": "2026"
+    },
+    {
+      "brand": "纵横",
+      "model": "2.0TD 智境乾崑版 5座",
+      "series": "纵横G700",
+      "year": "2025"
+    },
+    {
+      "brand": "纵横",
+      "model": "2.0TD 智境乾崑版 6座",
+      "series": "纵横G700",
+      "year": "2025"
+    },
+    {
+      "brand": "零跑汽车",
+      "model": "纯电版 605激光雷达版",
+      "series": "零跑C10",
+      "year": "2026"
+    },
+    {
+      "brand": "理想汽车",
+      "model": "两驱 标准版",
+      "series": "理想i6",
+      "year": "2025"
+    },
+    {
+      "brand": "理想汽车",
+      "model": "四驱 标准版",
+      "series": "理想i6",
+      "year": "2025"
+    },
+    {
+      "brand": "小鹏汽车",
+      "model": "纯电 702 超长续航 Ultra",
+      "series": "小鹏G7",
+      "year": "2025"
+    },
+    {
+      "brand": "星途",
+      "model": "纯电版 Max城区辅助驾驶",
+      "series": "星纪元ET",
+      "year": "2025"
+    },
+    {
+      "brand": "星途",
+      "model": "纯电版 Ultra四驱城区辅助驾驶",
+      "series": "星纪元ET",
+      "year": "2025"
+    },
+    {
+      "brand": "星途",
+      "model": "增程版 Pro四驱高速辅助驾驶",
+      "series": "星纪元ET",
+      "year": "2025"
+    },
+    {
+      "brand": "星途",
+      "model": "增程版 Max四驱城区辅助驾驶",
+      "series": "星纪元ET",
+      "year": "2025"
+    },
+    {
+      "brand": "星途",
+      "model": "增程版 四驱总裁版",
+      "series": "星纪元ET",
+      "year": "2025"
+    },
+    {
+      "brand": "星途",
+      "model": "增程版 四驱至臻尊享",
+      "series": "星纪元ET",
+      "year": "2025"
+    },
+    {
+      "brand": "零跑汽车",
+      "model": "纯电版 630激光雷达版 6座",
+      "series": "零跑C16",
+      "year": "2026"
+    },
+    {
+      "brand": "零跑汽车",
+      "model": "纯电版 630激光雷达智尊版 6座",
+      "series": "零跑C16",
+      "year": "2026"
+    },
+    {
+      "brand": "零跑汽车",
+      "model": "纯电版 630激光雷达智尊版 5座",
+      "series": "零跑C16",
+      "year": "2026"
+    },
+    {
+      "brand": "零跑汽车",
+      "model": "纯电版 640激光雷达版",
+      "series": "零跑C11",
+      "year": "2026"
+    },
+    {
+      "brand": "零跑汽车",
+      "model": "纯电版 640激光雷达智尊版",
+      "series": "零跑C11",
+      "year": "2026"
+    },
+    {
+      "brand": "小米汽车",
+      "model": "后驱标准版",
+      "series": "小米YU7",
+      "year": "2026"
+    },
+    {
+      "brand": "小米汽车",
+      "model": "四驱GT",
+      "series": "小米YU7",
+      "year": "2026"
+    },
+    {
+      "brand": "小米汽车",
+      "model": "后驱长续航版",
+      "series": "小米YU7",
+      "year": "2025"
+    },
+    {
+      "brand": "小米汽车",
+      "model": "四驱Pro版",
+      "series": "小米YU7",
+      "year": "2025"
+    },
+    {
+      "brand": "小米汽车",
+      "model": "四驱Max版",
+      "series": "小米YU7",
+      "year": "2025"
+    },
+    {
+      "brand": "智界",
+      "model": "增程 UItra(192线激光雷达)",
+      "series": "智界R7",
+      "year": "2026"
+    },
+    {
+      "brand": "智界",
+      "model": "增程 UItra(896线激光雷达)",
+      "series": "智界R7",
+      "year": "2026"
+    },
+    {
+      "brand": "哈弗",
+      "model": "1.5L Hi4 165 Ultra智驾版",
+      "series": "哈弗枭龙MAX",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "后驱Pro",
+      "series": "乐道L60",
+      "year": "2026"
+    },
+    {
+      "brand": "乐道",
+      "model": "后驱Max+",
+      "series": "乐道L60",
+      "year": "2026"
+    },
+    {
+      "brand": "乐道",
+      "model": "560km 标准续航版",
+      "series": "乐道L60",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "530km 黑骑士特别版",
+      "series": "乐道L60",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "530km 标准续航四驱版",
+      "series": "乐道L60",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "740km 长续航版",
+      "series": "乐道L60",
+      "year": "2025"
+    },
+    {
+      "brand": "乐道",
+      "model": "707km 长续航四驱版",
+      "series": "乐道L60",
+      "year": "2025"
+    },
+    {
+      "brand": "方程豹",
+      "model": "改款 501KM 四驱无人机版(可选装无人机)",
+      "series": "钛3",
+      "year": "2025"
+    },
+    {
+      "brand": "星途",
+      "model": "180超长续航五周年限定版 7座",
+      "series": "星途揽月C-DM",
+      "year": "2026"
+    }
+  ],
+  "expected": {
+    "already_multi_or_stale_input": 0,
+    "ambiguous_multiple_candidates": 6,
+    "existing_multi_unique_absorb_candidate": 85,
+    "insufficient_evidence": 0,
+    "legitimate_hard_conflict": 36,
+    "online_unmatched": 0,
+    "provenance_retirement_contradiction": 1,
+    "raw_counterpart_missing": 94
+  },
+  "permanent_negative_component_ids": [
+    "visible-f-v2:bbbe78a9bb99adaead6af773",
+    "visible-f-v2:7a565544605f3d6aa435d5cc",
+    "visible-f-v2:fc7c2f1a855e40c3e415f8b5",
+    "visible-f-v2:0cee93d78e92b40d283a9d51",
+    "visible-f-v2:f7abca6cefc6b757ed9fdd3c",
+    "visible-f-v2:444703250a48c0c5f4623297"
+  ],
+  "schema": "safe-v2-absorption-policy-v1",
+  "source_manifest": {
+    "bytes": 2706782,
+    "sha256": "5d72639b12235327d017be95ad70bc7d9a8a3c1e58743aea338315b8235c6f66"
+  }
+}

@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -20,6 +21,37 @@ SPEC = importlib.util.spec_from_file_location("prepare_pages_payload", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(MODULE)
+
+
+def test_safe_v2_policy_matches_authoritative_85_identity_manifest():
+    policy_path = ROOT / "config" / "safe_v2_absorption_manifest.json"
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    identities = {
+        (item["brand"], item["series"], item["model"], item["year"])
+        for item in policy["allowed_identities"]
+    }
+    assert policy["schema"] == "safe-v2-absorption-policy-v1"
+    assert len(identities) == 85
+    assert policy["expected"]["existing_multi_unique_absorb_candidate"] == 85
+    assert len(policy["permanent_negative_component_ids"]) == 6
+
+    authoritative = Path("/work/target_user_single_manifest.json")
+    if authoritative.exists():
+        payload = authoritative.read_bytes()
+        assert len(payload) == policy["source_manifest"]["bytes"]
+        assert hashlib.sha256(payload).hexdigest() == policy["source_manifest"]["sha256"]
+        manifest = json.loads(payload)
+        expected = {
+            (
+                row["exact_identity_fields"]["brand"],
+                row["exact_identity_fields"]["series"],
+                row["exact_identity_fields"]["model"],
+                row["exact_identity_fields"]["year"],
+            )
+            for row in manifest["vehicles"]
+            if row.get("classification") == "existing_multi_unique_absorb_candidate"
+        }
+        assert identities == expected
 
 
 def test_prepare_rows_keeps_recent_sparse_rows_and_meaningful_zeroes():
@@ -179,7 +211,9 @@ def test_prepare_rows_rejects_blank_listing_time_accepts_combined_past_and_rejec
     blank = dict(base, 上市时间="")
     combined = dict(base, 上市时间="汽车之家:2026-04-16|懂车帝:2026.04")
     future = dict(base, 上市时间="2099-01-01")
-    assert MODULE.prepare_rows([blank, combined, future], 2022) == [combined]
+    assert MODULE.prepare_rows([blank, combined, future], 2022) == [
+        dict(combined, 上市时间="懂车帝:2026.04")
+    ]
 
 
 def test_prepare_rows_normalizes_audited_headers_without_losing_conflicts_or_acceleration_scope():
@@ -222,11 +256,13 @@ def test_prepare_rows_reports_price_and_listing_drop_stats():
         dict(base, 官方指导价="12.98万", 上市时间="汽车之家:2026-04-16|懂车帝:2026.04"),
     ]
     prepared, stats = MODULE.prepare_rows_with_stats(rows, 2022)
-    assert prepared == [rows[-1]]
+    assert prepared == [dict(rows[-1], 上市时间="懂车帝:2026.04")]
     assert stats == {
         "droppedMissingOfficialPrice": 1,
         "droppedMissingListingTime": 1,
         "droppedFutureListingTime": 1,
+        "fieldSourceContradictions": 1,
+        "retiredFieldSegmentsRemoved": 1,
     }
 
 
@@ -250,6 +286,35 @@ def component_row(source, name, *, model_id="", **fields):
     else:
         row.update({"车系ID": "4079"})
     return row
+
+
+def absorption_scope(rows):
+    return {
+        (
+            str(row.get("品牌", "")).strip(),
+            str(row.get("车系", "")).strip(),
+            str(row.get("车型名称", "")).strip(),
+            str(row.get("年款", "")).strip(),
+        )
+        for row in rows
+        if len(MODULE.atomic_source_names(row.get("数据来源"))) == 1
+    }
+
+
+def prepare_v2(rows):
+    return MODULE.prepare_rows(
+        rows,
+        2022,
+        absorption_scope=absorption_scope(rows),
+    )
+
+
+def prepare_v2_with_stats(rows):
+    return MODULE.prepare_rows_with_stats(
+        rows,
+        2022,
+        absorption_scope=absorption_scope(rows),
+    )
 
 
 def test_safe_three_source_chain_gets_one_auditable_visible_component_id():
@@ -286,6 +351,159 @@ def test_safe_two_source_component_is_annotated_without_deleting_payload_rows():
     assert stats["visibleFTwoSourceComponents"] == 1
 
 
+def test_existing_multi_absorbs_one_unique_duplicate_without_source_regression():
+    existing_multi = component_row(
+        "汽车之家+懂车帝",
+        "皓影 2026款 Pro 四驱尊耀版",
+        model_id="77904",
+    )
+    duplicate = component_row(
+        "仅懂车帝",
+        "26款 Pro 四驱尊耀版",
+    )
+
+    prepared, stats = prepare_v2_with_stats([existing_multi, duplicate])
+
+    assert len(prepared) == 2
+    assert len({row["跨源归并ID"] for row in prepared}) == 1
+    evidence = json.loads(prepared[0]["跨源归并证据"])
+    assert evidence["sources"] == ["汽车之家", "懂车帝"]
+    assert {member["ids"].get("车款ID") for member in evidence["members"]} == {
+        "77904",
+        None,
+    }
+    assert stats["visibleFAbsorbedSingles"] == 1
+    assert MODULE.visible_card_stats(prepared) == {
+        "payload_rows": 2,
+        "visible_rows": 1,
+        "visible_single": 0,
+        "visible_multi": 1,
+        "visible_rate": 100.0,
+    }
+
+
+def test_existing_multi_absorption_generalizes_l90_and_avatr_identity_shapes():
+    l90_multi = component_row(
+        "汽车之家+懂车帝",
+        "示例L 2026款 Pro 六座版",
+        model_id="76215",
+        **{"座位数(个)": "6"},
+    )
+    l90_duplicate = component_row(
+        "仅懂车帝",
+        "六座版 Pro",
+        **{"座位数(个)": "6"},
+    )
+    avatr_multi = component_row(
+        "汽车之家+懂车帝",
+        "示例A 2026款 Elite 后驱增程版 39.05kWh",
+        model_id="74558",
+        能源类型="增程式",
+        驱动形式="后置后驱",
+        **{"电池能量(kWh)": "39.05"},
+    )
+    avatr_autohome_duplicate = dict(
+        avatr_multi,
+        数据来源="仅汽车之家",
+        车型名称="示例A 2026款 Elite 增程版",
+    )
+    avatr_dongchedi_duplicate = component_row(
+        "仅懂车帝",
+        "Elite 后驱增程版 39.05kWh",
+        能源类型="增程式",
+        驱动形式="后置后驱",
+        **{"电池能量(kWh)": "39.05"},
+    )
+
+    l90 = prepare_v2([l90_multi, l90_duplicate])
+    avatr = prepare_v2(
+        [avatr_multi, avatr_autohome_duplicate, avatr_dongchedi_duplicate]
+    )
+
+    assert len({row["跨源归并ID"] for row in l90}) == 1
+    assert len({row["跨源归并ID"] for row in avatr}) == 1
+    assert {row.get("车款ID") for row in avatr} == {"74558", None}
+
+
+def test_canonical_series_alias_is_generic_and_fail_closed():
+    autohome = component_row(
+        "汽车之家+懂车帝",
+        "示例XC 2026款 四驱超长续航 Core",
+        model_id="75022",
+        车系="示例XC插电式混动",
+        能源类型="插电式混合动力",
+    )
+    dongchedi = component_row(
+        "仅懂车帝",
+        "四驱超长续航 Core",
+        车系="示例XC",
+        能源类型="插电式混合动力",
+    )
+
+    prepared = prepare_v2([autohome, dongchedi])
+    assert len({row["跨源归并ID"] for row in prepared}) == 1
+
+    not_suffix = prepare_v2(
+        [autohome, dict(dongchedi, 车系="示例PHEV特别版")]
+    )
+    assert all("跨源归并ID" not in row for row in not_suffix)
+
+
+def test_l60_shape_uses_battery_and_range_to_resolve_duplicate_source_graph():
+    existing_60 = component_row(
+        "汽车之家+懂车帝",
+        "示例L 2026款 60kWh Pro",
+        model_id="78172",
+        能源类型="纯电动",
+        驱动形式="后置后驱",
+        **{"电池能量(kWh)": "60", "纯电续航(km)": "560"},
+    )
+    duplicate_60 = component_row(
+        "仅懂车帝",
+        "26款 60kWh Pro",
+        能源类型="纯电动",
+        驱动形式="后置后驱",
+        **{"电池容量(kWh)": "60", "纯电续航(km)": "560"},
+    )
+    separate_85 = component_row(
+        "仅汽车之家",
+        "示例L 2026款 85kWh Pro",
+        model_id="78171",
+        能源类型="纯电动",
+        驱动形式="后置后驱",
+        **{"电池能量(kWh)": "85", "纯电续航(km)": "740"},
+    )
+
+    prepared = prepare_v2([existing_60, duplicate_60, separate_85])
+
+    assert prepared[0]["跨源归并ID"] == prepared[1]["跨源归并ID"]
+    assert "跨源归并ID" not in prepared[2]
+
+
+def test_existing_accepted_ultra_plus_component_remains_valid():
+    dongchedi = component_row(
+        "仅懂车帝",
+        "四驱 Ultra+",
+        能源类型="纯电动",
+        **{
+            "电池容量(kWh)": "60",
+            "纯电续航(km)": "525",
+            "85kWh电池_1": "选装85kWh电池，CLTC综合续航700km",
+        },
+    )
+    autohome = component_row(
+        "仅汽车之家",
+        "示例L 2026款 85kWh Ultra+",
+        model_id="77966",
+        能源类型="纯电动",
+        **{"电池能量(kWh)": "85", "纯电续航(km)": "700"},
+    )
+
+    prepared = prepare_v2([dongchedi, autohome])
+
+    assert prepared[0]["跨源归并ID"] == prepared[1]["跨源归并ID"]
+
+
 def test_visible_component_conflicts_and_true_many_to_many_stay_fail_closed():
     base_left = component_row("仅汽车之家", "皓影 2026款 Pro 四驱版")
     conflict_cases = [
@@ -313,6 +531,67 @@ def test_visible_component_conflicts_and_true_many_to_many_stay_fail_closed():
     assert all("跨源归并ID" not in row for row in ambiguous)
 
 
+def test_strict_existing_multi_conflicts_stay_rejected():
+    existing_multi = component_row(
+        "汽车之家+懂车帝",
+        "示例车 2026款 Max+ 四驱 7座 192线激光雷达 60kWh 600km",
+        model_id="70001",
+        能源类型="纯电动",
+        驱动形式="四驱",
+        **{
+            "座位数(个)": "7",
+            "电池能量(kWh)": "60",
+            "纯电续航(km)": "600",
+        },
+    )
+    conflicts = [
+        dict(existing_multi, 数据来源="仅易车", 年款="2025", 车型名称="示例车 2025款 Max+ 四驱 7座 192线激光雷达 60kWh 600km", 车款ID="80001"),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Max 四驱 7座 192线激光雷达 60kWh 600km", 车款ID="80002"),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Ultra 四驱 7座 192线激光雷达 60kWh 600km", 车款ID="80003"),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Max+ 四驱 6座 192线激光雷达 60kWh 600km", 车款ID="80004", **{"座位数(个)": "6"}),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Max+ 四驱 7座 896线激光雷达 60kWh 600km", 车款ID="80005"),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Max+ 四驱 7座 192线激光雷达 85kWh 600km", 车款ID="80006", **{"电池能量(kWh)": "85"}),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Max+ 四驱 7座 192线激光雷达 60kWh 700km", 车款ID="80007", **{"纯电续航(km)": "700"}),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Max+ 四驱 7座 192线激光雷达 60kWh 600km", 车款ID="80008", 能源类型="增程式"),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Max+ 四驱 7座 192线激光雷达 60kWh 600km", 车款ID="80009", 能源类型="插电式混合动力"),
+        dict(existing_multi, 数据来源="仅易车", 车型名称="示例车 2026款 Max+ 两驱 7座 192线激光雷达 60kWh 600km", 车款ID="80010", 驱动形式="两驱"),
+    ]
+    for conflict in conflicts:
+        conflict["易车上市状态"] = "approved"
+        prepared = prepare_v2([existing_multi, conflict])
+        assert all("跨源归并ID" not in row for row in prepared)
+
+
+def test_multiple_multi_competitors_duplicate_variants_and_id_competition_reject():
+    duplicate = component_row("仅懂车帝", "Pro 四驱尊耀版")
+    multi_a = component_row(
+        "汽车之家+懂车帝",
+        "皓影 2026款 Pro 四驱尊耀版",
+        model_id="77904",
+    )
+    multi_b = component_row(
+        "汽车之家+懂车帝",
+        "皓影 2026款 Pro 四驱尊耀版 智享",
+        model_id="77905",
+    )
+    ambiguous = prepare_v2([duplicate, multi_a, multi_b])
+    assert all("跨源归并ID" not in row for row in ambiguous)
+
+    duplicate_a = component_row("仅懂车帝", "Pro 四驱尊耀版")
+    duplicate_b = component_row("仅懂车帝", "Max 四驱尊耀版")
+    same_source = prepare_v2([multi_a, duplicate_a, duplicate_b])
+    assert all("跨源归并ID" not in row for row in same_source)
+
+    id_single = component_row(
+        "仅汽车之家",
+        "皓影 2026款 Pro 四驱尊耀版",
+        model_id="77904",
+    )
+    id_multi_b = dict(multi_b, 车款ID="77904")
+    id_competition = prepare_v2([id_single, multi_a, id_multi_b])
+    assert all("跨源归并ID" not in row for row in id_competition)
+
+
 def test_same_source_frontend_fold_and_existing_multi_id_competitor_are_not_stolen():
     autohome = component_row("仅汽车之家", "皓影 2026款 Pro 四驱版", model_id="77904")
     duplicate_autohome = dict(autohome, 官方指导价="13.98万")
@@ -327,6 +606,31 @@ def test_same_source_frontend_fold_and_existing_multi_id_competitor_are_not_stol
     )
     competed = MODULE.prepare_rows([autohome, dongchedi, existing_multi], 2022)
     assert all("跨源归并ID" not in row for row in competed)
+
+
+def test_retirement_cleanup_removes_only_retired_qualified_values():
+    row = component_row(
+        "仅汽车之家",
+        "皓影 2026款 Pro 四驱版",
+        model_id="77904",
+        驾驶辅助影像="汽车之家:360度全景影像|懂车帝:倒车影像|透明影像",
+        座椅材质="汽车之家:真皮",
+        未标记字段="保留",
+        仅退休字段="懂车帝:旧值",
+    )
+
+    cleaned, stats = MODULE.reconcile_source_provenance([row], cleanup_retired=True)
+
+    assert cleaned[0]["驾驶辅助影像"] == "汽车之家:360度全景影像"
+    assert cleaned[0]["座椅材质"] == "汽车之家:真皮"
+    assert cleaned[0]["未标记字段"] == "保留"
+    assert "仅退休字段" not in cleaned[0]
+    assert cleaned[0]["数据来源"] == "仅汽车之家"
+    assert stats == {
+        "fieldSourceContradictions": 2,
+        "retiredFieldSegmentsRemoved": 2,
+        "retiredFieldsRemoved": 1,
+    }
 
 
 def test_visible_card_formula_counts_annotated_components_without_payload_loss():

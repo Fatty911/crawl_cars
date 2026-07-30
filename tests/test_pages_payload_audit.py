@@ -192,6 +192,71 @@ class PagesPayloadAuditTests(unittest.TestCase):
             {violation["code"] for violation in unsafe_report["violations"]},
         )
 
+    def test_field_source_marker_must_belong_to_effective_component_sources(self) -> None:
+        autohome = self.row("101", "仅汽车之家") | {
+            "驾驶辅助影像": "汽车之家:360度全景影像|懂车帝:倒车影像|透明影像",
+        }
+
+        report = self.audit.audit_payload([autohome], [autohome], head_sha="abc")
+
+        self.assertEqual("blocked", report["status"])
+        self.assertIn(
+            "field_source_contradiction",
+            {violation["code"] for violation in report["violations"]},
+        )
+        self.assertEqual(1, report["stats"]["field_source_contradictions"])
+
+    def test_retirement_cleanup_preserves_current_source_and_passes_strict_audit(self) -> None:
+        autohome = self.row("101", "仅汽车之家") | {
+            "驾驶辅助影像": "汽车之家:360度全景影像|懂车帝:倒车影像|透明影像",
+            "当前字段": "汽车之家:保留",
+        }
+        cleaned, cleanup_stats = self.prepare.reconcile_source_provenance(
+            [autohome],
+            cleanup_retired=True,
+        )
+
+        report = self.audit.audit_payload([cleaned[0]], cleaned, head_sha="abc")
+
+        self.assertEqual("pass", report["status"])
+        self.assertEqual("汽车之家:360度全景影像", cleaned[0]["驾驶辅助影像"])
+        self.assertEqual("汽车之家:保留", cleaned[0]["当前字段"])
+        self.assertEqual(1, cleanup_stats["retiredFieldSegmentsRemoved"])
+
+    def test_component_evidence_sources_are_derived_from_actual_members(self) -> None:
+        autohome = self.row("101", "仅汽车之家") | {
+            "车型名称": "汉 2026款 EV 506KM 尊贵型",
+            "能源类型": "纯电",
+            "级别": "中大型车",
+        }
+        dongchedi = self.row("202", "仅懂车帝") | {
+            "车型名称": "汉 26款 EV 506KM 尊贵型",
+            "能源类型": "纯电",
+            "级别": "中大型车",
+        }
+        annotated, _ = self.prepare.annotate_safe_visible_components(
+            [autohome, dongchedi]
+        )
+        tampered = [dict(row) for row in annotated]
+        evidence = json.loads(tampered[0][self.prepare.VISIBLE_COMPONENT_EVIDENCE])
+        evidence["sources"] = ["汽车之家", "懂车帝", "易车"]
+        forged = json.dumps(
+            evidence,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for row in tampered:
+            row[self.prepare.VISIBLE_COMPONENT_EVIDENCE] = forged
+
+        report = self.audit.audit_payload(annotated, tampered, head_sha="abc")
+
+        self.assertEqual("blocked", report["status"])
+        self.assertIn(
+            "visible_component_evidence_mismatch",
+            {violation["code"] for violation in report["violations"]},
+        )
+
 
 class SelfHealTrustRootScopeTests(unittest.TestCase):
     @classmethod
