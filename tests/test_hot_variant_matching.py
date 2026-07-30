@@ -161,6 +161,53 @@ def test_l60_battery_range_fields_add_only_positive_pairing_evidence():
     )
 
 
+def test_l60_real_crawler_field_names_resolve_five_2025_pairs():
+    left_specs = [
+        ("乐道L60 2025款 60kWh 后驱版", "后置后驱", "60", "560"),
+        ("乐道L60 2025款 60kWh 黑骑士特别版", "后置后驱", "60", "530"),
+        ("乐道L60 2025款 60kWh 四驱版", "双电机四驱", "60", "530"),
+        ("乐道L60 2025款 85kWh 后驱版", "后置后驱", "85", "740"),
+        ("乐道L60 2025款 85kWh 四驱版", "双电机四驱", "85", "707"),
+    ]
+    right_specs = [
+        ("707km 长续航四驱版", "双电机四驱", "85.0", "707"),
+        ("530km 标准续航四驱版", "双电机四驱", "60.0", "530"),
+        ("740km 长续航版", "后置后驱", "85.0", "740"),
+        ("560km 标准续航版", "后置后驱", "60.0", "560"),
+        ("530km 黑骑士特别版", "后置后驱", "60.0", "530"),
+        ("530km 紫罗兰限定版", "后置后驱", "60.0", "530"),
+    ]
+    left = [
+        row(
+            name,
+            brand="乐道",
+            series="乐道L60",
+            驱动方式=drive,
+            电池能量_kWh_=battery,
+            CLTC纯电续航里程_km_=driving_range,
+        )
+        for name, drive, battery, driving_range in left_specs
+    ]
+    right = [
+        row(
+            name,
+            brand="乐道",
+            series="乐道L60",
+            驱动形式=drive,
+            **{"电池容量(kWh)": battery, "纯电续航里程(km)": driving_range},
+        )
+        for name, drive, battery, driving_range in right_specs
+    ]
+
+    assert paired_names(left, right) == {
+        (left[0]["车型名称"], right[3]["车型名称"]),
+        (left[1]["车型名称"], right[4]["车型名称"]),
+        (left[2]["车型名称"], right[1]["车型名称"]),
+        (left[3]["车型名称"], right[2]["车型名称"]),
+        (left[4]["车型名称"], right[0]["车型名称"]),
+    }
+
+
 def test_engine_and_transmission_metadata_are_identity_neutral():
     plain = row("测试S 2026款 Ultra", brand="测试", series="测试S")
     autohome_only_metadata = row(
