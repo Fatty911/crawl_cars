@@ -506,6 +506,23 @@ def model_positive_evidence(row):
     return {"battery": battery, "range": driving_range, "range_class": range_class}
 
 
+def has_explicit_battery_field_inconsistency(row):
+    """Detect a published row whose named battery conflicts with one capacity field.
+
+    This is a merged-row integrity check, not a matching hard conflict: battery
+    values remain positive-only evidence in ``match_score``.
+    """
+    name = str(row.get("车型名称", "") or "").lower()
+    named_values = _measure_values(_BATTERY_NAME_PATTERN.findall(name))
+    if not named_values:
+        return False
+    for field in _BATTERY_FIELDS:
+        field_values = _measure_values([row.get(field)])
+        if field_values and named_values.isdisjoint(field_values):
+            return True
+    return False
+
+
 def model_variant_signature(row, include_fields=True):
     text = str(row.get("车型名称", "") or "").lower().replace("＋", "+")
     for chinese, digit in _CHINESE_SEAT_DIGITS.items():

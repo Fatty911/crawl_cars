@@ -893,6 +893,105 @@ class PreservePublishBaselineTests(unittest.TestCase):
             json.loads(result.stdout.strip().splitlines()[-1]),
         )
 
+    def test_single_source_candidate_does_not_retire_unproven_previous_match(self) -> None:
+        published = {
+            "数据来源": "汽车之家+懂车帝",
+            "品牌": "问界",
+            "车系": "问界M7",
+            "车系ID": "100",
+            "车型名称": "问界M7 2026款 Max 五座版",
+            "年款": "2026",
+            "车款ID": "900",
+            "published_only": "keep",
+        }
+        current_autohome = dict(published, 数据来源="仅汽车之家")
+        current_autohome.pop("published_only")
+        current_dongchedi = {
+            "数据来源": "仅懂车帝",
+            "品牌": "AITO",
+            "车系": "问界M7",
+            "车系ID": "101",
+            "车型名称": "Max五座版",
+            "年款": "2026",
+            "车型ID": "901",
+        }
+
+        result, outputs = self.run_preserve(
+            [published, current_dongchedi],
+            [current_autohome, current_dongchedi],
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([published, current_dongchedi], outputs["merged_json"])
+        self.assertNotIn("candidate_deenriched", json.loads(result.stdout.strip().splitlines()[-1]))
+
+    def test_explicit_ultra_basic_conflict_retires_stale_source(self) -> None:
+        published = {
+            "数据来源": "汽车之家+懂车帝",
+            "品牌": "理想",
+            "车系": "理想L6",
+            "车系ID": "100",
+            "车型名称": "理想L6 2026款 Ultra",
+            "年款": "2026",
+            "车款ID": "900",
+            "stale_dongchedi_field": "drop",
+        }
+        current_autohome = dict(published, 数据来源="仅汽车之家")
+        current_autohome.pop("stale_dongchedi_field")
+        current_dongchedi = {
+            "数据来源": "仅懂车帝",
+            "品牌": "理想",
+            "车系": "理想L6",
+            "车系ID": "101",
+            "车型名称": "基本型",
+            "年款": "2026",
+            "车型ID": "901",
+        }
+
+        result, outputs = self.run_preserve(
+            [published, current_dongchedi],
+            [current_autohome, current_dongchedi],
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([current_autohome, current_dongchedi], outputs["merged_json"])
+        self.assertEqual(1, json.loads(result.stdout.strip().splitlines()[-1])["candidate_deenriched"])
+
+    def test_matching_battery_name_and_fields_keep_previous_source(self) -> None:
+        published = {
+            "数据来源": "汽车之家+懂车帝",
+            "品牌": "乐道",
+            "车系": "乐道L60",
+            "车系ID": "100",
+            "车型名称": "乐道L60 2026款 60kWh Pro",
+            "年款": "2026",
+            "车款ID": "900",
+            "电池能量(kWh)": "60",
+            "电池容量(kWh)": "60",
+            "published_only": "keep",
+        }
+        current_autohome = dict(published, 数据来源="仅汽车之家")
+        current_autohome.pop("published_only")
+        current_dongchedi = {
+            "数据来源": "仅懂车帝",
+            "品牌": "乐道",
+            "车系": "乐道L60",
+            "车系ID": "101",
+            "车型名称": "后驱Pro",
+            "年款": "2026",
+            "车型ID": "901",
+            "电池容量(kWh)": "60",
+        }
+
+        result, outputs = self.run_preserve(
+            [published, current_dongchedi],
+            [current_autohome, current_dongchedi],
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([published, current_dongchedi], outputs["merged_json"])
+        self.assertNotIn("candidate_deenriched", json.loads(result.stdout.strip().splitlines()[-1]))
+
     def test_invalid_empty_or_duplicate_inputs_fail_closed_without_temp_files(self) -> None:
         row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
         cases = [

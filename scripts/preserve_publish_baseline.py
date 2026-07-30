@@ -9,7 +9,20 @@ import os
 import tempfile
 from pathlib import Path
 
-from merge_data import IDENTITY_FIELDS, atomic_source_names, collect_fields, filter_car, keep_pages_year, partition_publishable_rows, write_csv, write_json
+from merge_data import (
+    IDENTITY_FIELDS,
+    atomic_source_names,
+    collect_fields,
+    filter_car,
+    has_explicit_battery_field_inconsistency,
+    keep_pages_year,
+    model_variant_conflict_reason,
+    normalize_series_match_text,
+    partition_publishable_rows,
+    row_year,
+    write_csv,
+    write_json,
+)
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 
@@ -44,6 +57,38 @@ def enrich_baseline_row(baseline: dict, candidate: dict) -> tuple[dict, bool]:
     return enriched, changed
 
 
+def variant_bucket(row: dict) -> tuple[str, int] | None:
+    series = normalize_series_match_text(row.get("车系", ""))
+    year = row_year(row)
+    return (series, year) if series and year else None
+
+
+def stale_source_retirement_is_proven(
+    baseline: dict,
+    candidate: dict,
+    retired_sources: set[str],
+    candidate_rows_by_bucket: dict[tuple[str, int], list[dict]],
+) -> bool:
+    if has_explicit_battery_field_inconsistency(baseline):
+        return True
+
+    bucket = variant_bucket(candidate)
+    if bucket is None:
+        return False
+    bucket_rows = candidate_rows_by_bucket.get(bucket, [])
+    for source in retired_sources:
+        source_rows = [
+            row
+            for row in bucket_rows
+            if source in atomic_source_names(row.get("数据来源"))
+        ]
+        if len(source_rows) != 1:
+            return False
+        if model_variant_conflict_reason(candidate, source_rows[0]) != "tier_mismatch":
+            return False
+    return True
+
+
 def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tuple[list[dict], dict[str, int]]:
     baseline_rows = [row for row in baseline_rows if keep_pages_year(row)]
     candidate_rows = [row for row in candidate_rows if keep_pages_year(row)]
@@ -55,6 +100,11 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
     baseline_keys = unique_keys("baseline", baseline_rows)
     candidate_keys = unique_keys("candidate", candidate_rows)
     output_indexes = {key: index for index, key in enumerate(baseline_keys)}
+    candidate_rows_by_bucket: dict[tuple[str, int], list[dict]] = {}
+    for row in candidate_rows:
+        bucket = variant_bucket(row)
+        if bucket is not None:
+            candidate_rows_by_bucket.setdefault(bucket, []).append(row)
     preserved = list(baseline_rows)
     candidate_added = 0
     candidate_enriched = 0
@@ -68,7 +118,17 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
         index = output_indexes[key]
         baseline_sources = set(atomic_source_names(preserved[index].get("数据来源")))
         candidate_sources = set(atomic_source_names(row.get("数据来源")))
-        if candidate_sources and candidate_sources < baseline_sources:
+        retired_sources = baseline_sources - candidate_sources
+        if (
+            candidate_sources
+            and candidate_sources < baseline_sources
+            and stale_source_retirement_is_proven(
+                preserved[index],
+                row,
+                retired_sources,
+                candidate_rows_by_bucket,
+            )
+        ):
             preserved[index] = row
             candidate_deenriched += 1
             continue
