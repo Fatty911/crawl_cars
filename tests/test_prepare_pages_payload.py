@@ -228,3 +228,126 @@ def test_prepare_rows_reports_price_and_listing_drop_stats():
         "droppedMissingListingTime": 1,
         "droppedFutureListingTime": 1,
     }
+
+
+def component_row(source, name, *, model_id="", **fields):
+    row = listed({
+        "数据来源": source,
+        "品牌": "本田",
+        "车系": "皓影",
+        "车型名称": name,
+        "年款": "2026",
+        "能源类型": "油电混合",
+        "级别": "紧凑型SUV",
+        "座位数(个)": "5",
+        "驱动形式": "前置四驱",
+        **fields,
+    })
+    if "汽车之家" in source:
+        row.update({"车系ID": "5393", "车款ID": model_id or "77904"})
+    elif "易车" in source:
+        row.update({"车款ID": model_id or "189503", "易车上市状态": "approved"})
+    else:
+        row.update({"车系ID": "4079"})
+    return row
+
+
+def test_safe_three_source_chain_gets_one_auditable_visible_component_id():
+    dongchedi = component_row("仅懂车帝", "锐·混动 2.0L 四驱尊耀版")
+    yiche = component_row("仅易车", "26款 e:HEV 2.0L 四驱锐·尊耀版")
+    autohome = component_row("仅汽车之家", "皓影 2026款 e:HEV 四驱尊耀版")
+
+    prepared, stats = MODULE.prepare_rows_with_stats([dongchedi, yiche, autohome], 2022)
+
+    component_ids = {row["跨源归并ID"] for row in prepared}
+    assert len(component_ids) == 1
+    evidence = json.loads(prepared[0]["跨源归并证据"])
+    assert evidence["sources"] == ["汽车之家", "懂车帝", "易车"]
+    assert sorted(edge["score"] for edge in evidence["edges"]) == [0.62, 0.6575]
+    assert [row["车型名称"] for row in prepared] == [
+        dongchedi["车型名称"],
+        yiche["车型名称"],
+        autohome["车型名称"],
+    ]
+    assert [row.get("车款ID") for row in prepared] == [None, "189503", "77904"]
+    assert stats["visibleFResolvedComponents"] == 1
+    assert stats["visibleFResolvedRows"] == 3
+    assert stats["visibleFThreeSourceComponents"] == 1
+
+
+def test_safe_two_source_component_is_annotated_without_deleting_payload_rows():
+    autohome = component_row("仅汽车之家", "皓影 2026款 e:HEV 四驱尊耀版")
+    yiche = component_row("仅易车", "26款 e:HEV 2.0L 四驱锐·尊耀版")
+
+    prepared, stats = MODULE.prepare_rows_with_stats([autohome, yiche], 2022)
+
+    assert len(prepared) == 2
+    assert prepared[0]["跨源归并ID"] == prepared[1]["跨源归并ID"]
+    assert stats["visibleFTwoSourceComponents"] == 1
+
+
+def test_visible_component_conflicts_and_true_many_to_many_stay_fail_closed():
+    base_left = component_row("仅汽车之家", "皓影 2026款 Pro 四驱版")
+    conflict_cases = [
+        (dict(base_left, 年款="2025", 车型名称="皓影 2025款 Pro 四驱版"), component_row("仅懂车帝", "Pro 四驱版")),
+        (dict(base_left, 车型名称="皓影 2026款 Ultra 四驱版"), component_row("仅懂车帝", "基本型 四驱版")),
+        (dict(base_left, 车型名称="皓影 2026款 Pro 四驱版"), component_row("仅懂车帝", "Max 四驱版")),
+        (dict(base_left, 车型名称="皓影 2026款 Pro 四驱版"), component_row("仅懂车帝", "Plus 四驱版")),
+        (dict(base_left, 车型名称="皓影 2026款 Pro 四驱版 5座", **{"座位数(个)": "5"}), component_row("仅懂车帝", "Pro 四驱版 6座", **{"座位数(个)": "6"})),
+        (dict(base_left, 车型名称="皓影 2026款 Pro 四驱版 5座", **{"座位数(个)": "5"}), component_row("仅懂车帝", "Pro 四驱版 7座", **{"座位数(个)": "7"})),
+        (dict(base_left, 驱动形式="前置四驱"), component_row("仅懂车帝", "Pro 两驱版", 驱动形式="两驱")),
+        (dict(base_left, 激光雷达="支持"), component_row("仅懂车帝", "Pro 四驱版", 激光雷达="-")),
+        (dict(base_left, 能源类型="纯电动"), component_row("仅懂车帝", "Pro 四驱版", 能源类型="汽油")),
+        (dict(base_left, 级别="紧凑型SUV"), component_row("仅懂车帝", "Pro 四驱版", 级别="中型轿车")),
+        (dict(base_left, 车体结构="承载式"), component_row("仅懂车帝", "Pro 四驱版", 车体结构="非承载式")),
+        (dict(base_left, 车型名称="皓影 2026款 Pro 四驱版 73kWh"), component_row("仅懂车帝", "Pro 四驱版 66kWh")),
+        (dict(base_left, 车型名称="皓影 2026款 Pro 四驱版 700km"), component_row("仅懂车帝", "Pro 四驱版 600km")),
+    ]
+    for left, right in conflict_cases:
+        with_id = MODULE.prepare_rows([left, right], 2022)
+        assert all("跨源归并ID" not in row for row in with_id)
+
+    right_a = component_row("仅懂车帝", "Pro 四驱版 智享")
+    right_b = component_row("仅懂车帝", "Pro 四驱版 智领")
+    ambiguous = MODULE.prepare_rows([base_left, right_a, right_b], 2022)
+    assert all("跨源归并ID" not in row for row in ambiguous)
+
+
+def test_same_source_frontend_fold_and_existing_multi_id_competitor_are_not_stolen():
+    autohome = component_row("仅汽车之家", "皓影 2026款 Pro 四驱版", model_id="77904")
+    duplicate_autohome = dict(autohome, 官方指导价="13.98万")
+    dongchedi = component_row("仅懂车帝", "Pro 四驱版")
+    folded = MODULE.prepare_rows([autohome, duplicate_autohome, dongchedi], 2022)
+    assert all("跨源归并ID" not in row for row in folded)
+
+    existing_multi = component_row(
+        "汽车之家+懂车帝",
+        "皓影 2026款 已核验版",
+        model_id="77904",
+    )
+    competed = MODULE.prepare_rows([autohome, dongchedi, existing_multi], 2022)
+    assert all("跨源归并ID" not in row for row in competed)
+
+
+def test_visible_card_formula_counts_annotated_components_without_payload_loss():
+    autohome = component_row("仅汽车之家", "皓影 2026款 e:HEV 四驱尊耀版")
+    yiche = component_row("仅易车", "26款 e:HEV 2.0L 四驱锐·尊耀版")
+    untouched = listed({
+        "数据来源": "仅懂车帝",
+        "品牌": "甲",
+        "车系": "甲车系",
+        "车型名称": "甲 2026款 独立版",
+        "年款": "2026",
+        "官方指导价": "18.88万",
+    })
+    prepared = MODULE.prepare_rows([autohome, yiche, untouched], 2022)
+
+    stats = MODULE.visible_card_stats(prepared)
+
+    assert stats == {
+        "payload_rows": 3,
+        "visible_rows": 2,
+        "visible_single": 1,
+        "visible_multi": 1,
+        "visible_rate": 50.0,
+    }

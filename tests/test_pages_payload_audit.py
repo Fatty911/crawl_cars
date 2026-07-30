@@ -29,6 +29,7 @@ class PagesPayloadAuditTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.audit = load("pages_payload_audit", SCRIPTS / "audit_pages_payload.py")
+        cls.prepare = load("prepare_pages_payload_for_audit", SCRIPTS / "prepare_pages_payload.py")
 
     @staticmethod
     def row(model_id: str, sources: str) -> dict:
@@ -94,9 +95,12 @@ class PagesPayloadAuditTests(unittest.TestCase):
         self.assertNotIn("易车", rendered)
 
     def test_source_retirement_passes_when_source_remains_in_same_series_year(self) -> None:
+        candidate, _ = self.prepare.annotate_safe_visible_components(
+            [self.row("1", "汽车之家"), self.row("2", "懂车帝")]
+        )
         report = self.audit.audit_payload(
             [self.row("1", "汽车之家+懂车帝")],
-            [self.row("1", "汽车之家"), self.row("2", "懂车帝")],
+            candidate,
             head_sha="abc",
         )
         self.assertEqual("pass", report["status"])
@@ -132,6 +136,61 @@ class PagesPayloadAuditTests(unittest.TestCase):
             self.assertEqual("deadbeef", payload["head_sha"])
             self.assertRegex(payload["baseline_sha256"], r"^[0-9a-f]{64}$")
             self.assertRegex(payload["candidate_sha256"], r"^[0-9a-f]{64}$")
+
+    def test_safe_visible_component_annotation_is_recomputed_and_counted(self) -> None:
+        autohome = self.row("101", "仅汽车之家") | {
+            "车型名称": "汉 2026款 EV 506KM 尊贵型",
+            "能源类型": "纯电",
+            "级别": "中大型车",
+        }
+        dongchedi = self.row("202", "仅懂车帝") | {
+            "车型名称": "汉 26款 EV 506KM 尊贵型",
+            "能源类型": "纯电",
+            "级别": "中大型车",
+        }
+        baseline = [autohome, dongchedi]
+        candidate, component_stats = self.prepare.annotate_safe_visible_components(baseline)
+
+        report = self.audit.audit_payload(baseline, candidate, head_sha="abc")
+
+        self.assertEqual("pass", report["status"])
+        self.assertEqual(1, component_stats["visibleFResolvedComponents"])
+        self.assertEqual(1, report["stats"]["candidate_visible_multi"])
+        self.assertEqual(0, report["stats"]["candidate_visible_single"])
+
+    def test_missing_or_tampered_visible_component_annotation_is_blocked(self) -> None:
+        autohome = self.row("101", "仅汽车之家") | {
+            "车型名称": "汉 2026款 EV 506KM 尊贵型",
+            "能源类型": "纯电",
+            "级别": "中大型车",
+        }
+        dongchedi = self.row("202", "仅懂车帝") | {
+            "车型名称": "汉 26款 EV 506KM 尊贵型",
+            "能源类型": "纯电",
+            "级别": "中大型车",
+        }
+        annotated, _ = self.prepare.annotate_safe_visible_components([autohome, dongchedi])
+        missing = [dict(row) for row in annotated]
+        missing[0].pop(self.prepare.VISIBLE_COMPONENT_ID)
+        missing[0].pop(self.prepare.VISIBLE_COMPONENT_EVIDENCE)
+        missing_report = self.audit.audit_payload([autohome, dongchedi], missing, head_sha="abc")
+        self.assertEqual("blocked", missing_report["status"])
+        self.assertIn(
+            "missing_visible_component_annotation",
+            {violation["code"] for violation in missing_report["violations"]},
+        )
+
+        ambiguous = [
+            dict(autohome, **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}),
+            dict(autohome, 车款ID="102", **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}),
+            dict(dongchedi, **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}),
+        ]
+        unsafe_report = self.audit.audit_payload(ambiguous, ambiguous, head_sha="abc")
+        self.assertEqual("blocked", unsafe_report["status"])
+        self.assertIn(
+            "unsafe_visible_component_annotation",
+            {violation["code"] for violation in unsafe_report["violations"]},
+        )
 
 
 class SelfHealTrustRootScopeTests(unittest.TestCase):

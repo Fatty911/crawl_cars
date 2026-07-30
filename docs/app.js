@@ -301,6 +301,10 @@
   }
 
   function rowKey(row) {
+    var auditedComponent = String(row["跨源归并ID"] || "").trim();
+    if (auditedComponent) {
+      return "audited|" + auditedComponent;
+    }
     var modelKey = canonicalModelName(row);
     if (modelKey) {
       return "model|" + modelKey;

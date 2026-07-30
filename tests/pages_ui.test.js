@@ -197,6 +197,31 @@ test("Pages only uses the deduplicated 2022+ display set for source coverage and
   assert.equal(elements.get("yicheCount").textContent, "4");
 });
 
+test("Pages groups only rows carrying the same audited cross-source component id", () => {
+  const { hooks } = loadAppForTest();
+  const autohome = Object.assign(row("仅汽车之家", 2026, "皓影 2026款 e:HEV 四驱尊耀版"), {
+    "车系": "皓影",
+    "车款ID": "77904",
+    "跨源归并ID": "visible-f-v1:test"
+  });
+  const yiche = Object.assign(row("仅易车", 2026, "26款 e:HEV 2.0L 四驱锐·尊耀版"), {
+    "车系": "皓影",
+    "车款ID": "189503",
+    "跨源归并ID": "visible-f-v1:test"
+  });
+  const unrelated = Object.assign(row("仅懂车帝", 2026, "锐·混动 2.0L 四驱至尊版"), {
+    "车系": "皓影"
+  });
+
+  hooks.initializeRows([autohome, yiche, unrelated]);
+
+  assert.equal(hooks.state.rows.length, 2);
+  const merged = hooks.state.rows.find((item) => item["交叉核验"] === "双源核验");
+  assert.deepEqual(Array.from(hooks.atomicSources(merged["数据来源"])).sort(), ["易车", "汽车之家"].sort());
+  assert.equal(merged["跨源归并ID"], "visible-f-v1:test");
+  assert.equal(hooks.state.rows.find((item) => item["交叉核验"] === "单源数据")["车型名称"], unrelated["车型名称"]);
+});
+
 test("Pages page jump rejects invalid values and clamps valid integers", () => {
   const { elements, hooks } = loadAppForTest();
   const rows = Array.from({ length: 250 }, (_, index) => row("仅懂车帝", 2026, "车型" + index));

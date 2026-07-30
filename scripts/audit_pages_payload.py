@@ -12,8 +12,14 @@ from typing import Iterable
 
 from merge_data import atomic_source_names, partition_publishable_rows, series_year_key
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
+from prepare_pages_payload import (
+    VISIBLE_COMPONENT_EVIDENCE,
+    VISIBLE_COMPONENT_ID,
+    annotate_safe_visible_components,
+    visible_card_stats,
+)
 
-SCHEMA_VERSION = "pages-payload-audit-v1"
+SCHEMA_VERSION = "pages-payload-audit-v2"
 _SOURCE_SPLIT = re.compile(r"[|,，;/；、+]+")
 
 
@@ -92,7 +98,30 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
         else:
             source_regressions.append(key)
     add("source_regression", source_regressions)
+
+    expected_candidate_rows, component_stats = annotate_safe_visible_components(candidate_rows)
+    missing_annotations = []
+    unsafe_annotations = []
+    evidence_mismatches = []
+    for index, (actual, expected) in enumerate(zip(candidate_rows, expected_candidate_rows)):
+        actual_id = str(actual.get(VISIBLE_COMPONENT_ID, "") or "")
+        expected_id = str(expected.get(VISIBLE_COMPONENT_ID, "") or "")
+        if expected_id and not actual_id:
+            missing_annotations.append(("row", index))
+        elif actual_id and actual_id != expected_id:
+            unsafe_annotations.append(("row", index))
+        if actual_id == expected_id and actual_id:
+            if str(actual.get(VISIBLE_COMPONENT_EVIDENCE, "") or "") != str(
+                expected.get(VISIBLE_COMPONENT_EVIDENCE, "") or ""
+            ):
+                evidence_mismatches.append(("row", index))
+    add("missing_visible_component_annotation", missing_annotations)
+    add("unsafe_visible_component_annotation", unsafe_annotations)
+    add("visible_component_evidence_mismatch", evidence_mismatches)
     violations.sort(key=lambda item: item["code"])
+
+    baseline_visible = visible_card_stats(baseline_rows)
+    candidate_visible = visible_card_stats(candidate_rows)
 
     fingerprint_input = {
         "schema_version": SCHEMA_VERSION,
@@ -121,6 +150,15 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
             "baseline_invalid_model_name_dropped": baseline_publish_stats["invalid_model_name"],
             "candidate_invalid_brand_dropped": candidate_publish_stats["invalid_brand"],
             "candidate_invalid_model_name_dropped": candidate_publish_stats["invalid_model_name"],
+            "baseline_visible_rows": baseline_visible["visible_rows"],
+            "baseline_visible_single": baseline_visible["visible_single"],
+            "baseline_visible_multi": baseline_visible["visible_multi"],
+            "candidate_visible_rows": candidate_visible["visible_rows"],
+            "candidate_visible_single": candidate_visible["visible_single"],
+            "candidate_visible_multi": candidate_visible["visible_multi"],
+            "candidate_visible_rate": candidate_visible["visible_rate"],
+            "visible_multi_delta": candidate_visible["visible_multi"] - baseline_visible["visible_multi"],
+            **component_stats,
         },
         "violations": violations,
     }
