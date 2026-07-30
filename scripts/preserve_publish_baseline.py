@@ -25,6 +25,7 @@ from merge_data import (
     write_json,
 )
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
+from prepare_pages_payload import prepare_rows
 
 
 def unique_keys(label: str, rows: list[dict]) -> list[tuple[str, ...]]:
@@ -133,7 +134,7 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
     candidate_keys = unique_keys("candidate", candidate_rows)
     output_indexes = {key: index for index, key in enumerate(baseline_keys)}
     candidate_rows_by_bucket: dict[tuple[str, int], list[dict]] = {}
-    for row in candidate_rows:
+    for row in prepare_rows(candidate_rows, min_year=2022):
         bucket = variant_bucket(row)
         if bucket is not None:
             candidate_rows_by_bucket.setdefault(bucket, []).append(row)

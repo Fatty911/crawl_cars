@@ -871,6 +871,8 @@ class PreservePublishBaselineTests(unittest.TestCase):
             "年款": "2026",
             "车型ID": "901",
             "电池容量(kWh)": "60",
+            "上市时间": "2026.01",
+            "官方指导价": "20万",
         }
 
         result, outputs = self.run_preserve(
@@ -946,6 +948,8 @@ class PreservePublishBaselineTests(unittest.TestCase):
             "车型名称": "基本型",
             "年款": "2026",
             "车型ID": "901",
+            "上市时间": "2026.01",
+            "官方指导价": "20万",
         }
 
         result, outputs = self.run_preserve(
@@ -976,6 +980,8 @@ class PreservePublishBaselineTests(unittest.TestCase):
             "车型名称": "基本型",
             "年款": "2026",
             "车型ID": "901",
+            "上市时间": "2026.01",
+            "官方指导价": "20万",
         }
 
         result, outputs = self.run_preserve(
@@ -987,6 +993,36 @@ class PreservePublishBaselineTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual([expected, current_dongchedi], outputs["merged_json"])
         self.assertEqual(1, json.loads(result.stdout.strip().splitlines()[-1])["candidate_deenriched"])
+
+    def test_non_publishable_basic_row_does_not_retire_source_without_identity_overlap(self) -> None:
+        published = {
+            "数据来源": "汽车之家+懂车帝",
+            "品牌": "理想汽车",
+            "车系": "理想L6",
+            "车系ID": "6950",
+            "车型名称": "理想L6 2026款 Ultra",
+            "年款": "2026",
+            "车款ID": "77775",
+        }
+        current_dongchedi = {
+            "数据来源": "仅懂车帝",
+            "品牌": "理想汽车",
+            "车系": "理想L6",
+            "车系ID": "5845",
+            "车型名称": "基本型",
+            "年款": "2026",
+            "上市时间": "2026.07",
+            "官方指导价": "暂无报价",
+        }
+
+        result, outputs = self.run_preserve(
+            [published],
+            [current_dongchedi],
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([published, current_dongchedi], outputs["merged_json"])
+        self.assertNotIn("candidate_deenriched", json.loads(result.stdout.strip().splitlines()[-1]))
 
     def test_internal_battery_conflict_retires_source_without_identity_overlap(self) -> None:
         published = {
