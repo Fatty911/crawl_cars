@@ -454,12 +454,43 @@ def canonical_value(value):
     return VALUE_SYNONYMS.get(compact, text)
 
 
+_CHINESE_SEAT_DIGITS = {"二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
+_TIER_PATTERN = re.compile(r"(?<![a-z0-9])(pro\+|max\+|ultra|elite|pro|max|gt)(?![a-z])", re.I)
+
+
+def model_variant_signature(row):
+    text = str(row.get("车型名称", "") or "").lower().replace("＋", "+")
+    for chinese, digit in _CHINESE_SEAT_DIGITS.items():
+        text = re.sub(rf"{chinese}\s*座", f"{digit}座", text)
+    tiers = {match.lower() for match in _TIER_PATTERN.findall(text)}
+    seats = set(re.findall(r"([2-9])\s*座", text))
+    lidar = set(re.findall(r"(\d{2,4})\s*线\s*激光雷达", text))
+    drives = set()
+    if re.search(r"四驱|4wd|awd", text, re.I): drives.add("awd")
+    if re.search(r"后驱|rwd", text, re.I): drives.add("rwd")
+    if re.search(r"前驱|fwd", text, re.I): drives.add("fwd")
+    editions = set()
+    if "超长续航" in text: editions.add("extra_long_range")
+    elif "长续航" in text: editions.add("long_range")
+    if "标准续航" in text or "标准版" in text: editions.add("standard")
+    return {"tier": tiers, "seat": seats, "lidar": lidar, "drive": drives, "edition": editions}
+
+
 def tokenize_model(row):
     tokens = set()
+    signature = model_variant_signature(row)
+    for kind, values in signature.items(): tokens.update(f"{kind}:{value}" for value in values)
     for field in ("车系", "车型名称", "能源类型", "发动机", "变速箱"):
-        text = str(row.get(field, "") or "").lower()
+        text = str(row.get(field, "") or "").lower().replace("＋", "+")
+        for chinese, digit in _CHINESE_SEAT_DIGITS.items(): text = re.sub(rf"{chinese}\s*座", f"{digit}座", text)
+        text = re.sub(r"(?:19|20)\d{2}款?", " ", text)
+        text = _TIER_PATTERN.sub(" ", text)
+        text = re.sub(r"[2-9]\s*座", " ", text)
+        text = re.sub(r"\d{2,4}\s*线\s*激光雷达", " ", text)
+        text = re.sub(r"四驱|后驱|前驱|4wd|awd|rwd|fwd", " ", text, flags=re.I)
+        text = re.sub(r"超长续航|长续航|标准续航|标准版", " ", text)
         tokens.update(re.findall(r"[a-z]+|\d+(?:\.\d+)?|[\u4e00-\u9fff]+", text))
-    stop = {"款", "版", "型", "汽车", "自动", "手动"}
+    stop = {"款", "版", "型", "汽车", "自动", "手动", "座"}
     return {t for t in tokens if t and t not in stop}
 
 
@@ -489,6 +520,13 @@ def match_score(ah_row, dcd_row, require_year):
     dcd_year = row_year(dcd_row)
     if ah_year and dcd_year and ah_year != dcd_year:
         return 0.0, ["year_mismatch"]
+    ah_signature = model_variant_signature(ah_row)
+    dcd_signature = model_variant_signature(dcd_row)
+    for field in ("tier", "seat", "lidar", "drive", "edition"):
+        ah_values = ah_signature[field]
+        dcd_values = dcd_signature[field]
+        if ah_values and dcd_values and ah_values.isdisjoint(dcd_values):
+            return 0.0, [f"{field}_mismatch"]
     ah_tokens = tokenize_model(ah_row)
     dcd_tokens = tokenize_model(dcd_row)
     union = ah_tokens | dcd_tokens
@@ -665,6 +703,8 @@ BRAND_NORMALIZE = {
     "问界": "问界",
     "奥迪audi": "奥迪",
     "埃尚": "埃安",
+    '小鹏汽车': '小鹏', '小鹏': '小鹏',
+    '腾势汽车': '腾势', '腾势': '腾势',
 }
 
 def normalize_match_text(value):
