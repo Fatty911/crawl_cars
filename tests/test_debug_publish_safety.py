@@ -840,6 +840,59 @@ class PreservePublishBaselineTests(unittest.TestCase):
             json.loads(result.stdout.strip().splitlines()[-1]),
         )
 
+    def test_current_single_source_replaces_stale_multi_source_association(self) -> None:
+        stale_autohome = {
+            "数据来源": "汽车之家+懂车帝",
+            "品牌": "乐道",
+            "车系": "乐道L60",
+            "车系ID": "100",
+            "车型名称": "乐道L60 2026款 85kWh Pro",
+            "年款": "2026",
+            "车款ID": "900",
+            "电池容量(kWh)": "60",
+            "stale_dongchedi_field": "drop",
+        }
+        current_autohome = {
+            "数据来源": "仅汽车之家",
+            "品牌": "乐道",
+            "车系": "乐道L60",
+            "车系ID": "100",
+            "车型名称": "乐道L60 2026款 85kWh Pro",
+            "年款": "2026",
+            "车款ID": "900",
+            "电池能量_kWh_": "85",
+        }
+        dongchedi = {
+            "数据来源": "仅懂车帝",
+            "品牌": "乐道",
+            "车系": "乐道L60",
+            "车系ID": "100",
+            "车型名称": "后驱Pro",
+            "年款": "2026",
+            "车型ID": "901",
+            "电池容量(kWh)": "60",
+        }
+
+        result, outputs = self.run_preserve(
+            [stale_autohome, dongchedi],
+            [current_autohome, dongchedi],
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([current_autohome, dongchedi], outputs["merged_json"])
+        self.assertEqual(
+            {
+                "baseline_rows": 2,
+                "candidate_input_rows": 2,
+                "overlap_kept_baseline": 2,
+                "candidate_added": 0,
+                "candidate_enriched": 0,
+                "candidate_deenriched": 1,
+                "candidate_output_rows": 2,
+            },
+            json.loads(result.stdout.strip().splitlines()[-1]),
+        )
+
     def test_invalid_empty_or_duplicate_inputs_fail_closed_without_temp_files(self) -> None:
         row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
         cases = [

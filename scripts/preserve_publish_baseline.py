@@ -58,6 +58,7 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
     preserved = list(baseline_rows)
     candidate_added = 0
     candidate_enriched = 0
+    candidate_deenriched = 0
     for row, key in zip(candidate_rows, candidate_keys):
         if key not in output_indexes:
             output_indexes[key] = len(preserved)
@@ -65,10 +66,16 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
             candidate_added += 1
             continue
         index = output_indexes[key]
+        baseline_sources = set(atomic_source_names(preserved[index].get("数据来源")))
+        candidate_sources = set(atomic_source_names(row.get("数据来源")))
+        if candidate_sources and candidate_sources < baseline_sources:
+            preserved[index] = row
+            candidate_deenriched += 1
+            continue
         preserved[index], changed = enrich_baseline_row(preserved[index], row)
         candidate_enriched += int(changed)
 
-    return preserved, {
+    stats = {
         "baseline_rows": len(baseline_rows),
         "candidate_input_rows": len(candidate_rows),
         "overlap_kept_baseline": len(candidate_rows) - candidate_added,
@@ -76,6 +83,9 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
         "candidate_enriched": candidate_enriched,
         "candidate_output_rows": len(preserved),
     }
+    if candidate_deenriched:
+        stats["candidate_deenriched"] = candidate_deenriched
+    return preserved, stats
 
 
 def write_publish_assets(
