@@ -444,6 +444,30 @@ VALUE_SYNONYMS = {
 }
 
 MERGE_ANALYSIS_STATS = {}
+MERGE_DISPOSITION_LEDGER = []
+
+
+def _safe_identity_key(row):
+    """Return a stable identity string for ledger records."""
+    try:
+        return str(identity_key(row))
+    except (ValueError, KeyError, TypeError):
+        brand = str(row.get("品牌", "") or "")
+        series = str(row.get("车系", "") or "")
+        name = str(row.get("车型名称", "") or "")
+        return f"{brand}|{series}|{name}"
+
+
+def _ledger_record(row, decision, reason_code, level="-"):
+    """Append a disposition entry to the module-level ledger."""
+    MERGE_DISPOSITION_LEDGER.append({
+        "identity_key": _safe_identity_key(row),
+        "source": str(row.get("数据来源", "") or ""),
+        "model_name": str(row.get("车型名称", "") or ""),
+        "decision": decision,
+        "reason_code": reason_code,
+        "level": level,
+    })
 
 
 def canonical_value(value):
@@ -1351,6 +1375,7 @@ def merge_single_row(ah_row, dcd_row):
 
 def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
     """按车型名称合并汽车之家、懂车帝和可选易车数据源，支持多级匹配"""
+    MERGE_DISPOSITION_LEDGER.clear()
     # 第一级: 精确匹配
     autohome_index = {}
     for row in autohome_rows:
@@ -1406,6 +1431,8 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
             used_autohome.add(id(ah_row))
             used_dongchedi.add(id(dcd_row))
             stats['精确'] += 1
+            _ledger_record(ah_row, "accepted", "exact_name_match", "精确")
+            _ledger_record(dcd_row, "accepted", "exact_name_match", "精确")
 
     # 第二级: 规范化匹配
     for match_key, ah_rows in sorted(autohome_norm.items()):
@@ -1423,6 +1450,8 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
             used_autohome.add(id(ah_row))
             used_dongchedi.add(id(dcd_row))
             stats['规范'] += 1
+            _ledger_record(ah_row, "accepted", "normalized_name_match", "规范")
+            _ledger_record(dcd_row, "accepted", "normalized_name_match", "规范")
 
     # 第三级: 车系级匹配（先尝试带年款，再尝试不带年款）
     merged_by_series = {'车系': 0, '车系(无年款)': 0}
@@ -1439,6 +1468,8 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
                 used_autohome.add(id(ah_match))
                 used_dongchedi.add(id(dcd_match))
                 merged_by_series['车系'] += 1
+                _ledger_record(ah_match, "accepted", "series_feature_match", "车系")
+                _ledger_record(dcd_match, "accepted", "series_feature_match", "车系")
 
     # 第四级: 车系匹配（不含年款，更宽松）
     autohome_by_series_noyear = {}
@@ -1468,23 +1499,35 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
             used_autohome.add(id(ah_match))
             used_dongchedi.add(id(dcd_match))
             merged_by_series['车系(无年款)'] += 1
+            _ledger_record(ah_match, "accepted", "series_noyear_feature_match", "车系(无年款)")
+            _ledger_record(dcd_match, "accepted", "series_noyear_feature_match", "车系(无年款)")
 
     yiche_rows = yiche_rows or []
     used_yiche = set()
 
     # 未匹配的车型
+    ambiguous_a_ids = stats.get("_ambiguous_a", set())
+    ambiguous_d_ids = stats.get("_ambiguous_d", set())
     for row in autohome_rows:
         if id(row) not in used_autohome:
             merged_row = dict(row)
             merged_row["数据来源"] = "仅汽车之家"
             merged.append(merged_row)
             stats['仅汽车之家'] += 1
+            if id(row) in ambiguous_a_ids:
+                _ledger_record(row, "rejected", "ambiguous_match_blocked", "车系")
+            else:
+                _ledger_record(row, "unmatched", "no_cross_source_candidate", "-")
     for row in dongchedi_rows:
         if id(row) not in used_dongchedi:
             merged_row = dict(row)
             merged_row["数据来源"] = "仅懂车帝"
             merged.append(merged_row)
             stats['仅懂车帝'] += 1
+            if id(row) in ambiguous_d_ids:
+                _ledger_record(row, "rejected", "ambiguous_match_blocked", "车系")
+            else:
+                _ledger_record(row, "unmatched", "no_cross_source_candidate", "-")
     merged = merge_yiche_rows(merged, yiche_rows, used_yiche, stats)
     for row in yiche_rows:
         if id(row) not in used_yiche:
@@ -1492,6 +1535,7 @@ def merge_rows(autohome_rows, dongchedi_rows, yiche_rows=None):
             merged_row["数据来源"] = "仅易车"
             merged.append(merged_row)
             stats['仅易车'] += 1
+            _ledger_record(row, "unmatched", "no_cross_source_candidate", "-")
 
     ambiguous_a = stats.pop("_ambiguous_a", set())
     ambiguous_d = stats.pop("_ambiguous_d", set())
@@ -1711,6 +1755,7 @@ def _merge_yiche_into_target(merged, target_idx, yiche_row, used_yiche, stats, m
     merged[target_idx] = merged_row
     used_yiche.add(id(yiche_row))
     stats['易车补充'] += 1
+    _ledger_record(yiche_row, "accepted", "yiche_supplement_match", match_label)
 
 
 YICHE_HARD_REASONS = {"energy_missing", "energy_mismatch", "energy_ambiguous", "level_mismatch", "year_mismatch", "year_ambiguous", "year_missing"}
@@ -1968,6 +2013,7 @@ def main():
     analysis_dir = os.path.join(DIR, "docs", "analysis")
     os.makedirs(analysis_dir, exist_ok=True)
     write_json(os.path.join(analysis_dir, f"merge_stats_{today}.json"), {"date": today, "stats": MERGE_ANALYSIS_STATS})
+    write_json(os.path.join(analysis_dir, f"disposition_ledger_{today}.json"), {"date": today, "ledger": MERGE_DISPOSITION_LEDGER})
     if not filtered_rows:
         print("警告: 没有符合条件的车型")
 
