@@ -64,7 +64,7 @@ def filter_valid_identity_rows(
     return valid, invalid
 
 
-def merge_identity_invalid_reason(row: dict[str, Any]) -> str:
+def merge_identity_invalid_reason(row: dict[str, Any], source_context: str = "") -> str:
     if not isinstance(row, dict):
         return "not_object"
     brand = value(row, "品牌")
@@ -73,7 +73,11 @@ def merge_identity_invalid_reason(row: dict[str, Any]) -> str:
     year = value(row, "年款")
     source = value(row, "数据来源")
     source_is_dongchedi = "懂车帝" in source or (
-        not source and os.environ.get("TRIGGER_SOURCE") == "dongchedi-crawl"
+        not source
+        and (
+            source_context == "dongchedi"
+            or (not source_context and os.environ.get("TRIGGER_SOURCE") == "dongchedi-crawl")
+        )
     )
     requires_model_id = is_autohome_row(row) or is_yiche_row(row) or not source_is_dongchedi
     if not brand or not has_chinese(brand):
@@ -93,11 +97,13 @@ def merge_identity_invalid_reason(row: dict[str, Any]) -> str:
     return ""
 
 
-def filter_merge_identity_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+def filter_merge_identity_rows(
+    rows: list[dict[str, Any]], source_context: str = ""
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
     valid = []
     stats: dict[str, int] = {"input": len(rows), "invalid_dropped": 0}
     for row in rows:
-        reason = merge_identity_invalid_reason(row)
+        reason = merge_identity_invalid_reason(row, source_context)
         if reason:
             stats["invalid_dropped"] += 1
             stats[f"{reason}_dropped"] = stats.get(f"{reason}_dropped", 0) + 1
@@ -114,8 +120,8 @@ def load_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def load_merge_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    return filter_merge_identity_rows(load_json_rows(path))
+def load_merge_rows(path: Path, source_context: str = "") -> tuple[list[dict[str, Any]], dict[str, int]]:
+    return filter_merge_identity_rows(load_json_rows(path), source_context)
 
 
 def prepare_rows(
@@ -180,13 +186,15 @@ def main() -> int:
     parser.add_argument("--stable", type=Path, required=True)
     parser.add_argument("--debug", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--source", choices=("autohome", "dongchedi"), default="")
+    parser.add_argument("--partial", action="store_true")
     args = parser.parse_args()
-    dedupe_partial = (
+    dedupe_partial = args.partial or (
         os.environ.get("DEBUG_MODE") == "false"
         and os.environ.get("TRIGGER_SOURCE") in {"autohome-crawl", "dongchedi-crawl"}
     )
-    stable_rows, stable_filter_stats = load_merge_rows(args.stable)
-    debug_rows, debug_filter_stats = load_merge_rows(args.debug)
+    stable_rows, stable_filter_stats = load_merge_rows(args.stable, args.source)
+    debug_rows, debug_filter_stats = load_merge_rows(args.debug, args.source)
     output, stats = prepare_rows(
         stable_rows,
         debug_rows,

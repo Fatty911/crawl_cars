@@ -388,8 +388,8 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
     prepare_positions = [match.start() for match in re.finditer("python scripts/prepare_debug_merge_inputs.py", text)]
     merge_position = text.find("python scripts/merge_data.py")
     assert_condition(
-        len(prepare_positions) == 3,
-        "merge-and-filter.yml 未对两个 debug 来源及 partial artifact 执行 stable-first 规范化",
+        len(prepare_positions) == 4,
+        "merge-and-filter.yml 未对两个 debug 来源及两个主源 partial 分别执行 stable-first 规范化",
         errors,
     )
     assert_condition(
@@ -403,6 +403,27 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         and 'unzip -q "$PARTIAL_ARCHIVE"' in text
         and '--name "$PARTIAL_ARTIFACT_NAME"' not in text,
         "merge-and-filter.yml 未将指定 run/attempt/source 的汽车之家/懂车帝 partial artifact 纳入安全增量合并",
+        errors,
+    )
+    assert_condition(
+        text.count("--artifact-prefix autohome-partial-data-") == 1
+        and text.count("--artifact-prefix dongchedi-partial-data-") == 1
+        and "--output-dir merge-inputs/incremental/autohome" in text
+        and "--output-dir merge-inputs/incremental/dongchedi" in text
+        and '--min-date "$MIN_ARTIFACT_DATE"' in text
+        and '--source autohome --partial --output autoHome_partial_prepared.json' in text
+        and '--source dongchedi --partial --output dongchedi_partial_prepared.json' in text
+        and "AUTOHOME_PARTIAL_NOT_JOINED" in text
+        and "DONGCHEDI_PARTIAL_NOT_JOINED" in text,
+        "merge-and-filter.yml 未独立发现并 stable-first 接入两个主源的同半月 partial",
+        errors,
+    )
+    assert_condition(
+        "FINAL_AUTOHOME_INPUT" in text
+        and "FINAL_DONGCHEDI_INPUT" in text
+        and 'test -s "${FINAL_AUTOHOME_INPUT[0]}"' in text
+        and 'test -s "${FINAL_DONGCHEDI_INPUT[0]}"' in text,
+        "merge-and-filter.yml 缺少合并前双主源输入唯一且非空门禁",
         errors,
     )
     assert_condition(

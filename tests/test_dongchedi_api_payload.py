@@ -42,6 +42,34 @@ class DongchediApiPayloadTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_brand_heat_sort_keeps_ranked_round_robin_before_unranked(self):
+        rows = [
+            {"id": "u1", "brand": "冷门乙", "name": "冷门乙一"},
+            {"id": "b1", "brand": "比亚迪", "name": "比亚迪一"},
+            {"id": "g1", "brand": "吉利汽车", "name": "吉利一"},
+            {"id": "b2", "brand": "比亚迪", "name": "比亚迪二"},
+            {"id": "u2", "brand": "冷门甲", "name": "冷门甲一"},
+            {"id": "g2", "brand": "吉利汽车", "name": "吉利二"},
+        ]
+        original = [dict(row) for row in rows]
+
+        ordered = self.module.sort_series_by_brand_heat(rows)
+
+        self.assertEqual(rows, original)
+        self.assertEqual(["b1", "g1", "b2", "g2", "u1", "u2"], [row["id"] for row in ordered])
+
+    def test_brand_heat_sort_handles_empty_and_all_unranked_without_mutation(self):
+        rows = [
+            {"id": "z1", "brand": "冷门乙", "name": "一"},
+            {"id": "a1", "brand": "冷门甲", "name": "二"},
+            {"id": "z2", "brand": "冷门乙", "name": "三"},
+        ]
+        original = [dict(row) for row in rows]
+
+        self.assertEqual([], self.module.sort_series_by_brand_heat([]))
+        self.assertEqual(["z1", "a1", "z2"], [row["id"] for row in self.module.sort_series_by_brand_heat(rows)])
+        self.assertEqual(rows, original)
+
     def test_fetch_series_entity_payload_batches_car_ids(self):
         calls = []
 

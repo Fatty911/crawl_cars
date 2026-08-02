@@ -526,7 +526,7 @@ BRAND_HEAT_ORDER = [
 
 
 def sort_series_by_brand_heat(series_list):
-    """按品牌销量热度分组轮询排列，热门品牌优先出场但不同品牌交替出现。
+    """按品牌销量热度分层轮询，所有已排名品牌先于未排名品牌。
 
     目的：有限时间内爬到的车系覆盖多个热门品牌，而非单品牌垄断，
     最大化和 autohome 的多品牌双源重叠率。
@@ -546,21 +546,24 @@ def sort_series_by_brand_heat(series_list):
         brand = s.get("brand", "").strip().lower().replace(" ", "")
         groups.setdefault(brand, []).append(s)
 
-    # 按品牌热度排序各组
-    sorted_brands = sorted(groups.keys(), key=lambda b: heat_map.get(b, 999))
+    ranked_brands = sorted((brand for brand in groups if brand in heat_map), key=heat_map.get)
+    unranked_brands = sorted(brand for brand in groups if brand not in heat_map)
 
-    # 轮询交错排列：每个品牌依次取一个车系
-    result = []
-    idx_map = {b: 0 for b in sorted_brands}
-    while True:
-        added = False
-        for brand in sorted_brands:
-            if idx_map[brand] < len(groups[brand]):
-                result.append(groups[brand][idx_map[brand]])
-                idx_map[brand] += 1
-                added = True
-        if not added:
-            break
+    def round_robin(brands):
+        ordered = []
+        idx_map = {brand: 0 for brand in brands}
+        while True:
+            added = False
+            for brand in brands:
+                if idx_map[brand] < len(groups[brand]):
+                    ordered.append(groups[brand][idx_map[brand]])
+                    idx_map[brand] += 1
+                    added = True
+            if not added:
+                return ordered
+
+    # 未排名品牌不能在热门品牌仍有待爬车系时插队；两层内部仍按品牌轮询。
+    result = round_robin(ranked_brands) + round_robin(unranked_brands)
 
     top_brands = []
     seen = set()

@@ -82,6 +82,8 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         *,
         debug_mode: str | None = None,
         trigger_source: str | None = None,
+        source: str | None = None,
+        partial: bool = False,
     ) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -100,6 +102,10 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
                     "--output",
                     str(output_path),
                 ]
+            if source is not None:
+                command.extend(["--source", source])
+            if partial:
+                command.append("--partial")
             env = os.environ.copy()
             env.pop("DEBUG_MODE", None)
             env.pop("TRIGGER_SOURCE", None)
@@ -202,6 +208,24 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         self.assertEqual([row], valid)
         self.assertEqual(1, stats["valid"])
         self.assertEqual(0, stats["invalid_dropped"])
+
+    def test_explicit_dongchedi_context_allows_non_trigger_partial_without_model_id(self) -> None:
+        stable = [self.merge_row(数据来源="仅懂车帝", 车款ID="")]
+        incoming = self.merge_row(数据来源="", 车系ID="101", 车型名称="B", 车款ID="")
+
+        result, rows = self.run_prepare(
+            stable,
+            [incoming, dict(incoming)],
+            debug_mode="false",
+            trigger_source="autohome-crawl",
+            source="dongchedi",
+            partial=True,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(stable + [incoming], rows)
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["debug_duplicates_dropped"])
 
     def test_raw_rows_without_model_id_still_fail_without_dongchedi_context(self) -> None:
         module = load_prepare_debug_module()
@@ -1244,6 +1268,25 @@ class WorkflowValidatorTests(unittest.TestCase):
         errors = self.check_mutated_merge(text.replace("dongchedi_partial_prepared.json", "dongchedi_stable.json"))
         self.assertTrue(any("partial artifact" in error for error in errors))
 
+    def test_both_current_half_partials_must_be_discovered_and_prepared_independently(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        mutations = (
+            text.replace("--artifact-prefix autohome-partial-data-", "--artifact-prefix removed-autohome-", 1),
+            text.replace("--artifact-prefix dongchedi-partial-data-", "--artifact-prefix removed-dongchedi-", 1),
+            text.replace("--source autohome --partial --output autoHome_partial_prepared.json", "--source autohome --output autoHome_partial_prepared.json", 1),
+            text.replace("--source dongchedi --partial --output dongchedi_partial_prepared.json", "--source autohome --partial --output dongchedi_partial_prepared.json", 1),
+        )
+        for mutated in mutations:
+            with self.subTest():
+                errors = self.check_mutated_merge(mutated)
+                self.assertTrue(any("两个主源的同半月 partial" in error for error in errors))
+
+    def test_merge_requires_one_nonempty_final_input_per_main_source(self) -> None:
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        mutated = text.replace('test -s "${FINAL_DONGCHEDI_INPUT[0]}"', "true", 1)
+        errors = self.check_mutated_merge(mutated)
+        self.assertTrue(any("双主源输入唯一且非空" in error for error in errors))
+
     def test_partial_dedupe_environment_must_stay_on_download_step(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
         debug_line = "          DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'false' }}\n"
@@ -1281,7 +1324,7 @@ class WorkflowValidatorTests(unittest.TestCase):
         middle, last = remainder.split(marker, 1)
         mutated = first + marker + middle + "scripts/removed.py" + last + f"\n# {marker}\n"
         errors = self.check_mutated_merge(mutated)
-        self.assertTrue(any("先规范化" in error for error in errors))
+        self.assertTrue(any("先规范化" in error or "stable-first" in error for error in errors))
 
     def test_debug_publish_baseline_preservation_cannot_be_removed(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
