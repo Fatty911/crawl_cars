@@ -16,6 +16,7 @@ from merge_data import (
     filter_car,
     has_explicit_battery_field_inconsistency,
     keep_pages_year,
+    match_score,
     model_variant_conflict_reason,
     model_variant_signature,
     normalize_series_match_text,
@@ -26,6 +27,10 @@ from merge_data import (
 )
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 from prepare_pages_payload import prepare_rows
+from publish_identity import publish_boundary_valid
+
+
+ALIAS_ENRICH_THRESHOLD = 0.85
 
 
 def unique_keys(label: str, rows: list[dict]) -> list[tuple[str, ...]]:
@@ -122,6 +127,84 @@ def retired_sources_without_identity_overlap(
     return set()
 
 
+def alias_match_score(baseline: dict, candidate: dict, source: str) -> float:
+    if source == "懂车帝":
+        score, _reasons = match_score(candidate, baseline, True)
+    else:
+        score, _reasons = match_score(baseline, candidate, True)
+    return score
+
+
+def cross_identity_alias_matches(
+    baseline_rows: list[dict],
+    baseline_keys: list[tuple[str, ...]],
+    candidate_keys: set[tuple[str, ...]],
+    candidate_rows_by_bucket: dict[tuple[str, int], list[dict]],
+) -> list[tuple[int, dict]]:
+    """Return conservative one-to-one source aliases without changing identities."""
+    baselines_by_source_bucket: dict[tuple[str, tuple[str, int]], list[tuple[int, dict]]] = {}
+    for index, (row, key) in enumerate(zip(baseline_rows, baseline_keys)):
+        if key in candidate_keys:
+            continue
+        sources = atomic_source_names(row.get("数据来源"))
+        bucket = variant_bucket(row)
+        if len(sources) != 1 or sources[0] not in {"汽车之家", "懂车帝"} or bucket is None:
+            continue
+        baselines_by_source_bucket.setdefault((sources[0], bucket), []).append((index, row))
+
+    matches: list[tuple[int, dict]] = []
+    for (source, bucket), baseline_group in baselines_by_source_bucket.items():
+        candidate_group = [
+            row
+            for row in candidate_rows_by_bucket.get(bucket, [])
+            if {"汽车之家", "懂车帝"}.issubset(
+                atomic_source_names(row.get("数据来源"))
+            )
+        ]
+        if not candidate_group or len(baseline_group) * len(candidate_group) > 20_000:
+            continue
+
+        best_by_baseline: dict[int, tuple[float, int, bool]] = {}
+        best_by_candidate: dict[int, tuple[float, int, bool]] = {}
+        for baseline_position, (_index, baseline) in enumerate(baseline_group):
+            for candidate_position, candidate in enumerate(candidate_group):
+                score = alias_match_score(baseline, candidate, source)
+                if score < ALIAS_ENRICH_THRESHOLD:
+                    continue
+                current = best_by_baseline.get(baseline_position)
+                if current is None or score > current[0]:
+                    best_by_baseline[baseline_position] = (score, candidate_position, False)
+                elif score == current[0]:
+                    best_by_baseline[baseline_position] = (score, current[1], True)
+                current = best_by_candidate.get(candidate_position)
+                if current is None or score > current[0]:
+                    best_by_candidate[candidate_position] = (score, baseline_position, False)
+                elif score == current[0]:
+                    best_by_candidate[candidate_position] = (score, current[1], True)
+
+        for baseline_position, (_score, candidate_position, baseline_tied) in best_by_baseline.items():
+            candidate_best = best_by_candidate.get(candidate_position)
+            if (
+                baseline_tied
+                or candidate_best is None
+                or candidate_best[2]
+                or candidate_best[1] != baseline_position
+            ):
+                continue
+            index, baseline = baseline_group[baseline_position]
+            candidate = candidate_group[candidate_position]
+            enriched, changed = enrich_baseline_row(baseline, candidate)
+            if not changed or not publish_boundary_valid(enriched):
+                continue
+            try:
+                if identity_key(enriched) != baseline_keys[index]:
+                    continue
+            except ValueError:
+                continue
+            matches.append((index, candidate))
+    return matches
+
+
 def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tuple[list[dict], dict[str, int]]:
     baseline_rows = [row for row in baseline_rows if keep_pages_year(row)]
     candidate_rows = [row for row in candidate_rows if keep_pages_year(row)]
@@ -169,6 +252,16 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
         candidate_enriched += int(changed)
 
     candidate_key_set = set(candidate_keys)
+    candidate_alias_enriched = 0
+    for index, candidate in cross_identity_alias_matches(
+        preserved,
+        baseline_keys,
+        candidate_key_set,
+        candidate_rows_by_bucket,
+    ):
+        preserved[index], changed = enrich_baseline_row(preserved[index], candidate)
+        candidate_alias_enriched += int(changed)
+
     for index, key in enumerate(baseline_keys):
         if key in candidate_key_set:
             continue
@@ -194,6 +287,8 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
     }
     if candidate_deenriched:
         stats["candidate_deenriched"] = candidate_deenriched
+    if candidate_alias_enriched:
+        stats["candidate_alias_enriched"] = candidate_alias_enriched
     return preserved, stats
 
 

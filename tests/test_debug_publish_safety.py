@@ -864,6 +864,105 @@ class PreservePublishBaselineTests(unittest.TestCase):
             json.loads(result.stdout.strip().splitlines()[-1]),
         )
 
+    @staticmethod
+    def alias_row(source: str, series_id: str, model: str, **overrides: str) -> dict[str, str]:
+        row = {
+            "数据来源": source,
+            "品牌": "大众",
+            "车系": "途观L",
+            "车系ID": series_id,
+            "车型名称": model,
+            "年款": "2024",
+            "官方指导价": "20万",
+            "上市时间": "2024.01",
+            "能源类型": "汽油",
+            "级别": "中型SUV",
+        }
+        row.update(overrides)
+        return row
+
+    def test_cross_identity_dongchedi_alias_upgrades_source_without_removing_identity(self) -> None:
+        baseline = self.alias_row("仅懂车帝", "101", "330TSI 两驱智享版", 车型ID="9001")
+        candidate = self.alias_row(
+            "汽车之家+懂车帝",
+            "201",
+            "途观L 2024款 330TSI 两驱智享版",
+            车款ID="9002",
+            candidate_only="new",
+        )
+
+        result, outputs = self.run_preserve([baseline], [candidate])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(2, len(outputs["merged_json"]))
+        self.assertEqual("懂车帝+汽车之家", outputs["merged_json"][0]["数据来源"])
+        self.assertEqual("101", outputs["merged_json"][0]["车系ID"])
+        self.assertEqual("9001", outputs["merged_json"][0]["车型ID"])
+        self.assertEqual("new", outputs["merged_json"][0]["candidate_only"])
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["candidate_alias_enriched"])
+        self.assertEqual(1, stats["candidate_added"])
+
+    def test_cross_identity_autohome_alias_upgrades_source(self) -> None:
+        model = "途观L 2024款 330TSI 两驱智享版"
+        baseline = self.alias_row("仅汽车之家", "101", model, 车款ID="9001")
+        candidate = self.alias_row("汽车之家+懂车帝", "201", model, 车款ID="9002")
+
+        result, outputs = self.run_preserve([baseline], [candidate])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("汽车之家+懂车帝", outputs["merged_json"][0]["数据来源"])
+        self.assertEqual("101", outputs["merged_json"][0]["车系ID"])
+        self.assertEqual("9001", outputs["merged_json"][0]["车款ID"])
+        self.assertEqual(1, json.loads(result.stdout.strip().splitlines()[-1])["candidate_alias_enriched"])
+
+    def test_cross_identity_alias_requires_candidate_to_contain_original_source(self) -> None:
+        model = "330TSI 两驱智享版"
+        baseline = self.alias_row("仅懂车帝", "101", model, 车型ID="9001")
+        candidate = self.alias_row(
+            "汽车之家+易车",
+            "201",
+            "途观L 2024款 " + model,
+            车款ID="9002",
+            易车上市状态="approved",
+        )
+
+        result, outputs = self.run_preserve([baseline], [candidate])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("仅懂车帝", outputs["merged_json"][0]["数据来源"])
+        self.assertNotIn("candidate_alias_enriched", json.loads(result.stdout.strip().splitlines()[-1]))
+
+    def test_cross_identity_alias_rejects_ambiguous_candidate(self) -> None:
+        model = "330TSI 两驱智享版"
+        baselines = [
+            self.alias_row("仅懂车帝", "101", model, 车型ID="9001"),
+            self.alias_row("仅懂车帝", "102", model, 车型ID="9002"),
+        ]
+        candidate = self.alias_row("汽车之家+懂车帝", "201", "途观L 2024款 " + model, 车款ID="9003")
+
+        result, outputs = self.run_preserve(baselines, [candidate])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(["仅懂车帝", "仅懂车帝"], [row["数据来源"] for row in outputs["merged_json"][:2]])
+        self.assertNotIn("candidate_alias_enriched", json.loads(result.stdout.strip().splitlines()[-1]))
+
+    def test_cross_identity_alias_rejects_low_score_and_hard_conflict(self) -> None:
+        baselines = [
+            self.alias_row("仅懂车帝", "101", "330TSI 两驱智享版", 车型ID="9001"),
+            self.alias_row("仅懂车帝", "102", "330TSI 两驱 Max 5座", 车型ID="9002"),
+        ]
+        candidates = [
+            self.alias_row("汽车之家+懂车帝", "201", "途观L 2024款 380TSI 两驱豪华版", 车款ID="9003"),
+            self.alias_row("汽车之家+懂车帝", "202", "途观L 2024款 330TSI 四驱 Ultra 7座", 车款ID="9004"),
+        ]
+
+        result, outputs = self.run_preserve(baselines, candidates)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(["仅懂车帝", "仅懂车帝"], [row["数据来源"] for row in outputs["merged_json"][:2]])
+        self.assertNotIn("candidate_alias_enriched", json.loads(result.stdout.strip().splitlines()[-1]))
+
     def test_current_single_source_replaces_stale_multi_source_association(self) -> None:
         stale_autohome = {
             "数据来源": "汽车之家+懂车帝",
