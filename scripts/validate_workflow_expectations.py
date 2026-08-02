@@ -238,8 +238,23 @@ def check_yiche_workflow(path: Path, errors: list[str]) -> None:
     assert_condition("scripts/crawl_budget.py clamp" in text, f"{path.name} 未按 Action 和窗口综合预算收口", errors)
     assert_condition("group: yiche-crawl-${{ github.ref }}" in text, f"{path.name} concurrency 不得按 run_profile 分组", errors)
     assert_condition(
-        "yiche-data-${{ github.run_id }}-${{ github.run_attempt }}" in text,
-        f"{path.name} artifact 未绑定 run_id/run_attempt",
+        "yiche-data-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}" in text
+        and "yiche-partial-data-{name_match.group(1)}-" in text
+        and "name: ${{ steps.verify_yiche.outputs.artifact_name }}" in text,
+        f"{path.name} stable/partial artifact 未绑定 date/run_id/run_attempt",
+        errors,
+    )
+    restore_section = text.split("name: Restore authenticated Yiche checkpoint", 1)[1].split("name: Setup environment", 1)[0]
+    assert_condition(
+        "actions/workflows/crawl-yiche.yml/runs?status=success&per_page=100" in restore_section
+        and "git merge-base --is-ancestor" in restore_section
+        and "yiche-checkpoint-$CANDIDATE_RUN_ID-$CANDIDATE_ATTEMPT" in restore_section
+        and 'run.get("conclusion") != "success"' in restore_section
+        and "sha256sum --check --strict" in restore_section
+        and "load_resume_checkpoint(" in restore_section
+        and 'payload.get("status") != "partial"' in restore_section
+        and "自动恢复烟测未找到可认证 checkpoint" in restore_section,
+        f"{path.name} 缺少零输入 checkpoint 自动续跑的认证、兼容性或失败关闭边界",
         errors,
     )
     for input_name in ("debug_mode", "crawler_run_id", "crawler_run_attempt", "trigger_source"):
@@ -349,11 +364,11 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         "merge-and-filter.yml 未保持两来源独立的普通半月限制与 debug 历史基线回退",
         errors,
     )
-    partial_gate_position = text.find('PARTIAL_ARTIFACT_NAME _ <<< "${PARTIAL_ARTIFACTS[0]}"')
+    partial_gate_position = text.find('PARTIAL_ARTIFACT_NAME _ PARTIAL_ARTIFACT_SHA256 <<< "${PARTIAL_ARTIFACTS[0]}"')
     stable_download_position = text.find("python scripts/download_latest_crawler_artifact.py")
     source_specific_fallback = """if [ "$PARTIAL_SOURCE" = "autohome" ]; then
                   AUTOHOME_STABLE_MIN_DATE_ARGS=()
-                else
+                elif [ "$PARTIAL_SOURCE" = "dongchedi" ]; then
                   DONGCHEDI_STABLE_MIN_DATE_ARGS=()
                 fi"""
     assert_condition(
@@ -388,21 +403,33 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
     prepare_positions = [match.start() for match in re.finditer("python scripts/prepare_debug_merge_inputs.py", text)]
     merge_position = text.find("python scripts/merge_data.py")
     assert_condition(
-        len(prepare_positions) == 4,
-        "merge-and-filter.yml 未对两个 debug 来源及两个主源 partial 分别执行 stable-first 规范化",
+        len(prepare_positions) == 5,
+        "merge-and-filter.yml 未对两个 debug 主源及三来源 partial 分别执行 stable-first 规范化",
         errors,
     )
     assert_condition(
         "^autohome-partial-data-[0-9]{8}$" in text
         and "^dongchedi-partial-data-[0-9]{8}$" in text
+        and "^yiche-partial-data-([0-9]{8})-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$" in text
         and "merge-inputs/incremental/$PARTIAL_SOURCE" in text
         and "autoHome_partial_prepared.json" in text
         and "dongchedi_partial_prepared.json" in text
         and '"$RUN_PATH" != "$PARTIAL_WORKFLOW"' in text
         and 'actions/artifacts/$PARTIAL_ARTIFACT_ID/zip' in text
         and 'unzip -q "$PARTIAL_ARCHIVE"' in text
-        and '--name "$PARTIAL_ARTIFACT_NAME"' not in text,
-        "merge-and-filter.yml 未将指定 run/attempt/source 的汽车之家/懂车帝 partial artifact 纳入安全增量合并",
+        and '--name "$PARTIAL_ARTIFACT_NAME"' not in text
+        and "PARTIAL_ARTIFACT_SHA256" in text
+        and 'sha256sum --check --strict' in text,
+        "merge-and-filter.yml 未将指定 run/attempt/source 的三来源 partial artifact 纳入安全增量合并",
+        errors,
+    )
+    assert_condition(
+        '--source yiche --partial --output yiche_partial_prepared.json' in text
+        and 'find merge-inputs/incremental/yiche' in text
+        and 'if [ "${#YICHE_STABLE[@]}" -eq 1 ]; then' in text
+        and "YICHE_PARTIAL_NOT_JOINED" in text
+        and "stable identity preservation invariant failed" in (ROOT / "scripts/prepare_debug_merge_inputs.py").read_text(encoding="utf-8"),
+        "merge-and-filter.yml 未将易车 partial 与历史 stable 做 identity 防回退合并",
         errors,
     )
     assert_condition(

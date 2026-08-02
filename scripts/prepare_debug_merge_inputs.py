@@ -156,6 +156,9 @@ def prepare_rows(
         else:
             output.append(row)
             added_keys.add(key)
+    output_keys = {identity_key(row) for row in output}
+    if not stable_keys.issubset(output_keys):
+        raise RuntimeError("stable identity preservation invariant failed")
     stats = {
         "stable_input": len(stable_rows),
         "debug_input": len(debug_rows),
@@ -186,12 +189,12 @@ def main() -> int:
     parser.add_argument("--stable", type=Path, required=True)
     parser.add_argument("--debug", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--source", choices=("autohome", "dongchedi"), default="")
+    parser.add_argument("--source", choices=("autohome", "dongchedi", "yiche"), default="")
     parser.add_argument("--partial", action="store_true")
     args = parser.parse_args()
     dedupe_partial = args.partial or (
         os.environ.get("DEBUG_MODE") == "false"
-        and os.environ.get("TRIGGER_SOURCE") in {"autohome-crawl", "dongchedi-crawl"}
+        and os.environ.get("TRIGGER_SOURCE") in {"autohome-crawl", "dongchedi-crawl", "yiche-crawl"}
     )
     stable_rows, stable_filter_stats = load_merge_rows(args.stable, args.source)
     debug_rows, debug_filter_stats = load_merge_rows(args.debug, args.source)

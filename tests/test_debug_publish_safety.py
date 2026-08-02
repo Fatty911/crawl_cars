@@ -227,6 +227,33 @@ class PrepareDebugMergeInputsTests(unittest.TestCase):
         stats = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertEqual(1, stats["debug_duplicates_dropped"])
 
+    def test_yiche_partial_keeps_every_stable_identity_and_adds_new_rows(self) -> None:
+        stable = [
+            self.merge_row(数据来源="仅易车", 易车上市状态="approved", 价格="stable"),
+            self.merge_row(数据来源="仅易车", 易车上市状态="approved", 车系ID="101", 车款ID="54530", 车型名称="旧款", 价格="old-only"),
+        ]
+        overlap = self.merge_row(数据来源="仅易车", 易车上市状态="approved", 价格="partial-overlap")
+        added = self.merge_row(数据来源="仅易车", 易车上市状态="approved", 车系ID="102", 车款ID="54531", 车型名称="新增款", 价格="new")
+
+        result, rows = self.run_prepare(
+            stable,
+            [overlap, added, dict(added)],
+            debug_mode="false",
+            trigger_source="yiche-crawl",
+            source="yiche",
+            partial=True,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(stable + [added], rows)
+        module = load_prepare_debug_module()
+        stable_keys = {module.identity_key(row) for row in stable}
+        output_keys = {module.identity_key(row) for row in rows}
+        self.assertTrue(stable_keys.issubset(output_keys))
+        stats = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(1, stats["debug_duplicates_dropped"])
+        self.assertEqual(1, stats["debug_added"])
+
     def test_raw_rows_without_model_id_still_fail_without_dongchedi_context(self) -> None:
         module = load_prepare_debug_module()
         row = self.merge_row(数据来源="", 车款ID="")
@@ -1356,6 +1383,34 @@ class WorkflowValidatorTests(unittest.TestCase):
         )
         errors = self.check_mutated_yiche(mutated)
         self.assertTrue(any("merge debug stable-first" in error for error in errors))
+
+    def test_yiche_zero_input_resume_authentication_cannot_be_removed(self) -> None:
+        path = ROOT / ".github/workflows/crawl-yiche.yml"
+        text = path.read_text(encoding="utf-8")
+        mutations = (
+            text.replace("actions/workflows/crawl-yiche.yml/runs?status=success&per_page=100", "actions/runs?per_page=100", 1),
+            text.replace('payload.get("status") != "partial"', 'payload.get("status") != "completed"', 1),
+            text.replace('run.get("conclusion") != "success"', 'run.get("conclusion") != "failure"', 1),
+            text.replace("load_resume_checkpoint(", "dict(", 1),
+        )
+        for mutated in mutations:
+            with self.subTest():
+                errors = self.check_mutated_yiche(mutated)
+                self.assertTrue(any("自动续跑" in error for error in errors))
+
+    def test_yiche_partial_upload_must_bind_and_trigger_safe_merge(self) -> None:
+        yiche_path = ROOT / ".github/workflows/crawl-yiche.yml"
+        yiche_text = yiche_path.read_text(encoding="utf-8")
+        yiche_errors = self.check_mutated_yiche(
+            yiche_text.replace("yiche-partial-data-{name_match.group(1)}-", "yiche-data-unbound-", 1)
+        )
+        self.assertTrue(any("stable/partial artifact" in error for error in yiche_errors))
+
+        merge_text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
+        merge_errors = self.check_mutated_merge(
+            merge_text.replace("--source yiche --partial --output yiche_partial_prepared.json", "--source yiche --output yiche_partial_prepared.json", 1)
+        )
+        self.assertTrue(any("易车 partial" in error for error in merge_errors))
 
     def test_partial_autohome_artifact_must_enter_safe_incremental_merge(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")

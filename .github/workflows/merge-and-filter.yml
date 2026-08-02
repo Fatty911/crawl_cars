@@ -111,7 +111,7 @@ jobs:
           echo "尝试下载最新的爬虫数据 artifact..."
           rm -rf merge-inputs
           mkdir -p merge-inputs/stable/autohome merge-inputs/stable/dongchedi merge-inputs/stable/yiche
-          mkdir -p merge-inputs/incremental/autohome merge-inputs/incremental/dongchedi
+          mkdir -p merge-inputs/incremental/autohome merge-inputs/incremental/dongchedi merge-inputs/incremental/yiche
 
           CN_DAY=$(TZ=Asia/Shanghai date +%d)
           CN_MONTH=$(TZ=Asia/Shanghai date +%Y%m)
@@ -125,6 +125,7 @@ jobs:
           PARTIAL_SOURCE=''
           PARTIAL_ARTIFACT_ID=''
           PARTIAL_ARTIFACT_NAME=''
+          PARTIAL_ARTIFACT_SHA256=''
           if [ "$DEBUG_MODE" = "true" ]; then
             AUTOHOME_STABLE_MIN_DATE_ARGS=()
             DONGCHEDI_STABLE_MIN_DATE_ARGS=()
@@ -148,6 +149,14 @@ jobs:
                 PARTIAL_STABLE_OUTPUT='dongchedi_partial_prepared.json'
                 PARTIAL_TARGET='dongchedi_stable.json'
                 ;;
+              yiche-crawl)
+                PARTIAL_SOURCE=yiche
+                PARTIAL_WORKFLOW='.github/workflows/crawl-yiche.yml'
+                PARTIAL_REGEX="^yiche-partial-data-([0-9]{8})-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$"
+                PARTIAL_JSON_PATTERN='yiche_*.json'
+                PARTIAL_STABLE_OUTPUT='yiche_partial_prepared.json'
+                PARTIAL_TARGET='yiche_stable.json'
+                ;;
             esac
             if [ -n "$PARTIAL_SOURCE" ]; then
               if ! [[ "$CRAWLER_RUN_ID" =~ ^[0-9]+$ && "$CRAWLER_RUN_ATTEMPT" =~ ^[0-9]+$ ]]; then
@@ -168,10 +177,14 @@ jobs:
               fi
               mapfile -t PARTIAL_ARTIFACTS < <(
                 gh api "repos/${{ github.repository }}/actions/runs/$CRAWLER_RUN_ID/artifacts?per_page=100" \
-                  --jq '.artifacts[] | select(.expired == false) | [.id, .name, .created_at] | @tsv' |
-                  while IFS=$'\t' read -r ARTIFACT_ID ARTIFACT_NAME ARTIFACT_CREATED_AT; do
+                  --jq '.artifacts[] | select(.expired == false) | [.id, .name, .created_at, .digest] | @tsv' |
+                  while IFS=$'\t' read -r ARTIFACT_ID ARTIFACT_NAME ARTIFACT_CREATED_AT ARTIFACT_DIGEST; do
                     if [[ "$ARTIFACT_NAME" =~ $PARTIAL_REGEX ]]; then
-                      ARTIFACT_DATE="${ARTIFACT_NAME##*-}"
+                      if [ "$PARTIAL_SOURCE" = "yiche" ]; then
+                        ARTIFACT_DATE="${BASH_REMATCH[1]}"
+                      else
+                        ARTIFACT_DATE="${ARTIFACT_NAME##*-}"
+                      fi
                       if [[ "$ARTIFACT_DATE" < "$MIN_ARTIFACT_DATE" ]]; then
                         continue
                       fi
@@ -181,7 +194,11 @@ jobs:
                       if [[ "$ARTIFACT_CREATED_AT" > "$RUN_UPDATED_AT" ]]; then
                         continue
                       fi
-                      printf '%s\t%s\t%s\n' "$ARTIFACT_ID" "$ARTIFACT_NAME" "$ARTIFACT_CREATED_AT"
+                      if ! [[ "$ARTIFACT_DIGEST" =~ ^sha256:[0-9a-fA-F]{64}$ ]]; then
+                        echo "partial artifact digest 非法" >&2
+                        exit 1
+                      fi
+                      printf '%s\t%s\t%s\t%s\n' "$ARTIFACT_ID" "$ARTIFACT_NAME" "$ARTIFACT_CREATED_AT" "${ARTIFACT_DIGEST#sha256:}"
                     fi
                   done
               )
@@ -189,10 +206,10 @@ jobs:
                 echo "指定 $PARTIAL_SOURCE run 的当前 attempt partial artifact 不唯一"
                 exit 1
               elif [ "${#PARTIAL_ARTIFACTS[@]}" -eq 1 ]; then
-                IFS=$'\t' read -r PARTIAL_ARTIFACT_ID PARTIAL_ARTIFACT_NAME _ <<< "${PARTIAL_ARTIFACTS[0]}"
+                IFS=$'\t' read -r PARTIAL_ARTIFACT_ID PARTIAL_ARTIFACT_NAME _ PARTIAL_ARTIFACT_SHA256 <<< "${PARTIAL_ARTIFACTS[0]}"
                 if [ "$PARTIAL_SOURCE" = "autohome" ]; then
                   AUTOHOME_STABLE_MIN_DATE_ARGS=()
-                else
+                elif [ "$PARTIAL_SOURCE" = "dongchedi" ]; then
                   DONGCHEDI_STABLE_MIN_DATE_ARGS=()
                 fi
                 echo "$PARTIAL_SOURCE 使用当前 attempt partial artifact $PARTIAL_ARTIFACT_NAME，允许对应 stable 基线回退"
@@ -395,6 +412,7 @@ jobs:
               echo "下载已确认的 partial artifact $PARTIAL_ARTIFACT_ID/$PARTIAL_ARTIFACT_NAME"
               PARTIAL_ARCHIVE="merge-inputs/incremental/$PARTIAL_SOURCE/artifact.zip"
               gh api "repos/${{ github.repository }}/actions/artifacts/$PARTIAL_ARTIFACT_ID/zip" > "$PARTIAL_ARCHIVE"
+              echo "$PARTIAL_ARTIFACT_SHA256  $PARTIAL_ARCHIVE" | sha256sum --check --strict
               unzip -q "$PARTIAL_ARCHIVE" -d "merge-inputs/incremental/$PARTIAL_SOURCE"
               rm -f "$PARTIAL_ARCHIVE"
               mapfile -t PARTIAL_JSON < <(find "merge-inputs/incremental/$PARTIAL_SOURCE" -type f -name "$PARTIAL_JSON_PATTERN" -print)
@@ -406,8 +424,9 @@ jobs:
 
             mapfile -t AUTOHOME_PARTIAL < <(find merge-inputs/incremental/autohome -type f -name 'autoHome_*.json' -print)
             mapfile -t DONGCHEDI_PARTIAL < <(find merge-inputs/incremental/dongchedi -type f -name 'dongchedi_*.json' -print)
-            if [ "${#AUTOHOME_PARTIAL[@]}" -gt 1 ] || [ "${#DONGCHEDI_PARTIAL[@]}" -gt 1 ]; then
-              echo "每个主来源最多只能接入一份 current partial"
+            mapfile -t YICHE_PARTIAL < <(find merge-inputs/incremental/yiche -type f -name 'yiche_*.json' -print)
+            if [ "${#AUTOHOME_PARTIAL[@]}" -gt 1 ] || [ "${#DONGCHEDI_PARTIAL[@]}" -gt 1 ] || [ "${#YICHE_PARTIAL[@]}" -gt 1 ]; then
+              echo "每个来源最多只能接入一份 current partial"
               exit 1
             fi
             if [ "${#AUTOHOME_PARTIAL[@]}" -eq 1 ]; then
@@ -425,6 +444,19 @@ jobs:
               mv dongchedi_partial_prepared.json dongchedi_stable.json
             else
               echo "DONGCHEDI_PARTIAL_NOT_JOINED: 使用 stable/Pages 基线"
+            fi
+            if [ "${#YICHE_PARTIAL[@]}" -eq 1 ]; then
+              if [ "${#YICHE_STABLE[@]}" -eq 1 ]; then
+                python scripts/prepare_debug_merge_inputs.py \
+                  --stable "${YICHE_STABLE[0]}" --debug "${YICHE_PARTIAL[0]}" \
+                  --source yiche --partial --output yiche_partial_prepared.json
+                mv yiche_partial_prepared.json yiche_stable.json
+              else
+                echo "易车无历史 stable，使用已认证 partial；Pages 基线门禁仍负责防回退"
+                cp "${YICHE_PARTIAL[0]}" yiche_stable.json
+              fi
+            else
+              echo "YICHE_PARTIAL_NOT_JOINED: 使用 stable/Pages 基线"
             fi
           fi
 
