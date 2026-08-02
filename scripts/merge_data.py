@@ -13,6 +13,7 @@ try:
         is_autohome_row,
         is_yiche_row,
         row_car_id,
+        valid_official_price,
         yiche_publish_identity_valid,
     )
 except ModuleNotFoundError:
@@ -22,6 +23,7 @@ except ModuleNotFoundError:
         is_autohome_row,
         is_yiche_row,
         row_car_id,
+        valid_official_price,
         yiche_publish_identity_valid,
     )
 
@@ -1287,6 +1289,14 @@ def norm_rows(rows, source):
             if key in row:
                 normalized[key] = row[key]
         backfill_year_from_model_name(normalized)
+
+        # 易车原始 `价格` 是车型官方指导价；通用表头映射仍将其保留为经销商参考价。
+        if source == "易车":
+            official_price = valid_official_price(row.get("官方指导价"))
+            if not official_price:
+                official_price = valid_official_price(row.get("价格"))
+            if official_price:
+                normalized["官方指导价"] = official_price
 
         # 品牌回填：汽车之家爬虫可能漏品牌，从车系名推导
         if (not normalized.get("品牌") or normalized.get("品牌") == "-") and source == "汽车之家":

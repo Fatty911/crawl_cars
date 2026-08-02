@@ -217,6 +217,29 @@ def test_cross_source_header_aliases_merge_without_losing_conflicting_values():
     assert merged["前轮胎规格"] == "汽车之家:235/50 R19|懂车帝:245/45 R20"
 
 
+def test_norm_rows_preserves_yiche_price_as_official_and_dealer_reference():
+    yiche = merge_data.norm_rows(
+        [{"价格": "46.76万", "城市参考价": "29.90万起"}],
+        "易车",
+    )[0]
+    assert yiche["官方指导价"] == "46.76万"
+    assert yiche["经销商参考价"] == "46.76万|29.90万起"
+
+    explicit = merge_data.norm_rows(
+        [{"官方指导价": "48.00万", "价格": "46.76万"}],
+        "易车",
+    )[0]
+    assert explicit["官方指导价"] == "48.00万"
+    assert explicit["经销商参考价"] == "46.76万"
+
+    dongchedi = merge_data.norm_rows([{"价格": "46.76万"}], "懂车帝")[0]
+    assert "官方指导价" not in dongchedi
+    assert dongchedi["经销商参考价"] == "46.76万"
+
+    invalid = merge_data.norm_rows([{"价格": "暂无报价"}], "易车")[0]
+    assert "官方指导价" not in invalid
+
+
 def test_option_package_pairs_become_structured_without_hiding_unpaired_suffix_attributes():
     rows = merge_data.norm_rows([
         make("懂车帝", "结构套餐测试") | {
