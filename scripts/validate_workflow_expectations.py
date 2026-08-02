@@ -36,7 +36,6 @@ PAGES_PUSH_DEPENDENCIES = (
     ".github/workflows/crawl-autohome.yml",
     ".github/workflows/crawl-dongchedi.yml",
     ".github/workflows/crawl-yiche.yml",
-    ".github/workflows/deploy-pages.yml",
 )
 WINDOW_TEXT = "8:00-12:30"
 AFTERNOON_TEXT = "13:00-22:00"
@@ -386,8 +385,8 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         "merge-and-filter.yml 未剥离 GitHub run.path 的 @ref 后缀",
         errors,
     )
-    prepare_positions = [match.start() for match in re.finditer("scripts/prepare_debug_merge_inputs.py", text)]
-    merge_position = text.find("scripts/merge_data.py")
+    prepare_positions = [match.start() for match in re.finditer("python scripts/prepare_debug_merge_inputs.py", text)]
+    merge_position = text.find("python scripts/merge_data.py")
     assert_condition(
         len(prepare_positions) == 3,
         "merge-and-filter.yml 未对两个 debug 来源及 partial artifact 执行 stable-first 规范化",
@@ -411,8 +410,8 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         "merge-and-filter.yml 必须先规范化 debug 输入再执行 merge_data.py",
         errors,
     )
-    verify_position = text.find("scripts/verify_publish_superset.py")
-    preserve_position = text.find("scripts/preserve_publish_baseline.py")
+    verify_position = text.find("python scripts/verify_publish_superset.py")
+    preserve_position = text.find("python scripts/preserve_publish_baseline.py")
     upload_position = text.find("uses: actions/upload-artifact@v4")
     assert_condition(
         verify_position != -1
@@ -427,13 +426,16 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         errors,
     )
     assert_condition(
-        "release_tag=v" in text and "${{ github.run_id }}" in text and "-f release_tag=${{ needs.merge-data.outputs.release_tag }}" in text,
-        "merge-and-filter.yml Release tag 未绑定 run_id 或未精确传给 deploy-pages",
+        "release_tag=v" in text
+        and "${{ github.run_id }}" in text
+        and "release_tag: ${{ needs.merge-data.outputs.release_tag }}" in text
+        and "needs.create-release.outputs.release_tag" in text,
+        "merge-and-filter.yml Release tag 未绑定 run_id 或未精确传给 Pages",
         errors,
     )
     assert_condition(
-        '--ref "${{ github.ref_name }}"' in text,
-        "merge-and-filter.yml dispatch deploy-pages 未透传当前 workflow ref",
+        "mode" in inputs and "merge_and_deploy" in text,
+        "merge-and-filter.yml 缺少合并后部署模式",
         errors,
     )
 
@@ -445,15 +447,15 @@ def check_deploy_workflow(path: Path, errors: list[str]) -> None:
     inputs = triggers.get("workflow_dispatch", {}).get("inputs", {})
     push = triggers.get("push", {})
     missing_dependencies = pages_push_paths_cover(path, PAGES_PUSH_DEPENDENCIES)
-    assert_condition(not missing_dependencies, f"deploy-pages.yml push paths 漏掉 Pages 依赖: {missing_dependencies}", errors)
-    assert_condition(not push.get("paths-ignore"), "deploy-pages.yml 不得用 paths-ignore 绕过 Pages 依赖", errors)
-    assert_condition("release_tag" in inputs, "deploy-pages.yml 缺少可选 release_tag", errors)
+    assert_condition(not missing_dependencies, f"{path.name} push paths 漏掉 Pages 依赖: {missing_dependencies}", errors)
+    assert_condition(not push.get("paths-ignore"), f"{path.name} 不得用 paths-ignore 绕过 Pages 依赖", errors)
+    assert_condition("release_tag" in inputs, f"{path.name} 缺少可选 release_tag", errors)
     assert_condition(
         'if [ -n "$RELEASE_TAG" ]; then' in text and 'TAGS=("$RELEASE_TAG")' in text,
-        "deploy-pages.yml 有 release_tag 时未限定为精确 tag",
+        f"{path.name} 有 release_tag 时未限定为精确 tag",
         errors,
     )
-    verify_position = text.find("scripts/verify_publish_superset.py")
+    verify_position = text.find("python scripts/verify_publish_superset.py")
     copy_position = text.find('cp "$MERGED_JSON" site/data/latest.json')
     upload_position = text.find("uses: actions/upload-pages-artifact@v5")
     assert_condition(
@@ -462,9 +464,8 @@ def check_deploy_workflow(path: Path, errors: list[str]) -> None:
         and upload_position != -1
         and verify_position < copy_position < upload_position
         and "https://cars.jiucai.eu.org/data/latest.json" in text
-        and "--retry-all-errors" in text
-        and 'if [ "$DEBUG_MODE" = "true" ]; then' not in text,
-        "deploy-pages.yml 缺少复制/上传 Pages 数据前的全路径防缩小复核",
+        and "--retry-all-errors" in text,
+        f"{path.name} 缺少复制/上传 Pages 数据前的全路径防缩小复核",
         errors,
     )
 
@@ -477,7 +478,7 @@ def main() -> int:
     check_trigger(ROOT / ".github/workflows/crawl-trigger.yml", errors)
     check_budget_script(ROOT / "scripts/crawl_budget.py", errors)
     check_merge_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
-    check_deploy_workflow(ROOT / ".github/workflows/deploy-pages.yml", errors)
+    check_deploy_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
     assert_condition(
         "/scripts/dongchedi/json/" in (ROOT / ".gitignore").read_text(encoding="utf-8"),
         "实际 Dongchedi HTML cache 路径未被 gitignore 排除",

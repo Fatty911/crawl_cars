@@ -62,8 +62,7 @@
 |---|---|---|
 | `AI_Auto_Fix_Monitor.yml` | 只监听“汽车之家爬虫”“懂车帝爬虫”；优先调用 `openai/codex-action@v1`，失败后才调用 `scripts/auto_fix_workflow.py` | 不监听易车、合并分析、Release 或 Pages；不能发现 512→165 这类发布链问题 |
 | OpenCode / OMO 配置 | 仓库包含 `config/opencode.json`、`config/oh-my-openagent.json` 及 `ai_tools/opencode/` 副本 | 当前 workflow 没有安装或调用 OpenCode/OMO；“有配置”不等于“Action 已使用” |
-| `deploy-pages.yml` | 下载指定/最新 Release，执行 identity superset 校验，准备 Pages payload 后直接部署 | 没有 accepted-match disposition、来源富化、排序/游标、浏览器 smoke 等发布前审计 |
-| `merge-and-filter.yml` | 合并、创建 Release 并触发/执行 Pages 发布链 | candidate、审计、正式 Release 尚未严格拆成两阶段 |
+| `merge-and-filter.yml` | 串行完成合并、创建 Release、Pages 部署和单源审计；支持精确 Release tag 与部署模式 | 没有 accepted-match disposition、来源富化、排序/游标、浏览器 smoke 等发布前审计 |
 
 ## 3. 目标和非目标
 
@@ -264,7 +263,7 @@ last-known-good 必须是最近一次满足以下条件的精确 Release tag：�
 若部署后才发现异常：
 
 1. 冻结新的正式发布。
-2. 使用 last-known-good 精确 tag 重新运行 `deploy-pages.yml`。
+2. 使用 last-known-good 精确 tag 重新运行 `merge-and-filter.yml` 的 `deploy_and_audit` 模式。
 3. 不删除坏 Release；在 incident Issue 中记录 tag、SHA、审计结果和回滚 run。
 4. 修复后重新从 candidate 开始，不直接覆盖旧产物。
 

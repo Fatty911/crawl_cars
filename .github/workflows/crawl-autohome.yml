@@ -567,6 +567,7 @@ jobs:
           gh workflow run merge-and-filter.yml \
             --repo ${{ github.repository }} \
             --ref "${{ github.ref_name }}" \
+            -f mode=merge_and_deploy \
             -f force_merge=false \
             -f debug_mode=${{ github.event.inputs.debug_mode || 'false' }} \
             -f crawler_run_id=${{ github.run_id }} \
