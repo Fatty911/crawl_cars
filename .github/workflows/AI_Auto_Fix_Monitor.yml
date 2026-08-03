@@ -196,7 +196,6 @@ jobs:
           ATOMGIT_PROXY_URL: ${{ secrets.ATOMGIT_PROXY_URL }}
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
-          MINIMAX_CODING_PLAN_API_KEY: ${{ secrets.MINIMAX_CODING_PLAN_API_KEY }}
           MINIMAX_MODEL_LIST: ${{ secrets.MINIMAX_MODEL_LIST }}
           MINIMAX_PROXY_URL: ${{ secrets.MINIMAX_PROXY_URL }}
           MODAL_API_KEY: ${{ secrets.MODAL_API_KEY }}

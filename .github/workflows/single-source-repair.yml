@@ -246,7 +246,7 @@ jobs:
               "chain_id": chain_id,
               "round": int(round_value or 0),
               "terminal": terminal == "true",
-              "model": "deepseek-ai/deepseek-v4-flash",
+              "model": "deterministic",
               "root_cause": "",
               "confidence": 0.0,
               "single_rate": 0.0,
@@ -264,11 +264,96 @@ jobs:
               handle.write("status=no-op\n")
           PY
 
-      - name: Ask NIM for a bounded repair proposal
+      - name: Prepare deterministic repair request for Agent
+        id: prepare_agent
         if: steps.context.outputs.ready == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/single_source_repair.py \
+            --repo-kind "$REPO_KIND" \
+            --data pages_latest.json \
+            --output-dir . \
+            --base-sha "$SOURCE_SHA" \
+            --pages-run-id "$PAGES_RUN_ID" \
+            --pages-url "$PAGES_URL" \
+            --chain-id "${{ steps.context.outputs.chain_id }}" \
+            --round "${{ steps.context.outputs.round }}" \
+            --agent-prompt-out repair_agent_prompt.md \
+            --agent-request-out repair_agent_request.json \
+            --model-label "volcengine-agentplan/deepseek-v4-flash"
+          if [[ -s repair_agent_prompt.md && -s repair_agent_request.json ]]; then
+            echo 'agent=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'agent=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js for OpenCode Agent
+        if: steps.prepare_agent.outputs.agent == 'true'
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install fixed OpenCode CLI
+        if: steps.prepare_agent.outputs.agent == 'true'
+        continue-on-error: true
+        shell: bash
+        run: npm install --global opencode-ai@1.18.11
+
+      - name: Prepare isolated OpenCode directory
+        if: steps.prepare_agent.outputs.agent == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/opencode-agent"
+          cp "$GITHUB_WORKSPACE/repair_agent_prompt.md" "$RUNNER_TEMP/opencode-agent/prompt.md"
+
+      - name: Run Volcengine Plan through read-only OpenCode Agent
+        id: plan_agent
+        if: steps.prepare_agent.outputs.agent == 'true'
+        continue-on-error: true
+        env:
+          VOLCENGINE_AGENTPLAN_API_KEY: ${{ secrets.VOLCENGINE_AGENTPLAN_API_KEY }}
+          OPENCODE_CONFIG_CONTENT: >-
+            {"autoupdate":false,"provider":{"volcengine-agentplan":{"npm":"@ai-sdk/openai-compatible","name":"Volcengine Agent Plan","options":{"baseURL":"https://ark.cn-beijing.volces.com/api/plan/v3","apiKey":"{env:VOLCENGINE_AGENTPLAN_API_KEY}"},"models":{"deepseek-v4-flash":{"limit":{"context":1000000,"output":16000}}}}},"agent":{"plan":{"model":"volcengine-agentplan/deepseek-v4-flash","permission":{"*":"deny","read":"allow","edit":"deny","bash":"deny","webfetch":"deny","task":"deny","question":"deny","external_directory":"deny"}}},"permission":{"*":"deny","read":"allow","edit":"deny","bash":"deny","webfetch":"deny","task":"deny","question":"deny","external_directory":"deny"}}
+        shell: bash
+        run: opencode run --pure --agent plan --model volcengine-agentplan/deepseek-v4-flash --format default --dir "$RUNNER_TEMP/opencode-agent" --file prompt.md "Use the attached deterministic request. Return only the exact JSON object required by the request, and do not call tools or modify files." > repair_agent_response.txt
+
+      - name: Validate the bound Agent response
+        id: validate_agent
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.plan_agent.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/single_source_repair.py \
+            --repo-kind "$REPO_KIND" \
+            --data pages_latest.json \
+            --output-dir . \
+            --base-sha "$SOURCE_SHA" \
+            --pages-run-id "$PAGES_RUN_ID" \
+            --pages-url "$PAGES_URL" \
+            --chain-id "${{ steps.context.outputs.chain_id }}" \
+            --round "${{ steps.context.outputs.round }}" \
+            --agent-response-in repair_agent_response.txt \
+            --agent-request-in repair_agent_request.json \
+            --model-label "volcengine-agentplan/deepseek-v4-flash"
+          status="$(python3 -c 'import json; print(json.load(open("single_source_repair_result.json", encoding="utf-8")).get("status", "no-op"))')"
+          if [[ "$status" != "no-op" ]]; then
+            echo 'valid=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'valid=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Use non-Plan API fallback when Agent is unavailable
+        if: >-
+          always() && steps.context.outputs.ready == 'true' &&
+          (steps.prepare_agent.outcome != 'success' || steps.prepare_agent.outputs.agent != 'true' ||
+          steps.plan_agent.outcome != 'success' || steps.validate_agent.outputs.valid != 'true')
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
-          VOLCENGINE_AGENTPLAN_API_KEY: ${{ secrets.VOLCENGINE_AGENTPLAN_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         shell: bash
         run: |

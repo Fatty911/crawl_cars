@@ -3,7 +3,8 @@
 
 This helper is deliberately fail-closed:
 - it parses only a validated Pages payload;
-- it sends only deterministic summaries and selected source code to a bounded model chain;
+- it prepares deterministic summaries for an external, read-only Agent;
+- its optional non-Plan fallback chain never consumes Plan credentials;
 - it accepts only strict JSON and a constrained unified diff;
 - it validates the diff in an ephemeral working tree and never commits or pushes.
 """
@@ -58,6 +59,9 @@ MAX_PATCH_ADDED_LINES = 240
 MAX_PATCH_REMOVED_LINES = 180
 MIN_CONFIDENCE = 0.85
 MAX_CAR_APPROVALS = 40
+MAX_AGENT_RESPONSE_BYTES = 512 * 1024
+AGENT_REQUEST_VERSION = 1
+DEFAULT_AGENT_MODEL = "volcengine-agentplan/deepseek-v4-flash"
 SOURCE_ALIASES = {
     "ah": "汽车之家",
     "dcd": "懂车帝",
@@ -451,6 +455,7 @@ Pages URL：{pages_url}
 
 
 def _call_repair_model(prompt: str) -> tuple[str, str]:
+    """Call only ordinary API fallbacks; Plan credentials never enter this function."""
     providers = (
         {
             "label": "nvidia-nim",
@@ -458,13 +463,6 @@ def _call_repair_model(prompt: str) -> tuple[str, str]:
             "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
             "model": os.environ.get("NVIDIA_NIM_MODEL", "deepseek-ai/deepseek-v4-flash"),
             "response_format": True,
-        },
-        {
-            "label": "volcengine-agentplan",
-            "key_env": "VOLCENGINE_AGENTPLAN_API_KEY",
-            "endpoint": "https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions",
-            "model": os.environ.get("VOLCENGINE_AGENTPLAN_MODEL", "deepseek-v4-flash"),
-            "response_format": False,
         },
         {
             "label": "deepseek",
@@ -570,6 +568,100 @@ def _json_response(text: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise RepairInputError("model response JSON is not an object")
     return value
+
+
+def _text_sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _write_agent_request(
+    args: argparse.Namespace,
+    prompt: str,
+    request_kind: str,
+    input_sha256: str,
+    report_sha256: str,
+) -> None:
+    prompt_path = Path(args.agent_prompt_out).resolve()
+    request_path = Path(args.agent_request_out).resolve()
+    prompt_path.parent.mkdir(parents=True, exist_ok=True)
+    request_path.parent.mkdir(parents=True, exist_ok=True)
+    prompt_path.write_text(prompt, encoding="utf-8")
+    request = {
+        "version": AGENT_REQUEST_VERSION,
+        "request_kind": request_kind,
+        "repo_kind": args.repo_kind,
+        "base_sha": args.base_sha,
+        "pages_run_id": str(args.pages_run_id),
+        "chain_id": args.chain_id,
+        "round": args.round,
+        "input_sha256": input_sha256,
+        "report_sha256": report_sha256,
+        "prompt_sha256": _text_sha256(prompt),
+        "model": args.model_label or "non-plan-fallback",
+    }
+    request_path.write_text(_json(request) + "\n", encoding="utf-8")
+
+
+def _read_bound_agent_response(
+    args: argparse.Namespace,
+    prompt: str,
+    request_kind: str,
+    input_sha256: str,
+    report_sha256: str,
+) -> tuple[str, str]:
+    request_path = Path(args.agent_request_in).resolve()
+    response_path = Path(args.agent_response_in).resolve()
+    if not request_path.is_file():
+        raise RepairInputError("agent request is missing or is not a regular file")
+    if not response_path.is_file():
+        raise RepairInputError("agent response is missing or is not a regular file")
+    request_value = _strict_json_load(request_path.read_text(encoding="utf-8"), "agent request")
+    if not isinstance(request_value, dict):
+        raise RepairInputError("agent request is not an object")
+    expected = {
+        "version": AGENT_REQUEST_VERSION,
+        "request_kind": request_kind,
+        "repo_kind": args.repo_kind,
+        "base_sha": args.base_sha,
+        "pages_run_id": str(args.pages_run_id),
+        "chain_id": args.chain_id,
+        "round": args.round,
+        "input_sha256": input_sha256,
+        "report_sha256": report_sha256,
+        "prompt_sha256": _text_sha256(prompt),
+        "model": args.model_label or DEFAULT_AGENT_MODEL,
+    }
+    if request_value != expected:
+        raise RepairInputError("agent request binding does not match the current Pages input")
+    raw_response = response_path.read_bytes()
+    if not raw_response or len(raw_response) > MAX_AGENT_RESPONSE_BYTES:
+        raise RepairInputError("agent response is empty or exceeds the size limit")
+    try:
+        response_text = raw_response.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RepairInputError("agent response is not UTF-8") from exc
+    return response_text, str(request_value["model"])
+
+
+def _get_agent_response(
+    args: argparse.Namespace,
+    prompt: str,
+    request_kind: str,
+    input_sha256: str,
+    report_sha256: str,
+) -> tuple[str, str] | None:
+    if args.agent_prompt_out or args.agent_request_out:
+        if not args.agent_prompt_out or not args.agent_request_out:
+            raise RepairInputError("agent prompt and request outputs must be provided together")
+        if args.agent_response_in or args.agent_request_in:
+            raise RepairInputError("agent prepare and response validation modes are mutually exclusive")
+        _write_agent_request(args, prompt, request_kind, input_sha256, report_sha256)
+        return None
+    if args.agent_response_in or args.agent_request_in:
+        if not args.agent_response_in or not args.agent_request_in:
+            raise RepairInputError("agent response and request inputs must be provided together")
+        return _read_bound_agent_response(args, prompt, request_kind, input_sha256, report_sha256)
+    return _call_repair_model(prompt)
 
 
 def _car_selection(
@@ -708,7 +800,6 @@ def _patch_paths(patch: str, kind: str) -> list[str]:
         "pyproject.toml",
         "package.json",
         "NVIDIA_NIM_API_KEY",
-        "VOLCENGINE_AGENTPLAN_API_KEY",
         "DEEPSEEK_API_KEY",
         "single_source_repair.py",
         "GIT binary patch",
@@ -872,7 +963,7 @@ def _base_result(args: argparse.Namespace) -> dict[str, Any]:
         "pages_url": args.pages_url,
         "chain_id": args.chain_id,
         "round": args.round,
-        "model": os.environ.get("NVIDIA_NIM_MODEL", "deepseek-ai/deepseek-v4-flash"),
+        "model": args.model_label or DEFAULT_AGENT_MODEL,
         "root_cause": "",
         "confidence": 0.0,
         "single_rate": 0.0,
@@ -913,7 +1004,16 @@ def _propose_car_manifest(
         return 0
 
     prompt = _build_car_candidate_prompt(candidate_report, args.base_sha, args.pages_url)
-    model_response, model = _call_repair_model(prompt)
+    model_result = _get_agent_response(
+        args,
+        prompt,
+        "car-manifest-selection",
+        report["input_sha256"],
+        result["report_sha256"],
+    )
+    if model_result is None:
+        return 0
+    model_response, model = model_result
     result["model"] = model
     response = _json_response(model_response)
     selected, confidence, evidence, analysis = _car_selection(response, candidate_report)
@@ -995,7 +1095,16 @@ def propose(args: argparse.Namespace) -> int:
             return 0
 
         prompt = _build_prompt(report, args.repo_kind, args.base_sha, args.pages_url)
-        model_response, model = _call_repair_model(prompt)
+        model_result = _get_agent_response(
+            args,
+            prompt,
+            "single-source-patch",
+            report["input_sha256"],
+            result["report_sha256"],
+        )
+        if model_result is None:
+            return 0
+        model_response, model = model_result
         result["model"] = model
         response = _json_response(model_response)
         required_fields = {"should_fix", "confidence", "root_cause", "evidence", "analysis", "patch"}
@@ -1079,6 +1188,11 @@ def main() -> int:
     parser.add_argument("--round", type=int, default=0)
     parser.add_argument("--check-patch", help="validate a patch and exit without applying it")
     parser.add_argument("--validate-working-tree", action="store_true")
+    parser.add_argument("--agent-prompt-out", help="write a deterministic prompt for the external read-only Agent")
+    parser.add_argument("--agent-request-out", help="write the binding manifest for the external Agent request")
+    parser.add_argument("--agent-response-in", help="consume a response produced by the external Agent")
+    parser.add_argument("--agent-request-in", help="consume the binding manifest for the external Agent response")
+    parser.add_argument("--model-label", default="", help="fixed provider/model label recorded in the proposal")
     args = parser.parse_args()
 
     if args.check_patch:

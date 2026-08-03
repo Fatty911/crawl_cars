@@ -406,7 +406,6 @@ Cloudflare 需要把 `cars.jiucai.eu.org/api/filter-history` 路由到 `cars-fil
 | `XAI` | xAI | api.x.ai |
 | `ATOMGIT` | AtomGit | api-ai.gitcode.com |
 | `MINIMAX` | MiniMax | api.minimax.io |
-| `MINIMAX_CODING_PLAN` | MiniMax Coding Plan | api.minimax.io |
 | `ZEN` | OpenCode Zen | 需配置 `ZEN_BASE_URL` |
 | `NVIDIA_NIM` | NVIDIA NIM | integrate.api.nvidia.com |
 | `MOONSHOT` | Moonshot/Kimi | api.moonshot.cn |
@@ -433,17 +432,18 @@ python scripts/auto_fix_workflow.py error.log scripts/test_autohome.py
 - `AI_Auto_Fix_Monitor.yml` 会先用 `custom_scripts/check_workflow_expectations.py` 判断是否需要代码修复：失败日志属于站点结构/解析异常或未知代码问题时才修，成功但长爬虫跑到允许窗口外时也会触发修复。
 - 监控工作流优先调用官方 `openai/codex-action@v1` 作为 Codex 自修复代理；需要仓库 Secret `OPENAI_API_KEY`。Codex 修完后必须通过 `ensure_codex_autofix_scope.py`、`validate_syntax.py` 和 `validate_workflow_expectations.py`，才会提交并推送到 `main`。
 - 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，监控工作流才退回 `scripts/auto_fix_workflow.py` 多 Provider 旧修复器兜底。
-- 仓库虽包含 OpenCode/OMO 配置文件，但当前 GitHub Actions 没有安装或调用它们；现有主修复器仍是 Codex Action。
+- `scripts/auto_fix_workflow.py` 明确拒绝所有 Plan/CodingPlan/AgentPlan/TokenPlan 凭证；Plan 套餐密钥只能在专用只读 OpenCode Agent step 中使用。
+- 仓库虽包含 OpenCode/OMO 配置文件，Pages 单源修复和审查 workflow 现在使用固定版本、只读权限的 OpenCode Agent 调用 Plan 模型；旧版自动修复器仍只处理非 Plan API fallback。
 - 发布前审计、AI 有界自愈、跨 run 记忆及是否引入 Hermes 的完整设计见 [`docs/operations/ai-self-healing.md`](docs/operations/ai-self-healing.md)。该设计尚未上线，不应把它描述成当前已启用能力。
 - `scripts/auto_fix_workflow.py` 未能产出可用修复时，监控工作流记录为跳过并正常结束；只有真正生成改动、语法校验通过、提交并推送成功后才标记 `fixed=true`。
 - 分类逻辑位于 `custom_scripts/classify_crawl_failure.py`，两个爬虫 workflow 和 `AI_Auto_Fix_Monitor.yml` 都会调用。
 
 **当前已配置的 GitHub Secrets**：
 
-`ACTION_PAT`、`ATOMGIT_API_KEY`、`MINIMAX_API_KEY`、`MINIMAX_CODING_PLAN_API_KEY`、`MODAL_API_KEY`、`MODELSCOPE_API_KEY`、`MOONSHOT_API_KEY`、`NVIDIA_NIM_API_KEY`、`OPENAI_API_KEY`、`OPENROUTER_API_KEY`、`PROXY_SUBSCRIPTIONS`、`XAI_API_KEY`、`ZEN_API_KEY`
+`ACTION_PAT`、`ATOMGIT_API_KEY`、`MINIMAX_API_KEY`、`MODAL_API_KEY`、`MODELSCOPE_API_KEY`、`MOONSHOT_API_KEY`、`NVIDIA_NIM_API_KEY`、`OPENAI_API_KEY`、`OPENROUTER_API_KEY`、`PROXY_SUBSCRIPTIONS`、`XAI_API_KEY`、`ZEN_API_KEY`
 
 **工作原理**：
-1. 自动发现所有 `_API_KEY` 环境变量
+1. 自动发现非 Plan 的 `_API_KEY` 环境变量；Plan/CodingPlan/AgentPlan/TokenPlan 凭证直接跳过
 2. 解析对应 `BASE_URL`、`MODEL_LIST`、`PROXY_URL`；没有可用 base_url 或模型的 Provider 会跳过
 3. 依次尝试各 Provider 的模型，生成修复方案
 4. 置信度 ≥ 0.6 时自动应用修复并提交推送

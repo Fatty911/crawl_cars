@@ -72,11 +72,13 @@ jobs:
           "$PWD/.github/workflows/crawl-autohome.yml"
           "$PWD/.github/workflows/crawl-dongchedi.yml"
           "$PWD/.github/workflows/merge-and-filter.yml"
+          "$PWD/.github/workflows/single-source-repair.yml"
           "$PWD/scripts/check_workflow_expectations.py"
           "$PWD/scripts/configure_cron_job_org.py"
           "$PWD/scripts/crawl_budget.py"
           "$PWD/scripts/ensure_codex_autofix_scope.py"
           "$PWD/scripts/validate_workflow_expectations.py"
+          "$PWD/scripts/validate_plan_agent_boundary.py"
           "$PWD/scripts/crawl_zero_to_whole_ratio.py"
           "$PWD/scripts/merge_data.py"
           "$PWD/docs/index.html"
@@ -91,6 +93,9 @@ jobs:
 
       - name: Validate workflow expectations
         run: python scripts/validate_workflow_expectations.py
+
+      - name: Validate Plan and Agent boundary
+        run: python scripts/validate_plan_agent_boundary.py
 
       - name: Smoke test scripts/merge_data.py
         run: |

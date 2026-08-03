@@ -295,7 +295,7 @@ class SelfHealTrustRootScopeTests(unittest.TestCase):
             old.parent.mkdir(parents=True)
             old.write_text("name: protected\n", encoding="utf-8")
             subprocess.run(["git", "add", "."], cwd=root, check=True)
-            subprocess.run(["git", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
+            subprocess.run(["git", "-c", "core.hooksPath=", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
             new = root / ".github/workflows/deploy-pages-v2.yml"
             old.rename(new)
             try:
@@ -309,7 +309,7 @@ class SelfHealTrustRootScopeTests(unittest.TestCase):
 
 class PagesAuditWorkflowWiringTests(unittest.TestCase):
     def test_audit_runs_after_final_transform_and_before_manifest(self) -> None:
-        text = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
+        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
         audit = text.index("python scripts/audit_pages_payload.py")
         self.assertGreater(audit, text.rindex("python scripts/prepare_pages_payload.py"))
         self.assertLess(audit, text.index('with open("site/data/manifest.json"'))

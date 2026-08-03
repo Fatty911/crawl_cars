@@ -198,6 +198,8 @@ def test_deadline_stops_before_new_request_and_reports_reason(monkeypatch, capsy
 
 
 def test_item_stall_is_bounded_heartbeated_and_checkpointed(monkeypatch, tmp_path, capsys):
+    if not hasattr(yiche.signal, "SIGALRM"):
+        pytest.skip("wall-clock signal timeout is exercised on POSIX runners")
     html = (
         "<table><tr><th>车型</th><th>2026款 真车</th></tr>"
         "<tr><td>轴距</td><td>2900</td></tr>"
@@ -236,6 +238,8 @@ def test_item_stall_is_bounded_heartbeated_and_checkpointed(monkeypatch, tmp_pat
 
 
 def test_nested_request_timer_preserves_shorter_item_deadline():
+    if not hasattr(yiche.signal, "SIGALRM"):
+        pytest.skip("wall-clock signal timeout is exercised on POSIX runners")
     started = yiche.time.monotonic()
 
     with pytest.raises(yiche.ItemStageTimeout):
@@ -247,6 +251,8 @@ def test_nested_request_timer_preserves_shorter_item_deadline():
 
 
 def test_main_flushes_cancelled_checkpoint_on_sigterm(monkeypatch, tmp_path):
+    if not hasattr(yiche.signal, "SIGALRM"):
+        pytest.skip("signal-driven cancellation is exercised on POSIX runners")
     checkpoint = tmp_path / "cancelled_checkpoint.json"
 
     def interrupting_crawl(*args, **kwargs):

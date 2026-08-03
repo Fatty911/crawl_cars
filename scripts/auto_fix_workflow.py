@@ -25,14 +25,13 @@ PROVIDER_BASE_URLS = {
     "ATOMGIT": "https://api-ai.gitcode.com/v1",
     "DEEPSEEK": "https://api.deepseek.com/v1",
     "MINIMAX": "https://api.minimax.io/v1",
-    "MINIMAX_CODING_PLAN": "https://api.minimax.io/v1",
     "MOONSHOT": "https://api.moonshot.cn/v1",
     "ZHIPU": "https://open.bigmodel.cn/api/paas/v4",
     "XAI": "https://api.x.ai/v1",
     "OPENAI": "https://api.openai.com/v1",
 }
 
-# 模型默认列表——免费优先，付费 Plan 兜底
+# 模型默认列表——免费优先，普通 API 兜底；Plan 凭证由专用 Agent 处理
 PROVIDER_DEFAULT_MODELS = {
     # 免费端点（优先尝试）
     "NVIDIA_NIM": ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free"],
@@ -40,12 +39,35 @@ PROVIDER_DEFAULT_MODELS = {
     "OPENROUTER": ["nvidia/nemotron-3-ultra-550b-a55b:free"],
     "ZEN": ["nemotron-3-ultra-free", "deepseek-v4-flash-free"],
     "ATOMGIT": ["zai-org/GLM-5.1", "deepseek-ai/DeepSeek-V4-Flash"],
-    # 付费 Plan（免费全部不可用时兜底）
+    # 普通按量 API（免费全部不可用时兜底）
     "DEEPSEEK": ["deepseek-v4-pro", "deepseek-v4-flash"],
     "ZHIPU": ["glm-5.2"],
     "MOONSHOT": ["kimi-k2.6"],
     "MINIMAX": ["minimax-m3"],
 }
+
+PLAN_PREFIX_MARKERS = (
+    "_CODINGPLAN",
+    "_CODING_PLAN",
+    "_AGENTPLAN",
+    "_AGENT_PLAN",
+    "_TOKENPLAN",
+    "_TOKEN_PLAN",
+    "_PLAN",
+)
+
+PLAN_PREFIX_PATTERN = re.compile(
+    r"(?:^|_)(?:CODINGPLAN|CODING_PLAN|AGENTPLAN|AGENT_PLAN|TOKENPLAN|TOKEN_PLAN|PLAN)(?:_|$)",
+    flags=re.IGNORECASE,
+)
+
+
+def is_plan_prefix(prefix: str) -> bool:
+    """Plan credentials are reserved for an explicit Agent process."""
+    normalized = prefix.strip("_").upper()
+    if PLAN_PREFIX_PATTERN.search(normalized):
+        return True
+    return any(normalized.endswith(marker.lstrip("_")) for marker in PLAN_PREFIX_MARKERS)
 
 class WorkflowErrorFixer:
     def __init__(self):
@@ -61,6 +83,9 @@ class WorkflowErrorFixer:
                 continue
 
             prefix = key[:-8]
+            if is_plan_prefix(prefix):
+                print(f"跳过 {prefix}: Plan 凭证只能由显式 Agent 工具调用")
+                continue
             name = prefix.replace("_", " ").title()
             base_url = env.get(f"{prefix}_BASE_URL", "").strip() or PROVIDER_BASE_URLS.get(prefix)
             if not base_url:
