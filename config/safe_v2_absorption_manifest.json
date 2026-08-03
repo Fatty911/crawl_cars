@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 240
+    "approved_components": 280
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -3343,6 +3343,29 @@
       ]
     },
     {
+      "candidate_id": "6cf869e4cbb551597ee70ab3",
+      "members": [
+        {
+          "brand": "凯翼",
+          "series": "轩度",
+          "model": "24款 1.5T CVT豪华版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "凯翼",
+          "series": "轩度",
+          "model": "轩度 2024款 1.5T CVT豪华版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "6e363ac4cd557a45fcbcfd07",
       "members": [
         {
@@ -3428,6 +3451,52 @@
           "series": "东风风神L8",
           "model": "东风风神L8 2025款 185KM 梦想版",
           "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6f828ae5de8124daeea79d42",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰S级",
+          "model": "26款 S 400 L 特别版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰S级",
+          "model": "奔驰S级 2026款 S 400 L 特别版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "71b19242b3d0b5ebacacfac1",
+      "members": [
+        {
+          "brand": "东南",
+          "series": "东南DX3",
+          "model": "22款 1.5T CVT 豪华版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东南",
+          "series": "东南DX3",
+          "model": "东南DX3 2022款 1.5T CVT豪华型",
+          "year": "2022",
           "sources": [
             "汽车之家"
           ]
@@ -3596,6 +3665,29 @@
       ]
     },
     {
+      "candidate_id": "77ad4fe24893eb6db035e969",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "26款 2.0T EcoBoost 至尊型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "蒙迪欧 2026款  2.0T  EcoBoost  至尊型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "78547d2f63d4ca5b64684d60",
       "members": [
         {
@@ -3734,6 +3826,29 @@
       ]
     },
     {
+      "candidate_id": "7f14a3577e666d6a02df4df0",
+      "members": [
+        {
+          "brand": "东风奕派",
+          "series": "奕派008",
+          "model": "增程 家享版 6座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风奕派",
+          "series": "奕派008",
+          "model": "26款 增程版 202km 家享版 6座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "7f2d3df92fb32a6022a5e0cb",
       "members": [
         {
@@ -3750,6 +3865,29 @@
           "series": "宝马X2",
           "model": "宝马X2 2023款 sDrive25i M越野套装",
           "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "812f3aced790b24f4adb69a7",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰S级",
+          "model": "26款 S 400 L 商务型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰S级",
+          "model": "奔驰S级 2026款 S 400 L 商务型",
+          "year": "2026",
           "sources": [
             "汽车之家"
           ]
@@ -3780,6 +3918,52 @@
       ]
     },
     {
+      "candidate_id": "825740c4bebfaee92c79bd95",
+      "members": [
+        {
+          "brand": "东南",
+          "series": "东南A5翼舞",
+          "model": "22款 1.5L CVT 翼尊版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东南",
+          "series": "东南A5翼舞",
+          "model": "东南A5翼舞 2022款 1.5L CVT翼尊版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8293e71705b95b89a4687fa4",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "卡罗拉",
+          "model": "26款 双擎 1.8L 先锋版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "卡罗拉",
+          "model": "卡罗拉 2026款 1.8L 双擎 先锋版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "82fb7455a186ea7ca390b157",
       "members": [
         {
@@ -3796,6 +3980,29 @@
           "series": "元Pro",
           "model": "元Pro 2023款 401KM豪华型",
           "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "835264e55bda49e13681f762",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "24款 双擎 2.0L 豪华版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "亚洲龙 2024款 双擎 2.0L 豪华版",
+          "year": "2024",
           "sources": [
             "汽车之家"
           ]
@@ -3872,6 +4079,29 @@
       ]
     },
     {
+      "candidate_id": "85e66074f40677ee5f5607a0",
+      "members": [
+        {
+          "brand": "江汽集团",
+          "series": "江淮iEV7",
+          "model": "24款 iEV7L 320km 驾培L版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "江汽集团",
+          "series": "江淮iEV7",
+          "model": "江淮iEV7 2024款 iEV7L 驾培 L版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "85ffde085b96503872548a4e",
       "members": [
         {
@@ -3936,6 +4166,29 @@
           "year": "2023",
           "sources": [
             "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8809548c0cd4d01ad8df19af",
+      "members": [
+        {
+          "brand": "东风奕派",
+          "series": "奕派008",
+          "model": "增程 家悦版 6座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风奕派",
+          "series": "奕派008",
+          "model": "26款 增程版 202km 家悦版 6座",
+          "year": "2026",
+          "sources": [
+            "易车"
           ]
         }
       ]
@@ -4010,6 +4263,29 @@
       ]
     },
     {
+      "candidate_id": "8b33de605d9b0b789194d76c",
+      "members": [
+        {
+          "brand": "捷尼赛思",
+          "series": "捷尼赛思G80",
+          "model": "26款 2.5T 四驱豪华版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷尼赛思",
+          "series": "捷尼赛思G80",
+          "model": "捷尼赛思G80 2026款 2.5T 四驱豪华版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "8b9b120155e23923f765a7aa",
       "members": [
         {
@@ -4028,6 +4304,29 @@
           "year": "2026",
           "sources": [
             "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8c06420de141ef8f342f05c0",
+      "members": [
+        {
+          "brand": "雷克萨斯",
+          "series": "雷克萨斯RZ",
+          "model": "300e 长续航 纵享版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "雷克萨斯",
+          "series": "雷克萨斯RZ",
+          "model": "24款 300e 长续航纵享版",
+          "year": "2024",
+          "sources": [
+            "易车"
           ]
         }
       ]
@@ -4240,6 +4539,52 @@
       ]
     },
     {
+      "candidate_id": "995a20c06bc3dd8c0fa07334",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "26款 1.5T EcoBoost 舒雅型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "蒙迪欧 2026款 1.5T EcoBoost 舒雅型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "995a6235e603b6f3a248adbf",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "24款 双擎 2.0L 尊享版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "亚洲龙 2024款 双擎 2.0L 尊享版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "9986367acc0d87b7f03960bc",
       "members": [
         {
@@ -4279,6 +4624,75 @@
           "series": "宋Ultra",
           "model": "宋Ultra 2026款 EV 605KM 超越型",
           "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9df150cc49f24509fe3497ff",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "26款 1.5T EcoBoost 豪华型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "蒙迪欧 2026款 1.5T  EcoBoost  豪华型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9e46a3395e87d76fd9129a7e",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗HS5",
+          "model": "25款 2.0T 两驱旗领Pro版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗HS5",
+          "model": "红旗HS5 2025款 2.0T 两驱旗领Pro版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9e4c340e09fb7b89eea13cd8",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L",
+          "model": "22款 1.4T CVT 旗舰型",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L",
+          "model": "帝豪L 2022款 1.4T CVT旗舰型",
+          "year": "2022",
           "sources": [
             "汽车之家"
           ]
@@ -4332,6 +4746,29 @@
       ]
     },
     {
+      "candidate_id": "9ff236eefa9988470bfae21e",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "威兰达PHEV",
+          "model": "2.5L 四驱劲擎版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "威兰达 插电混动",
+          "model": "24款 2.5L 73km 四驱劲擎版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "a1e3abcd52dbfc7887727af3",
       "members": [
         {
@@ -4348,6 +4785,29 @@
           "series": "北京EU8",
           "model": "北京EU8 2026款 501km 出行版",
           "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a2a84c137ad988a2799e524e",
+      "members": [
+        {
+          "brand": "标致",
+          "series": "标致408",
+          "model": "24款 龘龘款 360THP 拉图版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "标致",
+          "series": "标致408",
+          "model": "标致408 2024款 360THP 龘龘款 拉图版",
+          "year": "2024",
           "sources": [
             "汽车之家"
           ]
@@ -4470,6 +4930,29 @@
       ]
     },
     {
+      "candidate_id": "a9e68bc110340a5ba9ccae93",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "福克斯",
+          "model": "22款 两厢 EcoBoost180 S版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "福克斯",
+          "model": "福克斯 2022款 两厢 EcoBoost 180 自动S版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "ab4f7da2523efff65229ce78",
       "members": [
         {
@@ -4562,6 +5045,98 @@
       ]
     },
     {
+      "candidate_id": "adab21b54a4122b7a05e98e9",
+      "members": [
+        {
+          "brand": "东风风光",
+          "series": "风光500",
+          "model": "22款 1.5T CVT 智享型",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东风风光",
+          "series": "风光500",
+          "model": "风光500 2022款 1.5T CVT智享型",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "aed786b253925e2c896c796b",
+      "members": [
+        {
+          "brand": "标致",
+          "series": "标致408",
+          "model": "24款 龘龘款 360THP 罗曼尼版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "标致",
+          "series": "标致408",
+          "model": "标致408 2024款 360THP 龘龘款 罗曼尼版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b0ac05074d6f3513b7195a1e",
+      "members": [
+        {
+          "brand": "凌宝汽车",
+          "series": "凌宝Uni",
+          "model": "24款 201km 超甜版(手动座椅) 15.552kWh",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "凌宝汽车",
+          "series": "凌宝uni",
+          "model": "凌宝uni 2024款 超甜版(手动座椅) 15.552kWh",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b2be1e57e6416ace478563e4",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗H5",
+          "model": "26款 2.0T 自动旗领Pro版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗H5",
+          "model": "红旗H5 2026款 2.0T 自动旗领Pro版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "b2db16b25a65e156c9de9303",
       "members": [
         {
@@ -4601,6 +5176,29 @@
           "series": "宝骏云海",
           "model": "宝骏云海 2026款 600km 纯电标准版",
           "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b69c78506738b145b6408cc9",
+      "members": [
+        {
+          "brand": "凌宝汽车",
+          "series": "凌宝Uni",
+          "model": "24款 201km 超甜版(电动座椅) 15.97kWh",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "凌宝汽车",
+          "series": "凌宝uni",
+          "model": "凌宝uni 2024款 超甜版(电动座椅) 15.97kWh",
+          "year": "2024",
           "sources": [
             "汽车之家"
           ]
@@ -4792,6 +5390,29 @@
       ]
     },
     {
+      "candidate_id": "c08eddce59f88aff5fa42fe0",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗HS5",
+          "model": "25款 2.0T 两驱旗享Pro版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗HS5",
+          "model": "红旗HS5 2025款 2.0T 两驱旗享Pro版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "c0cc62e3db7b605660ddb124",
       "members": [
         {
@@ -4831,6 +5452,52 @@
           "series": "创维EV6",
           "model": "创维EV6 2024款 430 极行版",
           "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c1cd59dac4910a9aa1aa8026",
+      "members": [
+        {
+          "brand": "东南",
+          "series": "东南A5翼舞",
+          "model": "22款 1.5L CVT 翼铂版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东南",
+          "series": "东南A5翼舞",
+          "model": "东南A5翼舞 2022款 1.5L CVT翼铂版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c2ad3013cfaaae6ce9a48ba1",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲狮",
+          "model": "23款 双擎 2.0L 尊悦版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲狮",
+          "model": "亚洲狮 2023款 双擎 2.0L 尊悦版",
+          "year": "2023",
           "sources": [
             "汽车之家"
           ]
@@ -4999,6 +5666,29 @@
       ]
     },
     {
+      "candidate_id": "c9f5692f30d3267e677bbe28",
+      "members": [
+        {
+          "brand": "东风风光",
+          "series": "风光500",
+          "model": "22款 1.5T CVT 畅享型",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东风风光",
+          "series": "风光500",
+          "model": "风光500 2022款 1.5T CVT畅享型",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "c9fce6609a8b0ccb6094dbd8",
       "members": [
         {
@@ -5015,6 +5705,29 @@
           "series": "型格",
           "model": "型格 2025款 HATCHBACK 2.0L e:HEV 锐·舒享型酷套装",
           "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cae23de4bdfacc2165f70fab",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "卡罗拉",
+          "model": "26款 双擎 1.8L 旗舰版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "卡罗拉",
+          "model": "卡罗拉 2026款 1.8L 双擎 旗舰版",
+          "year": "2026",
           "sources": [
             "汽车之家"
           ]
@@ -5114,6 +5827,52 @@
       ]
     },
     {
+      "candidate_id": "cdbc64913ea17e33d3e5e736",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "26款 2.0T EcoBoost 豪华型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "蒙迪欧 2026款  2.0T  EcoBoost  豪华型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cdcde76c879a1825ff9e499c",
+      "members": [
+        {
+          "brand": "东风奕派",
+          "series": "奕派008",
+          "model": "增程 超阔版 5座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风奕派",
+          "series": "奕派008",
+          "model": "26款 增程版 202km 超阔版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "ce412224f93e00bdf46b055c",
       "members": [
         {
@@ -5160,6 +5919,29 @@
       ]
     },
     {
+      "candidate_id": "cee2a2dfbcf5504002f276a2",
+      "members": [
+        {
+          "brand": "林肯",
+          "series": "航海家",
+          "model": "26款 2.0T 四驱黑武士版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "林肯",
+          "series": "航海家",
+          "model": "航海家 2026款 2.0T 四驱黑武士版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "cee75c6e71618afce6d846c7",
       "members": [
         {
@@ -5175,6 +5957,52 @@
           "brand": "方程豹",
           "series": "钛7",
           "model": "钛7 2025款 200KM两驱Max版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d032361dbaf61c188ad2ed18",
+      "members": [
+        {
+          "brand": "雷克萨斯",
+          "series": "雷克萨斯RZ",
+          "model": "300e 长续航 纵行版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "雷克萨斯",
+          "series": "雷克萨斯RZ",
+          "model": "24款 300e 长续航纵行版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d21ef9e51aba03e4803debd6",
+      "members": [
+        {
+          "brand": "凯翼",
+          "series": "炫界Pro",
+          "model": "25款 1.5T CVT领先版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "凯翼",
+          "series": "炫界Pro",
+          "model": "炫界Pro 2025款 1.5T CVT领先版",
           "year": "2025",
           "sources": [
             "汽车之家"
@@ -5229,6 +6057,29 @@
       ]
     },
     {
+      "candidate_id": "d3ada2d3d728c78ce4b054f2",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "26款 双擎 2.0L 星耀版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "亚洲龙 2026款 双擎 2.0L 星耀版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "d3b19dae666c5c6cf8594860",
       "members": [
         {
@@ -5275,6 +6126,52 @@
       ]
     },
     {
+      "candidate_id": "d57188dd8f16579a1dd5b554",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "福克斯",
+          "model": "22款 三厢 EcoBoost180 S版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "福克斯",
+          "model": "福克斯 2022款 三厢 EcoBoost 180 自动S版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d59eded0a11b8ba5790df155",
+      "members": [
+        {
+          "brand": "捷尼赛思",
+          "series": "捷尼赛思G80",
+          "model": "26款 2.5T 四驱旗舰版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷尼赛思",
+          "series": "捷尼赛思G80",
+          "model": "捷尼赛思G80 2026款 2.5T 四驱旗舰版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "d75eee1442d0944f6c1734ee",
       "members": [
         {
@@ -5314,6 +6211,29 @@
           "series": "创维EV6",
           "model": "创维EV6 2026款 520 神行版",
           "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d7e6050e9bc6b59e00a743b2",
+      "members": [
+        {
+          "brand": "捷尼赛思",
+          "series": "捷尼赛思G70",
+          "model": "24款 2.0T 四驱豪华版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷尼赛思",
+          "series": "捷尼赛思G70",
+          "model": "捷尼赛思G70 2024款 2.0T 四驱豪华型",
+          "year": "2024",
           "sources": [
             "汽车之家"
           ]
