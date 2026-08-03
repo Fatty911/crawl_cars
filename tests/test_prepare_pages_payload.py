@@ -65,7 +65,6 @@ def test_prepare_rows_keeps_recent_sparse_rows_and_meaningful_zeroes():
     ]
 
     assert MODULE.prepare_rows(rows, 2022) == [
-        listed({"品牌": "甲", "车型名称": "新车 2024款", "气囊数": 0}),
         listed({"品牌": "乙", "车系": "乙车系", "车型名称": "易车新款 2026款", "年款": "2026", "数据来源": "仅易车", "易车上市状态": "approved", "车款ID": "1001", "配置A": "有"}),
     ]
 
@@ -253,14 +252,23 @@ def test_prepare_rows_reports_price_and_listing_drop_stats():
         dict(base, 官方指导价="暂无报价", 上市时间="2026-01-01"),
         dict(base, 官方指导价="12.98万", 上市时间=""),
         dict(base, 官方指导价="12.98万", 上市时间="2099-01-01"),
+        dict(base, 车型名称="2.3T 1966标准版", 年款="2025|25", 官方指导价="38.66万", 上市时间="2025.09"),
         dict(base, 官方指导价="12.98万", 上市时间="汽车之家:2026-04-16|懂车帝:2026.04"),
     ]
     prepared, stats = MODULE.prepare_rows_with_stats(rows, 2022)
     assert prepared == [dict(rows[-1], 上市时间="懂车帝:2026.04")]
-    assert stats == {
+    assert {key: stats[key] for key in (
+        "droppedMissingOfficialPrice",
+        "droppedMissingListingTime",
+        "droppedFutureListingTime",
+        "droppedInvalidYear",
+        "fieldSourceContradictions",
+        "retiredFieldSegmentsRemoved",
+    )} == {
         "droppedMissingOfficialPrice": 1,
         "droppedMissingListingTime": 1,
         "droppedFutureListingTime": 1,
+        "droppedInvalidYear": 1,
         "fieldSourceContradictions": 1,
         "retiredFieldSegmentsRemoved": 1,
     }

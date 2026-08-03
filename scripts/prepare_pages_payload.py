@@ -1663,6 +1663,7 @@ def prepare_rows_with_stats(
         "droppedMissingOfficialPrice": 0,
         "droppedMissingListingTime": 0,
         "droppedFutureListingTime": 0,
+        "droppedInvalidYear": 0,
     }
     for row in rows:
         if not isinstance(row, dict):
@@ -1686,7 +1687,11 @@ def prepare_rows_with_stats(
             continue
         if not publish_boundary_valid(row):
             continue
-        year = model_year(row)
+        year_text = str(row.get("年款") or "").strip()
+        if not YEAR_RE.fullmatch(year_text):
+            stats["droppedInvalidYear"] += 1
+            continue
+        year = int(year_text)
         if year is None or year < min_year:
             continue
         if "易车" in str(row.get("数据来源", "") or ""):
@@ -1766,6 +1771,7 @@ def main() -> int:
                 "droppedMissingOfficialPrice": stats["droppedMissingOfficialPrice"],
                 "droppedMissingListingTime": stats["droppedMissingListingTime"],
                 "droppedFutureListingTime": stats["droppedFutureListingTime"],
+                "droppedInvalidYear": stats["droppedInvalidYear"],
                 **{
                     key: value
                     for key, value in stats.items()
