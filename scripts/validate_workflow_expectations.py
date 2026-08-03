@@ -275,6 +275,15 @@ def check_yiche_workflow(path: Path, errors: list[str]) -> None:
         f"{path.name} 未将 debug_mode 持久化给后续 Verify 步骤",
         errors,
     )
+    run_section = text.split("name: 运行易车爬虫", 1)[1].split("name: Disable proxy for Yiche checkpoint upload", 1)[0]
+    assert_condition(
+        'series_args=(--max-series "$MAX_SERIES")' in run_section
+        and 'series_args=()' in run_section
+        and '"${series_args[@]}"' in run_section
+        and 'python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series "$MAX_SERIES"' not in run_section,
+        f"{path.name} 恢复模式不得继续向 crawl_yiche.py 传 --max-series",
+        errors,
+    )
     trigger_section = text.split("name: Trigger merge-and-filter workflow", 1)[1]
     assert_condition(
         'MERGE_DEBUG_MODE="${DEBUG_MODE:-false}"' in trigger_section

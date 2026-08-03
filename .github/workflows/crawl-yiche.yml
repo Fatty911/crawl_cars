@@ -357,7 +357,9 @@ jobs:
           YICHE_OUTPUT_PATH="yiche_$(date +%Y%m%d).json"
           echo "YICHE_OUTPUT_PATH=$YICHE_OUTPUT_PATH" >> "$GITHUB_ENV"
           resume_args=()
+          series_args=(--max-series "$MAX_SERIES")
           if [ -n "${YICHE_RESUME_CHECKPOINT:-}" ]; then
+            series_args=()
             resume_args=(
               --resume-checkpoint "$YICHE_RESUME_CHECKPOINT"
               --resume-source-run-id "$YICHE_RESUME_RUN_ID"
@@ -376,7 +378,7 @@ jobs:
             wait "$crawler_pid" || true
             exit "$exit_code"
           }
-          python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series "$MAX_SERIES" \
+          python scripts/crawl_yiche.py --time-limit "$RUN_TIME" "${series_args[@]}" \
             --output "$YICHE_OUTPUT_PATH" "${resume_args[@]}" &
           crawler_pid=$!
           trap 'forward_crawler_signal INT 130' INT
