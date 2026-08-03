@@ -340,20 +340,20 @@ jobs:
           fi
 
       - name: Set up Node.js for OpenCode Agent
-        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.paid_required == 'true'
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_validate.outputs.valid != 'true'
         continue-on-error: true
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
       - name: Install fixed OpenCode CLI
-        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.paid_required == 'true'
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_validate.outputs.valid != 'true'
         continue-on-error: true
         shell: bash
         run: npm install --global opencode-ai@1.18.11
 
       - name: Prepare isolated OpenCode directory
-        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.paid_required == 'true'
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_validate.outputs.valid != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -362,7 +362,7 @@ jobs:
 
       - name: Run Volcengine Plan through read-only OpenCode Agent
         id: plan_agent
-        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.paid_required == 'true'
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_validate.outputs.valid != 'true'
         continue-on-error: true
         env:
           VOLCENGINE_AGENTPLAN_API_KEY: ${{ secrets.VOLCENGINE_AGENTPLAN_API_KEY }}

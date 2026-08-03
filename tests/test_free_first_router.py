@@ -90,4 +90,8 @@ def test_plan_workflows_are_gated_after_the_free_route():
             plan_position = text.index(marker)
             free_position = text.rfind("Run configured free endpoints first", 0, plan_position)
             assert free_position >= 0, workflow
-            assert "steps.free_route.outputs.paid_required == 'true'" in text[free_position:plan_position + 500], workflow
+            plan_gate = text[free_position:plan_position + 500]
+            if workflow.name == "single-source-repair.yml":
+                assert "steps.free_validate.outputs.valid != 'true'" in plan_gate
+            else:
+                assert "steps.free_route.outputs.paid_required == 'true'" in plan_gate
