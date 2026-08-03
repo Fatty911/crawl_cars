@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.single_source_repair import (
     ALLOWED_FILES,
     RepairInputError,
+    _car_manifest_patch,
+    _car_replay_metrics,
+    _car_selection,
     _json_response,
     _strict_json_load,
     analyze_payload,
@@ -102,6 +109,114 @@ class SingleSourceRepairTests(unittest.TestCase):
         with self.assertRaises(RepairInputError):
             validate_patch_text(patch, "phones")
         self.assertTrue(ALLOWED_FILES["phones"])
+
+    def test_car_repair_is_manifest_only_and_model_cannot_invent_candidates(self) -> None:
+        self.assertEqual(
+            ALLOWED_FILES["cars"],
+            ("config/safe_v2_absorption_manifest.json",),
+        )
+        report = {
+            "candidates": [
+                {
+                    "candidate_id": "a" * 24,
+                    "members": [
+                        {"brand": "甲", "series": "A", "model": "M1", "year": "2026", "sources": ["汽车之家"]},
+                        {"brand": "甲", "series": "A", "model": "M2", "year": "2026", "sources": ["懂车帝"]},
+                    ],
+                }
+            ]
+        }
+        response = {
+            "approved_candidate_ids": ["a" * 24],
+            "confidence": 0.95,
+            "evidence": ["同品牌车系年款，且无硬冲突"],
+            "analysis": "名称粒度差异",
+        }
+        selected, confidence, evidence, _analysis = _car_selection(response, report)
+        self.assertEqual(["a" * 24], [item["candidate_id"] for item in selected])
+        self.assertEqual(0.95, confidence)
+        self.assertTrue(evidence)
+
+        invented = dict(response, approved_candidate_ids=["b" * 24])
+        with self.assertRaises(RepairInputError):
+            _car_selection(invented, report)
+
+    def test_car_replay_requires_real_visible_metric_improvement(self) -> None:
+        rows = [
+            {"数据来源": "仅汽车之家", "品牌": "甲", "车系": "A", "车型名称": "2026款 云游版", "年款": "2026"},
+            {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "A", "车型名称": "星河版", "年款": "2026"},
+        ]
+        members = [
+            {"brand": "甲", "series": "A", "model": "星河版", "year": "2026", "sources": ["懂车帝"]},
+            {"brand": "甲", "series": "A", "model": "2026款 云游版", "year": "2026", "sources": ["汽车之家"]},
+        ]
+        baseline = {
+            "schema": "safe-v2-absorption-policy-v1",
+            "allowed_identities": [],
+            "approved_components": [],
+        }
+        candidate_id = hashlib.sha256(
+            json.dumps(members, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()[:24]
+        candidate = {
+            **baseline,
+            "approved_components": [{"candidate_id": candidate_id, "members": members}],
+        }
+
+        metrics = _car_replay_metrics(rows, baseline, candidate)
+
+        self.assertEqual(1, metrics["multi_gain"])
+        self.assertEqual(2, metrics["single_reduction"])
+        with self.assertRaises(RepairInputError):
+            _car_replay_metrics(rows, baseline, baseline)
+
+    def test_car_manifest_rejects_overlap_with_existing_approval(self) -> None:
+        shared = {
+            "brand": "甲",
+            "series": "A",
+            "model": "星河版",
+            "year": "2026",
+            "sources": ["懂车帝"],
+        }
+        baseline = {
+            "schema": "safe-v2-absorption-policy-v1",
+            "allowed_identities": [],
+            "approved_components": [
+                {
+                    "candidate_id": "a" * 24,
+                    "members": [
+                        shared,
+                        {
+                            "brand": "甲",
+                            "series": "A",
+                            "model": "云游版",
+                            "year": "2026",
+                            "sources": ["汽车之家"],
+                        },
+                    ],
+                }
+            ],
+        }
+        selected = [
+            {
+                "candidate_id": "b" * 24,
+                "members": [
+                    shared,
+                    {
+                        "brand": "甲",
+                        "series": "A",
+                        "model": "远航版",
+                        "year": "2026",
+                        "sources": ["易车"],
+                    },
+                ],
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            manifest_path = Path(directory) / "manifest.json"
+            manifest_path.write_text(json.dumps(baseline, ensure_ascii=False), encoding="utf-8")
+            with self.assertRaises(RepairInputError):
+                _car_manifest_patch(manifest_path, baseline, selected)
 
 
 if __name__ == "__main__":

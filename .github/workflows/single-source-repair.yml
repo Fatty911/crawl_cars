@@ -339,6 +339,8 @@ jobs:
               '基线 SHA: ' + clean(result.base_sha) + '\n' +
               '轮次: ' + clean(result.round) + '\n' +
               '单源率: ' + clean(result.single_rate) + '%\n' +
+              '全量候选数: ' + clean(result.candidate_count) + '\n' +
+              '重放基线/候选: ' + clean(JSON.stringify(result.replay || {})) + '\n' +
               '根因: ' + clean(result.root_cause) + '\n' +
               '置信度: ' + clean(result.confidence) + '\n' +
               '原因: ' + clean(result.reason) + '\n' +
@@ -382,6 +384,7 @@ jobs:
         with:
           name: single-source-repair-proposal-${{ github.run_id }}
           path: |
+            pages_latest.json
             single_source_report.json
             single_source_repair_result.json
             single_source_repair.patch
@@ -426,6 +429,7 @@ jobs:
           set -euo pipefail
           test -f proposal/single_source_repair.patch
           test -f proposal/single_source_repair_result.json
+          test -f proposal/pages_latest.json
           python3 - "$SOURCE_SHA" "$PAGES_RUN_ID" "$REPO_KIND" "$PAGES_URL" <<'PY'
           import hashlib
           import json
@@ -457,7 +461,10 @@ jobs:
           test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
           python scripts/single_source_repair.py --repo-kind "$REPO_KIND" --check-patch proposal/single_source_repair.patch
           git apply --whitespace=error proposal/single_source_repair.patch
-          python scripts/single_source_repair.py --repo-kind "$REPO_KIND" --validate-working-tree
+          python scripts/single_source_repair.py \
+            --repo-kind "$REPO_KIND" \
+            --validate-working-tree \
+            --data proposal/pages_latest.json
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

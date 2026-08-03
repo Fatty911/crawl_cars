@@ -23,7 +23,7 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(MODULE)
 
 
-def test_safe_v2_policy_matches_authoritative_85_identity_manifest():
+def test_safe_v2_policy_matches_authoritative_identity_manifest():
     policy_path = ROOT / "config" / "safe_v2_absorption_manifest.json"
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
     identities = {
@@ -31,8 +31,8 @@ def test_safe_v2_policy_matches_authoritative_85_identity_manifest():
         for item in policy["allowed_identities"]
     }
     assert policy["schema"] == "safe-v2-absorption-policy-v1"
-    assert len(identities) == 85
-    assert policy["expected"]["existing_multi_unique_absorb_candidate"] == 85
+    assert len(identities) == policy["expected"]["existing_multi_unique_absorb_candidate"]
+    assert len(policy.get("approved_components", [])) == policy["expected"].get("approved_components", 0)
     assert len(policy["permanent_negative_component_ids"]) == 6
 
     authoritative = Path("/work/target_user_single_manifest.json")
@@ -315,6 +315,59 @@ def prepare_v2_with_stats(rows):
         2022,
         absorption_scope=absorption_scope(rows),
     )
+
+
+def test_candidate_search_starts_from_single_series_then_uses_full_universe():
+    common = {"品牌": "测试品牌", "车系": "测试车系", "年款": "2026"}
+    autohome = listed({**common, "数据来源": "仅汽车之家", "车型名称": "2026款 云游版"})
+    dongchedi = listed({**common, "数据来源": "仅懂车帝", "车型名称": "星河版"})
+    unrelated = listed({
+        "数据来源": "仅易车",
+        "品牌": "测试品牌",
+        "车系": "其它车系",
+        "车型名称": "无关版本",
+        "年款": "2026",
+        "易车上市状态": "approved",
+    })
+
+    report = MODULE.discover_single_source_candidates(
+        [autohome, dongchedi, unrelated],
+        limit=10,
+    )
+
+    assert report["method"] == "single-series-to-full-universe-v1"
+    assert report["target_brand_series"] == 2
+    assert report["candidate_count"] == 1
+    candidate = report["candidates"][0]
+    assert {tuple(member["sources"]) for member in candidate["members"]} == {
+        ("汽车之家",),
+        ("懂车帝",),
+    }
+    assert all(member["series"] != "其它车系" for member in candidate["members"])
+
+
+def test_approved_component_manifest_only_annotates_exact_two_source_pair():
+    common = {"品牌": "测试品牌", "车系": "测试车系", "年款": "2026"}
+    autohome = listed({**common, "数据来源": "仅汽车之家", "车型名称": "2026款 云游版"})
+    dongchedi = listed({**common, "数据来源": "仅懂车帝", "车型名称": "星河版"})
+    members = sorted(
+        [
+            MODULE._manifest_member({"row": autohome, "sources": {"汽车之家"}}),
+            MODULE._manifest_member({"row": dongchedi, "sources": {"懂车帝"}}),
+        ],
+        key=lambda item: tuple(item["sources"]),
+    )
+    component = {"candidate_id": "1" * 24, "members": members}
+
+    prepared, stats = MODULE.annotate_safe_visible_components(
+        [autohome, dongchedi],
+        absorption_scope=set(),
+        approved_components=[component],
+    )
+
+    assert {row["跨源归并ID"] for row in prepared} == {"visible-f-v3:" + "1" * 24}
+    assert stats["visibleFApprovedComponents"] == 1
+    assert MODULE.visible_card_stats(prepared)["visible_rate"] == 100.0
 
 
 def test_safe_three_source_chain_gets_one_auditable_visible_component_id():

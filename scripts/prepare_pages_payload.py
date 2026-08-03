@@ -70,6 +70,7 @@ VISIBLE_COMPONENT_ID = "跨源归并ID"
 VISIBLE_COMPONENT_EVIDENCE = "跨源归并证据"
 VISIBLE_COMPONENT_SCHEMA = "visible-f-v1"
 VISIBLE_ABSORPTION_SCHEMA = "visible-f-v2"
+VISIBLE_APPROVED_SCHEMA = "visible-f-v3"
 _MODEL_TEXT_PUNCTUATION = re.compile(r"[·・,，.。/／\\()（）\-_+]")
 _EXTRA_TIER_PATTERN = re.compile(
     r"(?<![a-z0-9])(ultra\+|pro\+|max\+|ultra|pro|max|plus|core|air)(?![a-z])",
@@ -233,6 +234,13 @@ def canonical_series_name(row: dict[str, Any]) -> str:
             series = series[:-len(suffix)]
             break
     return series
+
+
+def canonical_brand_series(row: dict[str, Any]) -> tuple[str, str] | None:
+    brand = normalize_match_text(row.get("品牌"))
+    brand = BRAND_NORMALIZE.get(brand, brand)
+    series = canonical_series_name(row)
+    return (brand, series) if brand and series else None
 
 
 def canonical_series_year_key(row: dict[str, Any]) -> str:
@@ -893,6 +901,103 @@ def _annotate_v1_components(rows: list[dict[str, Any]]) -> tuple[list[dict[str, 
     return annotated, {key: value for key, value in stats.items() if value}
 
 
+def _manifest_member(node: dict[str, Any]) -> dict[str, Any]:
+    row = node["row"]
+    return {
+        "brand": str(row.get("品牌", "") or "").strip(),
+        "series": str(row.get("车系", "") or "").strip(),
+        "model": str(row.get("车型名称", "") or "").strip(),
+        "year": str(row.get("年款", "") or "").strip(),
+        "sources": sorted(node["sources"], key=lambda source: _SOURCE_ORDER.get(source, 99)),
+    }
+
+
+def _annotate_approved_components(
+    rows: list[dict[str, Any]],
+    components: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    annotated = [dict(row) for row in rows]
+    nodes = _frontend_nodes(annotated, key_function=_strict_frontend_visible_key)
+    nodes_by_member: dict[str, list[int]] = {}
+    for index, node in enumerate(nodes):
+        member_key = json.dumps(
+            _manifest_member(node),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        nodes_by_member.setdefault(member_key, []).append(index)
+
+    assigned_nodes: set[int] = set()
+    assigned_rows = 0
+    accepted = 0
+    stale = 0
+    rejected = Counter()
+    for component in components:
+        indexes = []
+        for member in component["members"]:
+            key = json.dumps(
+                member,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            matches = nodes_by_member.get(key, [])
+            if len(matches) != 1:
+                indexes = []
+                rejected["visibleFApprovedRejectedNonUnique"] += 1
+                break
+            indexes.append(matches[0])
+        if len(indexes) != 2 or len(set(indexes)) != 2:
+            stale += 1
+            continue
+        if any(index in assigned_nodes for index in indexes):
+            rejected["visibleFApprovedRejectedOverlap"] += 1
+            continue
+        component_nodes = [nodes[index] for index in indexes]
+        left_sources = set(component_nodes[0]["sources"])
+        right_sources = set(component_nodes[1]["sources"])
+        source_overlap_is_subset = (
+            left_sources < right_sources or right_sources < left_sources
+        )
+        if (
+            len(left_sources | right_sources) < 2
+            or left_sources & right_sources and not source_overlap_is_subset
+        ):
+            rejected["visibleFApprovedRejectedSourceOverlap"] += 1
+            continue
+        conflict = visible_component_conflict_reason(
+            component_nodes[0]["row"],
+            component_nodes[1]["row"],
+        )
+        if conflict:
+            rejected["visibleFApprovedRejectedHardConflict"] += 1
+            continue
+        score, reasons = _component_pair_score(component_nodes[0], component_nodes[1])
+        component_id = f"{VISIBLE_APPROVED_SCHEMA}:{component['candidate_id']}"
+        evidence = _component_evidence(
+            component_id,
+            component_nodes,
+            [(0, 1, score, [*reasons, "llm_approved_manifest"])],
+            schema=VISIBLE_APPROVED_SCHEMA,
+        )
+        for node in component_nodes:
+            for row_index in node["indexes"]:
+                annotated[row_index][VISIBLE_COMPONENT_ID] = component_id
+                annotated[row_index][VISIBLE_COMPONENT_EVIDENCE] = evidence
+                assigned_rows += 1
+        assigned_nodes.update(indexes)
+        accepted += 1
+
+    stats = {
+        "visibleFApprovedComponents": accepted,
+        "visibleFApprovedRows": assigned_rows,
+        "visibleFApprovedStale": stale,
+        **rejected,
+    }
+    return annotated, {key: value for key, value in stats.items() if value}
+
+
 def _raw_node_rows(
     node: dict[str, Any],
     rows: list[dict[str, Any]],
@@ -900,9 +1005,18 @@ def _raw_node_rows(
     return [rows[index] for index in node["indexes"]]
 
 
-def _absorption_scope_identities() -> set[tuple[str, str, str, str]]:
+def _absorption_policy() -> dict[str, Any]:
     with _ABSORPTION_MANIFEST_PATH.open(encoding="utf-8") as handle:
         manifest = json.load(handle)
+    if manifest.get("schema") != "safe-v2-absorption-policy-v1":
+        raise ValueError("safe-v2 absorption manifest schema is invalid")
+    return manifest
+
+
+def _absorption_scope_identities(
+    manifest: dict[str, Any] | None = None,
+) -> set[tuple[str, str, str, str]]:
+    manifest = _absorption_policy() if manifest is None else manifest
     identities = {
         (
             str(item["brand"]),
@@ -912,9 +1026,53 @@ def _absorption_scope_identities() -> set[tuple[str, str, str, str]]:
         )
         for item in manifest.get("allowed_identities", [])
     }
-    if manifest.get("schema") != "safe-v2-absorption-policy-v1" or len(identities) != 85:
-        raise ValueError("safe-v2 absorption manifest is invalid")
+    if len(identities) != len(manifest.get("allowed_identities", [])):
+        raise ValueError("safe-v2 absorption manifest has duplicate identities")
     return identities
+
+
+def _approved_components(
+    manifest: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    manifest = _absorption_policy() if manifest is None else manifest
+    components = manifest.get("approved_components", [])
+    if not isinstance(components, list):
+        raise ValueError("approved_components must be an array")
+    candidate_ids = [str(item.get("candidate_id", "")) for item in components if isinstance(item, dict)]
+    if len(candidate_ids) != len(components) or len(set(candidate_ids)) != len(candidate_ids):
+        raise ValueError("approved_components contains invalid or duplicate candidate IDs")
+    for component in components:
+        candidate_id = str(component.get("candidate_id", ""))
+        if not re.fullmatch(r"[0-9a-f]{24}", candidate_id):
+            raise ValueError("approved component candidate ID is invalid")
+        members = component.get("members")
+        if not isinstance(members, list) or len(members) != 2:
+            raise ValueError("approved component must contain exactly two members")
+        for member in members:
+            if not isinstance(member, dict):
+                raise ValueError("approved component member must be an object")
+            if set(member) != {"brand", "series", "model", "year", "sources"}:
+                raise ValueError("approved component member schema is invalid")
+            if any(not isinstance(member[field], str) or not member[field] for field in ("brand", "series", "model", "year")):
+                raise ValueError("approved component member identity is invalid")
+            sources = member.get("sources")
+            if not isinstance(sources, list) or not sources or any(not isinstance(source, str) or not source for source in sources):
+                raise ValueError("approved component member sources are invalid")
+            canonical_sources = sorted(set(sources), key=lambda source: _SOURCE_ORDER.get(source, 99))
+            if sources != canonical_sources or any(source not in _SOURCE_ORDER for source in sources):
+                raise ValueError("approved component member sources are not canonical")
+        fingerprint = json.dumps(
+            members,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()[:24] != candidate_id:
+            raise ValueError("approved component candidate ID does not match its members")
+    expected_count = manifest.get("expected", {}).get("approved_components")
+    if expected_count is not None and expected_count != len(components):
+        raise ValueError("approved component count does not match manifest metadata")
+    return components
 
 
 def _row_scope_identity(row: dict[str, Any]) -> tuple[str, str, str, str]:
@@ -1199,24 +1357,33 @@ def _annotate_safe_absorptions(
 def annotate_safe_visible_components(
     rows: list[dict[str, Any]],
     absorption_scope: set[tuple[str, str, str, str]] | None = None,
+    approved_components: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     legacy, legacy_stats = _annotate_v1_components(rows)
-    annotated, absorption_stats = _annotate_safe_absorptions(
+    approved, approved_stats = _annotate_approved_components(
         legacy,
+        _approved_components() if approved_components is None else approved_components,
+    )
+    annotated, absorption_stats = _annotate_safe_absorptions(
+        approved,
         absorption_scope=absorption_scope,
     )
     stats = dict(legacy_stats)
+    stats.update(approved_stats)
     stats.update(absorption_stats)
     stats["visibleFResolvedComponents"] = (
         legacy_stats.get("visibleFResolvedComponents", 0)
+        + approved_stats.get("visibleFApprovedComponents", 0)
         + absorption_stats.get("visibleFAbsorbedComponents", 0)
     )
     stats["visibleFResolvedRows"] = (
         legacy_stats.get("visibleFResolvedRows", 0)
+        + approved_stats.get("visibleFApprovedRows", 0)
         + absorption_stats.get("visibleFAbsorbedPayloadRows", 0)
     )
     stats["visibleFTwoSourceComponents"] = (
         legacy_stats.get("visibleFTwoSourceComponents", 0)
+        + approved_stats.get("visibleFApprovedComponents", 0)
         + absorption_stats.get("visibleFAbsorbedTwoSourceComponents", 0)
     )
     stats["visibleFThreeSourceComponents"] = (
@@ -1344,6 +1511,142 @@ def visible_card_stats(rows: list[dict[str, Any]]) -> dict[str, int | float]:
         "visible_single": visible_single,
         "visible_multi": visible_multi,
         "visible_rate": round((visible_multi / visible_rows * 100) if visible_rows else 0.0, 12),
+    }
+
+
+def discover_single_source_candidates(
+    rows: list[dict[str, Any]],
+    *,
+    limit: int = 80,
+) -> dict[str, Any]:
+    """Find bounded cross-source candidates from the full universe of single-source series."""
+    if limit < 1:
+        raise ValueError("candidate limit must be positive")
+    baseline, _stats = annotate_safe_visible_components(rows)
+    nodes = _frontend_nodes(baseline, key_function=_strict_frontend_visible_key)
+    single_indexes = {
+        index
+        for index, node in enumerate(nodes)
+        if len(node["sources"]) == 1 and len(node["indexes"]) == 1
+    }
+    target_series = {
+        key
+        for index in single_indexes
+        if (key := canonical_brand_series(nodes[index]["row"])) is not None
+    }
+    universe_indexes = {
+        index
+        for index, node in enumerate(nodes)
+        if canonical_brand_series(node["row"]) in target_series
+    }
+    universe_by_series_year: dict[tuple[str, str, int], list[int]] = {}
+    for index in universe_indexes:
+        series_key = canonical_brand_series(nodes[index]["row"])
+        year = model_year(nodes[index]["row"])
+        if series_key is not None and year is not None:
+            universe_by_series_year.setdefault((*series_key, year), []).append(index)
+
+    counts = Counter()
+    candidates_by_id: dict[str, dict[str, Any]] = {}
+    for single_index in sorted(single_indexes):
+        single = nodes[single_index]
+        series_key = canonical_brand_series(single["row"])
+        year = model_year(single["row"])
+        if series_key is None or year is None:
+            counts["missing_series_or_year"] += 1
+            continue
+        alternatives = []
+        for other_index in universe_by_series_year.get((*series_key, year), []):
+            if other_index == single_index:
+                continue
+            other = nodes[other_index]
+            single_sources = set(single["sources"])
+            other_sources = set(other["sources"])
+            if single_sources & other_sources and not single_sources < other_sources:
+                continue
+            conflict = visible_component_conflict_reason(single["row"], other["row"])
+            if conflict:
+                counts["hard_conflict"] += 1
+                continue
+            score, reasons = _component_pair_score(single, other)
+            alternatives.append((score, other_index, reasons))
+        if not alternatives:
+            counts["no_cross_source_candidate"] += 1
+            continue
+        alternatives.sort(key=lambda item: (-item[0], item[1]))
+        best_score, best_index, best_reasons = alternatives[0]
+        next_score = alternatives[1][0] if len(alternatives) > 1 else 0.0
+        margin = best_score - next_score
+        if best_score < 0.20:
+            counts["insufficient_similarity"] += 1
+            continue
+        if len(alternatives) > 1 and margin < 0.08:
+            counts["ambiguous_candidates"] += 1
+            continue
+        best = nodes[best_index]
+        members = sorted(
+            [_manifest_member(single), _manifest_member(best)],
+            key=lambda item: (tuple(item["sources"]), item["brand"], item["series"], item["model"], item["year"]),
+        )
+        fingerprint = json.dumps(
+            members,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        candidate_id = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()[:24]
+        is_new_candidate = candidate_id not in candidates_by_id
+        candidates_by_id[candidate_id] = {
+            "candidate_id": candidate_id,
+            "effect": (
+                "new_multi_card"
+                if len(single["sources"]) == 1 and len(best["sources"]) == 1
+                else "absorb_single_into_multi"
+            ),
+            "brand": members[0]["brand"],
+            "canonical_series": series_key[1],
+            "year": year,
+            "score": round(best_score, 4),
+            "margin": round(margin, 4),
+            "alternative_count": len(alternatives),
+            "reasons": best_reasons,
+            "members": members,
+        }
+        if is_new_candidate:
+            counts["unique_candidate"] += 1
+
+    ordered = sorted(
+        candidates_by_id.values(),
+        key=lambda item: (
+            item["effect"] != "new_multi_card",
+            -item["score"],
+            -item["margin"],
+            item["candidate_id"],
+        ),
+    )
+    disjoint = []
+    used_members: set[str] = set()
+    for candidate in ordered:
+        fingerprints = {
+            json.dumps(member, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            for member in candidate["members"]
+        }
+        if fingerprints & used_members:
+            counts["overlapping_candidate"] += 1
+            continue
+        used_members.update(fingerprints)
+        disjoint.append(candidate)
+    return {
+        "method": "single-series-to-full-universe-v1",
+        "single_visible_rows": len(single_indexes),
+        "target_brand_series": len(target_series),
+        "full_universe_rows": len(universe_indexes),
+        "baseline": visible_card_stats(baseline),
+        "classification": dict(counts),
+        "raw_candidate_count": len(ordered),
+        "candidate_count": len(disjoint),
+        "candidates": disjoint[:limit],
+        "truncated": len(disjoint) > limit,
     }
 
 
