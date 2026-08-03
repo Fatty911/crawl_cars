@@ -2001,6 +2001,7 @@ def main():
     print(
         f"发布身份门禁: valid={len(all_rows)} invalid_brand={publish_stats['invalid_brand']} "
         f"invalid_model_name={publish_stats['invalid_model_name']} "
+        f"invalid_publish_boundary={publish_stats['invalid_publish_boundary']} "
         f"invalid_autohome_identity={publish_stats.get('invalid_autohome_identity', 0)} "
         f"invalid_yiche_identity={publish_stats['invalid_yiche_identity']} "
         f"excluded_yiche_commercial_level={publish_stats['excluded_yiche_commercial_level']}"
