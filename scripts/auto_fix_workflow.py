@@ -46,6 +46,15 @@ PROVIDER_DEFAULT_MODELS = {
     "MINIMAX": ["minimax-m3"],
 }
 
+FREE_PREFIXES = {
+    "NVIDIA_NIM",
+    "OPENROUTER",
+    "ZEN",
+    "ATOMGIT",
+    "MODELSCOPE",
+    "MODAL",
+}
+
 PLAN_PREFIX_MARKERS = (
     "_CODINGPLAN",
     "_CODING_PLAN",
@@ -70,7 +79,13 @@ def is_plan_prefix(prefix: str) -> bool:
     return any(normalized.endswith(marker.lstrip("_")) for marker in PLAN_PREFIX_MARKERS)
 
 class WorkflowErrorFixer:
-    def __init__(self):
+    def __init__(self, mode: str = "all"):
+        if mode not in {"all", "free-only", "paid-only"}:
+            raise ValueError(f"unsupported routing mode: {mode}")
+        self.mode = mode
+        self.route_status = "not_started"
+        self._attempt_kinds: List[str] = []
+        self._last_call_kind = "availability_error"
         self.providers = self._discover_providers()
         print(f"\n发现 {len(self.providers)} 个已配置 API_KEY 的 Provider。")
 
@@ -85,6 +100,10 @@ class WorkflowErrorFixer:
             prefix = key[:-8]
             if is_plan_prefix(prefix):
                 print(f"跳过 {prefix}: Plan 凭证只能由显式 Agent 工具调用")
+                continue
+            if self.mode == "free-only" and prefix not in FREE_PREFIXES:
+                continue
+            if self.mode == "paid-only" and prefix in FREE_PREFIXES:
                 continue
             name = prefix.replace("_", " ").title()
             base_url = env.get(f"{prefix}_BASE_URL", "").strip() or PROVIDER_BASE_URLS.get(prefix)
@@ -172,6 +191,7 @@ class WorkflowErrorFixer:
     def fix_error(self, error_output: str, script_name: str = "") -> bool:
         context = self._collect_context(script_name)
         if not self.providers:
+            self.route_status = "no_credentials"
             print("没有可用的提供商")
             return False
 
@@ -190,14 +210,25 @@ class WorkflowErrorFixer:
             for model in models[:5]:
                 print(f"  → 使用模型: {model}")
                 result = self._call_model(provider, model, error_output, context)
+                self._attempt_kinds.append(self._last_call_kind)
                 if result:
                     if self._apply_fix(result, provider["name"], model):
+                        self.route_status = "success"
                         return True
                     else:
+                        self._attempt_kinds[-1] = "protocol_error"
                         scores[model] = scores.get(model, 0) - 2
                         with open(".ai_model_scores.json", "w") as f:
                             json.dump(scores, f, indent=2)
                         print(f"    [Penalty] 模型 {model} 修复失败或产生幻觉，扣分")
+        if self._attempt_kinds and all(kind == "rate_limited" for kind in self._attempt_kinds):
+            self.route_status = "all_free_429" if self.mode == "free-only" else "free_unavailable"
+        elif any(kind == "auth_error" for kind in self._attempt_kinds):
+            self.route_status = "auth_error"
+        elif any(kind == "request_error" for kind in self._attempt_kinds):
+            self.route_status = "request_error"
+        else:
+            self.route_status = "free_unavailable" if self.mode == "free-only" else "unavailable"
         return False
 
     def _call_model(self, provider: Dict, model: str, error_info: str, context: str) -> Optional[str]:
@@ -223,10 +254,25 @@ class WorkflowErrorFixer:
             if provider.get("proxies"):
                 request_kwargs["proxies"] = provider["proxies"]
             r = requests.post(url, **request_kwargs)
+            if r.status_code == 429:
+                self._last_call_kind = "rate_limited"
+            elif r.status_code in {401, 403}:
+                self._last_call_kind = "auth_error"
+            elif r.status_code in {400, 404, 409, 413, 422}:
+                self._last_call_kind = "request_error"
+            elif r.status_code >= 500:
+                self._last_call_kind = "availability_error"
+            else:
+                self._last_call_kind = "protocol_error"
             if r.status_code == 200:
-                return r.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+                content = r.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+                if content:
+                    self._last_call_kind = "success"
+                    return content
+                self._last_call_kind = "protocol_error"
             print(f"    ✗ 失败 HTTP {r.status_code}")
         except Exception as e:
+            self._last_call_kind = "availability_error"
             print(f"    ✗ 异常: {e}")
         return None
 
@@ -338,8 +384,23 @@ class WorkflowErrorFixer:
         return "\n".join(parts) or "无额外上下文"
 
 if __name__ == "__main__":
-    error_text = sys.argv[1] if len(sys.argv) > 1 else ""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Bounded workflow auto-fixer with explicit free/paid routing")
+    parser.add_argument("error_log", nargs="?", default="")
+    parser.add_argument("script_name", nargs="?")
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument("--free-only", action="store_true")
+    mode_group.add_argument("--paid-only", action="store_true")
+    parser.add_argument("--github-output")
+    cli_args = parser.parse_args()
+    mode = "free-only" if cli_args.free_only else "paid-only" if cli_args.paid_only else "all"
+    error_text = cli_args.error_log
     if os.path.isfile(error_text):
         with open(error_text, "r", encoding="utf-8") as f: error_text = f.read()
-    fixed = WorkflowErrorFixer().fix_error(error_text, sys.argv[2] if len(sys.argv) > 2 else "")
+    fixer = WorkflowErrorFixer(mode=mode)
+    fixed = fixer.fix_error(error_text, cli_args.script_name or "")
+    if cli_args.github_output:
+        with open(cli_args.github_output, "a", encoding="utf-8") as output:
+            output.write(f"free_status={fixer.route_status}\n")
     sys.exit(0 if fixed else 1)

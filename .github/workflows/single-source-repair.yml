@@ -282,28 +282,78 @@ jobs:
             --round "${{ steps.context.outputs.round }}" \
             --agent-prompt-out repair_agent_prompt.md \
             --agent-request-out repair_agent_request.json \
-            --model-label "volcengine-agentplan/deepseek-v4-flash"
+            --model-label "volcengine-agentplan/deepseek-v4-flash" \
+            --request-model-label "single-source-patch-v1"
           if [[ -s repair_agent_prompt.md && -s repair_agent_request.json ]]; then
             echo 'agent=true' >> "$GITHUB_OUTPUT"
           else
             echo 'agent=false' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up Node.js for OpenCode Agent
+      - name: Run configured free endpoints first
+        id: free_route
         if: steps.prepare_agent.outputs.agent == 'true'
+        continue-on-error: true
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          MODAL_API_KEY: ${{ secrets.MODAL_API_KEY }}
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          ATOMGIT_API_KEY: ${{ secrets.ATOMGIT_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/free_first_router.py \
+            --prompt-file repair_agent_prompt.md \
+            --output free_repair_agent_response.txt \
+            --metadata-output ai_route.json \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Validate free Agent response
+        id: free_validate
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.free_status == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/single_source_repair.py \
+            --repo-kind "$REPO_KIND" \
+            --data pages_latest.json \
+            --output-dir . \
+            --base-sha "$SOURCE_SHA" \
+            --pages-run-id "$PAGES_RUN_ID" \
+            --pages-url "$PAGES_URL" \
+            --chain-id "${{ steps.context.outputs.chain_id }}" \
+            --round "${{ steps.context.outputs.round }}" \
+            --agent-response-in free_repair_agent_response.txt \
+            --agent-request-in repair_agent_request.json \
+            --model-label "free-first-router" \
+            --request-model-label "single-source-patch-v1"
+          status="$(python3 -c 'import json; print(json.load(open("single_source_repair_result.json", encoding="utf-8")).get("status", "no-op"))')"
+          if [[ "$status" != "no-op" ]]; then
+            echo 'valid=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'valid=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js for OpenCode Agent
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.paid_required == 'true'
         continue-on-error: true
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
       - name: Install fixed OpenCode CLI
-        if: steps.prepare_agent.outputs.agent == 'true'
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.paid_required == 'true'
         continue-on-error: true
         shell: bash
         run: npm install --global opencode-ai@1.18.11
 
       - name: Prepare isolated OpenCode directory
-        if: steps.prepare_agent.outputs.agent == 'true'
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.paid_required == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -312,7 +362,7 @@ jobs:
 
       - name: Run Volcengine Plan through read-only OpenCode Agent
         id: plan_agent
-        if: steps.prepare_agent.outputs.agent == 'true'
+        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_route.outputs.paid_required == 'true'
         continue-on-error: true
         env:
           VOLCENGINE_AGENTPLAN_API_KEY: ${{ secrets.VOLCENGINE_AGENTPLAN_API_KEY }}
@@ -339,7 +389,8 @@ jobs:
             --round "${{ steps.context.outputs.round }}" \
             --agent-response-in repair_agent_response.txt \
             --agent-request-in repair_agent_request.json \
-            --model-label "volcengine-agentplan/deepseek-v4-flash"
+            --model-label "volcengine-agentplan/deepseek-v4-flash" \
+            --request-model-label "single-source-patch-v1"
           status="$(python3 -c 'import json; print(json.load(open("single_source_repair_result.json", encoding="utf-8")).get("status", "no-op"))')"
           if [[ "$status" != "no-op" ]]; then
             echo 'valid=true' >> "$GITHUB_OUTPUT"
@@ -347,14 +398,11 @@ jobs:
             echo 'valid=false' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Use non-Plan API fallback when Agent is unavailable
+      - name: Write deterministic result when free and paid Agent routes are unavailable
         if: >-
           always() && steps.context.outputs.ready == 'true' &&
-          (steps.prepare_agent.outcome != 'success' || steps.prepare_agent.outputs.agent != 'true' ||
-          steps.plan_agent.outcome != 'success' || steps.validate_agent.outputs.valid != 'true')
-        env:
-          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          (steps.free_validate.outputs.valid != 'true' &&
+          (steps.plan_agent.outcome != 'success' || steps.validate_agent.outputs.valid != 'true'))
         shell: bash
         run: |
           set -euo pipefail
@@ -366,7 +414,8 @@ jobs:
             --pages-run-id "$PAGES_RUN_ID" \
             --pages-url "$PAGES_URL" \
             --chain-id "${{ steps.context.outputs.chain_id }}" \
-            --round "${{ steps.context.outputs.round }}"
+            --round "${{ steps.context.outputs.round }}" \
+            --deterministic-only
 
       - name: Capture proposal status
         id: result

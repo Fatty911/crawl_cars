@@ -114,8 +114,45 @@ jobs:
             echo '```'
           } > config/codex_auto_fix_context.md
 
+      - name: Run free AI auto-fix route first
+        id: free_ai_fix
+        if: steps.inspect.outputs.should_fix == 'true'
+        continue-on-error: true
+        env:
+          FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
+          ATOMGIT_API_KEY: ${{ secrets.ATOMGIT_API_KEY }}
+          ATOMGIT_BASE_URL: ${{ secrets.ATOMGIT_BASE_URL }}
+          ATOMGIT_MODEL_LIST: ${{ secrets.ATOMGIT_MODEL_LIST }}
+          MODAL_API_KEY: ${{ secrets.MODAL_API_KEY }}
+          MODAL_BASE_URL: ${{ secrets.MODAL_BASE_URL }}
+          MODAL_MODEL_LIST: ${{ secrets.MODAL_MODEL_LIST }}
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          MODELSCOPE_BASE_URL: ${{ secrets.MODELSCOPE_BASE_URL }}
+          MODELSCOPE_MODEL_LIST: ${{ secrets.MODELSCOPE_MODEL_LIST }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          NVIDIA_NIM_BASE_URL: ${{ secrets.NVIDIA_NIM_BASE_URL }}
+          NVIDIA_NIM_MODEL_LIST: ${{ secrets.NVIDIA_NIM_MODEL_LIST }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+          OPENROUTER_MODEL_LIST: ${{ secrets.OPENROUTER_MODEL_LIST }}
+          ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
+          ZEN_BASE_URL: ${{ secrets.ZEN_BASE_URL }}
+          ZEN_MODEL_LIST: ${{ secrets.ZEN_MODEL_LIST }}
+          ACTION_PAT: ${{ secrets.ACTION_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRIMARY_LOG="workflow_error.log"
+          if [ ! -s "$PRIMARY_LOG" ]; then
+            PRIMARY_LOG="workflow_full.log"
+          fi
+          set +e
+          python scripts/auto_fix_workflow.py "$PRIMARY_LOG" --free-only --github-output "$GITHUB_OUTPUT"
+          exit 0
+
       - name: Check Codex secret
         id: codex_key
+        if: steps.inspect.outputs.should_fix == 'true' && steps.free_ai_fix.outputs.free_status == 'all_free_429'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -128,7 +165,10 @@ jobs:
 
       - name: Run Codex self-healing
         id: run_codex
-        if: steps.inspect.outputs.should_fix == 'true' && steps.codex_key.outputs.available == 'true'
+        if: >-
+          steps.inspect.outputs.should_fix == 'true' &&
+          steps.free_ai_fix.outputs.free_status == 'all_free_429' &&
+          steps.codex_key.outputs.available == 'true'
         continue-on-error: true
         uses: openai/codex-action@v1
         with:
@@ -186,6 +226,7 @@ jobs:
         if: >-
           ${{
             steps.inspect.outputs.should_fix == 'true' &&
+            steps.free_ai_fix.outputs.free_status == 'all_free_429' &&
             (steps.codex_key.outputs.available != 'true' || steps.run_codex.outcome == 'failure')
           }}
         env:
@@ -235,7 +276,7 @@ jobs:
             PRIMARY_LOG="workflow_full.log"
           fi
           set +e
-          python scripts/auto_fix_workflow.py "$PRIMARY_LOG"
+          python scripts/auto_fix_workflow.py "$PRIMARY_LOG" --paid-only
           FIX_EXIT=$?
           set -e
 
@@ -252,6 +293,7 @@ jobs:
           echo "classification=${{ steps.inspect.outputs.classification }}"
           echo "reason=${{ steps.inspect.outputs.reason }}"
           echo "should_fix=${{ steps.inspect.outputs.should_fix }}"
+          echo "free_status=${{ steps.free_ai_fix.outputs.free_status }}"
           echo "codex_available=${{ steps.codex_key.outputs.available }}"
           echo "codex_outcome=${{ steps.run_codex.outcome }}"
           echo "codex_fixed=${{ steps.codex_push.outputs.fixed }}"

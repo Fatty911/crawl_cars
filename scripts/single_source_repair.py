@@ -574,6 +574,10 @@ def _text_sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _request_model_label(args: argparse.Namespace) -> str:
+    return getattr(args, "request_model_label", "") or args.model_label or DEFAULT_AGENT_MODEL
+
+
 def _write_agent_request(
     args: argparse.Namespace,
     prompt: str,
@@ -597,7 +601,7 @@ def _write_agent_request(
         "input_sha256": input_sha256,
         "report_sha256": report_sha256,
         "prompt_sha256": _text_sha256(prompt),
-        "model": args.model_label or "non-plan-fallback",
+        "model": _request_model_label(args),
     }
     request_path.write_text(_json(request) + "\n", encoding="utf-8")
 
@@ -629,7 +633,7 @@ def _read_bound_agent_response(
         "input_sha256": input_sha256,
         "report_sha256": report_sha256,
         "prompt_sha256": _text_sha256(prompt),
-        "model": args.model_label or DEFAULT_AGENT_MODEL,
+        "model": _request_model_label(args),
     }
     if request_value != expected:
         raise RepairInputError("agent request binding does not match the current Pages input")
@@ -993,6 +997,15 @@ def _propose_car_manifest(
     result["single_rate"] = report["single_rate"]
     result["candidate_count"] = candidate_report["candidate_count"]
     (output_dir / "single_source_report.json").write_text(_json(report) + "\n", encoding="utf-8")
+    if args.deterministic_only:
+        result.update(
+            status="analysis-only",
+            root_cause="merge-match",
+            reason="free route did not produce a paid-required request",
+            analysis="已完成确定性候选搜索；免费路由未成功且未满足仅限 429 的付费 Agent 触发条件。",
+        )
+        _write_result(output_dir, result)
+        return 0
     if not candidate_report["candidates"]:
         result.update(
             status="analysis-only",
@@ -1091,6 +1104,14 @@ def propose(args: argparse.Namespace) -> int:
         (output_dir / "single_source_report.json").write_text(_json(report) + "\n", encoding="utf-8")
         if report["single_count"] == 0:
             result.update(status="no-single-source", reason="validated payload has no single-source rows")
+            _write_result(output_dir, result)
+            return 0
+        if args.deterministic_only:
+            result.update(
+                status="analysis-only",
+                reason="free route did not produce a paid-required request",
+                analysis="已完成确定性单源分析；免费路由未成功且未满足仅限 429 的付费 Agent 触发条件。",
+            )
             _write_result(output_dir, result)
             return 0
 
@@ -1193,7 +1214,22 @@ def main() -> int:
     parser.add_argument("--agent-response-in", help="consume a response produced by the external Agent")
     parser.add_argument("--agent-request-in", help="consume the binding manifest for the external Agent response")
     parser.add_argument("--model-label", default="", help="fixed provider/model label recorded in the proposal")
+    parser.add_argument(
+        "--request-model-label",
+        default="",
+        help="stable logical model label bound to the prepared request, independent of the responding Agent",
+    )
+    parser.add_argument(
+        "--deterministic-only",
+        action="store_true",
+        help="write only the deterministic report and never invoke an ordinary API fallback",
+    )
     args = parser.parse_args()
+
+    if args.deterministic_only and any(
+        value for value in (args.agent_prompt_out, args.agent_request_out, args.agent_response_in, args.agent_request_in)
+    ):
+        parser.error("--deterministic-only cannot be combined with Agent request/response modes")
 
     if args.check_patch:
         patch = Path(args.check_patch).read_text(encoding="utf-8")
