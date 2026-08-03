@@ -518,6 +518,26 @@ def check_deploy_workflow(path: Path, errors: list[str]) -> None:
     )
 
 
+def check_single_source_repair_workflow(path: Path, errors: list[str]) -> None:
+    text = path.read_text(encoding="utf-8")
+    assert_condition(
+        'DISPATCH_STARTED="$dispatch_started"' in text
+        and "BEFORE_RUN_IDS" in text
+        and "matches.sort(key=lambda r:" in text
+        and 'dispatched_run_id=%s\\n' in text
+        and "DISPATCHED_PAGES_RUN_ID" in text,
+        f"{path.name} 必须在 dispatch 后按创建时间绑定精确 Pages run_id",
+        errors,
+    )
+    wait_section = text.split("name: Wait for the dispatched Pages run", 1)[1]
+    assert_condition(
+        'actions/runs/$DISPATCHED_PAGES_RUN_ID' in wait_section
+        and "actions/workflows/merge-and-filter.yml/runs?branch=main" not in wait_section,
+        f"{path.name} 等待 Pages run 时不得按 head_sha 扫描最新 workflow_dispatch run",
+        errors,
+    )
+
+
 def main() -> int:
     errors: list[str] = []
     check_crawler_workflow(ROOT / ".github/workflows/crawl-autohome.yml", errors)
@@ -527,6 +547,7 @@ def main() -> int:
     check_budget_script(ROOT / "scripts/crawl_budget.py", errors)
     check_merge_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
     check_deploy_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
+    check_single_source_repair_workflow(ROOT / ".github/workflows/single-source-repair.yml", errors)
     assert_condition(
         "/scripts/dongchedi/json/" in (ROOT / ".gitignore").read_text(encoding="utf-8"),
         "实际 Dongchedi HTML cache 路径未被 gitignore 排除",

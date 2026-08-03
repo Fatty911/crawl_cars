@@ -625,7 +625,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf 'dispatch_started=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          dispatch_started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf 'dispatch_started=%s\n' "$dispatch_started" >> "$GITHUB_OUTPUT"
+          before_run_ids="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/merge-and-filter.yml/runs?branch=main&event=workflow_dispatch&per_page=30" --jq '.workflow_runs[].id' | paste -sd, -)"
           remote_main_sha=""
           for attempt in $(seq 1 30); do
             remote_main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
@@ -639,34 +641,48 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
             -f mode=deploy_and_audit
+          dispatched_run_id=""
+          for attempt in $(seq 1 30); do
+            dispatched_run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/merge-and-filter.yml/runs?branch=main&event=workflow_dispatch&per_page=30" | REPAIR_COMMIT_SHA="$REPAIR_COMMIT_SHA" DISPATCH_STARTED="$dispatch_started" BEFORE_RUN_IDS="$before_run_ids" python3 -c 'import json, os, sys; sha=os.environ["REPAIR_COMMIT_SHA"]; start=os.environ["DISPATCH_STARTED"]; before={int(v) for v in os.environ.get("BEFORE_RUN_IDS", "").split(",") if v}; runs=json.load(sys.stdin).get("workflow_runs", []); matches=[r for r in runs if int(r.get("id") or 0) not in before and r.get("head_sha")==sha and r.get("created_at", "") >= start]; matches.sort(key=lambda r: (r.get("created_at", ""), int(r.get("id") or 0))); print(matches[0].get("id", "") if matches else "")')"
+            if [[ "$dispatched_run_id" =~ ^[0-9]+$ ]]; then
+              break
+            fi
+            sleep 2
+          done
+          if ! [[ "$dispatched_run_id" =~ ^[0-9]+$ ]]; then
+            echo "未能观察到本次 dispatch 对应的 Pages run_id"
+            exit 1
+          fi
+          printf 'dispatched_run_id=%s\n' "$dispatched_run_id" >> "$GITHUB_OUTPUT"
 
       - name: Wait for the dispatched Pages run
         id: pages
         if: steps.dispatch.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-          REPAIR_COMMIT_SHA: ${{ steps.push.outputs.commit_sha }}
-          DISPATCH_STARTED: ${{ steps.dispatch.outputs.dispatch_started }}
+          DISPATCHED_PAGES_RUN_ID: ${{ steps.dispatch.outputs.dispatched_run_id }}
         shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' 'pages_status=not-observed' >> "$GITHUB_OUTPUT"
+          if ! [[ "$DISPATCHED_PAGES_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "无效 Pages run_id: $DISPATCHED_PAGES_RUN_ID"
+            printf '%s\n' 'pages_status=not-observed' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          printf 'pages_run_id=%s\n' "$DISPATCHED_PAGES_RUN_ID" >> "$GITHUB_OUTPUT"
           for attempt in $(seq 1 30); do
-            run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/merge-and-filter.yml/runs?branch=main&event=workflow_dispatch&per_page=20" | REPAIR_COMMIT_SHA="$REPAIR_COMMIT_SHA" DISPATCH_STARTED="$DISPATCH_STARTED" python3 -c 'import json,os,sys; sha=os.environ["REPAIR_COMMIT_SHA"]; start=os.environ["DISPATCH_STARTED"]; runs=json.load(sys.stdin).get("workflow_runs",[]); match=next((r for r in runs if r.get("head_sha")==sha and r.get("created_at","") >= start), None); print(json.dumps(match or {}))')"
-            if [[ "$run_json" != "{}" ]]; then
-              run_id="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id", ""))')"
-              status="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", ""))')"
-              conclusion="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
-              printf 'pages_run_id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"
-              if [[ "$status" == "completed" ]]; then
-                if [[ "$conclusion" == "success" ]]; then
-                  printf '%s\n' 'pages_status=success' >> "$GITHUB_OUTPUT"
-                else
-                  printf '%s\n' 'pages_status=failure' >> "$GITHUB_OUTPUT"
-                  exit 1
-                fi
-                exit 0
+            run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DISPATCHED_PAGES_RUN_ID")"
+            status="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", ""))')"
+            conclusion="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
+            if [[ "$status" == "completed" ]]; then
+              if [[ "$conclusion" == "success" ]]; then
+                printf '%s\n' 'pages_status=success' >> "$GITHUB_OUTPUT"
+              else
+                printf '%s\n' 'pages_status=failure' >> "$GITHUB_OUTPUT"
+                exit 1
               fi
+              exit 0
             fi
             sleep 20
           done
