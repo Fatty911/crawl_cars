@@ -45,6 +45,7 @@ try:
         match_score,
         model_variant_conflict_reason,
         model_variant_signature,
+        header_alias_lookup,
         normalize_audited_publish_header,
         normalize_match_text,
         series_year_key,
@@ -59,6 +60,7 @@ except ModuleNotFoundError:
         match_score,
         model_variant_conflict_reason,
         model_variant_signature,
+        header_alias_lookup,
         normalize_audited_publish_header,
         normalize_match_text,
         series_year_key,
@@ -144,6 +146,9 @@ def normalize_publish_row_headers(row: dict[str, Any]) -> dict[str, Any]:
     normalized = {}
     for key, value in row.items():
         canonical = normalize_audited_publish_header(key)
+        alias = header_alias_lookup(key)
+        if alias and alias.get("value") and positive_value(value):
+            value = alias["value"]
         if canonical in normalized:
             normalized[canonical] = _merge_distinct_values(normalized[canonical], value)
         else:

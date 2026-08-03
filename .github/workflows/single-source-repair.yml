@@ -604,8 +604,8 @@ jobs:
             --validate-working-tree \
             --data proposal/pages_latest.json
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Fatty911"
+          git config user.email "xuerui911@gmail.com"
           git add -- $(git diff --name-only)
           git diff --cached --check
           git commit \

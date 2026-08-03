@@ -1,3 +1,5 @@
+from unittest import mock
+
 import importlib.util
 import hashlib
 import json
@@ -718,3 +720,69 @@ def test_visible_card_formula_counts_annotated_components_without_payload_loss()
         "visible_multi": 1,
         "visible_rate": 50.0,
     }
+
+
+def _ensure_dual_modules() -> None:
+    """prepare_pages_payload imports merge_data either as ``merge_data`` or as
+    ``scripts.merge_data`` depending on sys.path; both instances may exist in
+    one process.  Load both so mocks target the right objects."""
+    import sys
+    from pathlib import Path
+
+    scripts_dir = str(Path(__file__).resolve().parents[1] / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    if "merge_data" not in sys.modules:
+        import merge_data  # noqa: F401
+    if "scripts.merge_data" not in sys.modules:
+        import scripts.merge_data  # noqa: F401
+
+
+def test_normalize_publish_row_headers_injects_alias_value_when_row_proves_it() -> None:
+    from scripts.prepare_pages_payload import normalize_publish_row_headers
+    row = {
+        "品牌": "甲",
+        "车型名称": "M",
+        "车载智能系统": "Banyan",
+        "NOMI Mate 3.0": "标配",
+    }
+    _ensure_dual_modules()
+
+    def lookup(key):
+        return {"canonical": "车载智能系统", "value": "NOMI Mate 3.0"} if key == "NOMI Mate 3.0" else None
+
+    with mock.patch("merge_data.header_alias_lookup", side_effect=lookup), mock.patch(
+        "scripts.merge_data.header_alias_lookup",
+        side_effect=lookup,
+    ), mock.patch(
+        "scripts.prepare_pages_payload.header_alias_lookup",
+        side_effect=lookup,
+    ):
+        out = normalize_publish_row_headers(row)
+    assert out["车载智能系统"] == "Banyan|NOMI Mate 3.0"
+    assert "NOMI Mate 3.0" not in out
+
+
+def test_normalize_publish_row_headers_skips_injection_when_row_value_is_negative() -> None:
+    from scripts.prepare_pages_payload import normalize_publish_row_headers
+    row = {
+        "品牌": "甲",
+        "车型名称": "M",
+        "车载智能系统": "Banyan",
+        "NOMI Mate 3.0": "",
+    }
+    _ensure_dual_modules()
+
+    def lookup(key):
+        return {"canonical": "车载智能系统", "value": "NOMI Mate 3.0"} if key == "NOMI Mate 3.0" else None
+
+    with mock.patch("merge_data.header_alias_lookup", side_effect=lookup), mock.patch(
+        "scripts.merge_data.header_alias_lookup",
+        side_effect=lookup,
+    ), mock.patch(
+        "scripts.prepare_pages_payload.header_alias_lookup",
+        side_effect=lookup,
+    ):
+        out = normalize_publish_row_headers(row)
+    assert out["车载智能系统"] == "Banyan"
+    assert "NOMI Mate 3.0" not in out

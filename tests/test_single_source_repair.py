@@ -11,6 +11,7 @@ from unittest import mock
 from scripts.single_source_repair import (
     ALLOWED_FILES,
     RepairInputError,
+    _car_aliases_from_text,
     _car_manifest_patch,
     _car_replay_metrics,
     _car_selection,
@@ -187,7 +188,10 @@ class SingleSourceRepairTests(unittest.TestCase):
     def test_car_repair_is_manifest_only_and_model_cannot_invent_candidates(self) -> None:
         self.assertEqual(
             ALLOWED_FILES["cars"],
-            ("config/safe_v2_absorption_manifest.json",),
+            (
+                "config/safe_v2_absorption_manifest.json",
+                "config/column_header_aliases.json",
+            ),
         )
         report = {
             "candidates": [
@@ -206,14 +210,139 @@ class SingleSourceRepairTests(unittest.TestCase):
             "evidence": ["同品牌车系年款，且无硬冲突"],
             "analysis": "名称粒度差异",
         }
-        selected, confidence, evidence, _analysis = _car_selection(response, report)
+        selected, aliases, confidence, evidence, _analysis = _car_selection(response, report)
         self.assertEqual(["a" * 24], [item["candidate_id"] for item in selected])
+        self.assertEqual([], aliases)
         self.assertEqual(0.95, confidence)
         self.assertTrue(evidence)
 
         invented = dict(response, approved_candidate_ids=["b" * 24])
         with self.assertRaises(RepairInputError):
             _car_selection(invented, report)
+
+    def test_car_column_aliases_require_diagnosis_allowlist(self) -> None:
+        report = {
+            "candidates": [],
+            "column_diagnosis": {
+                "suspects": [
+                    {
+                        "kind": "bare_value_header",
+                        "column": "NOMI Mate 3.0",
+                        "confidence": 0.45,
+                    },
+                    {
+                        "kind": "package_value_header",
+                        "column": "NOMI Mate 3.0_1 / NOMI Mate 3.0_2",
+                        "columns": ["NOMI Mate 3.0_1", "NOMI Mate 3.0_2"],
+                        "confidence": 0.9,
+                    },
+                ],
+                "candidate_attributes": ["车载智能系统", "辅助驾驶芯片", "品牌"],
+            },
+        }
+        response = {
+            "approved_candidate_ids": [],
+            "confidence": 0.9,
+            "evidence": ["无"],
+            "analysis": "列名修复验证",
+            "column_aliases": [
+                {
+                    "column": "NOMI Mate 3.0",
+                    "canonical": "车载智能系统",
+                    "value": "NOMI Mate 3.0",
+                    "confidence": 0.95,
+                    "evidence": "该列取值仅是有/无标记",
+                },
+                {
+                    "column": "NOMI Mate 3.0_1",
+                    "canonical": "车载智能系统",
+                    "value": "NOMI Mate 3.0",
+                    "confidence": 0.92,
+                    "evidence": "选装包描述/状态对，包名是值",
+                },
+            ],
+        }
+        _selected, aliases, _confidence, _evidence, _analysis = _car_selection(response, report)
+        self.assertEqual(2, len(aliases))
+        self.assertEqual("NOMI Mate 3.0", aliases[0]["column"])
+        self.assertEqual("车载智能系统", aliases[0]["canonical"])
+
+        # canonical outside the candidate attributes is rejected
+        bad = {
+            "column": "NOMI Mate 3.0",
+            "canonical": "智能座舱芯片",
+            "confidence": 0.95,
+            "evidence": "新属性名",
+        }
+        with self.assertRaises(RepairInputError):
+            _car_selection(
+                dict(response, column_aliases=[bad]),
+                report,
+            )
+
+        # column outside the diagnosis suspects is rejected
+        bad = {
+            "column": "品牌",
+            "canonical": "车载智能系统",
+            "confidence": 0.95,
+            "evidence": "身份列",
+        }
+        with self.assertRaises(RepairInputError):
+            _car_selection(
+                dict(response, column_aliases=[bad]),
+                report,
+            )
+
+        # canonical mapping into a protected identity attribute is rejected
+        bad = {
+            "column": "NOMI Mate 3.0",
+            "canonical": "品牌",
+            "confidence": 0.95,
+            "evidence": "试图映射到身份列",
+        }
+        with self.assertRaises(RepairInputError):
+            _car_selection(
+                dict(response, column_aliases=[bad]),
+                report,
+            )
+
+        # confidence below the alias floor is rejected
+        bad = {
+            "column": "NOMI Mate 3.0",
+            "canonical": "车载智能系统",
+            "confidence": 0.8,
+            "evidence": "信心不足",
+        }
+        with self.assertRaises(RepairInputError):
+            _car_selection(
+                dict(response, column_aliases=[bad]),
+                report,
+            )
+
+        # duplicate columns are rejected
+        bad = {
+            "column": "NOMI Mate 3.0",
+            "canonical": "辅助驾驶芯片",
+            "confidence": 0.95,
+            "evidence": "重复",
+        }
+        with self.assertRaises(RepairInputError):
+            _car_selection(
+                dict(response, column_aliases=[response["column_aliases"][0], bad]),
+                report,
+            )
+
+    def test_car_alias_config_validation(self) -> None:
+        _car_aliases_from_text('{"version": 1, "aliases": []}')
+        _car_aliases_from_text(
+            '{"version": 1, "aliases": [{"column": "NOMI Mate 3.0", "canonical": "车载智能系统", "value": "NOMI Mate 3.0", "confidence": 0.95, "evidence": "e"}]}'
+        )
+        with self.assertRaises(RepairInputError):
+            _car_aliases_from_text('{"version": 1, "aliases": [{"column": "品牌", "canonical": "品牌"}]}')
+        with self.assertRaises(RepairInputError):
+            _car_aliases_from_text('{"version": 1, "aliases": "nope"}')
+        with self.assertRaises(RepairInputError):
+            _car_aliases_from_text('{"version": 1, "aliases": [{"column": "A", "canonical": "B"}, {"column": "A", "canonical": "C"}]}')
 
     def test_car_replay_requires_real_visible_metric_improvement(self) -> None:
         rows = [
@@ -293,5 +422,147 @@ class SingleSourceRepairTests(unittest.TestCase):
                 _car_manifest_patch(manifest_path, baseline, selected)
 
 
+    def test_car_alias_config_rejects_protected_attributes(self) -> None:
+        from scripts.single_source_repair import _car_aliases_from_text
+
+        # canonical 侧指向身份列
+        try:
+            _car_aliases_from_text(
+                '{"version": 1, "aliases": [{"column": "NOMI Mate 3.0", "canonical": "品牌", "confidence": 0.95, "evidence": "e"}]}'
+            )
+            raise AssertionError("expected RepairInputError for protected canonical")
+        except RepairInputError:
+            pass
+        # column 侧是身份列
+        try:
+            _car_aliases_from_text(
+                '{"version": 1, "aliases": [{"column": "车系", "canonical": "车载智能系统", "confidence": 0.95, "evidence": "e"}]}'
+            )
+            raise AssertionError("expected RepairInputError for protected column")
+        except RepairInputError:
+            pass
+
+
+    def test_generated_alias_patch_touches_only_alias_config(self) -> None:
+        from scripts.single_source_repair import (
+            _car_aliases_from_text,
+            _car_aliases_patch,
+            validate_patch_text,
+        )
+
+        repo_root = Path(__file__).resolve().parents[1]
+        aliases_path = repo_root / ALLOWED_FILES["cars"][1]
+        baseline = _car_aliases_from_text('{"version": 1, "aliases": []}')
+        patch, _candidate = _car_aliases_patch(
+            aliases_path,
+            baseline,
+            [{"column": "NOMI Mate 3.0", "canonical": "车载智能系统", "confidence": 0.95, "evidence": "e", "value": "NOMI Mate 3.0"}],
+        )
+        assert validate_patch_text(patch, "cars") == [ALLOWED_FILES["cars"][1]]
+
+
+    def test_multi_alias_same_canonical_merges_distinct_values(self) -> None:
+        import sys
+        from pathlib import Path
+
+        from unittest import mock
+
+        from scripts.prepare_pages_payload import normalize_publish_row_headers
+
+        scripts_dir = str(Path(__file__).resolve().parents[1] / "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        if "merge_data" not in sys.modules:
+            import merge_data  # noqa: F401
+        if "scripts.merge_data" not in sys.modules:
+            import scripts.merge_data  # noqa: F401
+
+        row = {
+            "品牌": "甲",
+            "车型名称": "M",
+            "车载智能系统": "Banyan",
+            "NOMI Mate 3.0": "标配",
+            "Xiaomi HAD": "选配",
+        }
+
+        def lookup(key):
+            aliases = {
+                "NOMI Mate 3.0": {"canonical": "车载智能系统", "value": "NOMI Mate 3.0"},
+                "Xiaomi HAD": {"canonical": "车载智能系统", "value": "Xiaomi HAD"},
+            }
+            return aliases.get(key)
+
+        with mock.patch("merge_data.header_alias_lookup", side_effect=lookup), mock.patch(
+            "scripts.merge_data.header_alias_lookup",
+            side_effect=lookup,
+        ), mock.patch(
+            "scripts.prepare_pages_payload.header_alias_lookup",
+            side_effect=lookup,
+        ):
+            out = normalize_publish_row_headers(row)
+        assert out["车载智能系统"] == "Banyan|NOMI Mate 3.0|Xiaomi HAD"
+        assert "NOMI Mate 3.0" not in out
+        assert "Xiaomi HAD" not in out
+
+
+    def test_car_column_alias_value_rejects_pipe_and_newlines(self) -> None:
+        report = {
+            "candidates": [],
+            "column_diagnosis": {
+                "suspects": [
+                    {"kind": "bare_value_header", "column": "NOMI Mate 3.0", "confidence": 0.45},
+                ],
+                "candidate_attributes": ["车载智能系统", "品牌"],
+            },
+        }
+        base = {
+            "approved_candidate_ids": [],
+            "confidence": 0.9,
+            "evidence": ["无"],
+            "analysis": "值校验",
+        }
+        for bad_value in ("A|B", "A\nB", "A\rB"):
+            bad = {
+                "column": "NOMI Mate 3.0",
+                "canonical": "车载智能系统",
+                "value": bad_value,
+                "confidence": 0.95,
+                "evidence": "值污染",
+            }
+            try:
+                _car_selection(dict(base, column_aliases=[bad]), report)
+                raise AssertionError(f"expected RepairInputError for value {bad_value!r}")
+            except RepairInputError:
+                pass
+
+
+    def test_publish_pipeline_degrades_gracefully_without_alias_config(self) -> None:
+        import sys
+        from pathlib import Path
+
+        from unittest import mock
+
+        from scripts.prepare_pages_payload import normalize_publish_row_headers
+
+        scripts_dir = str(Path(__file__).resolve().parents[1] / "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        if "merge_data" not in sys.modules:
+            import merge_data  # noqa: F401
+        if "scripts.merge_data" not in sys.modules:
+            import scripts.merge_data  # noqa: F401
+
+        # 等价于配置文件缺失/损坏后的降级状态：_load_header_aliases() 返回空 dict
+        with mock.patch("merge_data._load_header_aliases", return_value={}), mock.patch(
+            "scripts.merge_data._load_header_aliases",
+            return_value={},
+        ):
+            row = {"品牌": "甲", "车载智能系统": "Banyan", "NOMI Mate 3.0": "标配"}
+            out = normalize_publish_row_headers(row)
+        assert out["车载智能系统"] == "Banyan"
+        assert out["NOMI Mate 3.0"] == "标配"
+
+
 if __name__ == "__main__":
     unittest.main()
+

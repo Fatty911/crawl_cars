@@ -57,3 +57,51 @@ def test_reports_unclassified_numeric_suffix_as_review_only() -> None:
     assert item["suggested_attribute"] == "layout_seat"
     assert item["confidence"] < 0.8
     assert report["status"] == "suspects-found"
+
+
+def test_diagnoses_v2v3_value_headers_without_base_column() -> None:
+    rows = [
+        {"品牌": "A", "车载智能系统": "x", "interior_light_v2_64色": "●", "lcd_dashboard_size_v2_4.2": "●"},
+        {"品牌": "A", "车载智能系统": "y", "interior_light_v2_64色": "选装", "lcd_dashboard_size_v2_10.2": "●"},
+    ]
+    diag = diagnose_columns(rows)
+    entry = next(item for item in diag["suspects"] if item["column"] == "interior_light_v2_64色")
+    assert entry["kind"] == "v2v3_value_header"
+    assert entry["suggested_attribute"] == "interior_light_v2"
+    assert entry["value_suffix"] == "64色"
+    # 基列 interior_light_v2 不在数据中，因此也不能作为映射目标
+    assert "interior_light_v2" not in diag["candidate_attributes"]
+    assert "车载智能系统" in diag["candidate_attributes"]
+
+
+def test_diagnoses_bare_value_headers_and_package_value_headers() -> None:
+    rows = [
+        {"品牌": "A", "车型名称": "M", "NOMI Mate 3.0": "标配", "NOMI Mate 3.0_1": "包含：NOMI Mate 3.0", "NOMI Mate 3.0_2": "○ 4900元"},
+        {"品牌": "A", "车型名称": "M", "NOMI Mate 3.0": "选配", "NOMI Mate 3.0_1": "描述", "NOMI Mate 3.0_2": "选配"},
+        {"品牌": "A", "车型名称": "M", "NOMI Mate 3.0": "无", "NOMI Mate 3.0_1": "描述2", "NOMI Mate 3.0_2": "选配2"},
+    ]
+    diag = diagnose_columns(rows)
+    kinds = {item["column"]: item["kind"] for item in diag["suspects"]}
+    assert kinds["NOMI Mate 3.0"] == "bare_value_header"
+    pkg = next(
+        item
+        for item in diag["suspects"]
+        if item["kind"] == "package_value_header" and "NOMI Mate 3.0_1" in (item.get("columns") or [])
+    )
+    assert "NOMI Mate 3.0_2" in (pkg.get("columns") or [])
+    bare = next(item for item in diag["suspects"] if item["column"] == "NOMI Mate 3.0")
+    assert "标配" in bare["sample_values"]
+    assert "NOMI Mate 3.0" not in diag["candidate_attributes"]
+
+
+def test_known_english_attributes_and_identifiers_are_not_flagged() -> None:
+    rows = [
+        {"品牌": "A", "车型名称": "M", "filter_group_car_year": "2026", "departure_angle": "20", "ota_version": "1.2"},
+        {"品牌": "A", "车型名称": "M", "filter_group_car_year": "2025", "departure_angle": "21", "ota_version": "1.3"},
+    ]
+    diag = diagnose_columns(rows)
+    flagged = {item["column"] for item in diag["suspects"]}
+    assert "filter_group_car_year" not in flagged
+    assert "departure_angle" not in flagged
+    assert "ota_version" not in flagged
+    assert "filter_group_car_year" in diag["candidate_attributes"]

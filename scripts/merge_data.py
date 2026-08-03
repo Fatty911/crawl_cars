@@ -1020,10 +1020,58 @@ AUDITED_PUBLISH_EXACT_HEADERS = {
 }
 
 
+_HEADER_ALIASES: dict[str, dict[str, str]] | None = None
+
+
+def _load_header_aliases() -> dict[str, dict[str, str]]:
+    """Load the AI-maintainable column alias map once (config/column_header_aliases.json).
+
+    A missing or invalid file degrades to an empty map; this module never
+    fails because of the alias config.  The map is only consulted by the
+    publish-time header normalizer, never by merge matching.
+    """
+    global _HEADER_ALIASES
+    if _HEADER_ALIASES is None:
+        aliases: dict[str, dict[str, str]] = {}
+        path = os.path.join(DIR, 'config', 'column_header_aliases.json')
+        try:
+            with open(path, encoding='utf-8') as handle:
+                raw = json.load(handle)
+            for item in raw.get('aliases', []) if isinstance(raw, dict) else []:
+                column = str(item.get('column') or '').strip()
+                canonical = str(item.get('canonical') or '').strip()
+                if column and canonical and column != canonical:
+                    entry: dict[str, str] = {'canonical': canonical}
+                    value = str(item.get('value') or '').strip()
+                    if value:
+                        entry['value'] = value
+                    aliases[column] = entry
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            aliases = {}
+        _HEADER_ALIASES = aliases
+    return _HEADER_ALIASES
+
+
+def header_alias_lookup(header):
+    """Return {'canonical': ..., 'value': ...} for a configured alias or None."""
+    return _load_header_aliases().get(str(header).strip())
+
+
 def normalize_audited_publish_header(header):
     """Apply only the audited punctuation/unit/scope aliases to carried Pages rows."""
     original = str(header)
     stripped = original.strip()
+    alias = header_alias_lookup(stripped)
+    if alias:
+        return alias["canonical"]
+    # Mirror the merge-time ``norm`` v4 suffix mapping so one-hot value
+    # columns such as ``driving_assist_chip_v4_NVIDIA DRIVE Orin X`` fold
+    # back into the canonical attribute at publish time as well.
+    m_v4 = re.match(r"^(.+)_v4_(.+)$", stripped)
+    if m_v4:
+        base_v4_key = m_v4.group(1) + "_v4"
+        if base_v4_key in HEADER_MAP:
+            return HEADER_MAP[base_v4_key]
     normalized = normalize_schema_unit_header(stripped)
     canonical_unit = any(stripped.endswith(f"({unit})") for unit in SCHEMA_UNIT_TOKENS)
     if original != stripped or normalized != stripped or canonical_unit or stripped in AUDITED_PUBLISH_EXACT_HEADERS:

@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "note": "AI 修复工作流维护的列名别名映射。column=Pages 中把属性值编码进列名的列；canonical=规范属性名（必须存在于 Pages 已知属性集合，且不能是身份列）；value=可选，该列代表的值，行内该列有正值时注入到 canonical 列。注意：v4 后缀 one-hot 列（如 driving_assist_chip_v4_*）由 publish 规范化无条件折叠，不依赖本文件；本文件仅控制其余值型列名的映射。",
+  "aliases": []
+}
