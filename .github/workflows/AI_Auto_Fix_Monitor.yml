@@ -123,6 +123,10 @@ jobs:
           ATOMGIT_API_KEY: ${{ secrets.ATOMGIT_API_KEY }}
           ATOMGIT_BASE_URL: ${{ secrets.ATOMGIT_BASE_URL }}
           ATOMGIT_MODEL_LIST: ${{ secrets.ATOMGIT_MODEL_LIST }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_BASE_URL: ${{ secrets.CLOUDFLARE_BASE_URL }}
+          CLOUDFLARE_MODEL_LIST: ${{ secrets.CLOUDFLARE_MODEL_LIST }}
           MODAL_API_KEY: ${{ secrets.MODAL_API_KEY }}
           MODAL_BASE_URL: ${{ secrets.MODAL_BASE_URL }}
           MODAL_MODEL_LIST: ${{ secrets.MODAL_MODEL_LIST }}
@@ -270,13 +274,14 @@ jobs:
           ACTION_PAT: ${{ secrets.ACTION_PAT }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FREE_ROUTE_STATUS: ${{ steps.free_ai_fix.outputs.free_status }}
         run: |
           PRIMARY_LOG="workflow_error.log"
           if [ ! -s "$PRIMARY_LOG" ]; then
             PRIMARY_LOG="workflow_full.log"
           fi
           set +e
-          python scripts/auto_fix_workflow.py "$PRIMARY_LOG" --paid-only
+          python scripts/auto_fix_workflow.py "$PRIMARY_LOG" --paid-only --free-status "$FREE_ROUTE_STATUS"
           FIX_EXIT=$?
           set -e
 

@@ -26,7 +26,14 @@ MAX_RESPONSE_BYTES = 512 * 1024
 MAX_RETRY_AFTER_SECONDS = 5
 RETRYABLE_HTTP = {408, 425, 429} | set(range(500, 600))
 AUTH_HTTP = {401, 403}
-REQUEST_HTTP = {400, 404, 409, 413, 422}
+
+
+class FreeRouteError(RuntimeError):
+    """A bounded failure with a safe classification for the route state machine."""
+
+    def __init__(self, kind: str, message: str):
+        super().__init__(message)
+        self.kind = kind
 
 
 @dataclass(frozen=True)
@@ -128,7 +135,7 @@ def _classify_http(status: int) -> str:
         return "rate_limited"
     if status in AUTH_HTTP:
         return "auth_error"
-    if status in REQUEST_HTTP:
+    if 400 <= status < 500:
         return "request_error"
     if status in RETRYABLE_HTTP:
         return "availability_error"
@@ -163,13 +170,19 @@ def _response_text(payload: Any) -> str:
     return _content(message.get("content"))
 
 
-def _request(provider: Provider, model: str, prompt: str) -> tuple[str, int | None, float]:
+def _request(
+    provider: Provider,
+    model: str,
+    prompt: str,
+    timeout: float | None = None,
+    max_tokens: int | None = None,
+) -> tuple[str, int | None, float]:
     try:
         request_payload: dict[str, Any] = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": float(os.environ.get("FREE_LLM_TEMPERATURE", "0.1")),
-            "max_tokens": int(os.environ.get("FREE_LLM_MAX_TOKENS", "8000")),
+            "max_tokens": max_tokens if max_tokens is not None else int(os.environ.get("FREE_LLM_MAX_TOKENS", "8000")),
         }
         if os.environ.get("FREE_LLM_JSON_MODE", "").strip().lower() in {"1", "true", "yes"}:
             request_payload["response_format"] = {"type": "json_object"}
@@ -180,7 +193,8 @@ def _request(provider: Provider, model: str, prompt: str) -> tuple[str, int | No
         headers = {"Authorization": f"Bearer {provider.key()}", "Content-Type": "application/json"}
         headers.update(dict(provider.extra_headers))
         request = urllib.request.Request(provider.endpoint(), data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(request, timeout=float(os.environ.get("FREE_LLM_TIMEOUT", "120"))) as response:
+        request_timeout = timeout if timeout is not None else float(os.environ.get("FREE_LLM_TIMEOUT", "120"))
+        with urllib.request.urlopen(request, timeout=request_timeout) as response:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
             if len(raw) > MAX_RESPONSE_BYTES:
                 raise ValueError("response exceeds size limit")
@@ -190,8 +204,10 @@ def _request(provider: Provider, model: str, prompt: str) -> tuple[str, int | No
             return value, response.status, 0.0
     except urllib.error.HTTPError as exc:
         return "", exc.code, _retry_after(exc.headers)
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
-        raise RuntimeError(type(exc).__name__) from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise FreeRouteError("availability_error", type(exc).__name__) from exc
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise FreeRouteError("protocol_error", type(exc).__name__) from exc
 
 
 def _safe(value: str) -> str:
@@ -222,11 +238,15 @@ def route(
     metadata_output: Path | None,
     github_output: Path | None,
     providers: tuple[Provider, ...] | None = None,
+    timeout: float | None = None,
+    max_tokens: int | None = None,
 ) -> int:
     provider_list = providers or FREE_PROVIDERS
     attempts: list[dict[str, Any]] = []
     configured = 0
     configured_total = sum(1 for provider in provider_list if provider.key())
+    prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    request_id = prompt_sha256[:16]
     for provider in provider_list:
         key = provider.key()
         if not key:
@@ -235,13 +255,20 @@ def route(
         for model in provider.models():
             record: dict[str, Any] = {"provider": provider.label, "model": model}
             try:
-                text, status, retry_after = _request(provider, model, prompt)
+                text, status, retry_after = _request(
+                    provider,
+                    model,
+                    prompt,
+                    timeout=timeout,
+                    max_tokens=max_tokens,
+                )
                 if text:
                     output.parent.mkdir(parents=True, exist_ok=True)
                     output.write_text(text, encoding="utf-8")
                     metadata = {
                         "version": 1,
-                        "request_id": hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16],
+                        "request_id": request_id,
+                        "prompt_sha256": prompt_sha256,
                         "status": "success",
                         "paid_required": False,
                         "attempted": len(attempts) + 1,
@@ -258,8 +285,10 @@ def route(
                 )
                 if retry_after:
                     time.sleep(retry_after)
+            except FreeRouteError as exc:
+                record.update(status=None, kind=exc.kind, error=str(exc))
             except RuntimeError as exc:
-                record.update(status=None, kind="availability_error", error=str(exc))
+                record.update(status=None, kind="availability_error", error=type(exc).__name__)
             attempts.append(record)
 
     statuses = [item.get("kind") for item in attempts]
@@ -283,7 +312,8 @@ def route(
         paid_required = False
     metadata = {
         "version": 1,
-        "request_id": hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16],
+        "request_id": request_id,
+        "prompt_sha256": prompt_sha256,
         "status": status,
         "paid_required": paid_required,
         "attempted": len(attempts),
@@ -302,6 +332,8 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     parser.add_argument("--metadata-output", required=True)
     parser.add_argument("--github-output")
+    parser.add_argument("--timeout", type=float)
+    parser.add_argument("--max-tokens", type=int)
     args = parser.parse_args()
     prompt_path = Path(args.prompt_file)
     raw = prompt_path.read_bytes()
@@ -314,7 +346,14 @@ def main() -> int:
     output = Path(args.output)
     if output.exists():
         output.unlink()
-    return route(prompt, output, Path(args.metadata_output), Path(args.github_output) if args.github_output else None)
+    return route(
+        prompt,
+        output,
+        Path(args.metadata_output),
+        Path(args.github_output) if args.github_output else None,
+        timeout=args.timeout,
+        max_tokens=args.max_tokens,
+    )
 
 
 if __name__ == "__main__":

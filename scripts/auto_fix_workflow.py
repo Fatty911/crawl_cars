@@ -22,6 +22,8 @@ PROVIDER_BASE_URLS = {
     "MODELSCOPE": "https://api-inference.modelscope.cn/v1",
     "OPENROUTER": "https://openrouter.ai/api/v1",
     "ZEN": "https://opencode.ai/zen/v1",
+    "CLOUDFLARE": "https://api.cloudflare.com/client/v4/accounts/b3becce2da2399953658ed2a053e7c08/ai/v1",
+    "MODAL": "https://api.us-west-2.modal.direct/v1",
     "ATOMGIT": "https://api-ai.gitcode.com/v1",
     "DEEPSEEK": "https://api.deepseek.com/v1",
     "MINIMAX": "https://api.minimax.io/v1",
@@ -39,6 +41,8 @@ PROVIDER_DEFAULT_MODELS = {
     "OPENROUTER": ["nvidia/nemotron-3-ultra-550b-a55b:free"],
     "ZEN": ["nemotron-3-ultra-free", "deepseek-v4-flash-free"],
     "ATOMGIT": ["zai-org/GLM-5.1", "deepseek-ai/DeepSeek-V4-Flash"],
+    "CLOUDFLARE": ["@cf/zai-org/glm-5.2", "@cf/moonshotai/kimi-k2.6"],
+    "MODAL": ["zai-org/GLM-5.1-FP8"],
     # 普通按量 API（免费全部不可用时兜底）
     "DEEPSEEK": ["deepseek-v4-pro", "deepseek-v4-flash"],
     "ZHIPU": ["glm-5.2"],
@@ -53,6 +57,7 @@ FREE_PREFIXES = {
     "ATOMGIT",
     "MODELSCOPE",
     "MODAL",
+    "CLOUDFLARE",
 }
 
 PLAN_PREFIX_MARKERS = (
@@ -79,10 +84,13 @@ def is_plan_prefix(prefix: str) -> bool:
     return any(normalized.endswith(marker.lstrip("_")) for marker in PLAN_PREFIX_MARKERS)
 
 class WorkflowErrorFixer:
-    def __init__(self, mode: str = "all"):
-        if mode not in {"all", "free-only", "paid-only"}:
+    def __init__(self, mode: str = "free-only", free_status: str = ""):
+        if mode not in {"free-only", "paid-only"}:
             raise ValueError(f"unsupported routing mode: {mode}")
+        if mode == "paid-only" and free_status != "all_free_429":
+            raise ValueError("paid-only requires a preceding all_free_429 proof")
         self.mode = mode
+        self.free_status = free_status
         self.route_status = "not_started"
         self._attempt_kinds: List[str] = []
         self._last_call_kind = "availability_error"
@@ -392,13 +400,14 @@ if __name__ == "__main__":
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument("--free-only", action="store_true")
     mode_group.add_argument("--paid-only", action="store_true")
+    parser.add_argument("--free-status", default=os.environ.get("FREE_ROUTE_STATUS", ""))
     parser.add_argument("--github-output")
     cli_args = parser.parse_args()
-    mode = "free-only" if cli_args.free_only else "paid-only" if cli_args.paid_only else "all"
+    mode = "free-only" if cli_args.free_only else "paid-only" if cli_args.paid_only else "free-only"
     error_text = cli_args.error_log
     if os.path.isfile(error_text):
         with open(error_text, "r", encoding="utf-8") as f: error_text = f.read()
-    fixer = WorkflowErrorFixer(mode=mode)
+    fixer = WorkflowErrorFixer(mode=mode, free_status=cli_args.free_status)
     fixed = fixer.fix_error(error_text, cli_args.script_name or "")
     if cli_args.github_output:
         with open(cli_args.github_output, "a", encoding="utf-8") as output:
