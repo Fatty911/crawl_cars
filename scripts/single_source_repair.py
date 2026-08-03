@@ -3,7 +3,7 @@
 
 This helper is deliberately fail-closed:
 - it parses only a validated Pages payload;
-- it sends only deterministic summaries and selected source code to NVIDIA NIM;
+- it sends only deterministic summaries and selected source code to a bounded model chain;
 - it accepts only strict JSON and a constrained unified diff;
 - it validates the diff in an ephemeral working tree and never commits or pushes.
 """
@@ -19,6 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -449,39 +450,82 @@ Pages URL：{pages_url}
 """
 
 
-def _call_nim(prompt: str) -> str:
-    key = os.environ.get("NVIDIA_NIM_API_KEY", "").strip()
-    if not key:
-        raise RepairInputError("NVIDIA_NIM_API_KEY is unavailable")
-    model = os.environ.get("NVIDIA_NIM_MODEL", "deepseek-ai/deepseek-v4-flash")
-    body = json.dumps({
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.1,
-        "max_tokens": 4000,
-        "response_format": {"type": "json_object"},
-    }).encode("utf-8")
-    request = urllib.request.Request(
-        "https://integrate.api.nvidia.com/v1/chat/completions",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
+def _call_repair_model(prompt: str) -> tuple[str, str]:
+    providers = (
+        {
+            "label": "nvidia-nim",
+            "key_env": "NVIDIA_NIM_API_KEY",
+            "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
+            "model": os.environ.get("NVIDIA_NIM_MODEL", "deepseek-ai/deepseek-v4-flash"),
+            "response_format": True,
         },
-        method="POST",
+        {
+            "label": "volcengine-agentplan",
+            "key_env": "VOLCENGINE_AGENTPLAN_API_KEY",
+            "endpoint": "https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions",
+            "model": os.environ.get("VOLCENGINE_AGENTPLAN_MODEL", "deepseek-v4-flash"),
+            "response_format": False,
+        },
+        {
+            "label": "deepseek",
+            "key_env": "DEEPSEEK_API_KEY",
+            "endpoint": "https://api.deepseek.com/chat/completions",
+            "model": os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
+            "response_format": True,
+        },
     )
-    try:
-        with urllib.request.urlopen(request, timeout=180) as response:
-            result = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise RepairInputError(f"NVIDIA NIM request failed: {type(exc).__name__}") from exc
-    try:
-        content = result["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise RepairInputError("NVIDIA NIM response has no message content") from exc
-    if not isinstance(content, str) or not content.strip():
-        raise RepairInputError("NVIDIA NIM returned empty content")
-    return content
+    errors: list[str] = []
+    configured = 0
+    for provider in providers:
+        key = os.environ.get(provider["key_env"], "").strip()
+        if not key:
+            continue
+        configured += 1
+        payload: dict[str, Any] = {
+            "model": provider["model"],
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+            "max_tokens": 4000,
+        }
+        if provider["response_format"]:
+            payload["response_format"] = {"type": "json_object"}
+        body = json.dumps(payload).encode("utf-8")
+        for attempt in range(3):
+            request = urllib.request.Request(
+                provider["endpoint"],
+                data=body,
+                headers={
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=180) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+                content = result["choices"][0]["message"]["content"]
+                if not isinstance(content, str) or not content.strip():
+                    raise ValueError("empty message content")
+                return content, f"{provider['label']}/{provider['model']}"
+            except urllib.error.HTTPError as exc:
+                errors.append(f"{provider['label']}:HTTP {exc.code}")
+                transient = exc.code == 429 or 500 <= exc.code < 600
+                if transient and attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                break
+            except (urllib.error.URLError, TimeoutError) as exc:
+                errors.append(f"{provider['label']}:{type(exc).__name__}")
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                break
+            except (json.JSONDecodeError, KeyError, IndexError, TypeError, ValueError) as exc:
+                errors.append(f"{provider['label']}:{type(exc).__name__}")
+                break
+    if not configured:
+        raise RepairInputError("no repair model API key is available")
+    raise RepairInputError("all repair model providers failed: " + ", ".join(errors))
 
 
 def _strict_json_load(text: str, label: str) -> Any:
@@ -664,6 +708,8 @@ def _patch_paths(patch: str, kind: str) -> list[str]:
         "pyproject.toml",
         "package.json",
         "NVIDIA_NIM_API_KEY",
+        "VOLCENGINE_AGENTPLAN_API_KEY",
+        "DEEPSEEK_API_KEY",
         "single_source_repair.py",
         "GIT binary patch",
     )
@@ -867,7 +913,9 @@ def _propose_car_manifest(
         return 0
 
     prompt = _build_car_candidate_prompt(candidate_report, args.base_sha, args.pages_url)
-    response = _json_response(_call_nim(prompt))
+    model_response, model = _call_repair_model(prompt)
+    result["model"] = model
+    response = _json_response(model_response)
     selected, confidence, evidence, analysis = _car_selection(response, candidate_report)
     result.update(
         confidence=confidence,
@@ -947,7 +995,9 @@ def propose(args: argparse.Namespace) -> int:
             return 0
 
         prompt = _build_prompt(report, args.repo_kind, args.base_sha, args.pages_url)
-        response = _json_response(_call_nim(prompt))
+        model_response, model = _call_repair_model(prompt)
+        result["model"] = model
+        response = _json_response(model_response)
         required_fields = {"should_fix", "confidence", "root_cause", "evidence", "analysis", "patch"}
         if not required_fields.issubset(response):
             raise RepairInputError("model response is missing required fields")

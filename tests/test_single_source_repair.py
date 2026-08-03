@@ -4,7 +4,9 @@ import hashlib
 import json
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest import mock
 
 from scripts.single_source_repair import (
     ALLOWED_FILES,
@@ -12,6 +14,7 @@ from scripts.single_source_repair import (
     _car_manifest_patch,
     _car_replay_metrics,
     _car_selection,
+    _call_repair_model,
     _json_response,
     _strict_json_load,
     analyze_payload,
@@ -20,6 +23,66 @@ from scripts.single_source_repair import (
 
 
 class SingleSourceRepairTests(unittest.TestCase):
+    class _Response:
+        def __init__(self, payload: dict) -> None:
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(self.payload).encode("utf-8")
+
+    def test_repair_model_falls_back_from_nim_to_agent_plan(self) -> None:
+        rate_limited = urllib.error.HTTPError("https://nim.test", 429, "quota", {}, None)
+        plan_response = self._Response({"choices": [{"message": {"content": '{"ok": true}'}}]})
+        environment = {
+            "NVIDIA_NIM_API_KEY": "nim-secret",
+            "VOLCENGINE_AGENTPLAN_API_KEY": "plan-secret",
+            "DEEPSEEK_API_KEY": "deepseek-secret",
+        }
+        with (
+            mock.patch.dict("os.environ", environment, clear=True),
+            mock.patch(
+                "scripts.single_source_repair.urllib.request.urlopen",
+                side_effect=[rate_limited, rate_limited, rate_limited, plan_response],
+            ) as urlopen,
+            mock.patch("scripts.single_source_repair.time.sleep") as sleep,
+        ):
+            content, model = _call_repair_model("strict JSON")
+
+        self.assertEqual('{"ok": true}', content)
+        self.assertEqual("volcengine-agentplan/deepseek-v4-flash", model)
+        self.assertEqual(4, urlopen.call_count)
+        self.assertEqual([mock.call(1), mock.call(2)], sleep.call_args_list)
+        plan_payload = json.loads(urlopen.call_args_list[-1].args[0].data.decode("utf-8"))
+        self.assertNotIn("response_format", plan_payload)
+
+    def test_repair_model_fails_closed_when_all_providers_reject(self) -> None:
+        rejected = [
+            urllib.error.HTTPError(f"https://provider-{index}.test", 401, "denied", {}, None)
+            for index in range(3)
+        ]
+        environment = {
+            "NVIDIA_NIM_API_KEY": "nim-secret",
+            "VOLCENGINE_AGENTPLAN_API_KEY": "plan-secret",
+            "DEEPSEEK_API_KEY": "deepseek-secret",
+        }
+        with (
+            mock.patch.dict("os.environ", environment, clear=True),
+            mock.patch(
+                "scripts.single_source_repair.urllib.request.urlopen",
+                side_effect=rejected,
+            ),
+            mock.patch("scripts.single_source_repair.time.sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(RepairInputError, "all repair model providers failed"):
+                _call_repair_model("strict JSON")
+        sleep.assert_not_called()
+
     def test_phone_payload_uses_chinese_source_field(self) -> None:
         report = analyze_payload(
             [
