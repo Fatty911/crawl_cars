@@ -839,3 +839,13 @@ C: | D: | racknerd | jstq | dmit | GitHub
 - **国产 ReviewXXX 准备判定 FAIL 前必须先联网复核质疑点**：优先查官方文档、官方公告、官方 API 参考、上游源码仓库或其它一手来源。只有联网后仍确认冲突，才允许返回 FAIL。
 - 无法联网、官方资料未覆盖、来源冲突或只能依据模型记忆时，必须返回“结论：待核实”，不得作为 FAIL 阻断，也不得计入 M 张 PASS 票；主控必须改用其它模型家族补足有效票数。
 - FAIL 必须附来源 URL、核实日期、具体冲突文件/位置、官方依据摘要和可执行修正建议；缺少任一项的 FAIL 无阻断效力。
+
+
+## Git 提交作者身份规则（Fatty911 全局要求，2026-08-04）
+
+本仓库所有 Git 提交必须遵守以下作者命名规则：
+
+1. **全局兜底身份**：`Fatty911 <xuerui911@gmail.com>`。禁止使用 `bot@users.noreply.github.com` 邮箱（该邮箱关联 GitHub 用户名 `bot`，网页端会显示纯 `bot`）。
+2. **Agent 工具显式提交**：使用动态格式 `<实际工具名>-<实际模型>`（工具名 = 实际执行提交的 Agent 工具，如 hermes-agent / codex / opencode / openclaw / mimocode / qoder；模型名 = 本次实际处理会话的模型，去掉句点），例如 `opencode-kimi-k3`、`hermes-agent-glm5.2`、`codex-gpt5.5`。
+3. 禁止纯 `bot` 名称或系统 bot 身份冒充源码/文档提交；`github-actions[bot]` 仅限数据/进度自动提交。
+4. 邮箱一律使用 `xuerui911@gmail.com`。
