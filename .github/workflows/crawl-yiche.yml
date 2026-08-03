@@ -265,7 +265,7 @@ jobs:
               if len(members) != 1 or members[0].filename != "yiche_checkpoint.json":
                   raise SystemExit("Yiche checkpoint archive 成员不唯一或名称非法")
               mode = members[0].external_attr >> 16
-              if stat.S_ISLNK(mode) or members[0].file_size > 64 * 1024 * 1024:
+              if stat.S_ISLNK(mode) or members[0].file_size > 128 * 1024 * 1024:
                   raise SystemExit("Yiche checkpoint archive 类型或大小非法")
               content = source.read(members[0])
           digest = hashlib.sha256(content).hexdigest()

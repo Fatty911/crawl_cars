@@ -510,7 +510,7 @@ jobs:
       - name: Re-validate, apply, and push only the approved patch
         id: push
         env:
-          PUSH_TOKEN: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
+          PUSH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -569,7 +569,7 @@ jobs:
         id: dispatch
         if: steps.push.outcome == 'success'
         env:
-          GH_TOKEN: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -583,7 +583,7 @@ jobs:
         id: pages
         if: steps.dispatch.outcome == 'success'
         env:
-          GH_TOKEN: ${{ secrets.ACTION_PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           REPAIR_COMMIT_SHA: ${{ steps.push.outputs.commit_sha }}
           DISPATCH_STARTED: ${{ steps.dispatch.outputs.dispatch_started }}
         shell: bash
