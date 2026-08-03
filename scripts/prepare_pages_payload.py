@@ -1524,9 +1524,18 @@ def discover_single_source_candidates(
     *,
     limit: int = 80,
 ) -> dict[str, Any]:
-    """Find bounded cross-source candidates from the full universe of single-source series."""
+    """Find bounded cross-source candidates from the full universe of single-source series.
+
+    Candidates are ordered hot-brand-first: brands with the most rows in the
+    live payload are repaired first, then by match score/margin.
+    """
     if limit < 1:
         raise ValueError("candidate limit must be positive")
+    brand_row_counts: Counter[str] = Counter(
+        str(row.get("品牌") or "").strip()
+        for row in rows
+        if isinstance(row, dict) and str(row.get("品牌") or "").strip()
+    )
     baseline, _stats = annotate_safe_visible_components(rows)
     nodes = _frontend_nodes(baseline, key_function=_strict_frontend_visible_key)
     single_indexes = {
@@ -1624,6 +1633,7 @@ def discover_single_source_candidates(
         candidates_by_id.values(),
         key=lambda item: (
             item["effect"] != "new_multi_card",
+            -brand_row_counts.get(str(item.get("brand") or "").strip(), 0),
             -item["score"],
             -item["margin"],
             item["candidate_id"],
