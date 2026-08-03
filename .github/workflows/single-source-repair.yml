@@ -673,6 +673,19 @@ jobs:
           printf '%s\n' 'pages_status=timeout' >> "$GITHUB_OUTPUT"
           exit 1
 
+      - name: Continue the bounded repair chain
+        if: steps.pages.outputs.pages_status == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run single-source-repair.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f pages_run_id="${{ steps.pages.outputs.pages_run_id }}" \
+            -f source_sha="${{ steps.push.outputs.commit_sha }}"
+
       - name: Update published chain state
         if: always()
         uses: actions/github-script@v7
