@@ -571,10 +571,20 @@ jobs:
         if: steps.push.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
+          REPAIR_COMMIT_SHA: ${{ steps.push.outputs.commit_sha }}
         shell: bash
         run: |
           set -euo pipefail
           printf 'dispatch_started=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          remote_main_sha=""
+          for attempt in $(seq 1 30); do
+            remote_main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+            if [[ "$remote_main_sha" == "$REPAIR_COMMIT_SHA" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          test "$remote_main_sha" = "$REPAIR_COMMIT_SHA"
           gh workflow run merge-and-filter.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
