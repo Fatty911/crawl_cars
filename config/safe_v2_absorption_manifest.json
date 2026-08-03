@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 200
+    "approved_components": 240
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -744,6 +744,29 @@
       ]
     },
     {
+      "candidate_id": "06292398f45d3351a4533913",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "25款 改款 3.0T 四驱旗领豪华商务版 4座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "红旗H9 2025款 改款 3.0T 四驱旗领豪华商务版 4座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "0681448996ef270201121e92",
       "members": [
         {
@@ -783,6 +806,52 @@
           "series": "帕拉丁",
           "model": "帕拉丁 2024款 2.0T 汽油四驱尊途版",
           "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "09df442f44f6bba3659c04ef",
+      "members": [
+        {
+          "brand": "凯翼",
+          "series": "炫界Pro",
+          "model": "25款 1.5L CVT超越版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "凯翼",
+          "series": "炫界Pro",
+          "model": "炫界Pro 2025款 1.5L CVT超越版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "09f6d705bb994fb1b3be17bf",
+      "members": [
+        {
+          "brand": "北京越野",
+          "series": "北京越野BJ90",
+          "model": "23款 山河经典版 3.0T 侠客版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "北京越野",
+          "series": "北京越野BJ90",
+          "model": "北京越野BJ90 2023款 3.0T 山河经典版 侠客版",
+          "year": "2023",
           "sources": [
             "汽车之家"
           ]
@@ -874,6 +943,29 @@
           "brand": "广汽昊铂",
           "series": "昊铂A800",
           "model": "昊铂A800 2026款 智能豪华版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0f30fb852f71bbc7872a26c1",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "朗逸",
+          "model": "26款 Pro 300TSI 星空智逸版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "朗逸",
+          "model": "朗逸 2026款 Pro 300TSI 星空智逸版",
           "year": "2026",
           "sources": [
             "汽车之家"
@@ -997,6 +1089,29 @@
       ]
     },
     {
+      "candidate_id": "17579b8defc5c999868dd7e8",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱智雅版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "24款 2.0T 四驱智雅版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "180ff180a68f231d8793b025",
       "members": [
         {
@@ -1012,6 +1127,52 @@
           "brand": "岚图汽车",
           "series": "岚图泰山X8",
           "model": "岚图泰山X8 2026款 纯电 ULTRA",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "183369c6642ee9d2d3fcb525",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "帕萨特",
+          "model": "26款 Pro 300TSI 龙耀版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "帕萨特",
+          "model": "帕萨特 2026款 Pro 300TSI 龙耀版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "187c1846f61c7792b8d01ef4",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "帕萨特",
+          "model": "26款 Pro 380TSI 龙尊版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "帕萨特",
+          "model": "帕萨特 2026款 Pro 380TSI 龙尊版",
           "year": "2026",
           "sources": [
             "汽车之家"
@@ -1082,6 +1243,52 @@
           "series": "瑞虎8 PLUS",
           "model": "瑞虎8 PLUS 2025款 290TGDI DCT乘风版",
           "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1bac21f333cfb3a2b87ad0ce",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L",
+          "model": "22款 1.4T CVT 至尊型",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L",
+          "model": "帝豪L 2022款 1.4T CVT至尊型",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1c279c98d252937b001aaaea",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "帕萨特",
+          "model": "26款 Pro 380TSI 行政版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "帕萨特",
+          "model": "帕萨特 2026款 Pro 380TSI 行政版",
+          "year": "2026",
           "sources": [
             "汽车之家"
           ]
@@ -1273,6 +1480,75 @@
       ]
     },
     {
+      "candidate_id": "21827b225bbc4049d6d4e07d",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "凌派",
+          "model": "24款 180TURBO CVT豪华版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "凌派",
+          "model": "凌派 2024款 180Turbo CVT豪华版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "22f4fe358b7341f517e4144c",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "26款 双擎 2.0L 豪华版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "亚洲龙 2026款 双擎 2.0L 豪华版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "232c29d831980cfdc3dd050f",
+      "members": [
+        {
+          "brand": "百智新能源",
+          "series": "百智大熊",
+          "model": "22款 10.36kWh 乐熊",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "百智新能源",
+          "series": "百智大熊",
+          "model": "百智大熊 2022款 10.36kWh 乐熊",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "23948d61aaabd8cfb8ce9645",
       "members": [
         {
@@ -1312,6 +1588,121 @@
           "series": "EO 羿欧",
           "model": "EO 羿欧 2025款 两驱SMART版 88.112kWh",
           "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "242652cb11c15ab1b5742081",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "朗逸",
+          "model": "26款 Pro 300TSI 六百万版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "朗逸",
+          "model": "朗逸 2026款 Pro 300TSI 六百万版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "257e2b5d214eea7b7a3045cb",
+      "members": [
+        {
+          "brand": "长安",
+          "series": "长安UNI-V",
+          "model": "25款 第三代 2.0T 劲擎型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "长安",
+          "series": "长安UNI-V",
+          "model": "长安UNI-V 2025款 第三代 2.0T 劲擎型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "25aa730af34b62360dfbf5f9",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "凯美瑞",
+          "model": "26款 双擎 2.5HG 尊贵版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "凯美瑞",
+          "model": "凯美瑞 2026款 双擎 2.5HG 尊贵版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "27d198b5875cd2142c86bf50",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "威兰达PHEV",
+          "model": "2.5L 四驱激擎版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "威兰达 插电混动",
+          "model": "24款 2.5L 73km 四驱激擎版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "29536f4cf1c04a4e93bdf519",
+      "members": [
+        {
+          "brand": "江汽集团",
+          "series": "江淮iEV7",
+          "model": "24款 iEV7L 320km 经典加长版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "江汽集团",
+          "series": "江淮iEV7",
+          "model": "江淮iEV7 2024款 iEV7L 经典加长版",
+          "year": "2024",
           "sources": [
             "汽车之家"
           ]
@@ -1388,6 +1779,29 @@
       ]
     },
     {
+      "candidate_id": "2d5ca7605446539876f8d63a",
+      "members": [
+        {
+          "brand": "长安",
+          "series": "逸动",
+          "model": "26款 1.5L 蓝鲸超擎 悦享型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "长安",
+          "series": "逸动",
+          "model": "逸动 2026款 1.5L 蓝鲸超擎 悦享型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "2d82b2fa3975b9e8effd8b48",
       "members": [
         {
@@ -1427,6 +1841,29 @@
           "series": "YOUNG光小新",
           "model": "YOUNG光小新 2023款 302KM 珍珠版",
           "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "33027174c8836b3760b98435",
+      "members": [
+        {
+          "brand": "东南",
+          "series": "东南A5翼舞",
+          "model": "22款 1.5L CVT 翼豪版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东南",
+          "series": "东南A5翼舞",
+          "model": "东南A5翼舞 2022款 1.5L CVT翼豪版",
+          "year": "2022",
           "sources": [
             "汽车之家"
           ]
@@ -1480,6 +1917,29 @@
       ]
     },
     {
+      "candidate_id": "3541ad75c91bac1d235395b6",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "缤越",
+          "model": "1.5L CVT超能版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "缤越",
+          "model": "25款 1.5L CVT超能版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "35cffa60e649bc05fce1f55c",
       "members": [
         {
@@ -1496,6 +1956,29 @@
           "series": "影豹",
           "model": "影豹 2024款 400T 自动 影豹R PRO版",
           "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "35fb9431abd3c54278ded898",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗H5",
+          "model": "26款 2.0T 自动玄影Pro版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗H5",
+          "model": "红旗H5 2026款 2.0T 自动玄影Pro版",
+          "year": "2026",
           "sources": [
             "汽车之家"
           ]
@@ -1521,6 +2004,29 @@
           "year": "2025",
           "sources": [
             "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "376f1e997dfb983eb9c35467",
+      "members": [
+        {
+          "brand": "江汽集团",
+          "series": "江淮iEV7",
+          "model": "24款 iEV7L 320km 经典标准版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "江汽集团",
+          "series": "江淮iEV7",
+          "model": "江淮iEV7 2024款 iEV7L 经典标准版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
           ]
         }
       ]
@@ -1572,6 +2078,29 @@
       ]
     },
     {
+      "candidate_id": "3ad361fb4cb49824e9f6db32",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A7L",
+          "model": "25款 55 TFSI quattro 旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A7L",
+          "model": "奥迪A7L 2025款 55 TFSI quattro 旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "3bed3a0d3ba4bd73792363a7",
       "members": [
         {
@@ -1588,6 +2117,52 @@
           "series": "凯翼昆仑",
           "model": "凯翼昆仑 2025款 2.0T 星空版 7座",
           "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3c168f5f51dcac07045f2b4d",
+      "members": [
+        {
+          "brand": "东风奕派",
+          "series": "奕派008",
+          "model": "增程 超尊版 5座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风奕派",
+          "series": "奕派008",
+          "model": "26款 增程版 202km 超尊版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3c5388ace05737e70154e3a8",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L",
+          "model": "22款 1.4T CVT 尊贵型",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L",
+          "model": "帝豪L 2022款 1.4T CVT尊贵型",
+          "year": "2022",
           "sources": [
             "汽车之家"
           ]
@@ -1702,6 +2277,29 @@
           "brand": "吉利几何",
           "series": "吉利几何G6",
           "model": "吉利几何G6 2024款 500KM 尊贵型",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3ffc222fc03bca4592407e72",
+      "members": [
+        {
+          "brand": "凌宝汽车",
+          "series": "凌宝Uni",
+          "model": "24款 201km 超甜版(手动座椅) 15.97kWh",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "凌宝汽车",
+          "series": "凌宝uni",
+          "model": "凌宝uni 2024款 超甜版(手动座椅) 15.97kWh",
           "year": "2024",
           "sources": [
             "汽车之家"
@@ -1825,6 +2423,29 @@
       ]
     },
     {
+      "candidate_id": "494316bbcb7502a04a272e7d",
+      "members": [
+        {
+          "brand": "捷尼赛思",
+          "series": "捷尼赛思G70",
+          "model": "24款 2.0T 四驱旗舰版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷尼赛思",
+          "series": "捷尼赛思G70",
+          "model": "捷尼赛思G70 2024款 2.0T 四驱旗舰型",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "4a7f787402c3aa810c2d148e",
       "members": [
         {
@@ -1864,6 +2485,52 @@
           "series": "秦PLUS",
           "model": "秦PLUS 2025款 EV 智驾版 510KM领先型",
           "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4dc1393089023f325e2c1f86",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "26款 双擎 2.0L 尊享版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "亚洲龙 2026款 双擎 2.0L 尊享版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4e55962a332b349504d8c5b8",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "朗逸",
+          "model": "26款 Pro 300TSI 智逸版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "朗逸",
+          "model": "朗逸 2026款 Pro 300TSI 智逸版",
+          "year": "2026",
           "sources": [
             "汽车之家"
           ]
@@ -2124,6 +2791,29 @@
       ]
     },
     {
+      "candidate_id": "58d1a25a2e630854d039c6bd",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲狮",
+          "model": "23款 双擎 2.0L 精英版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲狮",
+          "model": "亚洲狮 2023款 双擎 2.0L 精英版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "58ee52fabea64874004a40f7",
       "members": [
         {
@@ -2140,6 +2830,29 @@
           "series": "哈弗H9",
           "model": "哈弗H9 2024款 2.4T 柴油四驱极境版",
           "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5b1867016ebe6b9e256cf8da",
+      "members": [
+        {
+          "brand": "林肯",
+          "series": "林肯Z",
+          "model": "25款 强混 2.0T 尊逸",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "林肯",
+          "series": "林肯Z",
+          "model": "林肯Z 2025款 2.0T 强混 尊逸",
+          "year": "2025",
           "sources": [
             "汽车之家"
           ]
@@ -2165,6 +2878,98 @@
           "year": "2025",
           "sources": [
             "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5c1fdb1828673a84499fff0b",
+      "members": [
+        {
+          "brand": "凯翼",
+          "series": "炫界Pro",
+          "model": "25款 1.5L CVT舒适版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "凯翼",
+          "series": "炫界Pro",
+          "model": "炫界Pro 2025款 1.5L CVT舒适版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5cfff8288f4fe4c9627019b8",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱尊途型劲酷版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "25款 2.0T 四驱尊途型劲酷版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5d050c249c9dc6e580411ebd",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "26款 双擎 2.0L 尊贵版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "亚洲龙 2026款 双擎 2.0L 尊贵版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5e5e7f1f2af75e4399de3af9",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "朗逸",
+          "model": "26款 Pro 300TSI 星空六百万版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "朗逸",
+          "model": "朗逸 2026款 Pro 300TSI 星空六百万版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
           ]
         }
       ]
@@ -2239,6 +3044,75 @@
       ]
     },
     {
+      "candidate_id": "60392c8a4b2886533faefb70",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "凯美瑞",
+          "model": "26款 双擎 2.0HG 尊贵版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "凯美瑞",
+          "model": "凯美瑞 2026款  双擎 2.0HG 尊贵版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "608ab6b473012c903d2a19d2",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "26款 双擎 2.0L 臻选版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "亚洲龙",
+          "model": "亚洲龙 2026款 双擎 2.0L 臻选版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "654f6479d3012e93eee4afe8",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "享域",
+          "model": "22款 180TURBO CVT 畅享版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "享域",
+          "model": "享域 2022款 180TURBO CVT畅享版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
       "candidate_id": "656aba15103b95a5c34cad31",
       "members": [
         {
@@ -2255,6 +3129,29 @@
           "series": "长安CS35PLUS",
           "model": "长安CS35PLUS 2023款 畅享版 1.4T DCT尊贵型",
           "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "65998849df1e56d3a5f0f05d",
+      "members": [
+        {
+          "brand": "长安",
+          "series": "逸动",
+          "model": "26款 1.5L 蓝鲸超擎 劲享型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "长安",
+          "series": "逸动",
+          "model": "逸动 2026款 1.5L 蓝鲸超擎 劲享型",
+          "year": "2026",
           "sources": [
             "汽车之家"
           ]
@@ -2323,6 +3220,29 @@
           "brand": "沃尔沃",
           "series": "沃尔沃XC70插电式混动",
           "model": "沃尔沃XC70插电式混动 2026款 四驱超长续航Plus",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "68d9897f6eb1703d41863d66",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "凌渡",
+          "model": "26款 凌渡L 300TSI 凌感版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "凌渡",
+          "model": "凌渡 2026款 凌渡L 300TSI 凌感版",
           "year": "2026",
           "sources": [
             "汽车之家"
