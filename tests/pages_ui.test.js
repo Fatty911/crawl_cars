@@ -573,7 +573,7 @@ test("Pages config uses existing canonical dimension names and never aliases 0-5
 
 test("Pages mobile layout keeps text readable, controls touchable, and the wide table scrollable", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "docs", "index.html"), "utf8");
-  const css = fs.readFileSync(path.join(__dirname, "..", "docs", "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "docs", "styles.css"), "utf8").replace(/\r\n?/g, "\n");
   const viewport = html.match(/<meta\s+name="viewport"\s+content="([^"]+)"/i);
   assert.ok(viewport);
   assert.equal(viewport[1], "width=device-width, initial-scale=1");
