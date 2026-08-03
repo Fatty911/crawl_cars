@@ -346,13 +346,12 @@ jobs:
                 ARTIFACT_PREFIX=dongchedi-debug-data
                 JSON_PATTERN='dongchedi_*.json'
                 EXPECTED_WORKFLOW='.github/workflows/crawl-dongchedi.yml'
-                ;;
-              yiche-crawl)
-                SOURCE_DIR=yiche
-                ARTIFACT_PREFIX=yiche-data
-                JSON_PATTERN='yiche_*.json'
-                EXPECTED_WORKFLOW='.github/workflows/crawl-yiche.yml'
-                ;;
+              ;;
+            yiche-crawl)
+              SOURCE_DIR=yiche
+              JSON_PATTERN='yiche_*.json'
+              EXPECTED_WORKFLOW='.github/workflows/crawl-yiche.yml'
+              ;;
               *)
                 echo "debug trigger_source 必须是 autohome-crawl、dongchedi-crawl 或 yiche-crawl"
                 exit 1
@@ -368,7 +367,7 @@ jobs:
             fi
 
             if [ "$SOURCE_DIR" = "yiche" ]; then
-              ARTIFACT_REGEX="^${ARTIFACT_PREFIX}-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$"
+              ARTIFACT_REGEX="^yiche-(data|partial-data-[0-9]{8})-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$"
             else
               ARTIFACT_REGEX="^${ARTIFACT_PREFIX}-[0-9]{8}-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$"
             fi

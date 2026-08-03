@@ -405,6 +405,11 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         errors,
     )
     assert_condition(
+        "^yiche-(data|partial-data-[0-9]{8})-${CRAWLER_RUN_ID}-${CRAWLER_RUN_ATTEMPT}$" in text,
+        "merge-and-filter.yml debug 易车入口未接受 yiche partial artifact",
+        errors,
+    )
+    assert_condition(
         'RUN_PATH="${RUN_PATH%%@*}"' in text,
         "merge-and-filter.yml 未剥离 GitHub run.path 的 @ref 后缀",
         errors,
