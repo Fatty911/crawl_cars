@@ -56,6 +56,27 @@ def _index(rows: Iterable[dict]) -> dict[object, set[str]]:
     return indexed
 
 
+def _annotation_violations(rows: list[dict]) -> tuple[list[dict], set[object], set[object], set[object], dict[str, int]]:
+    expected_rows, stats = annotate_safe_visible_components(rows)
+    missing_annotations: set[object] = set()
+    unsafe_annotations: set[object] = set()
+    evidence_mismatches: set[object] = set()
+    for actual, expected in zip(rows, expected_rows):
+        key = identity_key(actual)
+        actual_id = str(actual.get(VISIBLE_COMPONENT_ID, "") or "")
+        expected_id = str(expected.get(VISIBLE_COMPONENT_ID, "") or "")
+        if expected_id and not actual_id:
+            missing_annotations.add(key)
+        elif actual_id and actual_id != expected_id:
+            unsafe_annotations.add(key)
+        if actual_id == expected_id and actual_id:
+            if str(actual.get(VISIBLE_COMPONENT_EVIDENCE, "") or "") != str(
+                expected.get(VISIBLE_COMPONENT_EVIDENCE, "") or ""
+            ):
+                evidence_mismatches.add(key)
+    return expected_rows, missing_annotations, unsafe_annotations, evidence_mismatches, stats
+
+
 def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head_sha: str) -> dict:
     baseline_rows, baseline_publish_stats = partition_publishable_rows(baseline_rows)
     candidate_rows, candidate_publish_stats = partition_publishable_rows(candidate_rows)
@@ -100,25 +121,23 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
             source_regressions.append(key)
     add("source_regression", source_regressions)
 
-    expected_candidate_rows, component_stats = annotate_safe_visible_components(candidate_rows)
-    missing_annotations = []
-    unsafe_annotations = []
-    evidence_mismatches = []
-    for index, (actual, expected) in enumerate(zip(candidate_rows, expected_candidate_rows)):
-        actual_id = str(actual.get(VISIBLE_COMPONENT_ID, "") or "")
-        expected_id = str(expected.get(VISIBLE_COMPONENT_ID, "") or "")
-        if expected_id and not actual_id:
-            missing_annotations.append(("row", index))
-        elif actual_id and actual_id != expected_id:
-            unsafe_annotations.append(("row", index))
-        if actual_id == expected_id and actual_id:
-            if str(actual.get(VISIBLE_COMPONENT_EVIDENCE, "") or "") != str(
-                expected.get(VISIBLE_COMPONENT_EVIDENCE, "") or ""
-            ):
-                evidence_mismatches.append(("row", index))
-    add("missing_visible_component_annotation", missing_annotations)
-    add("unsafe_visible_component_annotation", unsafe_annotations)
-    add("visible_component_evidence_mismatch", evidence_mismatches)
+    (
+        _expected_baseline_rows,
+        baseline_missing_annotations,
+        baseline_unsafe_annotations,
+        baseline_evidence_mismatches,
+        _baseline_component_stats,
+    ) = _annotation_violations(baseline_rows)
+    (
+        expected_candidate_rows,
+        candidate_missing_annotations,
+        candidate_unsafe_annotations,
+        candidate_evidence_mismatches,
+        component_stats,
+    ) = _annotation_violations(candidate_rows)
+    add("missing_visible_component_annotation", candidate_missing_annotations - baseline_missing_annotations)
+    add("unsafe_visible_component_annotation", candidate_unsafe_annotations - baseline_unsafe_annotations)
+    add("visible_component_evidence_mismatch", candidate_evidence_mismatches - baseline_evidence_mismatches)
     provenance_rows = []
     for actual, expected in zip(candidate_rows, expected_candidate_rows):
         normalized = dict(actual)

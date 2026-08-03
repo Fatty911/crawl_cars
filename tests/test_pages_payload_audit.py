@@ -42,6 +42,8 @@ class PagesPayloadAuditTests(unittest.TestCase):
             "车款ID": model_id,
             "易车上市状态": "approved",
             "数据来源": sources,
+            "官方指导价": "12.34万",
+            "上市时间": "2026.01",
         }
 
     def test_final_payload_identity_and_source_superset_passes(self) -> None:
@@ -173,24 +175,39 @@ class PagesPayloadAuditTests(unittest.TestCase):
         missing = [dict(row) for row in annotated]
         missing[0].pop(self.prepare.VISIBLE_COMPONENT_ID)
         missing[0].pop(self.prepare.VISIBLE_COMPONENT_EVIDENCE)
-        missing_report = self.audit.audit_payload([autohome, dongchedi], missing, head_sha="abc")
+        missing_report = self.audit.audit_payload(annotated, missing, head_sha="abc")
         self.assertEqual("blocked", missing_report["status"])
         self.assertIn(
             "missing_visible_component_annotation",
             {violation["code"] for violation in missing_report["violations"]},
         )
 
-        ambiguous = [
-            dict(autohome, **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}),
-            dict(autohome, 车款ID="102", **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}),
-            dict(dongchedi, **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}),
-        ]
-        unsafe_report = self.audit.audit_payload(ambiguous, ambiguous, head_sha="abc")
+        unsafe = [dict(row, **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}) for row in annotated]
+        unsafe_report = self.audit.audit_payload(annotated, unsafe, head_sha="abc")
         self.assertEqual("blocked", unsafe_report["status"])
         self.assertIn(
             "unsafe_visible_component_annotation",
             {violation["code"] for violation in unsafe_report["violations"]},
         )
+
+    def test_existing_visible_component_annotation_violation_is_not_a_regression(self) -> None:
+        autohome = self.row("101", "仅汽车之家") | {
+            "车型名称": "汉 2026款 EV 506KM 尊贵型",
+            "能源类型": "纯电",
+            "级别": "中大型车",
+        }
+        dongchedi = self.row("202", "仅懂车帝") | {
+            "车型名称": "汉 26款 EV 506KM 尊贵型",
+            "能源类型": "纯电",
+            "级别": "中大型车",
+        }
+        annotated, _ = self.prepare.annotate_safe_visible_components([autohome, dongchedi])
+        old_payload = [dict(row, **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}) for row in annotated]
+
+        report = self.audit.audit_payload(old_payload, old_payload, head_sha="abc")
+
+        self.assertEqual("pass", report["status"])
+        self.assertEqual([], report["violations"])
 
     def test_field_source_marker_must_belong_to_effective_component_sources(self) -> None:
         autohome = self.row("101", "仅汽车之家") | {
