@@ -7,7 +7,17 @@ from scripts.merge_data import merge_rows, merge_single_row
 
 
 def make(source, name, year="2026", energy="纯电", level="SUV", brand="测试", series="测试S"):
-    return {"数据来源": source, "品牌": brand, "车系": series, "车型名称": name, "年款": year, "能源类型": energy, "级别": level}
+    return {
+        "数据来源": source,
+        "品牌": brand,
+        "车系": series,
+        "车型名称": name,
+        "年款": year,
+        "能源类型": energy,
+        "级别": level,
+        "官方指导价": "12.34万",
+        "上市时间": f"{year}.01",
+    }
 
 
 def names(rows):
@@ -128,6 +138,7 @@ def test_publish_boundary_rejects_blank_brand_and_model():
     assert stats == {
         "invalid_brand": 0,
         "invalid_model_name": 0,
+        "invalid_publish_boundary": 0,
         "invalid_yiche_identity": 2,
         "excluded_yiche_commercial_level": 0,
     }
@@ -180,6 +191,28 @@ def test_publish_boundary_rejects_autohome_without_numeric_car_id():
 
     assert kept == [valid]
     assert stats["invalid_autohome_identity"] == 3
+
+
+def test_publish_boundary_rejects_blank_price_listing_time_and_noncanonical_year():
+    valid = make("仅懂车帝", "2026款 Pro", brand="甲", series="甲车系")
+    blank_price = make("仅易车", "2026款 空价", brand="甲", series="甲车系") | {
+        "官方指导价": "",
+        "易车上市状态": "approved",
+        "车款ID": "185801",
+    }
+    blank_listing_time = make("仅易车", "2026款 空上市时间", brand="甲", series="甲车系") | {
+        "上市时间": "",
+        "易车上市状态": "approved",
+        "车款ID": "185802",
+    }
+    noncanonical_year = make("仅懂车帝", "2.3T 1966标准版", year="2025|25", brand="福特", series="福特烈马") | {
+        "上市时间": "2025.09",
+    }
+
+    kept, stats = merge_data.partition_publishable_rows([valid, blank_price, blank_listing_time, noncanonical_year])
+
+    assert kept == [valid]
+    assert stats["invalid_publish_boundary"] == 3
 
 
 def test_publish_boundary_keeps_autohome_latin_commercial_series():

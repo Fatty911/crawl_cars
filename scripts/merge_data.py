@@ -12,6 +12,7 @@ try:
         identity_key,
         is_autohome_row,
         is_yiche_row,
+        publish_boundary_valid,
         row_car_id,
         valid_official_price,
         yiche_publish_identity_valid,
@@ -22,6 +23,7 @@ except ModuleNotFoundError:
         identity_key,
         is_autohome_row,
         is_yiche_row,
+        publish_boundary_valid,
         row_car_id,
         valid_official_price,
         yiche_publish_identity_valid,
@@ -1912,6 +1914,7 @@ def partition_publishable_rows(rows):
     stats = {
         "invalid_brand": 0,
         "invalid_model_name": 0,
+        "invalid_publish_boundary": 0,
         "invalid_yiche_identity": 0,
         "excluded_yiche_commercial_level": 0,
     }
@@ -1939,6 +1942,12 @@ def partition_publishable_rows(rows):
         normalized = dict(row)
         normalized["品牌"] = brand
         normalized["车型名称"] = model
+        if not re.fullmatch(r"(?:19|20)\d{2}", str(normalized.get("年款") or "").strip()):
+            stats["invalid_publish_boundary"] += 1
+            continue
+        if not publish_boundary_valid(normalized):
+            stats["invalid_publish_boundary"] += 1
+            continue
         kept.append(normalized)
     return kept, stats
 
