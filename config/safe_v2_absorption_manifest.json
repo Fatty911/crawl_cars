@@ -519,7 +519,8 @@
     "legitimate_hard_conflict": 36,
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
-    "raw_counterpart_missing": 94
+    "raw_counterpart_missing": 94,
+    "approved_components": 40
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -533,5 +534,927 @@
   "source_manifest": {
     "bytes": 2706782,
     "sha256": "5d72639b12235327d017be95ad70bc7d9a8a3c1e58743aea338315b8235c6f66"
-  }
+  },
+  "approved_components": [
+    {
+      "candidate_id": "080c21ad27c41721d23d7ef9",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱尊途版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2024款 2.0T 汽油四驱尊途版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0a1226c8c93f64e9ddbf3eaf",
+      "members": [
+        {
+          "brand": "现代",
+          "series": "EO 羿欧",
+          "model": "四驱TECH 88.112kWh",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "现代",
+          "series": "EO 羿欧",
+          "model": "EO 羿欧 2025款 四驱TECH版 88.112kWh",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "112742ae4ce9a97cb39fda26",
+      "members": [
+        {
+          "brand": "方程豹",
+          "series": "钛7 PHEV",
+          "model": "135KM两驱Pro版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "方程豹",
+          "series": "钛7",
+          "model": "钛7 2025款 135KM两驱Pro版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1f89b15b94c71e99fc809e40",
+      "members": [
+        {
+          "brand": "北京越野",
+          "series": "北京越野BJ30",
+          "model": "旅行家 1.5T DCT标准版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "北京越野",
+          "series": "北京越野BJ30",
+          "model": "北京越野BJ30 2026款 旅行家 1.5T DCT两驱标准版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "23948d61aaabd8cfb8ce9645",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱智享型劲酷版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2025款 2.0T 汽油四驱智享型劲酷版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "23d223d506814189481c8cc1",
+      "members": [
+        {
+          "brand": "现代",
+          "series": "EO 羿欧",
+          "model": "两驱SMART 88.112kWh",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "现代",
+          "series": "EO 羿欧",
+          "model": "EO 羿欧 2025款 两驱SMART版 88.112kWh",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3333dbcb196c38b3ee751d53",
+      "members": [
+        {
+          "brand": "广汽传祺",
+          "series": "传祺ES9 PHEV",
+          "model": "143km PRO+",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "广汽传祺",
+          "series": "传祺ES9",
+          "model": "传祺ES9 2024款 PHEV 143km Pro+",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3a4232f82baf78f256f71bdf",
+      "members": [
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "极耀版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "创维EV6 2024款 430 极耀版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3dc784c4ddc710f37673fea4",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱优享型劲酷版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2025款 2.0T 汽油四驱优享型劲酷版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3f77430765e03a19741bac95",
+      "members": [
+        {
+          "brand": "沃尔沃",
+          "series": "沃尔沃XC70",
+          "model": "四驱超长续航Ultra",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "沃尔沃",
+          "series": "沃尔沃XC70插电式混动",
+          "model": "沃尔沃XC70插电式混动 2026款 四驱超长续航Ultra",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "47215734e649fe8e90f532fe",
+      "members": [
+        {
+          "brand": "现代",
+          "series": "EO 羿欧",
+          "model": "两驱TECH 88.112kWh",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "现代",
+          "series": "EO 羿欧",
+          "model": "EO 羿欧 2025款 两驱TECH版 88.112kWh",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "50043ed17e941e5c1ad7714b",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "超越版 1.6TD DCT大家庭欢乐版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "捷途X90 PLUS 2025款 超越版 1.6TD DCT大家庭欢乐版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5232bfbe4de62cfce95ae336",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "1.6TD DCT豪华版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "捷途X90 PLUS 2025款 1.6TD DCT豪华版 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5525d879535163e6f4759c69",
+      "members": [
+        {
+          "brand": "法拉利",
+          "series": "法拉利Amalfi",
+          "model": "3.9T V8 标准版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "法拉利",
+          "series": "Amalfi",
+          "model": "Amalfi 2026款 3.9T V8 标准版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "55de028eeb20bbb3f1320b46",
+      "members": [
+        {
+          "brand": "五菱汽车",
+          "series": "五菱星云",
+          "model": "2.0L DHT 旗舰型",
+          "year": "2023",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "五菱汽车",
+          "series": "五菱星云",
+          "model": "五菱星云 2023款 2.0L DHT 旗舰版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "563a6a392a8ae197f7c81470",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱黑武士版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2025款 2.0T 汽油四驱黑武士版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "569cc41cd1254f9a1e7d74bf",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "超越版 1.6TD 手动洋房PRO",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "捷途X90 PLUS 2025款 超越版 1.6TD 手动洋房PRO 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5f498c172e8aa68d9e4b66b0",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱尊享版",
+          "year": "2023",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2023款 2.0T 汽油四驱尊享版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "66e2b7724699527572901632",
+      "members": [
+        {
+          "brand": "沃尔沃",
+          "series": "沃尔沃XC70",
+          "model": "四驱超长续航Plus",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "沃尔沃",
+          "series": "沃尔沃XC70插电式混动",
+          "model": "沃尔沃XC70插电式混动 2026款 四驱超长续航Plus",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6f06d8010a0081b3c5b68984",
+      "members": [
+        {
+          "brand": "东风风神",
+          "series": "东风风神L8 PHEV",
+          "model": "185KM 梦想版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风神",
+          "series": "东风风神L8",
+          "model": "东风风神L8 2025款 185KM 梦想版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7b0a8fea05ebb7c93930df13",
+      "members": [
+        {
+          "brand": "方程豹",
+          "series": "钛7 PHEV",
+          "model": "190KM四驱Max版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "方程豹",
+          "series": "钛7",
+          "model": "钛7 2025款 190KM四驱Max版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "85ffde085b96503872548a4e",
+      "members": [
+        {
+          "brand": "东风风神",
+          "series": "东风风神L8 PHEV",
+          "model": "185KM 理想版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风神",
+          "series": "东风风神L8",
+          "model": "东风风神L8 2025款 185KM 理想版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "86e10b5c0f35a23eb379d99c",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱智享版",
+          "year": "2023",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2023款 2.0T 汽油四驱智享版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "889dfa1c08fcb1ff08bf8716",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱智臻型劲酷版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2025款 2.0T 汽油四驱智臻型劲酷版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8d00901f2d05f65e447e95c9",
+      "members": [
+        {
+          "brand": "方程豹",
+          "series": "钛7 PHEV",
+          "model": "190KM四驱Ultra版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "方程豹",
+          "series": "钛7",
+          "model": "钛7 2025款 190KM四驱Ultra版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "924ce75f4634dba3fbe375d1",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "1.6TD DCT精英版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "捷途X90 PLUS 2025款 1.6TD DCT精英版 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "925d4e9c597aa0d64c5ad1a1",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱尊享型劲酷版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2025款 2.0T 汽油四驱尊享型劲酷版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "95dcd66a7592174348d65ef9",
+      "members": [
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "极行版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "创维EV6 2026款 430 极行版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "970a7f401bd658b7d9b15d1b",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "超越版 1.6TD DCT别墅",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "捷途X90 PLUS 2025款 超越版 1.6TD DCT别墅 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a79f8eaab637704950885e9f",
+      "members": [
+        {
+          "brand": "蓝电",
+          "series": "蓝电E5 PLUS",
+          "model": "165km 咖啡创业版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "蓝电",
+          "series": "蓝电E5 PLUS",
+          "model": "蓝电E5 PLUS 2025款 165km 长续航咖啡创业版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c167acba9133766ffa13fde1",
+      "members": [
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "极行版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "创维EV6 2024款 430 极行版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ccd02def323f588b95168df0",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱纪念版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2024款 2.0T 汽油四驱纪念版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cee75c6e71618afce6d846c7",
+      "members": [
+        {
+          "brand": "方程豹",
+          "series": "钛7 PHEV",
+          "model": "200KM两驱Max版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "方程豹",
+          "series": "钛7",
+          "model": "钛7 2025款 200KM两驱Max版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d2a7b84d7b339a2cba728bcf",
+      "members": [
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "神驰版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "创维EV6 2026款 475 神驰版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d793e4a2ebdee086f068a014",
+      "members": [
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "神行版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "创维EV6 2026款 520 神行版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "dd9d7d6d869a4e7559931c06",
+      "members": [
+        {
+          "brand": "长安启源",
+          "series": "长安启源E07",
+          "model": "纯电 90kWh Ultra四驱版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "长安启源",
+          "series": "长安启源E07",
+          "model": "2025款 纯电 四驱 90kWh Ultra高性能版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e07a109eddb396025e0144ec",
+      "members": [
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "极耀版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "创维汽车",
+          "series": "创维EV6",
+          "model": "创维EV6 2025款 430 极耀版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e5c08d9e6afc01a5d0c6d9f0",
+      "members": [
+        {
+          "brand": "沃尔沃",
+          "series": "沃尔沃XC70",
+          "model": "四驱超长续航Core",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "沃尔沃",
+          "series": "沃尔沃XC70插电式混动",
+          "model": "沃尔沃XC70插电式混动 2026款 四驱超长续航Core",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f31281c10dff7e44035cd360",
+      "members": [
+        {
+          "brand": "长安",
+          "series": "长安CS75 PLUS",
+          "model": "1.5T 蓝鲸超擎 真香型",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "长安",
+          "series": "长安CS75PLUS",
+          "model": "长安CS75PLUS 2026款 第四代 1.5T 蓝鲸超擎 真香型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f588aef46186c601458f4360",
+      "members": [
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "2.0T 四驱智尊版",
+          "year": "2023",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "东风风度",
+          "series": "帕拉丁",
+          "model": "帕拉丁 2023款 2.0T 汽油四驱智尊版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    }
+  ]
 }
