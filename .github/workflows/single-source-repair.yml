@@ -475,6 +475,7 @@ jobs:
               '基线 SHA: ' + clean(result.base_sha) + '\n' +
               '轮次: ' + clean(result.round) + '\n' +
               '单源率: ' + clean(result.single_rate) + '%\n' +
+              '列名诊断: ' + clean(JSON.stringify(result.column_diagnosis || {})) + '\n' +
               '全量候选数: ' + clean(result.candidate_count) + '\n' +
               '重放基线/候选: ' + clean(JSON.stringify(result.replay || {})) + '\n' +
               '根因: ' + clean(result.root_cause) + '\n' +

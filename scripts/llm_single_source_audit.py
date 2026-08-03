@@ -169,6 +169,7 @@ def build_prompt(report: dict, data_sample: list[dict]) -> str:
     src_dist = report.get("source_distribution", {})
     causes = report.get("causes", {})
     detail = report.get("detail", {})
+    column_diagnosis = report.get("column_diagnosis", {})
 
     # Build top single-source series/products summary
     top_single = detail.get("top_single_series", detail.get("top_single_products", []))[:15]
@@ -194,6 +195,9 @@ def build_prompt(report: dict, data_sample: list[dict]) -> str:
 
 ## 单源条目 Top 15
 {top_text}
+
+## 列名结构诊断（确定性证据）
+{json.dumps(column_diagnosis, ensure_ascii=False, indent=2)}
 
 ## 数据样本（前5行）
 {json.dumps(data_sample[:5], ensure_ascii=False, indent=2, default=str)}
@@ -226,6 +230,11 @@ def build_prompt(report: dict, data_sample: list[dict]) -> str:
 - 当前多源率: {report['multi_rate']}%
 - 可达到的多源率: X% （说明依据）
 - 达到80-90%多源率需要什么条件
+
+### 6. 列名结构诊断
+- 区分“属性名”和“属性值”：例如 `属性 - 值`、已知 `_v4_值`、`_1/_2` 配对字段不能直接当成独立属性。
+- 列出确定性诊断中的高置信问题，给出建议属性名和证据数量。
+- 说明列名污染是否会影响跨源字段对齐和多源率；不要仅凭列名猜测真实值，也不要为了提高多源率编造数据。
 """
 
 
@@ -311,6 +320,9 @@ def write_deterministic_fallback(report: dict, output: Path) -> None:
 ## 根因分类
 1. **车系仅单源**: {report['causes'].get('series_only_single', 0)} 行（对端未爬到该系列）
 2. **trim级合并gap**: {report['causes'].get('trim_merge_gap', 0)} 行（系列有双源但具体车型未匹配）
+
+## 列名结构诊断
+{json.dumps(report.get('column_diagnosis', {}), ensure_ascii=False, indent=2)}
 
 ## 数据源分布
 {json.dumps(report.get('source_distribution', {}), ensure_ascii=False, indent=2)}

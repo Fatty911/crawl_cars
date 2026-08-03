@@ -28,6 +28,11 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+try:
+    from column_name_diagnostics import diagnose_columns
+except ModuleNotFoundError:
+    from scripts.column_name_diagnostics import diagnose_columns
+
 
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_ROOT_CAUSES = {
@@ -368,6 +373,7 @@ def analyze_payload(payload: Any, kind: str) -> dict[str, Any]:
             "identity_only_single": single_identity_only,
             "cross_source_merge_gap": cross_source_merge_gap,
         },
+        "column_diagnosis": diagnose_columns(rows),
         "top_single": top_single[:30],
         "sample": records[:8],
     }
@@ -439,6 +445,8 @@ def _build_car_candidate_prompt(report: dict[str, Any], base_sha: str, pages_url
 Pages URL：{pages_url}
 
 你只能从报告已有 candidate_id 中选择最多 {MAX_CAR_APPROVALS} 个。禁止创造候选、修改字段、输出代码或 unified diff。只有在两个成员明显是同一 SKU、差异仅来自年款写法、车款名前缀/后缀或配置粒度时才批准；无法确认就拒绝。
+
+报告中的 `column_diagnosis` 是独立的列名质量证据：它用于指出“属性值被编码进列名”可能影响跨源字段对齐，但不能被当作车型候选，也不能据此批准不存在的来源或放宽匹配门禁。当前汽车修复白名单只允许安全归并 manifest；列名问题只能记录为诊断，不得在本轮生成其它文件的修改。
 
 只输出一个严格 JSON 对象，不要 Markdown，不要代码围栏，不要额外字段：
 {{
@@ -950,6 +958,7 @@ def _write_result(output_dir: Path, result: dict[str, Any]) -> None:
         f"- chain: {result.get('chain_id', '')}",
         f"- round: {result.get('round', '')}",
         f"- single-source rate: {result.get('single_rate', '')}%",
+        f"- suspicious columns: {result.get('column_diagnosis', {}).get('suspect_column_count', 0)}",
         f"- root cause: {result.get('root_cause', '')}",
         "",
         str(result.get("reason") or result.get("analysis") or "").strip()[:4000],
@@ -971,6 +980,7 @@ def _base_result(args: argparse.Namespace) -> dict[str, Any]:
         "root_cause": "",
         "confidence": 0.0,
         "single_rate": 0.0,
+        "column_diagnosis": {},
         "patch_sha256": "",
         "reason": "",
         "analysis": "",
@@ -989,12 +999,14 @@ def _propose_car_manifest(
     pages = _cars_pages_module()
     rows, _shape = _extract_rows(payload)
     candidate_report = pages.discover_single_source_candidates(rows, limit=80)
+    candidate_report["column_diagnosis"] = report.get("column_diagnosis", {})
     report["candidate_search"] = candidate_report
     report["input_sha256"] = _sha256(data_path)
     report["pages_url"] = args.pages_url
     report["base_sha"] = args.base_sha
     result["report_sha256"] = hashlib.sha256(_json(report).encode("utf-8")).hexdigest()
     result["single_rate"] = report["single_rate"]
+    result["column_diagnosis"] = report.get("column_diagnosis", {})
     result["candidate_count"] = candidate_report["candidate_count"]
     (output_dir / "single_source_report.json").write_text(_json(report) + "\n", encoding="utf-8")
     if args.deterministic_only:
@@ -1101,6 +1113,7 @@ def propose(args: argparse.Namespace) -> int:
         report["base_sha"] = args.base_sha
         result["report_sha256"] = hashlib.sha256(_json(report).encode("utf-8")).hexdigest()
         result["single_rate"] = report["single_rate"]
+        result["column_diagnosis"] = report.get("column_diagnosis", {})
         (output_dir / "single_source_report.json").write_text(_json(report) + "\n", encoding="utf-8")
         if report["single_count"] == 0:
             result.update(status="no-single-source", reason="validated payload has no single-source rows")

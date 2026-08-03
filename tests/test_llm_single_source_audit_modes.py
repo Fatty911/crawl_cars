@@ -32,6 +32,11 @@ def _inputs(directory: Path) -> tuple[Path, Path]:
                 "causes": {"series_only_single": 1, "trim_merge_gap": 0},
                 "source_distribution": {"JD": 1},
                 "detail": {"top_single_products": [{"product": "M", "source": "JD", "rows": 1}]},
+                "column_diagnosis": {
+                    "status": "suspects-found",
+                    "suspect_column_count": 1,
+                    "suspects": [{"column": "属性 - 值", "suggested_attribute": "属性"}],
+                },
             }
         ),
         encoding="utf-8",
@@ -46,6 +51,8 @@ def test_prompt_and_agent_response_modes_are_local(tmp_path: Path):
     output = tmp_path / "analysis.md"
     loaded_report, _rows, built = module._load_inputs(type("Args", (), {"data": str(data), "report": str(report)})())
     prompt.write_text(built, encoding="utf-8")
+    assert "列名结构诊断" in built
+    assert "属性 - 值" in built
     response = tmp_path / "agent.md"
     response.write_text("# Agent result", encoding="utf-8")
     module.consume_agent_response(response, output)

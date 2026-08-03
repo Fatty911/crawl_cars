@@ -73,6 +73,7 @@ jobs:
           "$PWD/.github/workflows/crawl-dongchedi.yml"
           "$PWD/.github/workflows/merge-and-filter.yml"
           "$PWD/.github/workflows/single-source-repair.yml"
+          "$PWD/scripts/column_name_diagnostics.py"
           "$PWD/scripts/check_workflow_expectations.py"
           "$PWD/scripts/configure_cron_job_org.py"
           "$PWD/scripts/crawl_budget.py"

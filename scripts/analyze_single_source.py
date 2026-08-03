@@ -6,6 +6,7 @@ Produces a JSON report with:
 - source distribution
 - root cause categories (series-only-single, trim-merge-gap, source-coverage-gap)
 - top single-source series/products
+- deterministic column-name diagnostics for attribute-value headers
 - actionable recommendations
 
 Usage:
@@ -18,6 +19,11 @@ import json
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
+
+try:
+    from column_name_diagnostics import diagnose_columns
+except ModuleNotFoundError:
+    from scripts.column_name_diagnostics import diagnose_columns
 
 
 def _detect_source_field(rows: list[dict]) -> str:
@@ -164,6 +170,7 @@ def analyze(path: Path) -> dict:
     # Detect repo type
     is_cars = any("车系" in r for r in rows[:3]) if rows else False
     detail = analyze_cars(rows, src_field) if is_cars else analyze_generic(rows, src_field)
+    column_diagnosis = diagnose_columns(rows)
 
     causes = {
         "series_only_single": detail.get("single_series_rows", detail.get("single_source_products", 0)),
@@ -179,6 +186,7 @@ def analyze(path: Path) -> dict:
         "source_distribution": dict(src_dist.most_common(20)),
         "causes": causes,
         "detail": detail,
+        "column_diagnosis": column_diagnosis,
     }
 
 

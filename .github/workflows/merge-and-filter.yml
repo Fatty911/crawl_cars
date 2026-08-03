@@ -17,6 +17,9 @@ on:
       - scripts/filter_pages_source_baseline.py
       - scripts/download_latest_crawler_artifact.py
       - scripts/analysis/merge_evidence_report.py
+      - scripts/analyze_single_source.py
+      - scripts/column_name_diagnostics.py
+      - scripts/llm_single_source_audit.py
       - scripts/crawl_zero_to_whole_ratio.py
       - scripts/merge_data.py
       - scripts/test_autohome.py
@@ -989,6 +992,10 @@ jobs:
 
             ${JSON.stringify(reportData.causes, null, 2)}
 
+            ### Column-name Diagnosis
+
+            ${JSON.stringify(reportData.column_diagnosis || {}, null, 2)}
+
             ### LLM Analysis (AA 50+ model)
 
             ${analysis}
@@ -1025,3 +1032,15 @@ jobs:
               });
               console.log('Created new issue');
             }
+
+      - name: Upload single-source audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: single-source-audit-${{ github.run_id }}
+          path: |
+            audit_report.json
+            llm_analysis.md
+            llm_agent_prompt.md
+          if-no-files-found: warn
+          retention-days: 3
