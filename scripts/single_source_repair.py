@@ -948,7 +948,21 @@ def _car_manifest_patch(
             "members": candidate["members"],
         }
         assigned_members.update(candidate_members)
-    candidate_manifest["approved_components"] = [existing[key] for key in sorted(existing)]
+    # Keep the baseline array order and append newly approved components in
+    # sorted id order, so the patch stays additive (rewriting the whole array
+    # in sorted order would make removed-line count scale with array size).
+    baseline_components = list(baseline_manifest.get("approved_components", []))
+    baseline_ids = {
+        str(item.get("candidate_id") or "")
+        for item in baseline_components
+        if isinstance(item, dict)
+    }
+    added_components = [
+        existing[key]
+        for key in sorted(existing)
+        if key not in baseline_ids
+    ]
+    candidate_manifest["approved_components"] = baseline_components + added_components
     expected = candidate_manifest.setdefault("expected", {})
     expected["approved_components"] = len(candidate_manifest["approved_components"])
     baseline_text = manifest_path.read_text(encoding="utf-8")
