@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 500
+    "approved_components": 530
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -12029,6 +12029,696 @@
           "brand": "奔驰",
           "series": "奔驰CLE",
           "model": "奔驰CLE 2026款 CLE 300 4MATIC 动感型轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "230b557819e419947353cf45",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰C级",
+          "model": "26款 C 260 L 运动轿车经典版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰C级",
+          "model": "奔驰C级 2026款 C 260 L 运动版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "2e5507c53cb09033f76b0bff",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "普拉多",
+          "model": "2.4T 双擎 穿越BX版 5座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "普拉多",
+          "model": "25款 双擎 2.4T 穿越BX版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3890ec8b7792f004b0bf567d",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLA新能源",
+          "model": "25款 CLA 300 L 超长续航领智版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLA新能源",
+          "model": "奔驰CLA新能源 2025款 300L 超长续航领智版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "39c35bdce6d383674a795817",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "皇冠SportCross",
+          "model": "23款 双擎 2.5L 两驱尊贵版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "皇冠SportCross",
+          "model": "皇冠SportCross 2023款 2.5L SportCross HEV两驱尊贵版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "41a8fb52d657a4e1d1292f87",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE AMG",
+          "model": "26款 AMG CLE 53 4MATIC+ 敞篷轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE AMG",
+          "model": "奔驰CLE AMG 2026款 AMG CLE 53 4MATIC+ 敞篷轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "49a5a820187b5ed1b05a02c3",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "普拉多",
+          "model": "2.4T 双擎 旗舰VX版 5座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "普拉多",
+          "model": "25款 双擎 2.4T 旗舰VX版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4da462a05bbb12da0137a17d",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰C级",
+          "model": "26款 C 260 L 轿车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰C级",
+          "model": "奔驰C级 2026款 C 260 L",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "531c1bd921f3d365a7d40eb3",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 E 300 L 尊贵型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 E 300 L 尊贵型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "56d02f15b090ee3b39611482",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "威飒",
+          "model": "双擎 2.5L CVT两驱豪华PLUS版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "威飒",
+          "model": "24款 双擎 2.5L 两驱豪华Plus版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "58275c68b276c46dc4c6a791",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "雷凌",
+          "model": "26款 雷凌L 2.0L 豪华PLUS版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "雷凌",
+          "model": "雷凌 2026款 雷凌L 汽油版 2.0L 豪华PLUS版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "59bbc45daca501cf342e730a",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰C级",
+          "model": "26款 C 260 L 皓夜运动轿车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰C级",
+          "model": "奔驰C级 2026款 C 260 L 皓夜运动版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6827ff626ac694525e11458c",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 改款二 E 300 L 时尚型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 改款二 E 300 L 时尚型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6bb582da77cb6f90acc98e5a",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 E 300 L 运动豪华型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 E 300 L 豪华运动型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6beee59df28f5e00d5b9b799",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "汉兰达",
+          "model": "双擎 2.5L 四驱尊贵版 7座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "汉兰达",
+          "model": "26款 双擎 2.5L 四驱尊贵版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "72cffa54efe0a3b760668094",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "汉兰达",
+          "model": "双擎 2.5L 四驱精英版 7座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "汉兰达",
+          "model": "26款 双擎 2.5L 四驱精英版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "84c498e37c92385072b004e0",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "汉兰达",
+          "model": "双擎 2.5L 四驱至尊版 7座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "汉兰达",
+          "model": "26款 双擎 2.5L 四驱至尊版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8c5cb228b1404f3815d87f09",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE AMG",
+          "model": "26款 改款 AMG CLE 53 4MATIC+ 敞篷轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE AMG",
+          "model": "奔驰CLE AMG 2026款 改款 AMG CLE 53 4MATIC+ 敞篷轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "902c1cc6e07852fbdcdebae4",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "雷凌",
+          "model": "26款 雷凌L 2.0L 豪华版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "雷凌",
+          "model": "雷凌 2026款 雷凌L 汽油版 2.0L 豪华版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9e6869315246517288e2dff0",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "23款 改款 CLS 260",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "奔驰CLS 2023款 改款 CLS 260",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9ec4cad5c1101293bf672a98",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLA(进口)",
+          "model": "26款 CLA 200 五门猎跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLA(进口)",
+          "model": "奔驰CLA(进口) 2026款 CLA 200 猎跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a8a989ddce0d831c306b5fbf",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "皇冠SportCross",
+          "model": "23款 双擎 2.4T 四驱至尊版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "皇冠SportCross",
+          "model": "皇冠SportCross 2023款 2.4T SportCross HEV四驱至尊版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "bd9868bb30ca81d23d4f334e",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "YARiS L 致炫",
+          "model": "22款 致炫X 1.5L CVT 豪华PLUS版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "YARiS L 致炫",
+          "model": "YARiS L 致炫 2022款 致炫X 1.5L CVT豪华PLUS版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c13ac6162ccaff85c4585c79",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "威飒",
+          "model": "双擎 2.5L CVT两驱豪华版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "威飒",
+          "model": "24款 双擎 2.5L 两驱豪华版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c71a0f836c39b01db5182e63",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLA新能源",
+          "model": "25款 CLA 300 L 超长续航版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLA新能源",
+          "model": "奔驰CLA新能源 2025款 300L 超长续航版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cfd2219879a736a274862f57",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "26款 CLE 300 4MATIC 豪华型轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "奔驰CLE 2026款 CLE 300 4MATIC 豪华型轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cfd833800c3ae086aa686e44",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "26款 改款 CLE 300 4MATIC 豪华型轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "奔驰CLE 2026款 改款 CLE 300 4MATIC 豪华型轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d450d319d656ad9aa087a5f5",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE AMG",
+          "model": "26款 AMG CLE 53 4MATIC+ 轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE AMG",
+          "model": "奔驰CLE AMG 2026款 AMG CLE 53 4MATIC+ 轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e09c6457a1e74bd365f273f3",
+      "members": [
+        {
+          "brand": "丰田",
+          "series": "普拉多",
+          "model": "2.4T 双擎 悍野WX版 5座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "丰田",
+          "series": "普拉多",
+          "model": "25款 双擎 2.4T 悍野WX版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e0bc7bed33aa86a9fe105974",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLA(进口)",
+          "model": "25款 CLA 260 4MATIC 四门轿跑车 典藏版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLA(进口)",
+          "model": "奔驰CLA(进口) 2025款 CLA 260 4MATIC 典藏版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f0889812265722a833195fd3",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE AMG",
+          "model": "26款 改款 AMG CLE 53 4MATIC+ 轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE AMG",
+          "model": "奔驰CLE AMG 2026款 改款 AMG CLE 53 4MATIC+ 轿跑车",
           "year": "2026",
           "sources": [
             "汽车之家"
