@@ -73,15 +73,6 @@ FREE_MODELS = [
         "endpoint": "https://api.cloudflare.com/client/v4/accounts/b3becce2da2399953658ed2a053e7c08/ai/v1/chat/completions",
     },
     {
-        "name": "Modal GLM free",
-        "aa_index": 0,
-        "provider": "modal-free",
-        "model": "zai-org/GLM-5.1-FP8",
-        "max_tokens": 8000,
-        "env_keys": ["MODAL_API_KEY"],
-        "endpoint": "https://api.us-west-2.modal.direct/v1/chat/completions",
-    },
-    {
         "name": "ModelScope MiniMax free",
         "aa_index": 0,
         "provider": "modelscope-free",
@@ -105,24 +96,6 @@ FREE_MODELS = [
 # Historical paid ordinary-API models, opt-in only.
 PAID_AA_MODELS = [
     {
-        "name": "Claude Opus 5 (max)",
-        "aa_index": 61,
-        "provider": "anthropic",
-        "model": "claude-opus-5-20250115",
-        "max_tokens": 16000,
-        "env_keys": ["ANTHROPIC_API_KEY"],
-        "endpoint": "https://api.anthropic.com/v1/messages",
-    },
-    {
-        "name": "GPT-5.6 Sol (max)",
-        "aa_index": 59,
-        "provider": "openai",
-        "model": "gpt-5.6-sol",
-        "max_tokens": 16000,
-        "env_keys": ["OPENAI_API_KEY", "DEEPSEEK_API_KEY", "ZEN_API_KEY"],
-        "endpoint": "https://api.openai.com/v1/chat/completions",
-    },
-    {
         "name": "DeepSeek V4 Flash 0731 (max)",
         "aa_index": 50,
         "provider": "nvidia-nim",
@@ -130,33 +103,6 @@ PAID_AA_MODELS = [
         "max_tokens": 4000,
         "env_keys": ["NVIDIA_NIM_API_KEY"],
         "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
-    },
-    {
-        "name": "Kimi K3",
-        "aa_index": 57,
-        "provider": "kimi",
-        "model": "k3",
-        "max_tokens": 12000,
-        "env_keys": ["KIMI_API_KEY", "MOONSHOT_API_KEY"],
-        "endpoint": "https://api.moonshot.cn/v1/chat/completions",
-    },
-    {
-        "name": "GPT-5.6 Sol (high)",
-        "aa_index": 56,
-        "provider": "openai",
-        "model": "gpt-5.6-sol",
-        "max_tokens": 8000,
-        "env_keys": ["OPENAI_API_KEY", "DEEPSEEK_API_KEY", "ZEN_API_KEY"],
-        "endpoint": "https://api.openai.com/v1/chat/completions",
-    },
-    {
-        "name": "Grok 4.5 (high)",
-        "aa_index": 54,
-        "provider": "xai",
-        "model": "grok-4.5",
-        "max_tokens": 8000,
-        "env_keys": ["XAI_API_KEY"],
-        "endpoint": "https://api.x.ai/v1/chat/completions",
     },
 ]
 

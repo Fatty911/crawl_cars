@@ -41,13 +41,9 @@ PROVIDER_DEFAULT_MODELS = {
     "OPENROUTER": ["nvidia/nemotron-3-ultra-550b-a55b:free"],
     "ZEN": ["nemotron-3-ultra-free", "deepseek-v4-flash-free"],
     "ATOMGIT": ["zai-org/GLM-5.1", "deepseek-ai/DeepSeek-V4-Flash"],
-    "CLOUDFLARE": ["@cf/zai-org/glm-5.2", "@cf/moonshotai/kimi-k2.6"],
-    "MODAL": ["zai-org/GLM-5.1-FP8"],
+    "CLOUDFLARE": ["@cf/zai-org/glm-5.2"],
     # 普通按量 API（免费全部不可用时兜底）
     "DEEPSEEK": ["deepseek-v4-pro", "deepseek-v4-flash"],
-    "ZHIPU": ["glm-5.2"],
-    "MOONSHOT": ["kimi-k2.6"],
-    "MINIMAX": ["minimax-m3"],
 }
 
 FREE_PREFIXES = {
@@ -56,7 +52,6 @@ FREE_PREFIXES = {
     "ZEN",
     "ATOMGIT",
     "MODELSCOPE",
-    "MODAL",
     "CLOUDFLARE",
 }
 
@@ -137,11 +132,11 @@ class WorkflowErrorFixer:
                 "proxies": {"http": proxy_url, "https": proxy_url} if proxy_url else None,
             })
 
-        # 排序：免费模型优先（ZEN、NVIDIA NIM、Modal），AtomGit 作为小 AGENT 降级
+        # 排序：免费模型优先（ZEN、NVIDIA NIM），AtomGit 作为小 AGENT 降级
         def sort_key(p):
             prefix = p["prefix"]
             # 免费 Provider 优先（AtomGit 降为小 AGENT，排在其他免费之后）
-            if prefix in ["ZEN", "NVIDIA_NIM", "MODAL"]:
+            if prefix in ["ZEN", "NVIDIA_NIM"]:
                 return (0, 0)
             # AtomGit 小 AGENT（免费但能力/上下文有限）
             if prefix == "ATOMGIT":
