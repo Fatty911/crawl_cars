@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 620
+    "approved_components": 650
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -14790,6 +14790,696 @@
           "series": "捷途X70 PLUS",
           "model": "捷途X70 PLUS 2025款 1.5T 豪华版 5座",
           "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "118b1b95d41f0c13c983e3ed",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PLUS C-DM",
+          "model": "25款 1.5T 116km 尊贵型 7座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PLUS C-DM",
+          "model": "瑞虎8 PLUS C-DM 2025款 1.5T 116km 尊贵型 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "181b96441b0eec7d810b12bc",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 旗舰版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT 旗舰型 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "18a9838a446c9b69515a17d5",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "25款 1.6T 双离合豪华版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PLUS",
+          "model": "捷途X90 PLUS 2025款 1.6TD DCT豪华版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "243c55c1fbc46d16e75d10a6",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70",
+          "model": "26款 1.5T 双离合超越PRO 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70",
+          "model": "捷途X70 2026款 1.5T DCT超越PRO 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "414e1858c1642ed74a0b8bb6",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70",
+          "model": "26款 1.5T 手动超越 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70",
+          "model": "捷途X70 2026款 1.5T 手动超越版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "443a515c6aafbe25d9314dc5",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系(进口)",
+          "model": "26款 530i 尊享型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系(进口)",
+          "model": "宝马5系(进口) 2026款 530i 尊享型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "443fa42391f68a0dc963350a",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 豪华版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT 豪华型 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "46f4359a163a1112b6d5e0e4",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马i3",
+          "model": "26款 改款 eDrive 40 L 曜夜套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马i3",
+          "model": "宝马i3 2026款 改款 eDrive 40L 曜夜套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "47c2915fd28ec61a51505c5b",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马i7",
+          "model": "26款 eDrive50L 尊享型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马i7",
+          "model": "宝马i7 2026款 eDrive50L 尊享M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "50b0186fbaad5c5b9eaf5354",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PLUS C-DM",
+          "model": "25款 1.5T 116km 豪华型 7座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PLUS C-DM",
+          "model": "瑞虎8 PLUS C-DM 2025款 1.5T 116km 豪华型 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "51a61f2dce4a94e97b768cec",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PLUS C-DM",
+          "model": "25款 1.5T 116km 舒适型 7座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PLUS C-DM",
+          "model": "瑞虎8 PLUS C-DM 2025款 1.5T 116km 舒适型 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "576c77d77a64d96f3a2e9b9c",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途大圣i-DM",
+          "model": "23款 1.5T 80km 闪电",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途大圣i-DM",
+          "model": "捷途大圣i-DM 2023款 1.5T DHT闪电",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5c5ada17e9bde0a79cdb8807",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系(进口)",
+          "model": "26款 530i 领先型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系(进口)",
+          "model": "宝马5系(进口) 2026款 530i 领先型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "601d97f021153e9bd8be8723",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "26款 1.6T 舒适版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2026款 1.6T DCT舒适版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "709c5d5ab0db30f35a225736",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎3",
+          "model": "22款 经典超值版 1.5L 手动 豪华型",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎3",
+          "model": "瑞虎3 2022款 经典超值版 1.5L 手动豪华型",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "732390f943f2aa108105550d",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "26款 2.0T 豪华版 6座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2026款 2.0T DCT豪华版 6座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "79c2738a200cc0946d02448e",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "26款 1.6T 标准版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2026款 1.6T DCT标准版 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7afcea7d8fded0a4d90f54b6",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽5 GT",
+          "model": "23款 1.5T CVT酷",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽5 GT",
+          "model": "艾瑞泽5 GT 2023款 1.5T CVT酷",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "80dda9451fd5a9949d35f060",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽5 GT",
+          "model": "23款 1.5T CVT享",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽5 GT",
+          "model": "艾瑞泽5 GT 2023款 1.5T CVT享",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8fe469f477d73732eb5d1f03",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 双离合尊享版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT尊享版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "97cde8299e6255650f9ab613",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽5 GT",
+          "model": "23款 1.5T CVT智",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽5 GT",
+          "model": "艾瑞泽5 GT 2023款 1.5T CVT智",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a619abb11cfb5e46e34492eb",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 740Li 尊享型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 740Li 尊享型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ae56c62a0d4abf5ce1464346",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 豪华版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT 豪华型 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b1abb017723abff779f7a3d3",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 旗舰版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT 旗舰型 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b208926467cf404a3029a17e",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途大圣i-DM",
+          "model": "23款 1.5T 80km 闪电01",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途大圣i-DM",
+          "model": "捷途大圣i-DM 2023款 1.5T DHT闪电01",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b925cef38fcc02b1bfb2abcb",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 畅享版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT 畅享版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "bea4250f6011893f28594b90",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 双离合尊享版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT尊享版 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c6f64d1145c570b7cdc5ce2f",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马i3",
+          "model": "26款 改款 eDrive 35 L",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马i3",
+          "model": "宝马i3 2026款 改款 eDrive 35L",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "dacce140b57eb12a0c9b2fd4",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途大圣i-DM",
+          "model": "23款 1.5T 80km 闪电02",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途大圣i-DM",
+          "model": "捷途大圣i-DM 2023款 1.5T DHT闪电02",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f484d12f34ffdbbf6a775cc0",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 畅享版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT 畅享版 5座",
+          "year": "2026",
           "sources": [
             "汽车之家"
           ]
