@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 560
+    "approved_components": 590
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -13409,6 +13409,696 @@
           "brand": "比亚迪",
           "series": "汉",
           "model": "汉 2025款 DM-i 智驾版 245KM尊贵型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "079a1a20113ea40bae918f9a",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L",
+          "model": "26款 2.0T 运动版 Plus",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L",
+          "model": "奥迪A5L 2026款 2.0T 运动版 Plus",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0bab2bd74e45e4896d7a42da",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A7L",
+          "model": "25款 45 TFSI quattro 黑武士版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A7L",
+          "model": "奥迪A7L 2025款 45 TFSI quattro 黑武士版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0e647b7e5c69d23b4e269b11",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "唐L",
+          "model": "25款 DM-i 1.5T 215km 前驱激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "唐L",
+          "model": "唐L 2025款 DM 215KM激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0f5616d5384f58c6133448db",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海狮05DM-i",
+          "model": "25款 智驾版 1.5L 75km 尊贵型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海狮05 DM-i",
+          "model": "海狮05 DM-i 2025款 DM-i 智驾版 75KM尊贵型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "148a2b0558e8a2e4e4282f04",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海狮05DM-i",
+          "model": "25款 智驾版 1.5L 75km 豪华型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海狮05 DM-i",
+          "model": "海狮05 DM-i 2025款 DM-i 智驾版 75KM豪华型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "25eacc44e44b7e248c18b53f",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A3",
+          "model": "26款 A3L Limousine 35 TFSI 飞驰尊享型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A3",
+          "model": "奥迪A3 2026款 A3L Limousine 35TFSI 飞驰尊享型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "427346a9372e84eca758046f",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A7L",
+          "model": "25款 45 TFSI quattro 奢享型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A7L",
+          "model": "奥迪A7L 2025款 45 TFSI quattro 奢享型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "42eb7978ab943aa64bb3148d",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海豹06GT",
+          "model": "26款 520km 海浪版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海豹06GT",
+          "model": "海豹06GT 2026款 520海浪版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "52b333a7e73444b68e0bda83",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪RS 4",
+          "model": "24款 2.9T Avant 燃擎版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪RS 4",
+          "model": "奥迪RS 4 2024款  RS4 Avant 燃擎版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "59bb4faf61dd3ef810b6877a",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪S6",
+          "model": "25款 Limousine 2.9T",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪S6",
+          "model": "奥迪S6 2025款 S6 2.9T",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "79a678dff8d41543758708a2",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海狮05DM-i",
+          "model": "25款 智驾版 1.5L 115km 尊荣型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海狮05 DM-i",
+          "model": "海狮05 DM-i 2025款 DM-i 智驾版 115KM尊荣型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8136f773a621325ec3e7c6fc",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "26款 焕新款 2.0T 智领quattro型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "奥迪A5L Sportback 2026款 焕新款 TFSI 150kW 智领quattro型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "897e6ecea7f92d225925ab06",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "26款 2.0T quattro旗舰智曜型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "奥迪A5L Sportback 2026款 TFSI quattro 200kW 旗舰智曜型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9221d56e16cd4aa566c44071",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海豹06GT",
+          "model": "25款 智驾版 505km 后驱海浪版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海豹06GT",
+          "model": "海豹06GT 2025款 智驾版 505海浪版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a4f0b3aa91865b89d4158082",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "宋L DM-i",
+          "model": "26款 1.5L 200km 卓越型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "宋L DM-i",
+          "model": "宋L DM-i 2026款 200KM卓越型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a779e3b1ed340767012d43f5",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "26款 焕新款 2.0T quattro旗舰型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "奥迪A5L Sportback 2026款 焕新款 TFSI quattro 200kW 旗舰型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ad785dc5c99cadf5a2d3ceda",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A3",
+          "model": "26款 Sportback 35 TFSI 飞驰尊享型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A3",
+          "model": "奥迪A3 2026款 Sportback 35TFSI 飞驰尊享型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b741421fe1999c7ab8c5d119",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A8",
+          "model": "26款 A8L 60 TFSI Horch创始人版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A8",
+          "model": "奥迪A8 2026款 A8L Horch创始人版 60TFSI",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b9e2999ffc07fb79ae266c65",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "唐L",
+          "model": "25款 DM-p 1.5T 175km 四驱无人机玩家版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "唐L",
+          "model": "唐L 2025款 DM 175KM无人机玩家版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "bc8b7ef47ceb9670353f3d8b",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪RS 4",
+          "model": "24款 2.9T Avant 常规版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪RS 4",
+          "model": "奥迪RS 4 2024款  RS4 Avant 常规版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c3c71b222d3786d25fd097a1",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "26款 焕新款 2.0T 尊享quattro型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "奥迪A5L Sportback 2026款 焕新款 TFSI 150kW 尊享quattro型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cfb85abfa909c53e13f8f1b5",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L",
+          "model": "26款 2.0T 运动版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L",
+          "model": "奥迪A5L 2026款 2.0T 运动版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d7ecf9ec830d65433d4cf396",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪S4",
+          "model": "25款 Avant 3.0T",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪S4",
+          "model": "奥迪S4 2025款 S4 Avant 3.0TFSI",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e25d8c30e5f7e9dd8cd3441f",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A8",
+          "model": "26款 A8L 55 TFSI Horch创始人版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A8",
+          "model": "奥迪A8 2026款 A8L Horch创始人版 55TFSI",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f02a94f122c3582f2ccbcf28",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "26款 焕新款 2.0T quattro旗舰智曜型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A5L Sportback",
+          "model": "奥迪A5L Sportback 2026款 焕新款 TFSI quattro 200kW 旗舰智曜型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f4468e8cca5ed9c3a37341e4",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "宋L DM-i",
+          "model": "26款 1.5L 130km 超越型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "宋L DM-i",
+          "model": "宋L DM-i 2026款 130KM超越型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f4b4f7cf91a7b0314a922748",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海狮05DM-i",
+          "model": "25款 智驾版 1.5L 115km 旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海狮05 DM-i",
+          "model": "海狮05 DM-i 2025款 DM-i 智驾版 115KM旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f5e0e0e762026f940f0eb944",
+      "members": [
+        {
+          "brand": "奥迪",
+          "series": "奥迪A4(进口)",
+          "model": "25款 allroad quattro",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奥迪",
+          "series": "奥迪A4(进口)",
+          "model": "奥迪A4(进口) 2025款 allroad quattro 45 TFSI",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f63412ccbe38605d43496945",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "宋L DM-i",
+          "model": "26款 1.5L 200km 超越型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "宋L DM-i",
+          "model": "宋L DM-i 2026款 200KM超越型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ff2488fb05da1679fd475665",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海狮07DM-i",
+          "model": "25款 1.5T 135km 四驱高性能激光雷达版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海狮07 DM-i",
+          "model": "海狮07 DM-i 2025款 135 高性能激光雷达版",
           "year": "2025",
           "sources": [
             "汽车之家"
