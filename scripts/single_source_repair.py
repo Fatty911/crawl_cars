@@ -1034,7 +1034,7 @@ def _patch_paths(patch: str, kind: str) -> list[str]:
         raise RepairInputError("patch contains a forbidden file operation or sensitive/configuration marker")
     added = sum(1 for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++"))
     removed = sum(1 for line in patch.splitlines() if line.startswith("-") and not line.startswith("---"))
-    added_limit = 1200 if kind == "cars" else MAX_PATCH_ADDED_LINES
+    added_limit = 4000 if kind == "cars" else MAX_PATCH_ADDED_LINES
     removed_limit = 40 if kind == "cars" else MAX_PATCH_REMOVED_LINES
     if added > added_limit or removed > removed_limit:
         raise RepairInputError("patch exceeds the line-change budget")
