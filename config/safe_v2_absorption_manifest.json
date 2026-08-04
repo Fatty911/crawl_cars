@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 530
+    "approved_components": 560
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -12720,6 +12720,696 @@
           "series": "奔驰CLE AMG",
           "model": "奔驰CLE AMG 2026款 改款 AMG CLE 53 4MATIC+ 轿跑车",
           "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0938527f053d0f0ad80bd520",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 DM-i 智驾版 1.5T 125km 尊荣型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 DM-i 智驾版 125KM尊荣型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1885133d80a3f57bdb2b462e",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "秦PLUS",
+          "model": "26款 DM-i 1.5L 128KM 进取型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "秦PLUS",
+          "model": "秦PLUS 2026款 DM-i 128KM进取型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1ab660ce1a48b81251d88d48",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海豹06GT",
+          "model": "25款 智驾版 605km 后驱热浪版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海豹06GT",
+          "model": "海豹06GT 2025款 智驾版 605热浪版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "217d64a8de85bc6a8e658c67",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 长续航版 EV 智驾版 705km 激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 EV 智驾版 705KM激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "23f13b8a4d8169500e23a159",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "宋Ultra",
+          "model": "26款 DM-i 1.5L 310km 超越型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "宋Ultra",
+          "model": "宋Ultra 2026款 DM-i 310KM 超越型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "30460d14c149fefa5e3b9682",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 DM-i 智驾版 1.5T 125km 舒适型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 DM-i 智驾版 125KM舒适型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3289f6ade1e10fa95131b397",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "宋Ultra",
+          "model": "26款 DM-i 1.5L 205km 超越型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "宋Ultra",
+          "model": "宋Ultra 2026款 DM-i 205KM 超越型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "37761dac9612e3be671957f3",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "驱逐舰05",
+          "model": "25款 DM-i 1.5L 120km 畅行版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "驱逐舰05",
+          "model": "驱逐舰05 2025款 DM-i 120KM 畅行版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3e6e3835f394b5b0b5d042c2",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 长续航版 EV 智驾版 635km 激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 EV 智驾版 635KM激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3ee5ea46bef248bd3669f18f",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "唐L",
+          "model": "25款 EV 670km 后驱激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "唐L",
+          "model": "唐L 2025款 EV 670KM激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "43bcff4b47bfec813371d7c7",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "宋Ultra",
+          "model": "26款 DM-i 1.5L 205km 领先型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "宋Ultra",
+          "model": "宋Ultra 2026款 DM-i 205KM 领先型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4acdf4e320b8c4a7ab5719fc",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 长续航版 DM-i 智驾版 1.5T 245km 尊荣型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 DM-i 智驾版 245KM尊荣型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4b9489b8b53a0acc0c76e87c",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 长续航版 DM-i 智驾版 1.5T 245km 激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 DM-i 智驾版 245KM激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5993c961b43453fcc7da2e59",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海豹08",
+          "model": "26款 DM-i 1.5T 400km 前驱尊贵型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海豹08",
+          "model": "海豹08 2026款 DM-i 400KM尊贵型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5e61d101dead10850ff4da26",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "宋Ultra",
+          "model": "26款 DM-i 1.5L 310km 领先型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "宋Ultra",
+          "model": "宋Ultra 2026款 DM-i 310KM 领先型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6d9a1ffb6b44a202af2486fd",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 长续航版 DM-i 智驾版 1.5T 245km 舒适型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 DM-i 智驾版 245KM舒适型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "77046b30593b02f079f65482",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海豹08",
+          "model": "26款 EV 905km 后驱旗舰型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海豹08",
+          "model": "海豹08 2026款 EV 905KM旗舰型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7a4678e782898cb319afb49d",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "比亚迪e7",
+          "model": "25款 450km 智惠出行版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "比亚迪e7",
+          "model": "比亚迪e7 2025款 450智惠出行版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7a75643b552b4abe2f4fcaf1",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "比亚迪e7",
+          "model": "25款 520km 智行出行版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "比亚迪e7",
+          "model": "比亚迪e7 2025款 520智行出行版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "89b0ea1c48e038880c40deea",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 长续航版 EV 智驾版 635km 旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 EV 智驾版 635KM旗舰版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9616c77a8b6b1eef8cc9cca6",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 DM-i 智驾版 1.5T 125km 尊贵型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 DM-i 智驾版 125KM尊贵型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9faadd050e44309768b44b23",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉L",
+          "model": "25款 EV 701km 后驱激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉L",
+          "model": "汉L 2025款 EV 701KM激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a93450455114f644a9e54eab",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海豹08",
+          "model": "26款 DM-i 1.5T 400km 前驱旗舰型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海豹08",
+          "model": "海豹08 2026款 DM-i 400KM旗舰型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "abceb6f97bc2219c4431597d",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "秦PLUS",
+          "model": "26款 DM-i 1.5L 210km 进取型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "秦PLUS",
+          "model": "秦PLUS 2026款 DM-i 210KM进取型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c74632bb65f175235ac13e32",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 DM-i 智驾版 1.5T 125km 激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 DM-i 智驾版 125KM激光雷达旗舰型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e28caf2400c80ac50efdf10f",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "比亚迪e7",
+          "model": "25款 520km 智惠出行版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "比亚迪e7",
+          "model": "比亚迪e7 2025款 520智惠出行版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e5d3f1d4f20376a040f8c183",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "驱逐舰05",
+          "model": "25款 DM-i 1.5L 55km 畅行版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "驱逐舰05",
+          "model": "驱逐舰05 2025款 DM-i 55KM 畅行版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f86c0a50a8f1bf0761aa0727",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "海豹",
+          "model": "25款 智驾版 600km 四驱智驾版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "海豹",
+          "model": "海豹 2025款 改款 600四驱智驾版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "fe9c301c6b21bcd8b537b62d",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "大唐",
+          "model": "26款 EV 800km 后驱激光雷达尊荣型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "大唐",
+          "model": "大唐 2026款 纯电 800KM 后驱激光雷达尊荣型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ff2c84a2dce12f5857637965",
+      "members": [
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "25款 长续航版 DM-i 智驾版 1.5T 245km 尊贵型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "比亚迪",
+          "series": "汉",
+          "model": "汉 2025款 DM-i 智驾版 245KM尊贵型",
+          "year": "2025",
           "sources": [
             "汽车之家"
           ]
