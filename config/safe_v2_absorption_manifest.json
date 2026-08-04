@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 470
+    "approved_components": 500
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -11339,6 +11339,696 @@
           "brand": "大众",
           "series": "凌渡",
           "model": "凌渡 2026款 凌渡L 300TSI 凌动版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "16638a14b60075f505b71504",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 改款 E 300 L 时尚型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 改款 E 300 L 时尚型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "19ac0f88e10c669073424f1d",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰GLE PHEV",
+          "model": "改款 GLE 400e 4MATIC",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰GLE 插电混动",
+          "model": "25款 改款 GLE 400 e 4MATIC",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1f0b16345dd84d480681780b",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "26款 改款 CLE 300 4MATIC 动感型轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "奔驰CLE 2026款 改款 CLE 300 4MATIC 动感型轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "233080f432f4d318f315c047",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 E 300 L 豪华型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 E 300 L 豪华型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "28534efe91790b56619c3f71",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "26款 CLE 260 轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "奔驰CLE 2026款 CLE 260 轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "2c050572d664f2b497f9dcd6",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰EQC",
+          "model": "22款 改款 EQC 350 4MATIC 特别版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰EQC",
+          "model": "奔驰EQC 2022款 改款 EQC 350 4MATIC 特别版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "34496380b7b6e345e9e0b7d9",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 改款 E 260 L 4MATIC",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 改款 E 260 L 4MATIC",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3594d8c1919043d0e6a45659",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "26款 改款 CLE 260 轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "奔驰CLE 2026款 改款 CLE 260 轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "37574c710fa3989153b23846",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "迈腾PHEV",
+          "model": "26款 1.5T 162km PRIME",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "迈腾 PHEV",
+          "model": "迈腾 PHEV 2026款 PRIME",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4274a234236a1b139fa53cb5",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "26款 CLE 300 4MATIC 敞篷轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "奔驰CLE 2026款 CLE 300 4MATIC 敞篷轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "449a05f5d0548c7136065e3b",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "23款 改款 CLS 300 豪华型",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "奔驰CLS 2023款 改款 CLS 300 豪华型",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "47710fe841529e65c7b20326",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "23款 CLS 300 豪华型",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "奔驰CLS 2023款 CLS 300 豪华型",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4a70290908fffcd6efe53d03",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 改款 E 260 L",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 改款 E 260 L",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "567506642afa15fa1d6d1522",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 E 260 L 4MATIC",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 E 260 L 4MATIC",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "62d7dcbe00669f7871fea274",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 改款 E 260 L 经典版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 改款 E 260 L 经典版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "709761f5f70b519bdb23b59d",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "23款 改款 CLS 300 动感型",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "奔驰CLS 2023款 改款 CLS 300 动感型",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8607c65197a9fae4883b30fd",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "23款 CLS 300 动感型",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLS",
+          "model": "奔驰CLS 2023款 CLS 300 动感型",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8f6d11cbbf3200d3c966592b",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰EQC",
+          "model": "22款 改款 EQC 350 4MATIC",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰EQC",
+          "model": "奔驰EQC 2022款 改款 EQC 350 4MATIC",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "99528a749a4c0adfb05b9c34",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 改款 E 300 L 尊贵型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 改款 E 300 L 尊贵型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9b16fe3d43a3652c97871125",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰A级",
+          "model": "25款 改款 A 200 L 时尚型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰A级",
+          "model": "奔驰A级 2025款 改款 A 200 L 时尚型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9f48679958546a46cd64f99a",
+      "members": [
+        {
+          "brand": "大众",
+          "series": "一汽-大众CC",
+          "model": "26款 3000万辆甄选款 380TSI 夺目版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "大众",
+          "series": "一汽-大众CC",
+          "model": "一汽-大众CC 2026款 3000万辆甄选款 380TSI 夺目",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a310ef12903ce5dd9d7f25e9",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰EQC",
+          "model": "22款 EQC 350 4MATIC 特别版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰EQC",
+          "model": "奔驰EQC 2022款 EQC 350 4MATIC 特别版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a9f898cd3bbd154e784618e5",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰C级(进口)",
+          "model": "23款 C 260 轿跑车",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰C级(进口)",
+          "model": "奔驰C级(进口) 2023款 C 260 轿跑车",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c2269ad6c931387e3e395483",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "迈巴赫S级",
+          "model": "26款 S 580 4MATIC",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "迈巴赫S级",
+          "model": "迈巴赫S级 2026款 S 580 4MATIC",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c928d3df7f14d0b0427129de",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "26款 改款 CLE 300 4MATIC 敞篷轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "奔驰CLE 2026款 改款 CLE 300 4MATIC 敞篷轿跑车",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c96f69ad86935ce4441842bc",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 E 260 L 经典版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 E 260 L 经典版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d1cb3901eef564b31d4d8cc4",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 改款 E 300 L 运动豪华型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 改款 E 300 L 豪华运动型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "de872f7cfb36a731e6d858a3",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "26款 改款 E 300 L 豪华型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰E级",
+          "model": "奔驰E级 2026款 改款 E 300 L 豪华型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ef6dc680e3a1f12724cc8f30",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "迈巴赫S级",
+          "model": "26款 S 580 4MATIC 极夜版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "迈巴赫S级",
+          "model": "迈巴赫S级 2026款 S 580 4MATIC 极夜版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "fe086ff86e20858599da8f0f",
+      "members": [
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "26款 CLE 300 4MATIC 动感型轿跑车",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奔驰",
+          "series": "奔驰CLE",
+          "model": "奔驰CLE 2026款 CLE 300 4MATIC 动感型轿跑车",
           "year": "2026",
           "sources": [
             "汽车之家"
