@@ -156,8 +156,15 @@ class SingleSourceRepairTests(unittest.TestCase):
             _json_response('{"should_fix": true, "confidence": 1e309}')
         with self.assertRaises(RepairInputError):
             _json_response('{"should_fix": true, "confidence": 0.9, "confidence": 0.8}')
-        with self.assertRaises(RepairInputError):
-            _json_response('```json {"should_fix": false}```')
+        # ```json fences and opencode console progress lines are now tolerated
+        self.assertEqual(
+            _json_response('```json {"should_fix": false}```'),
+            {"should_fix": False},
+        )
+        self.assertEqual(
+            _json_response('> plan · deepseek-v4-flash\n\n-> Read prompt.md [offset=2001]\n```json\n{"should_fix": true, "confidence": 0.9, "evidence": ["e"], "analysis": "a"}\n```\n'),
+            {"should_fix": True, "confidence": 0.9, "evidence": ["e"], "analysis": "a"},
+        )
 
     def test_strict_input_and_identity_boundaries(self) -> None:
         with self.assertRaises(RepairInputError):
@@ -274,11 +281,11 @@ class SingleSourceRepairTests(unittest.TestCase):
             "confidence": 0.95,
             "evidence": "新属性名",
         }
-        with self.assertRaises(RepairInputError):
-            _car_selection(
-                dict(response, column_aliases=[bad]),
-                report,
-            )
+        _selected, _aliases, _conf, _ev, _an = _car_selection(
+            dict(response, column_aliases=[bad]),
+            report,
+        )
+        self.assertEqual([], _aliases)
 
         # column outside the diagnosis suspects is rejected
         bad = {
@@ -287,11 +294,11 @@ class SingleSourceRepairTests(unittest.TestCase):
             "confidence": 0.95,
             "evidence": "身份列",
         }
-        with self.assertRaises(RepairInputError):
-            _car_selection(
-                dict(response, column_aliases=[bad]),
-                report,
-            )
+        _selected, _aliases, _conf, _ev, _an = _car_selection(
+            dict(response, column_aliases=[bad]),
+            report,
+        )
+        self.assertEqual([], _aliases)
 
         # canonical mapping into a protected identity attribute is rejected
         bad = {
@@ -300,11 +307,11 @@ class SingleSourceRepairTests(unittest.TestCase):
             "confidence": 0.95,
             "evidence": "试图映射到身份列",
         }
-        with self.assertRaises(RepairInputError):
-            _car_selection(
-                dict(response, column_aliases=[bad]),
-                report,
-            )
+        _selected, _aliases, _conf, _ev, _an = _car_selection(
+            dict(response, column_aliases=[bad]),
+            report,
+        )
+        self.assertEqual([], _aliases)
 
         # confidence below the alias floor is rejected
         bad = {
@@ -313,11 +320,11 @@ class SingleSourceRepairTests(unittest.TestCase):
             "confidence": 0.8,
             "evidence": "信心不足",
         }
-        with self.assertRaises(RepairInputError):
-            _car_selection(
-                dict(response, column_aliases=[bad]),
-                report,
-            )
+        _selected, _aliases, _conf, _ev, _an = _car_selection(
+            dict(response, column_aliases=[bad]),
+            report,
+        )
+        self.assertEqual([], _aliases)
 
         # duplicate columns are rejected
         bad = {
@@ -326,11 +333,11 @@ class SingleSourceRepairTests(unittest.TestCase):
             "confidence": 0.95,
             "evidence": "重复",
         }
-        with self.assertRaises(RepairInputError):
-            _car_selection(
-                dict(response, column_aliases=[response["column_aliases"][0], bad]),
-                report,
-            )
+        _selected, _aliases, _conf, _ev, _an = _car_selection(
+            dict(response, column_aliases=[response["column_aliases"][0], bad]),
+            report,
+        )
+        self.assertEqual([], _aliases)
 
     def test_car_alias_config_validation(self) -> None:
         _car_aliases_from_text('{"version": 1, "aliases": []}')
@@ -529,11 +536,11 @@ class SingleSourceRepairTests(unittest.TestCase):
                 "confidence": 0.95,
                 "evidence": "值污染",
             }
-            try:
-                _car_selection(dict(base, column_aliases=[bad]), report)
-                raise AssertionError(f"expected RepairInputError for value {bad_value!r}")
-            except RepairInputError:
-                pass
+            _selected, aliases, _conf, _ev, _an = _car_selection(
+                dict(base, column_aliases=[bad]),
+                report,
+            )
+            assert aliases == [], f"expected degraded aliases for value {bad_value!r}"
 
 
     def test_publish_pipeline_degrades_gracefully_without_alias_config(self) -> None:

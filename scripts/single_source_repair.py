@@ -591,12 +591,38 @@ def _strict_json_load(text: str, label: str) -> Any:
         raise RepairInputError(f"{label} is not strict JSON") from exc
 
 
+_JSON_FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
+
+
 def _json_response(text: str) -> dict[str, Any]:
+    """Parse the model response, tolerating opencode CLI console output.
+
+    ``opencode --format default`` prefixes progress lines (``> plan ...``,
+    ``-> Read ...``) and may wrap the JSON in ```json fences.  Try the raw
+    text first, then the first fenced block, then the longest ``{...}`` span;
+    only fail when all attempts are invalid.
+    """
     candidate = text.strip()
-    value = _strict_json_load(candidate, "model response")
-    if not isinstance(value, dict):
+    attempts = [candidate]
+    match = _JSON_FENCE.search(candidate)
+    if match:
+        attempts.append(match.group(1).strip())
+    start = candidate.find("{")
+    end = candidate.rfind("}")
+    if start != -1 and end > start:
+        attempts.append(candidate[start : end + 1])
+    last_error: Exception | None = None
+    for attempt in attempts:
+        try:
+            value = _strict_json_load(attempt, "model response")
+        except RepairInputError as exc:
+            last_error = exc
+            continue
+        if isinstance(value, dict):
+            return value
         raise RepairInputError("model response JSON is not an object")
-    return value
+    suffix = f": {last_error}" if last_error else ""
+    raise RepairInputError("model response is not strict JSON" + suffix)
 
 
 def _text_sha256(text: str) -> str:
@@ -739,7 +765,12 @@ def _car_selection(
             if fingerprint in member_fingerprints:
                 raise RepairInputError("model selected overlapping candidate components")
             member_fingerprints.add(fingerprint)
-    aliases = _car_column_aliases(response, candidate_report)
+    # A rejected alias entry must not void valid candidate approvals: degrade
+    # to no aliases and let the caller record the rejection reason.
+    try:
+        aliases = _car_column_aliases(response, candidate_report)
+    except RepairInputError:
+        aliases = []
     return selected, aliases, confidence, [item.strip() for item in evidence if item.strip()], analysis.strip()
 
 
@@ -1215,6 +1246,11 @@ def _propose_car_manifest(
     result["model"] = model
     response = _json_response(model_response)
     selected, column_aliases, confidence, evidence, analysis = _car_selection(response, candidate_report)
+    try:
+        _car_column_aliases(response, candidate_report)
+        alias_rejection = ""
+    except RepairInputError as exc:
+        alias_rejection = str(exc)[:500]
     result.update(
         confidence=confidence,
         root_cause="merge-match",
@@ -1222,6 +1258,7 @@ def _propose_car_manifest(
         analysis=analysis[:4000],
         selected_candidate_ids=[item["candidate_id"] for item in selected],
         column_alias_count=len(column_aliases),
+        alias_rejection=alias_rejection,
     )
     if not selected and not column_aliases:
         result.update(status="analysis-only", reason="model approved no deterministic candidate")
