@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 590
+    "approved_components": 620
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -14099,6 +14099,696 @@
           "brand": "比亚迪",
           "series": "海狮07 DM-i",
           "model": "海狮07 DM-i 2025款 135 高性能激光雷达版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "04cb80a1d219d78ce434cc74",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90",
+          "model": "25款 1.6T 旗舰版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90",
+          "model": "捷途X90 2025款 1.6T DCT 旗舰版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0b59e3f9ed6ebb47ce04ff81",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "26款 1.6T 标准版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2026款 1.6T DCT标准版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0e9bc9857ffedf589841c4be",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T CVT劲享版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T 劲享版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "10b1edc5447d7a8ffbdff449",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 6DCT 豪华版7座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 豪华版 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "112c47d52406e8702c822db6",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "26款 1.6T 舒适版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2026款 1.6T DCT舒适版 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "20879286744d1e1c933b7a11",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "2.0TD DCT 豪华版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2024款 2.0T DCT豪华版 5座",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "30f0cedc257e6f8e6fed130a",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "2.0TD DCT 至臻版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2024款 2.0T DCT至臻版 7座",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "35bdaad890b0a82e6d86847e",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "2.0TD DCT 旗舰版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2024款 2.0T DCT旗舰版 7座",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "47714393692fd759c5a089c1",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 7DCT 旗舰版5座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 旗舰版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4eef5829e34437e49dfc17fa",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 7DCT 至臻澎湃版7座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 至臻澎湃版 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "51333b254157e41a644255a1",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 7DCT 旗舰版7座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 旗舰版 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "574a86db741f0ba149fae1c3",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 7DCT 豪华澎湃版7座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 豪华澎湃版 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "68d68fe5cd416fde4cf7d16c",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 畅享MAX版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT 畅享MAX版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "71920e5588391ab7c74a7146",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "1.6TD DCT 精英版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2024款 1.6T DCT精英版 5座",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "72f0fb45aa1876739774850a",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 7DCT 至臻澎湃版5座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 至臻澎湃版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7a9a9235c408c91c692edef5",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "26款 2.0T 旗舰版 6座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2026款 2.0T DCT旗舰版 6座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7bb05e027dea8e1876a560f7",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 6DCT 至臻版5座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 至臻版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "92ddd559d7ec808f62d59192",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "1.6TD DCT 至臻版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2024款 1.6T DCT至臻版 7座",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9c4a026ee636def5adb76e9a",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T CVT劲享版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T 劲享版 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a566b483dca7af105f774edb",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 6DCT 舒适",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 冠军版 1.5T DCT舒适 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a603427f4db07503dc57556a",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "2.0TD DCT 尊贵版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2024款 2.0T DCT尊贵版 5座",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b1f8d2bd26703e9a8245041a",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "26款 2.0T 精英版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2026款 2.0T DCT精英版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b49d2b0ff1c6a50165c975c9",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 7DCT 豪华澎湃版5座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 豪华澎湃版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b71e7d7624a6fbce7df24092",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途旅行者",
+          "model": "1.5TD 探索",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途旅行者",
+          "model": "捷途旅行者 2025款 1.5TD DCT 探索+畅行版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c2985ebe8574da6eaa9a7446",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "1.6TD DCT 豪华版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2024款 1.6T DCT豪华版 5座",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e4c7983bd1ecade7ba1ff760",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90",
+          "model": "25款 1.6T 旗舰版 7座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90",
+          "model": "捷途X90 2025款 1.6T DCT 旗舰版 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e753beef3508093b316242fc",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 6DCT 至臻版7座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 至臻版 7座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ee50b9a971c9a81d3fd4ed8b",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "26款 2.0T 精英版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X90 PRO",
+          "model": "捷途X90 PRO 2026款 2.0T DCT精英版 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f005c2244dda7f0be6efd469",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "26款 1.5T 畅享MAX版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2026款 1.5T DCT 畅享MAX版 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f8342bcb2026ddddb1db0e84",
+      "members": [
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "1.5T 6DCT 豪华版5座",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "捷途",
+          "series": "捷途X70 PLUS",
+          "model": "捷途X70 PLUS 2025款 1.5T 豪华版 5座",
           "year": "2025",
           "sources": [
             "汽车之家"
