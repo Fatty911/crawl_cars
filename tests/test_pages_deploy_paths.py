@@ -21,4 +21,4 @@ def test_single_source_repair_continues_only_after_bound_pages_success():
     assert "if: steps.pages.outputs.pages_status == 'success'" in continuation
     assert "gh workflow run single-source-repair.yml" in continuation
     assert '-f pages_run_id="${{ steps.pages.outputs.pages_run_id }}"' in continuation
-    assert '-f source_sha="${{ steps.push.outputs.commit_sha }}"' in continuation
+    assert '-f source_sha="${{ steps.push.outputs.commit_sha || github.sha }}"' in continuation

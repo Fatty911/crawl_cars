@@ -52,6 +52,7 @@ ALLOWED_FILES = {
     "cars": (
         "config/safe_v2_absorption_manifest.json",
         "config/column_header_aliases.json",
+        "config/series_aliases.json",
     ),
     "laptops": (
         "scripts/merge_data.py",
@@ -480,6 +481,12 @@ Pages URL：{pages_url}
 <CANDIDATE_REPORT>
 {_json(report)}
 </CANDIDATE_REPORT>
+
+【车系别名疑似对】（schema-normalization 根因）：同一品牌下疑似同车系但归一化后仍不同的名字对，全部为动力变体（长名含 DM/DMI/PHEV/EV/增程 等后缀，短名是基础车系）。只允许把长名归并到短名。PLUS/PRO/MAX/GT/数字后缀变体是兄弟车系，禁止映射。如需修复，请在响应中输出 series_aliases 数组，每项 {{"source": 长名, "target": 短名, "confidence": 0.9..1, "evidence": 说明}}，只能从本清单选择：
+{_json(report.get("series_alias_gaps") or [])[:40]}
+
+【车系来源缺口】（source-fetch 根因）：已发布数据中某些车系缺少部分来源（可能源站未收录或爬虫未抓取）。仅评估记录，不自动应用；如确认值得后续补抓（车系行数多、缺源影响大），请在响应中输出 fetch_gaps 数组，每项 {{"brand": 品牌, "series": 车系, "missing_source": 缺失来源, "confidence": 0.9..1, "evidence": 说明}}，只能从本清单选择：
+{_json(report.get("source_gaps") or [])[:40]}
 """
     size_kb = max(1, len(body.encode("utf-8")) // 1000)
     return f"""【重要读取要求】本 prompt.md 总长约 {size_kb} KB，包含完整候选报告。你必须用 Read 工具按 offset 递增（每次约 2000 字符）把整个文件读到末尾（offset 超过文件大小时 Read 会返回空内容，即已读完），然后才能输出 JSON。禁止在未读完整个文件前回答。
@@ -732,7 +739,7 @@ def _car_selection(
     candidate_report: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], float, list[str], str]:
     required = {"approved_candidate_ids", "confidence", "evidence", "analysis"}
-    optional = {"column_aliases"}
+    optional = {"column_aliases", "series_aliases", "fetch_gaps"}
     if not required.issubset(set(response)) or set(response) - required - optional:
         raise RepairInputError("car model response fields do not match the fixed schema")
     if "column_aliases" in response and not isinstance(response.get("column_aliases"), list):
@@ -866,6 +873,35 @@ def _car_aliases_path() -> Path:
     return ROOT / ALLOWED_FILES["cars"][1]
 
 
+def _car_series_path() -> Path:
+    return ROOT / ALLOWED_FILES["cars"][2]
+
+
+def _car_series_from_text(text: str) -> dict[str, Any]:
+    series = _strict_json_load(text, "series aliases")
+    if not isinstance(series, dict):
+        raise RepairInputError("series aliases must be an object")
+    if "aliases" not in series or not isinstance(series["aliases"], list):
+        raise RepairInputError("series aliases must contain an aliases array")
+    known: set[str] = set()
+    for item in series["aliases"]:
+        if not isinstance(item, dict):
+            raise RepairInputError("each series alias entry must be an object")
+        source = str(item.get("source") or "").strip()
+        target = str(item.get("target") or "").strip()
+        if not source or not target or source == target:
+            raise RepairInputError("series alias entry needs distinct source and target names")
+        if source in known:
+            raise RepairInputError("series alias file contains a duplicate source")
+        known.add(source)
+        confidence = item.get("confidence")
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            raise RepairInputError("series alias confidence must be a JSON number")
+        if not math.isfinite(float(confidence)) or not 0.9 <= float(confidence) <= 1:
+            raise RepairInputError("series alias confidence must be within 0.9..1")
+    return series
+
+
 def _car_aliases_from_text(text: str) -> dict[str, Any]:
     aliases = _strict_json_load(text, "column header aliases")
     if not isinstance(aliases, dict):
@@ -920,6 +956,136 @@ def _car_aliases_patch(
         raise RepairInputError("validated aliases produced no config change")
     patch = f"diff --git a/{relative} b/{relative}\n{body}"
     return patch, candidate_aliases
+
+
+def _car_series_aliases(
+    response: dict[str, Any],
+    candidate_report: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Validate series-alias approvals against the deterministic gap allowlist.
+
+    The source must be a diagnosed powertrain-variant gap and the target must
+    be that gap's base series; confidence must be >= 0.9; a source may map to
+    exactly one target.
+    """
+    raw = response.get("series_aliases", [])
+    if not isinstance(raw, list):
+        raise RepairInputError("car model series_aliases must be an array")
+    allowed: dict[str, set[str]] = {}
+    for gap in candidate_report.get("series_alias_gaps", []):
+        if isinstance(gap, dict) and isinstance(gap.get("source"), str):
+            allowed.setdefault(gap["source"], set()).add(str(gap.get("target") or ""))
+    validated: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            raise RepairInputError("series alias entry must be an object")
+        source = str(item.get("source") or "").strip()
+        target = str(item.get("target") or "").strip()
+        if source in seen:
+            raise RepairInputError("series alias source is duplicated")
+        seen.add(source)
+        targets = allowed.get(source, set())
+        if not targets or target not in targets:
+            raise RepairInputError("series alias is outside the deterministic gap allowlist")
+        confidence = item.get("confidence")
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            raise RepairInputError("series alias confidence must be a JSON number")
+        if not math.isfinite(float(confidence)) or not 0.9 <= float(confidence) <= 1:
+            raise RepairInputError("series alias confidence must be within 0.9..1")
+        evidence = item.get("evidence")
+        evidence_text = str(evidence).strip()[:200] if evidence is not None else ""
+        validated.append(
+            {"source": source, "target": target, "confidence": float(confidence), "evidence": evidence_text}
+        )
+    return validated
+
+
+def _car_fetch_gaps(
+    response: dict[str, Any],
+    candidate_report: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Validate fetch-gap approvals against diagnosed series coverage gaps.
+
+    These are recorded for a follow-up crawler sweep; they are never applied
+    automatically and never fabricate data.
+    """
+    raw = response.get("fetch_gaps", [])
+    if not isinstance(raw, list):
+        raise RepairInputError("car model fetch_gaps must be an array")
+    allowed: dict[tuple[str, str], set[str]] = {}
+    for gap in candidate_report.get("source_gaps", []):
+        if not isinstance(gap, dict):
+            continue
+        brand = str(gap.get("brand") or "").strip()
+        series = str(gap.get("series") or "").strip()
+        missing = gap.get("missing_sources")
+        if brand and series and isinstance(missing, list):
+            allowed[(brand, series)] = set(str(m) for m in missing)
+    validated: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            raise RepairInputError("fetch gap entry must be an object")
+        brand = str(item.get("brand") or "").strip()
+        series = str(item.get("series") or "").strip()
+        missing_source = str(item.get("missing_source") or "").strip()
+        key = (brand, series)
+        triple = (brand, series, missing_source)
+        if triple in seen:
+            raise RepairInputError("fetch gap triple is duplicated")
+        seen.add(triple)
+        if key not in allowed or missing_source not in allowed[key]:
+            raise RepairInputError("fetch gap is outside the diagnosed coverage gaps")
+        confidence = item.get("confidence")
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            raise RepairInputError("fetch gap confidence must be a JSON number")
+        if not math.isfinite(float(confidence)) or not 0.9 <= float(confidence) <= 1:
+            raise RepairInputError("fetch gap confidence must be within 0.9..1")
+        evidence = item.get("evidence")
+        evidence_text = str(evidence).strip()[:200] if evidence is not None else ""
+        validated.append(
+            {
+                "brand": brand,
+                "series": series,
+                "missing_source": missing_source,
+                "confidence": float(confidence),
+                "evidence": evidence_text,
+            }
+        )
+    return validated
+
+
+def _car_series_patch(
+    series_path: Path,
+    baseline_series: dict[str, Any],
+    validated: list[dict[str, Any]],
+) -> tuple[str, dict[str, Any]]:
+    """Merge validated series aliases into config/series_aliases.json."""
+    candidate_series = json.loads(json.dumps(baseline_series, ensure_ascii=False))
+    existing = {
+        str(item.get("source") or ""): item
+        for item in candidate_series.get("aliases", [])
+        if isinstance(item, dict)
+    }
+    for alias in validated:
+        existing[alias["source"]] = alias
+    candidate_series["aliases"] = [existing[key] for key in sorted(existing)]
+    baseline_text = series_path.read_text(encoding="utf-8")
+    candidate_text = json.dumps(candidate_series, ensure_ascii=False, indent=2) + "\n"
+    relative = series_path.relative_to(ROOT).as_posix()
+    body = "".join(
+        difflib.unified_diff(
+            baseline_text.splitlines(keepends=True),
+            candidate_text.splitlines(keepends=True),
+            fromfile=f"a/{relative}",
+            tofile=f"b/{relative}",
+        )
+    )
+    if not body:
+        raise RepairInputError("validated series aliases produced no config change")
+    patch = f"diff --git a/{relative} b/{relative}\n{body}"
+    return patch, candidate_series
 
 
 def _car_manifest_patch(
@@ -1210,6 +1376,175 @@ def _base_result(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _norm_series_text(value: str) -> str:
+    """Normalized series text matching merge_data semantics (best effort)."""
+    try:
+        from merge_data import normalize_match_text as _nmt
+    except ModuleNotFoundError:
+        try:
+            from scripts.merge_data import normalize_match_text as _nmt
+        except ModuleNotFoundError:
+            return str(value or "").strip().lower()
+    try:
+        return _nmt(value)
+    except Exception:
+        return str(value or "").strip().lower()
+
+
+_POWER_SUFFIXES = (
+    "dm",
+    "dmi",
+    "dmp",
+    "phev",
+    "ev",
+    "增程",
+    "四驱",
+    "两驱",
+    "纯电",
+    "插混",
+    "油电",
+)
+_VERSION_WORDS = (
+    "plus",
+    "pro",
+    "max",
+    "ultra",
+    "gt",
+    "rs",
+    "sport",
+    "运动",
+    "进口",
+    "旅行",
+    "轿跑",
+)
+
+
+def _series_suffix_type(short: str, long: str) -> str:
+    """Classify the suffix of ``long`` relative to ``short``.
+
+    Returns "power" (same series, powertrain marker), "version" (sibling
+    series or trim level - must never be auto-merged) or "other".
+    """
+    if not long.startswith(short):
+        return "other"
+    suffix = long[len(short):]
+    if not suffix:
+        return "other"
+    if any(suffix == word or suffix.endswith(word) for word in _POWER_SUFFIXES):
+        return "power"
+    if suffix.isdigit() or any(suffix == word or suffix.endswith(word) for word in _VERSION_WORDS):
+        return "version"
+    return "other"
+
+
+def diagnose_series_alias_gaps(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Same-brand series names that are near-identical after normalization.
+
+    These are the schema-normalization root cause: the merge pipeline has no
+    alias for them, so cross-source rows of the same series never match.
+
+    Conservative by design: only *contained* pairs whose suffix is a
+    powertrain marker (dm/dmi/ev/增程/...) are reported.  Version-word
+    (PLUS/PRO/MAX/GT/运动/进口) and digit suffixes are sibling series or trim
+    levels (X70 vs X70 PLUS, GLB vs GLC) and must never be auto-merged.
+    """
+    by_brand: dict[str, Counter[str]] = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        brand = str(r.get("品牌") or "").strip()
+        series = str(r.get("车系") or "").strip()
+        if not brand or not series:
+            continue
+        by_brand.setdefault(brand, Counter())[series] += 1
+    pairs: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for brand, counts in by_brand.items():
+        names = sorted(counts)
+        if len(names) > 80:
+            names = [n for n, _ in counts.most_common(80)]
+        for i in range(len(names)):
+            for j in range(i + 1, len(names)):
+                raw_a, raw_b = names[i], names[j]
+                norm_a = _norm_series_text(raw_a)
+                norm_b = _norm_series_text(raw_b)
+                if not norm_a or not norm_b or norm_a == norm_b:
+                    continue  # already merged or empty
+                short, long = (norm_a, norm_b) if len(norm_a) <= len(norm_b) else (norm_b, norm_a)
+                if len(long) - len(short) > 6:
+                    continue
+                if short not in long:
+                    continue  # sibling series (GLB vs GLC, C11 vs C16) excluded
+                if _series_suffix_type(short, long) != "power":
+                    continue  # PLUS/PRO/digit variants excluded
+                # The long name (powertrain variant) always merges into the
+                # short base series name, never the reverse.
+                source, target = long, short
+                s_rows = counts[raw_a] if norm_a == long else counts[raw_b]
+                t_rows = counts[raw_a] if norm_a == short else counts[raw_b]
+                if s_rows < 3:
+                    continue
+                key = (brand, source, target)
+                if key in seen:
+                    continue
+                seen.add(key)
+                pairs.append(
+                    {
+                        "brand": brand,
+                        "source": source,
+                        "target": target,
+                        "source_rows": s_rows,
+                        "target_rows": t_rows,
+                        "samples": [raw_a, raw_b][:2],
+                    }
+                )
+    pairs.sort(key=lambda p: (-p["source_rows"], p["brand"]))
+    return pairs[:80]
+
+
+def diagnose_source_gaps(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Series-level source coverage gaps (source-fetch root cause).
+
+    A gap means the merged payload has rows for the series from some sources
+    but not others.  Reported only for series with >= 5 rows.  The repair
+    protocol records approved gaps for a follow-up crawler sweep; it never
+    fabricates or rewrites data.
+    """
+    info: dict[tuple[str, str], dict[str, Any]] = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        brand = str(r.get("品牌") or "").strip()
+        series = str(r.get("车系") or "").strip()
+        if not brand or not series:
+            continue
+        key = (brand, series)
+        entry = info.setdefault(key, {"rows": 0, "sources": set()})
+        entry["rows"] += 1
+        src = str(r.get("数据来源") or "")
+        for name, marker in (("DCD", "懂车帝"), ("AH", "汽车之家"), ("YC", "易车")):
+            if marker in src:
+                entry["sources"].add(name)
+    gaps: list[dict[str, Any]] = []
+    for (brand, series), entry in info.items():
+        if entry["rows"] < 5:
+            continue
+        missing = {"DCD", "AH", "YC"} - entry["sources"]
+        if not missing:
+            continue
+        gaps.append(
+            {
+                "brand": brand,
+                "series": series,
+                "rows": entry["rows"],
+                "have_sources": sorted(entry["sources"]),
+                "missing_sources": sorted(missing),
+            }
+        )
+    gaps.sort(key=lambda g: -g["rows"])
+    return gaps[:60]
+
+
 def _propose_car_manifest(
     args: argparse.Namespace,
     output_dir: Path,
@@ -1222,6 +1557,8 @@ def _propose_car_manifest(
     rows, _shape = _extract_rows(payload)
     candidate_report = pages.discover_single_source_candidates(rows, limit=30)
     candidate_report["column_diagnosis"] = report.get("column_diagnosis", {})
+    candidate_report["series_alias_gaps"] = diagnose_series_alias_gaps(rows)
+    candidate_report["source_gaps"] = diagnose_source_gaps(rows)
     report["candidate_search"] = candidate_report
     report["input_sha256"] = _sha256(data_path)
     report["pages_url"] = args.pages_url
@@ -1269,6 +1606,18 @@ def _propose_car_manifest(
         alias_rejection = ""
     except RepairInputError as exc:
         alias_rejection = str(exc)[:500]
+    try:
+        series_aliases = _car_series_aliases(response, candidate_report)
+        series_alias_rejection = ""
+    except RepairInputError as exc:
+        series_aliases = []
+        series_alias_rejection = str(exc)[:500]
+    try:
+        fetch_gaps = _car_fetch_gaps(response, candidate_report)
+        fetch_gap_rejection = ""
+    except RepairInputError as exc:
+        fetch_gaps = []
+        fetch_gap_rejection = str(exc)[:500]
     result.update(
         confidence=confidence,
         root_cause="merge-match",
@@ -1277,8 +1626,13 @@ def _propose_car_manifest(
         selected_candidate_ids=[item["candidate_id"] for item in selected],
         column_alias_count=len(column_aliases),
         alias_rejection=alias_rejection,
+        series_alias_count=len(series_aliases),
+        series_alias_rejection=series_alias_rejection,
+        fetch_gap_count=len(fetch_gaps),
+        fetch_gap_rejection=fetch_gap_rejection,
+        fetch_gaps=fetch_gaps[:20],
     )
-    if not selected and not column_aliases:
+    if not selected and not column_aliases and not series_aliases:
         result.update(status="analysis-only", reason="model approved no deterministic candidate")
         _write_result(output_dir, result)
         return 0
@@ -1307,15 +1661,24 @@ def _propose_car_manifest(
         if validate_patch_text(alias_patch, "cars") != [ALLOWED_FILES["cars"][1]]:
             raise RepairInputError("generated alias patch touches a path outside the alias config")
         patches.append(alias_patch)
+    if series_aliases:
+        series_path = _car_series_path()
+        baseline_series = _car_series_from_text(series_path.read_text(encoding="utf-8"))
+        series_patch, _candidate_series = _car_series_patch(series_path, baseline_series, series_aliases)
+        if validate_patch_text(series_patch, "cars") != [ALLOWED_FILES["cars"][2]]:
+            raise RepairInputError("generated series patch touches a path outside the series config")
+        patches.append(series_patch)
     combined = "\n".join(patches) + "\n"
     paths, replay = _validate_car_ephemeral_patch(combined, data_path, payload)
     (output_dir / "single_source_repair.patch").write_text(combined, encoding="utf-8")
-    if selected and column_aliases:
-        reason = f"validated {len(selected)} manifest component(s) and {len(column_aliases)} column alias(es)"
-    elif selected:
-        reason = f"validated {len(selected)} manifest component(s) against the full Pages payload"
-    else:
-        reason = f"validated {len(column_aliases)} column alias(es) against the full Pages payload"
+    parts = []
+    if selected:
+        parts.append(f"{len(selected)} manifest component(s)")
+    if column_aliases:
+        parts.append(f"{len(column_aliases)} column alias(es)")
+    if series_aliases:
+        parts.append(f"{len(series_aliases)} series alias(es)")
+    reason = "validated " + " and ".join(parts) + " against the full Pages payload"
     result.update(
         status="approved",
         reason=reason,

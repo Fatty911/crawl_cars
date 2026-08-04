@@ -198,6 +198,7 @@ class SingleSourceRepairTests(unittest.TestCase):
             (
                 "config/safe_v2_absorption_manifest.json",
                 "config/column_header_aliases.json",
+                "config/series_aliases.json",
             ),
         )
         report = {
@@ -569,6 +570,101 @@ class SingleSourceRepairTests(unittest.TestCase):
         assert out["车载智能系统"] == "Banyan"
         assert out["NOMI Mate 3.0"] == "标配"
 
+
+
+
+    def test_series_alias_validation_allowlist_and_duplicates(self) -> None:
+        from scripts.single_source_repair import _car_series_aliases
+
+        report = {
+            "series_alias_gaps": [
+                {"brand": "红旗", "source": "红旗hs7phev", "target": "红旗hs7"},
+                {"brand": "沃尔沃", "source": "沃尔沃xc60phev", "target": "沃尔沃xc60"},
+            ]
+        }
+        ok = _car_series_aliases(
+            {"series_aliases": [{"source": "红旗hs7phev", "target": "红旗hs7", "confidence": 0.95}]},
+            report,
+        )
+        self.assertEqual(1, len(ok))
+        self.assertEqual("红旗hs7phev", ok[0]["source"])
+        with self.assertRaises(RepairInputError):
+            _car_series_aliases(
+                {"series_aliases": [{"source": "红旗hs7phev", "target": "红旗hs9", "confidence": 0.95}]},
+                report,
+            )
+        with self.assertRaises(RepairInputError):
+            _car_series_aliases(
+                {"series_aliases": [{"source": "凯迪拉克xt6phev", "target": "凯迪拉克xt6", "confidence": 0.95}]},
+                report,
+            )
+        with self.assertRaises(RepairInputError):
+            _car_series_aliases(
+                {"series_aliases": [{"source": "红旗hs7phev", "target": "红旗hs7", "confidence": 0.85}]},
+                report,
+            )
+        dup = [
+            {"source": "红旗hs7phev", "target": "红旗hs7", "confidence": 0.95},
+            {"source": "红旗hs7phev", "target": "红旗hs7", "confidence": 0.95},
+        ]
+        with self.assertRaises(RepairInputError):
+            _car_series_aliases({"series_aliases": dup}, report)
+        # a missing series_aliases field simply means no repair
+        self.assertEqual([], _car_series_aliases({}, report))
+
+    def test_fetch_gap_validation_allowlist(self) -> None:
+        from scripts.single_source_repair import _car_fetch_gaps
+
+        report = {
+            "source_gaps": [
+                {"brand": "大众", "series": "朗逸", "missing_sources": ["DCD"]},
+                {"brand": "路虎", "series": "卫士", "missing_sources": ["AH"]},
+            ]
+        }
+        ok = _car_fetch_gaps(
+            {"fetch_gaps": [{"brand": "大众", "series": "朗逸", "missing_source": "DCD", "confidence": 0.95}]},
+            report,
+        )
+        self.assertEqual(1, len(ok))
+        self.assertEqual("DCD", ok[0]["missing_source"])
+        with self.assertRaises(RepairInputError):
+            _car_fetch_gaps(
+                {"fetch_gaps": [{"brand": "大众", "series": "朗逸", "missing_source": "AH", "confidence": 0.95}]},
+                report,
+            )
+        with self.assertRaises(RepairInputError):
+            _car_fetch_gaps(
+                {"fetch_gaps": [{"brand": "大众", "series": "帕萨特", "missing_source": "DCD", "confidence": 0.95}]},
+                report,
+            )
+        with self.assertRaises(RepairInputError):
+            _car_fetch_gaps(
+                {"fetch_gaps": [{"brand": "大众", "series": "朗逸", "missing_source": "DCD", "confidence": 0.8}]},
+                report,
+            )
+
+    def test_diagnose_series_alias_gaps_is_conservative(self) -> None:
+        from scripts.single_source_repair import diagnose_series_alias_gaps
+
+        rows = [
+            {"品牌": "红旗", "车系": "红旗HS7", "数据来源": "懂车帝"},
+            {"品牌": "红旗", "车系": "红旗HS7 PHEV", "数据来源": "汽车之家"},
+            {"品牌": "捷途", "车系": "捷途X70", "数据来源": "懂车帝"},
+            {"品牌": "捷途", "车系": "捷途X70 PLUS", "数据来源": "汽车之家"},
+            {"品牌": "奔驰", "车系": "奔驰GLB", "数据来源": "懂车帝"},
+            {"品牌": "奔驰", "车系": "奔驰GLC", "数据来源": "汽车之家"},
+            {"品牌": "红旗", "车系": "红旗HS7 PHEV", "数据来源": "懂车帝"},
+            {"品牌": "红旗", "车系": "红旗HS7 PHEV", "数据来源": "易车"},
+            {"品牌": "红旗", "车系": "红旗HS7", "数据来源": "汽车之家"},
+            {"品牌": "红旗", "车系": "红旗HS7", "数据来源": "易车"},
+        ] * 6
+        gaps = diagnose_series_alias_gaps(rows)
+        hs7 = [g for g in gaps if g["brand"] == "红旗"]
+        self.assertTrue(any(g["source"] == "红旗hs7phev" and g["target"] == "红旗hs7" for g in hs7))
+        for g in gaps:
+            self.assertNotIn("plus", g["source"])
+            self.assertNotIn("glb", g["source"])
+            self.assertNotIn("glc", g["target"])
 
 if __name__ == "__main__":
     unittest.main()

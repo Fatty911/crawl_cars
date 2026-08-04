@@ -488,6 +488,35 @@ _CHINESE_GRADE_PATTERN = re.compile(r"(?<![\u4e00-\u9fff])(闪充\s*)?(尊荣|�
 _BATTERY_NAME_PATTERN = re.compile(r"(?<!\d)(\d{2,3}(?:\.\d+)?)\s*kwh", re.I)
 _RANGE_NAME_PATTERN = re.compile(r"(?<!\d)(\d{3,4}(?:\.\d+)?)\s*(?:km|公里)", re.I)
 _SERIES_ALIASES = {"腾势n9dm": "腾势n9"}
+_EXTERNAL_SERIES_ALIASES: dict[str, str] = {}
+_SERIES_ALIASES_LOADED = False
+
+def _load_series_aliases() -> dict[str, str]:
+    """Load the AI-maintainable series alias map once (config/series_aliases.json).
+    Missing config is cached as an empty map; corrupt or unreadable config
+    returns an empty map without caching so the next call retries.
+    """
+    global _EXTERNAL_SERIES_ALIASES, _SERIES_ALIASES_LOADED
+    if _SERIES_ALIASES_LOADED:
+        return _EXTERNAL_SERIES_ALIASES
+    aliases: dict[str, str] = {}
+    try:
+        path = os.path.join(DIR, "config", "series_aliases.json")
+        with open(path, encoding="utf-8") as handle:
+            value = json.load(handle)
+        for item in value.get("aliases", []) if isinstance(value, dict) else []:
+            source = str(item.get("source") or "").strip()
+            target = str(item.get("target") or "").strip()
+            if source and target and source != target:
+                aliases[source] = target
+    except FileNotFoundError:
+        pass  # missing config is the normal empty state; cache it
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return {}  # corrupt/unreadable: do not cache, retry next call
+    _SERIES_ALIASES_LOADED = True
+    _EXTERNAL_SERIES_ALIASES = aliases
+    return aliases
+
 _SEAT_FIELDS = ("座位数(个)", "座位数", "座位数_个_")
 _DRIVE_FIELDS = ("驱动形式", "驱动方式", "驱动形式分组", "电机布局", "四驱形式", "四驱类型")
 _BATTERY_FIELDS = ("电池能量(kWh)", "电池能量_kWh_", "电池容量(kWh)", "电池容量_kWh_", "电池能量", "电池容量", "动力电池容量")
@@ -507,7 +536,8 @@ _RANGE_FIELDS = (
 
 def normalize_series_match_text(value):
     text = normalize_match_text(value)
-    return _SERIES_ALIASES.get(text, text)
+    external = _load_series_aliases() if not _SERIES_ALIASES_LOADED else _EXTERNAL_SERIES_ALIASES
+    return external.get(text, _SERIES_ALIASES.get(text, text))
 
 
 def _measure_values(values):
