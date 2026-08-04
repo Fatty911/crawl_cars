@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 650
+    "approved_components": 680
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -15479,6 +15479,696 @@
           "brand": "捷途",
           "series": "捷途X70 PLUS",
           "model": "捷途X70 PLUS 2026款 1.5T DCT 畅享版 5座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "035afff4d067c3ffa22c4562",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 735Li M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 735Li M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "08612a969c27ec6186b13131",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马1系",
+          "model": "23款 120i M运动曜夜版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马1系",
+          "model": "宝马1系 2023款 120i M运动曜夜版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0ab403318c59a9873d7fbd28",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽8 PRO",
+          "model": "25款 2.0T 400T豪华型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽8 PRO",
+          "model": "艾瑞泽8 PRO 2025款 2.0T DCT 400T豪华型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1ad5ff27f0bf99b8a736e1e7",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 740Li 领先型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 740Li 领先型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1b281327b68ef9c9cefc4da4",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "26款 改款 530Li 尊享型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "宝马5系 2026款 改款 530Li 尊享型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1dadd5197ab6424f68c47c5f",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马3系",
+          "model": "26款 330Li 尊享型 M运动曜夜套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马3系",
+          "model": "宝马3系 2026款 330Li 尊享型 M运动曜夜套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "266a183b43a58dfee132a21f",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8L",
+          "model": "2.0T 自动长虹版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8L",
+          "model": "瑞虎8L 2025款 2.0T 两驱长虹版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "28d0d22c8bbe8353d8ff6f0a",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 改款 735Li M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 改款 735Li M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "2f9e075381862efb94b7e1db",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 改款 740Li 领先型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 改款 740Li 领先型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4914efd83edb80bfc93849f9",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8L",
+          "model": "2.0T 自动标准版",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8L",
+          "model": "瑞虎8L 2024款 2.0T 两驱标准版 5座",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "49a2fee668b4923174741069",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马1系",
+          "model": "23款 120i M运动版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马1系",
+          "model": "宝马1系 2023款 120i M运动版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4f3c56932dc82021630286c9",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 735Li 豪华套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 735Li 豪华套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "59a8875de597e96de8a5e845",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "26款 改款 525Li M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "宝马5系 2026款 改款 525Li M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5c9fe7fa4a06d877c4488782",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马3系",
+          "model": "26款 330Li M运动曜夜套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马3系",
+          "model": "宝马3系 2026款 330Li M运动曜夜套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "638bf948743e7d5125b78551",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马i3",
+          "model": "26款 改款 eDrive 40 L 曜夜运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马i3",
+          "model": "宝马i3 2026款 改款 eDrive 40L 曜夜运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6eebac4aca864c9fe2e961fe",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 改款 735Li 豪华套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 改款 735Li 豪华套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7c4d2b50467c7ea84ad8a397",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "26款 改款 530Li 领先型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "宝马5系 2026款 改款 530Li 领先型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8d1ace4e020e536ec6e2145f",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马M3",
+          "model": "24款 M3 M xDrive 雷霆版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马M3",
+          "model": "宝马M3 2024款 M3四门轿车 M xDrive 雷霆版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8f4d1e413d26d531d05e24ad",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马i5",
+          "model": "26款 改款 xDrive 50L M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马i5",
+          "model": "宝马i5 2026款 改款 xDrive 50L M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "98b88fe59a0e6d779a5346d4",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "26款 改款 530Li 领先型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "宝马5系 2026款 改款 530Li 领先型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "99bb0a572460deb16928702f",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马1系",
+          "model": "23款 120i M运动曜熠版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马1系",
+          "model": "宝马1系 2023款 120i M运动曜熠版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9b8889fbcc9e8be3e8dd25c0",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马i5",
+          "model": "26款 xDrive 50L M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马i5",
+          "model": "宝马i5 2026款 xDrive 50L M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a36b924cf437ff92f09cd257",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马M3",
+          "model": "24款 M3 雷霆版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马M3",
+          "model": "宝马M3 2024款 M3四门轿车 雷霆版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b63987fc137ef00253a25149",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 改款 740Li 领先型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 改款 740Li 领先型 M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b9a5cc3875d620a0a896db9b",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "26款 改款 530Li xDrive M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "宝马5系 2026款 改款 530Li xDrive M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d2c070eaeb6d0b2cd48a2254",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "26款 改款 530Li 尊享型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "宝马5系 2026款 改款 530Li 尊享型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d407754f4f87dc4056d0b2ae",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马i5",
+          "model": "26款 eDrive 40L M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马i5",
+          "model": "宝马i5 2026款 eDrive 40L M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "dc76654fb5017dafc7f01767",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马i5",
+          "model": "26款 改款 eDrive 40L M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马i5",
+          "model": "宝马i5 2026款 改款 eDrive 40L M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e6f7ca5bb3d789367e870fb4",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "26款 740Li 领先型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马7系",
+          "model": "宝马7系 2026款 740Li 领先型 豪华套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "efc8e32b6e6522d3a909c1a6",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "26款 改款 525Li 豪华套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马5系",
+          "model": "宝马5系 2026款 改款 525Li 豪华套装",
           "year": "2026",
           "sources": [
             "汽车之家"
