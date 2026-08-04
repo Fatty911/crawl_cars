@@ -902,11 +902,11 @@ jobs:
           ATOMGIT_API_KEY: ${{ secrets.ATOMGIT_API_KEY }}
         run: |
           set -euo pipefail
-          python3 scripts/free_first_router.py \
+          timeout 240 python3 scripts/free_first_router.py \
             --prompt-file ./llm_agent_prompt.md \
             --output ./free_agent_analysis.md \
             --metadata-output ./ai_route.json \
-            --github-output "$GITHUB_OUTPUT"
+            --github-output "$GITHUB_OUTPUT" || true
 
       - name: Set up Node.js for OpenCode Agent
         if: steps.audit_prompt.outcome == 'success' && steps.free_route.outputs.paid_required == 'true'
