@@ -672,7 +672,7 @@ jobs:
             exit 1
           fi
           printf 'pages_run_id=%s\n' "$DISPATCHED_PAGES_RUN_ID" >> "$GITHUB_OUTPUT"
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 60); do
             run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DISPATCHED_PAGES_RUN_ID")"
             status="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", ""))')"
             conclusion="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
