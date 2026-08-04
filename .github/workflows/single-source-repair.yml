@@ -531,7 +531,7 @@ jobs:
 
   publish:
     needs: propose
-    if: needs.propose.outputs.status == 'approved'
+    if: needs.propose.outputs.status == 'approved' || needs.propose.outputs.status == 'analysis-only'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
@@ -559,6 +559,7 @@ jobs:
 
       - name: Re-validate, apply, and push only the approved patch
         id: push
+        if: needs.propose.outputs.status == 'approved'
         env:
           PUSH_TOKEN: ${{ github.token }}
         shell: bash
@@ -618,10 +619,10 @@ jobs:
 
       - name: Trigger the next Pages deployment
         id: dispatch
-        if: steps.push.outcome == 'success'
+        if: steps.push.outcome == 'success' || needs.propose.outputs.status == 'analysis-only'
         env:
           GH_TOKEN: ${{ github.token }}
-          REPAIR_COMMIT_SHA: ${{ steps.push.outputs.commit_sha }}
+          REPAIR_COMMIT_SHA: ${{ steps.push.outputs.commit_sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -700,7 +701,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
             -f pages_run_id="${{ steps.pages.outputs.pages_run_id }}" \
-            -f source_sha="${{ steps.push.outputs.commit_sha }}"
+            -f source_sha="${{ steps.push.outputs.commit_sha || github.sha }}"
 
       - name: Update published chain state
         if: always()
