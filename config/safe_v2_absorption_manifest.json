@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 680
+    "approved_components": 706
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -16169,6 +16169,604 @@
           "brand": "宝马",
           "series": "宝马5系",
           "model": "宝马5系 2026款 改款 525Li 豪华套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "11cffee89365228f437a26c8",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "本田CR-V",
+          "model": "全球30年荣耀款 240TURBO CVT两驱锋尚5座版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "本田CR-V",
+          "model": "本田CR-V 2026款 全球30年荣耀款 240TURBO 两驱锋尚5座版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1697e0590466ecc48f409728",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "英仕派",
+          "model": "25款 260TUBRO 精英版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "英仕派",
+          "model": "英仕派 2025款 260TURBO 精英版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3de6866afcab2913c3b28e5c",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "本田CR-V",
+          "model": "26款 全球30年荣耀款 240TURBO 两驱活力版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "本田CR-V",
+          "model": "本田CR-V 2026款 全球30年荣耀款 240TURBO 两驱活力版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "44abdbbfb76729adb1418340",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "思域",
+          "model": "25款 e:HEV 2.0L E-CVT混动",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "思域",
+          "model": "思域 2025款 2.0L e:HEV 混动",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "47b2e78e36406a6f309e50aa",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽5 GT",
+          "model": "23款 1.6T 双离合驰",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽5 GT",
+          "model": "艾瑞泽5 GT 2023款 1.6T DCT驰",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "620b8dec70bdc0efab59cc9c",
+      "members": [
+        {
+          "brand": "宝马",
+          "series": "宝马4系",
+          "model": "26款 四门轿跑车 425i M运动套装",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "宝马",
+          "series": "宝马4系",
+          "model": "宝马4系 2026款 425i Gran Coupe M运动套装",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6aae98441233945cb62d0ca3",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "冠道",
+          "model": "26款 240TURBO CVT两驱舒享版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "冠道",
+          "model": "冠道 2026款 240TURBO 两驱舒享版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "70e6f56ce102186f62a1fbe3",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "26款 9X 2.0T 自动两驱豪华版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "瑞虎9 2026款 9X 2.0T 自动两驱豪华型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7a68ee0ace9b10faaeba5ac2",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "26款 2.0T 自动两驱耀享版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "瑞虎9 2026款 2.0T 自动两驱耀享版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7fc6a4a4105d2a5e6d24150d",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "享域",
+          "model": "22款 180TURBO CVT 乐享版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "享域",
+          "model": "享域 2022款 180TURBO CVT乐享版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8ace681d3870ecd5b037bb4a",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "27款 2.0T 双离合两驱奢享版 7座",
+          "year": "2027",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "瑞虎9 2027款 2.0T 双离合两驱奢享版",
+          "year": "2027",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "97191c122e235a743660d992",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "凌派",
+          "model": "24款 180TURBO CVT智享版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "凌派",
+          "model": "凌派 2024款 180Turbo CVT智享版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "accd1d496141b85e49c152ea",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "思域",
+          "model": "25款 e:HEV 2.0L E-CVT混动Pro",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "思域",
+          "model": "思域 2025款 2.0L e:HEV 混动Pro",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b015dd3ebf1e50943a035cce",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽8 PRO",
+          "model": "25款 2.0T 豪华型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "艾瑞泽8 PRO",
+          "model": "艾瑞泽8 PRO 2025款 2.0T DCT 豪华型",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b22fdc7f7f0847794419d918",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "享域",
+          "model": "22款 180TURBO CVT 舒享版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "享域",
+          "model": "享域 2022款 180TURBO CVT舒享版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b34ad62e40c7feacb314f644",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "本田CR-V",
+          "model": "26款 全球30年荣耀款 240TURBO 两驱智领版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "本田CR-V",
+          "model": "本田CR-V 2026款 全球30年荣耀款 240TURBO 两驱智领版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "bb073d99a8b0e169d7d1ae0c",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "26款 2.0T 双离合两驱豪享版 5座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "瑞虎9 2026款 2.0T 双离合两驱豪享版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "bd1f7d518a2ab83c6b7ee55f",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "冠道",
+          "model": "26款 240TURBO CVT两驱智享版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "冠道",
+          "model": "冠道 2026款 240TURBO 两驱智享版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c7667b54899da13e212e6359",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "享域",
+          "model": "22款 180TURBO CVT 耀享版",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "享域",
+          "model": "享域 2022款 180TURBO CVT耀享版",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "dbab86776d32f34aa936803f",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "26款 2.0T 双离合两驱舒享版 7座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎9",
+          "model": "瑞虎9 2026款 2.0T 双离合两驱舒享版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ef2d7ab6db1728871638e128",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "思域",
+          "model": "25款 e:HEV 2.0L E-CVT混动Max",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "思域",
+          "model": "思域 2025款 2.0L e:HEV 混动Max",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f227c6994d74e49bf80b6b2d",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "思域",
+          "model": "25款 e:HEV 2.0L E-CVT混动Plus",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "思域",
+          "model": "思域 2025款 2.0L e:HEV 混动Plus",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f294c6f1d989bcaa907e343f",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "雅阁",
+          "model": "26款 运动系列 260TURBO 舒适版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "雅阁",
+          "model": "雅阁 2026款 运动系列 260TURBO 舒适版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f3d368c312881c9e2e627655",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "雅阁",
+          "model": "26款 运动系列 260TURBO 豪华版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "雅阁",
+          "model": "雅阁 2026款 运动系列 260TURBO 豪华版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f74d332888a792d796f29d47",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "凌派",
+          "model": "24款 180TURBO CVT旗舰版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "凌派",
+          "model": "凌派 2024款 180Turbo CVT旗舰版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f9e10bedb14b70999f4ea487",
+      "members": [
+        {
+          "brand": "本田",
+          "series": "冠道",
+          "model": "370 TURBO 9AT 豪华版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "本田",
+          "series": "冠道",
+          "model": "冠道 2026款 370TURBO 两驱豪华版",
           "year": "2026",
           "sources": [
             "汽车之家"
