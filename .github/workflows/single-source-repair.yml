@@ -587,8 +587,8 @@ jobs:
               raise SystemExit("proposal Pages run mismatch")
           if result.get("repo_kind") != repo_kind or result.get("pages_url") != pages_url:
               raise SystemExit("proposal repository or URL mismatch")
-          if not 1 <= int(result.get("round") or 0) <= 3:
-              raise SystemExit("proposal round is outside 1..3")
+          if not 1 <= int(result.get("round") or 0) <= 10:
+              raise SystemExit("proposal round is outside 1..10")
           expected = result.get("patch_sha256")
           actual = hashlib.sha256(patch.encode("utf-8")).hexdigest()
           if not expected or expected != actual:
