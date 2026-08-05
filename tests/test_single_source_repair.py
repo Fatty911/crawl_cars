@@ -201,6 +201,7 @@ class SingleSourceRepairTests(unittest.TestCase):
                 "config/column_header_aliases.json",
                 "config/series_aliases.json",
                 "config/brand_aliases.json",
+                "config/hidden_columns.json",
             ),
         )
         report = {
@@ -462,7 +463,7 @@ class SingleSourceRepairTests(unittest.TestCase):
 
         repo_root = Path(__file__).resolve().parents[1]
         aliases_path = repo_root / ALLOWED_FILES["cars"][1]
-        baseline = _car_aliases_from_text('{"version": 1, "aliases": []}')
+        baseline = _car_aliases_from_text(aliases_path.read_text(encoding="utf-8"))
         patch, _candidate = _car_aliases_patch(
             aliases_path,
             baseline,
@@ -574,6 +575,56 @@ class SingleSourceRepairTests(unittest.TestCase):
 
 
 
+
+    def test_car_hidden_columns_require_diagnosis_allowlist(self) -> None:
+        from scripts.single_source_repair import (
+            MAX_HIDDEN_COLUMNS,
+            RepairInputError,
+            _car_hidden_columns,
+        )
+
+        report = {
+            "column_diagnosis": {
+                "suspects": [
+                    {"kind": "value_only_header", "column": "专属曜黑套装", "confidence": 0.9},
+                    {"kind": "value_only_header", "column": "departure_angle", "confidence": 0.7},
+                ],
+                "candidate_attributes": ["品牌", "车系"],
+            },
+        }
+        # high-confidence diagnosis: string entries pass
+        assert _car_hidden_columns({"hidden_columns": ["专属曜黑套装"]}, report) == ["专属曜黑套装"]
+        # low-confidence diagnosis (english identifier at 0.7) is not hideable
+        with self.assertRaises(RepairInputError):
+            _car_hidden_columns({"hidden_columns": ["departure_angle"]}, report)
+        # non-string entry -> rejected
+        with self.assertRaises(RepairInputError):
+            _car_hidden_columns({"hidden_columns": [{"column": "专属曜黑套装"}]}, report)
+        # known attribute / identity -> rejected
+        with self.assertRaises(RepairInputError):
+            _car_hidden_columns({"hidden_columns": ["品牌"]}, report)
+        with self.assertRaises(RepairInputError):
+            _car_hidden_columns({"hidden_columns": ["车载智能系统"]}, report)
+        # outside the diagnosis allowlist -> rejected
+        with self.assertRaises(RepairInputError):
+            _car_hidden_columns({"hidden_columns": ["未诊断的列"]}, report)
+        # duplicates -> rejected
+        with self.assertRaises(RepairInputError):
+            _car_hidden_columns({"hidden_columns": ["专属曜黑套装", "专属曜黑套装"]}, report)
+        # batch limit
+        with self.assertRaises(RepairInputError):
+            _car_hidden_columns(
+                {"hidden_columns": [f"列{i}" for i in range(MAX_HIDDEN_COLUMNS + 1)]},
+                {
+                    "column_diagnosis": {
+                        "suspects": [
+                            {"kind": "value_only_header", "column": f"列{i}", "confidence": 0.95}
+                            for i in range(MAX_HIDDEN_COLUMNS + 1)
+                        ],
+                        "candidate_attributes": [],
+                    }
+                },
+            )
 
     def test_series_alias_validation_allowlist_and_duplicates(self) -> None:
         from scripts.single_source_repair import _car_series_aliases

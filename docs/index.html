@@ -84,6 +84,19 @@
             <button id="mobileRestoreDefaults" type="button">恢复默认</button>
             <button id="mobileViewResults" type="button" aria-controls="cardList">查看 <strong id="mobileResultCount">0</strong> 个车系</button>
           </div>
+          <div class="card-toolbar">
+            <label for="cardSortSelect">卡片排序</label>
+            <select id="cardSortSelect" aria-label="卡片排序">
+              <option value="default">默认（多源优先）</option>
+              <option value="官方指导价:asc">官方指导价 从低到高</option>
+              <option value="官方指导价:desc">官方指导价 从高到低</option>
+              <option value="百公里加速(s):asc">百公里加速 最快优先</option>
+              <option value="纯电续航(km):desc">纯电续航 最长优先</option>
+              <option value="上市时间:desc">上市时间 最新优先</option>
+              <option value="数据来源:desc">数据来源 多源优先</option>
+              <option value="车系:asc">车系名 A-Z</option>
+            </select>
+          </div>
           <div class="card-list" id="cardList" tabindex="-1" aria-label="匹配车系结果"></div>
           <div class="center-actions"><button class="text-button" id="loadMoreCards" type="button">加载更多</button></div>
         </section>

@@ -72,6 +72,7 @@
     sortLevels: [],
     mode: "center",
     cardLimit: 24,
+    cardSort: null,
     expandedSeries: new Set(),
     seriesViewSignature: "",
     mobileCategoryId: "",
@@ -143,6 +144,7 @@
     mobileViewResults: document.getElementById("mobileViewResults"),
     mobileResultCount: document.getElementById("mobileResultCount"),
     loadMoreCards: document.getElementById("loadMoreCards"),
+    cardSortSelect: document.getElementById("cardSortSelect"),
     customSortLevels: document.getElementById("customSortLevels"),
     addSortLevel: document.getElementById("addSortLevel"),
     clearSortLevels: document.getElementById("clearSortLevels")
@@ -1410,6 +1412,52 @@
     }
   }
 
+  function cardSortValue(row, level) {
+    if (!level) { return null; }
+    if (level.field === "数据来源") { return sourceCount(row); }
+    if (level.field === "车系") { return seriesIdentity(row).name; }
+    if (level.field === "上市时间") {
+      var rawDate = row[level.field];
+      if (!rawDate) { return null; }
+      var dateNumber = firstNumber(rawDate);
+      if (dateNumber != null) { return dateNumber; }
+      return String(rawDate);
+    }
+    var number = firstNumber(row[level.field]);
+    return number == null ? null : number;
+  }
+
+  function sortSeriesGroups(groups) {
+    var level = state.cardSort;
+    if (!level || !level.field) { return groups; }
+    var dir = level.dir === "desc" ? -1 : 1;
+    function compareValues(a, b) {
+      if (a == null && b == null) { return 0; }
+      if (a == null) { return 1; }
+      if (b == null) { return -1; }
+      if (typeof a === "number" && typeof b === "number") { return a - b; }
+      return String(a).localeCompare(String(b), "zh-Hans");
+    }
+    function dirCompare(left, right) {
+      // nulls always sort last, independent of the direction.
+      var leftNull = cardSortValue(left, level) == null;
+      var rightNull = cardSortValue(right, level) == null;
+      if (leftNull || rightNull) {
+        return compareValues(cardSortValue(left, level), cardSortValue(right, level));
+      }
+      return compareValues(cardSortValue(left, level), cardSortValue(right, level)) * dir;
+    }
+    groups.forEach(function (group) {
+      group.rows.sort(dirCompare);
+      group.representative = group.rows[0];
+    });
+    return groups.slice().sort(function (left, right) {
+      var result = dirCompare(left.representative, right.representative);
+      if (result !== 0) { return result; }
+      return left.order - right.order;
+    });
+  }
+
   function renderCards(groups) {
     els.cardList.textContent = "";
     groups.slice(0, state.cardLimit).forEach(function (group, index) {
@@ -1463,6 +1511,11 @@
       els.cardList.appendChild(card);
     });
     els.loadMoreCards.hidden = groups.length <= state.cardLimit;
+    if (els.cardSortSelect) {
+      var cardLevel = state.cardSort;
+      els.cardSortSelect.value = cardLevel && cardLevel.field
+        ? cardLevel.field + (cardLevel.dir === "desc" ? ":desc" : ":asc") : "default";
+    }
   }
 
   function renderCustomSortPanel() {
@@ -1489,7 +1542,7 @@
   function renderResultsOnly() {
     syncSeriesViewState();
     var filtered = getFilteredRows();
-    var seriesGroups = groupRowsBySeries(filtered);
+    var seriesGroups = sortSeriesGroups(groupRowsBySeries(filtered));
     var pageCount = Math.max(1, Math.ceil(filtered.length / state.pageSize));
     if (state.page > pageCount) {
       state.page = pageCount;
@@ -1893,6 +1946,18 @@
       renderResultsOnly();
     });
     els.loadMoreCards.addEventListener("click", function () { state.cardLimit += 24; renderResultsOnly(); });
+    if (els.cardSortSelect) {
+      els.cardSortSelect.addEventListener("change", function () {
+        var raw = els.cardSortSelect.value;
+        if (!raw || raw === "default") {
+          state.cardSort = null;
+        } else {
+          var separator = raw.lastIndexOf(":");
+          state.cardSort = { field: raw.slice(0, separator), dir: raw.slice(separator + 1) === "desc" ? "desc" : "asc" };
+        }
+        renderResultsOnly();
+      });
+    }
     els.addSortLevel.addEventListener("click", function () { state.sortLevels.push({ field: state.columns[0] || "", dir: "asc", customOrder: "" }); state.sortField = ""; renderCustomSortPanel(); renderResultsOnly(); });
     els.clearSortLevels.addEventListener("click", function () { state.sortLevels = []; state.sortField = ""; state.sortDir = "asc"; renderCustomSortPanel(); renderTableHead(); renderResultsOnly(); });
     els.customSortLevels.addEventListener("change", function (event) {

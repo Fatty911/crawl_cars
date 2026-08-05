@@ -144,9 +144,43 @@ def has_chinese(value: Any) -> bool:
     return bool(re.search(r"[\u4e00-\u9fff]", str(value or "")))
 
 
+_EXTERNAL_HIDDEN_COLUMNS: set[str] = set()
+_HIDDEN_COLUMNS_MTIME = -1.0
+
+
+def _load_hidden_columns() -> set[str]:
+    """Load the AI-maintainable hidden-column list (mtime-checked cache)."""
+    global _EXTERNAL_HIDDEN_COLUMNS, _HIDDEN_COLUMNS_MTIME
+    path = os.path.join(DIR, "config", "hidden_columns.json")
+    try:
+        current_mtime = os.path.getmtime(path)
+    except OSError:
+        current_mtime = -1.0
+    if current_mtime == _HIDDEN_COLUMNS_MTIME:
+        return _EXTERNAL_HIDDEN_COLUMNS
+    hidden: set[str] = set()
+    if current_mtime >= 0:
+        try:
+            with open(path, encoding="utf-8") as handle:
+                value = json.load(handle)
+            hidden_raw = value.get("hidden") if isinstance(value, dict) else None
+            if isinstance(hidden_raw, list):
+                for column in hidden_raw:
+                    if isinstance(column, str) and column.strip():
+                        hidden.add(column.strip())
+        except (OSError, ValueError, TypeError):
+            pass
+    _HIDDEN_COLUMNS_MTIME = current_mtime
+    _EXTERNAL_HIDDEN_COLUMNS = hidden
+    return hidden
+
+
 def normalize_publish_row_headers(row: dict[str, Any]) -> dict[str, Any]:
     normalized = {}
+    hidden_columns = _load_hidden_columns()
     for key, value in row.items():
+        if key in hidden_columns:
+            continue
         canonical = normalize_audited_publish_header(key)
         alias = header_alias_lookup(key)
         if alias and alias.get("value") and positive_value(value):

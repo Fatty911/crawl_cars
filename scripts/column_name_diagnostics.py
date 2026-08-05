@@ -32,6 +32,8 @@ invent new attribute names.
 """
 from __future__ import annotations
 
+import json
+import os
 import re
 from collections import Counter
 from typing import Any
@@ -113,6 +115,25 @@ _NUMERIC_SUFFIX = re.compile(r"^(.+)_(\d+)$")
 _UNKNOWN_V4 = re.compile(r"^(.+_v4)(?:_|$)")
 _BARE_VALUE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._\-+/]*$")
 _IDENTIFIER_LIKE = re.compile(r"^[a-z0-9_]+$")
+_PAREN_VALUE = re.compile(r"^(.+?)[(（]([^()（）]+)[)）]$")
+_PAREN_UNIT_OR_ABBR = re.compile(r"^[A-Za-z0-9/·.°℃%\s-]+等?$")
+_UNDERSCORE_TOKEN = re.compile(r"_[^_]{1,6}_")
+_VALUE_WORD = re.compile(
+    r"(套装|套件|轮毂|轮圈|轮辋|轮胎|车漆|拉花|限定|订阅|选装包|升级包|装备包|礼包|"
+    r"改装|特别版|专属|豪华包|舒适包|科技包|安全包|娱乐包|音响包|性能包|卡钳|刹车盘|"
+    r"饰板|饰条|徽标|迎宾|贴膜|改色|装饰膜|遮阳帘|桌板|香氛|吧台|投影|行李架|踏板|车衣|"
+    r"脚垫|冰箱|权益|车轮包|外饰|套餐|配色|专属设计)"
+)
+_INTERNAL_COLUMN = re.compile(r"^(易车|跨源归并|核验来源|匹配方式|上市状态|分组)")
+_ATTRIBUTE_SUFFIX = re.compile(r"(类型|材质|工艺|数量|规格|形式|方式|功能|系统|结构|布局|尺寸|颜色|材料|品牌|型号|版本|级别|样式|类型)$")
+_ENGLISH_COLUMN = re.compile(r"^[a-z_][a-z0-9_]*$")
+_MIXED_ENGLISH_VALUE = re.compile(r"^[a-z_]+[a-z0-9_]*\d[a-z0-9_一-鿿]*$")
+_SCHEMA_UNIT_TOKENS = {
+    "s", "km", "km/h", "mm", "kg", "kW", "kWh", "N·m", "L", "mL", "°", "°C",
+    "rpm", "Ps", "TOPS", "Wh/kg", "L/100km", "个", "万元", "元", "min", "h",
+    "万色", "nit", "Hz", "PPI", "px", "线", "m", "cm", "V", "W", "A", "%", "K",
+    "英寸", "吋", "寸", "GB", "万/秒", "ms", "kPa",
+}
 _NEGATIVE_VALUES = {"", "-", "--", "none", "null", "未知", "无"}
 
 
@@ -270,6 +291,107 @@ def diagnose_columns(rows: list[dict[str, Any]], *, limit: int = 120) -> dict[st
                 )
                 suspect_columns.add(column)
                 continue
+
+    # --- value-leak patterns: paren-value / underscore / english / internal ---
+    mapped_columns: set[str] = set()
+    try:
+        _alias_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "column_header_aliases.json")
+        with open(_alias_path, encoding="utf-8") as _fh:
+            _alias_doc = json.load(_fh)
+        for _alias_item in _alias_doc.get("aliases") or []:
+            if isinstance(_alias_item, dict) and _alias_item.get("column"):
+                mapped_columns.add(str(_alias_item["column"]))
+    except (OSError, ValueError, TypeError):
+        mapped_columns = set()
+
+    def _plausible_attribute(name: str) -> bool:
+        return bool(name) and any("\u4e00" <= ch <= "\u9fff" for ch in name) \
+            and not _VALUE_WORD.search(name) and "+" not in name
+
+    for column in list(counts.keys()):
+        if column in suspect_columns or column in mapped_columns:
+            continue
+        match = _PAREN_VALUE.match(column)
+        if match:
+            name_part = match.group(1).strip()
+            value_part = match.group(2).strip()
+            if value_part in _SCHEMA_UNIT_TOKENS or _PAREN_UNIT_OR_ABBR.match(value_part):
+                continue
+            if _plausible_attribute(name_part):
+                suspects.append(
+                    _record(
+                        kind="attribute_value_header",
+                        column=column,
+                        occurrences=counts[column],
+                        confidence=0.95,
+                        suggested_attribute=name_part,
+                        value_suffix=value_part,
+                        sample_values=_sample_values(value_counts, column),
+                    )
+                )
+            else:
+                suspects.append(
+                    _record(
+                        kind="value_only_header",
+                        column=column,
+                        occurrences=counts[column],
+                        confidence=0.9,
+                        sample_values=_sample_values(value_counts, column),
+                    )
+                )
+            suspect_columns.add(column)
+            continue
+        if _UNDERSCORE_TOKEN.search(column) \
+                and not _ENGLISH_COLUMN.match(column) \
+                and not _MIXED_ENGLISH_VALUE.match(column):
+            suspects.append(
+                _record(
+                    kind="attribute_value_header",
+                    column=column,
+                    occurrences=counts[column],
+                    confidence=0.85,
+                    suggested_attribute=column.replace("_", "/"),
+                    sample_values=_sample_values(value_counts, column),
+                )
+            )
+            suspect_columns.add(column)
+            continue
+        if _INTERNAL_COLUMN.search(column):
+            suspects.append(
+                _record(
+                    kind="value_only_header",
+                    column=column,
+                    occurrences=counts[column],
+                    confidence=0.98,
+                    sample_values=_sample_values(value_counts, column),
+                )
+            )
+            suspect_columns.add(column)
+            continue
+        if _MIXED_ENGLISH_VALUE.match(column):
+            suspects.append(
+                _record(
+                    kind="value_only_header",
+                    column=column,
+                    occurrences=counts[column],
+                    confidence=0.95,
+                    sample_values=_sample_values(value_counts, column),
+                )
+            )
+            suspect_columns.add(column)
+            continue
+        if _VALUE_WORD.search(column) and not _ATTRIBUTE_SUFFIX.search(column):
+            suspects.append(
+                _record(
+                    kind="value_only_header",
+                    column=column,
+                    occurrences=counts[column],
+                    confidence=0.92,
+                    sample_values=_sample_values(value_counts, column),
+                )
+            )
+            suspect_columns.add(column)
+            continue
 
     # Proven ``<value>_1`` / ``<value>_2`` pairs whose base itself looks like a
     # value (spaces or mixed-case words).  This catches e.g. ``NOMI Mate 3.0_1``.

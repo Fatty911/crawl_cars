@@ -54,6 +54,7 @@ ALLOWED_FILES = {
         "config/column_header_aliases.json",
         "config/series_aliases.json",
         "config/brand_aliases.json",
+        "config/hidden_columns.json",
     ),
     "laptops": (
         "scripts/merge_data.py",
@@ -69,6 +70,7 @@ MAX_PATCH_REMOVED_LINES = 180
 MIN_CONFIDENCE = 0.85
 MIN_COLUMN_ALIAS_CONFIDENCE = 0.9
 MAX_COLUMN_ALIASES = 80
+MAX_HIDDEN_COLUMNS = 200
 MAX_CAR_APPROVALS = 80
 MAX_AGENT_RESPONSE_BYTES = 512 * 1024
 AGENT_REQUEST_VERSION = 1
@@ -463,6 +465,7 @@ Pages URL：{pages_url}
 3. 不得映射品牌/车系/车型名称/年款/数据来源等身份列；不得把属性列映射到属性值。
 4. 证据必须来自报告中的实际列名/取值；不确定就不映射。
 5. `column_aliases` 不影响候选批准：即使不做任何映射也要正常完成 approved_candidate_ids 判断。
+6. `hidden_columns`（可选，数组）：仅对 `column_diagnosis.suspects` 中标记为 value_only_header 的纯值/选装包/英文/内部列使用——这类列无法映射到真实属性，直接隐藏（发布页面不再显示）。不得隐藏 candidate_attributes 中的合法属性与身份列。隐藏同样不影响候选批准。
 
 只输出一个严格 JSON 对象，不要 Markdown，不要代码围栏，不要额外字段：
 {{
@@ -470,11 +473,12 @@ Pages URL：{pages_url}
   "column_aliases": [
     {{"column": "NOMI Mate 3.0", "canonical": "车载智能系统", "value": "NOMI Mate 3.0", "confidence": 0.95, "evidence": "该列取值仅为有/无标记，列名本身是车载智能系统取值"}}
   ],
+  "hidden_columns": ["NOMI Mate 3.0_1", "NOMI Mate 3.0_2"],
   "confidence": 0.0,
   "evidence": ["批准依据"],
   "analysis": "不超过1200字的中文说明"
 }}
-（没有需要修复的列名时 `column_aliases` 输出空数组；没有候选批准时 approved_candidate_ids 输出空数组。）
+（没有需要修复的列名时 `column_aliases` 输出空数组；没有需要隐藏的列时 `hidden_columns` 输出空数组；没有候选批准时 approved_candidate_ids 输出空数组。）
 
 高频候选属性（前 400，全量在报告 `column_diagnosis.candidate_attributes`）：
 {_json(bounded_attributes)}
@@ -743,7 +747,7 @@ def _car_selection(
     candidate_report: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], float, list[str], str]:
     required = {"approved_candidate_ids", "confidence", "evidence", "analysis"}
-    optional = {"column_aliases", "series_aliases", "fetch_gaps", "brand_aliases"}
+    optional = {"column_aliases", "series_aliases", "fetch_gaps", "brand_aliases", "hidden_columns"}
     if not required.issubset(set(response)) or set(response) - required - optional:
         raise RepairInputError("car model response fields do not match the fixed schema")
     if "column_aliases" in response and not isinstance(response.get("column_aliases"), list):
@@ -993,6 +997,145 @@ def _car_aliases_patch(
         raise RepairInputError("validated aliases produced no config change")
     patch = f"diff --git a/{relative} b/{relative}\n{body}"
     return patch, candidate_aliases
+
+
+def _car_hidden_columns(
+    response: dict[str, Any],
+    candidate_report: dict[str, Any],
+) -> list[str]:
+    """Validate hidden-column approvals against the diagnosis allowlist.
+
+    Only columns flagged as value_only_header (or any suspect) may be
+    hidden; identity and candidate attributes are never hidden.
+    """
+    raw = response.get("hidden_columns")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise RepairInputError("car model hidden_columns must be an array")
+    if len(raw) > MAX_HIDDEN_COLUMNS:
+        raise RepairInputError(f"hidden columns exceed the batch limit of {MAX_HIDDEN_COLUMNS}")
+    diagnosis = candidate_report.get("column_diagnosis") or {}
+    # Only hide candidates WITHOUT mapping semantics may be hidden;
+    # attribute_value_header / noncanonical_attribute_header carry a
+    # suggested attribute and must go through column_aliases instead.
+    HIDEABLE_KINDS = {
+        "value_only_header",
+        "package_value_header",
+        "package_pair_header",
+        "v2v3_value_header",
+        "bare_value_header",
+    }
+    suspect_columns: set[str] = set()
+    for item in diagnosis.get("suspects") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("kind") not in HIDEABLE_KINDS:
+            continue
+        columns = item.get("columns")
+        if isinstance(columns, list) and columns:
+            for column in columns:
+                if isinstance(column, str) and column:
+                    suspect_columns.add(column)
+        else:
+            column = item.get("column")
+            if isinstance(column, str) and column:
+                suspect_columns.add(column)
+    candidate_attributes = set(diagnosis.get("candidate_attributes") or [])
+    validated: list[str] = []
+    seen: set[str] = set()
+    diagnosis_conf: dict[str, float] = {}
+    for item in diagnosis.get("suspects") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("kind") not in HIDEABLE_KINDS:
+            continue
+        conf = item.get("confidence")
+        try:
+            conf_value = float(conf)
+        except (TypeError, ValueError):
+            conf_value = 0.0
+        columns = item.get("columns")
+        if isinstance(columns, list) and columns:
+            for column in columns:
+                if isinstance(column, str):
+                    diagnosis_conf[column] = conf_value
+        else:
+            column = item.get("column")
+            if isinstance(column, str):
+                diagnosis_conf[column] = conf_value
+    for entry in raw:
+        if not isinstance(entry, str):
+            raise RepairInputError("each hidden column must be a string")
+        column = entry.strip()
+        if not column:
+            raise RepairInputError("hidden column must not be empty")
+        if column in PROTECTED_ATTRIBUTES:
+            raise RepairInputError(f"hidden column is a protected identity attribute: {column!r}")
+        if column in candidate_attributes:
+            raise RepairInputError(f"hidden column is a known attribute: {column!r}")
+        if column not in suspect_columns:
+            raise RepairInputError(f"hidden column outside the diagnosis allowlist: {column!r}")
+        if diagnosis_conf.get(column, 0.0) < 0.9:
+            raise RepairInputError(
+                "hidden column has a low-confidence diagnosis and is not hideable "
+                f"({column!r} at diagnosis confidence {diagnosis_conf.get(column):.2f})"
+            )
+        if column in seen:
+            raise RepairInputError("hidden columns contain a duplicate")
+        seen.add(column)
+        validated.append(column)
+    return validated
+
+
+def _car_hidden_path() -> Path:
+    return ROOT / ALLOWED_FILES["cars"][4]
+
+
+def _car_hidden_from_text(text: str) -> dict[str, Any]:
+    hidden = _strict_json_load(text, "hidden columns")
+    if not isinstance(hidden, dict):
+        raise RepairInputError("hidden columns must be an object")
+    if "hidden" not in hidden or not isinstance(hidden["hidden"], list):
+        raise RepairInputError("hidden columns must contain a hidden array")
+    known: set[str] = set()
+    for column in hidden["hidden"]:
+        if not isinstance(column, str) or not column.strip():
+            raise RepairInputError("each hidden column must be a non-empty string")
+        if column.strip() in PROTECTED_ATTRIBUTES:
+            raise RepairInputError("hidden columns must not reference a protected identity attribute")
+        if column in known:
+            raise RepairInputError("hidden columns file contains a duplicate")
+        known.add(column)
+    return hidden
+
+
+def _car_hidden_patch(
+    hidden_path: Path,
+    baseline_hidden: dict[str, Any],
+    validated: list[str],
+) -> tuple[str, dict[str, Any]]:
+    """Merge validated hidden columns into the config file, keeping entries."""
+    candidate = json.loads(json.dumps(baseline_hidden, ensure_ascii=False))
+    current = set(str(item) for item in candidate.get("hidden", []) if isinstance(item, str))
+    for column in validated:
+        current.add(column)
+    candidate["hidden"] = sorted(current)
+    baseline_text = hidden_path.read_text(encoding="utf-8")
+    candidate_text = json.dumps(candidate, ensure_ascii=False, indent=2) + "\n"
+    relative = hidden_path.relative_to(ROOT).as_posix()
+    body = "".join(
+        difflib.unified_diff(
+            baseline_text.splitlines(keepends=True),
+            candidate_text.splitlines(keepends=True),
+            fromfile=f"a/{relative}",
+            tofile=f"b/{relative}",
+        )
+    )
+    if not body:
+        raise RepairInputError("validated hidden columns produced no config change")
+    patch = f"diff --git a/{relative} b/{relative}\n{body}"
+    return patch, candidate
 
 
 def _car_series_aliases(
@@ -1359,6 +1502,8 @@ def validate_working_tree(kind: str) -> None:
         _car_manifest_from_text(_car_manifest_path().read_text(encoding="utf-8"))
         if "config/column_header_aliases.json" in paths:
             _car_aliases_from_text(_car_aliases_path().read_text(encoding="utf-8"))
+        if "config/hidden_columns.json" in paths:
+            _car_hidden_from_text(_car_hidden_path().read_text(encoding="utf-8"))
     python_paths = [path for path in paths if path.endswith(".py")]
     if python_paths:
         subprocess.run(
@@ -1827,6 +1972,12 @@ def _propose_car_manifest(
     except RepairInputError as exc:
         brand_aliases = []
         brand_alias_rejection = str(exc)[:500]
+    try:
+        hidden_columns = _car_hidden_columns(response, candidate_report)
+        hidden_rejection = ""
+    except RepairInputError as exc:
+        hidden_columns = []
+        hidden_rejection = str(exc)[:500]
     result.update(
         confidence=confidence,
         root_cause="merge-match",
@@ -1842,8 +1993,10 @@ def _propose_car_manifest(
         fetch_gaps=fetch_gaps[:20],
         brand_alias_count=len(brand_aliases),
         brand_alias_rejection=brand_alias_rejection,
+        hidden_column_count=len(hidden_columns),
+        hidden_rejection=hidden_rejection,
     )
-    if not selected and not column_aliases and not series_aliases and not brand_aliases:
+    if not selected and not column_aliases and not series_aliases and not brand_aliases and not hidden_columns:
         result.update(status="analysis-only", reason="model approved no deterministic candidate")
         _write_result(output_dir, result)
         return 0
@@ -1879,6 +2032,19 @@ def _propose_car_manifest(
         if validate_patch_text(series_patch, "cars") != [ALLOWED_FILES["cars"][2]]:
             raise RepairInputError("generated series patch touches a path outside the series config")
         patches.append(series_patch)
+    if hidden_columns:
+        hidden_path = _car_hidden_path()
+        baseline_hidden = _car_hidden_from_text(hidden_path.read_text(encoding="utf-8"))
+        try:
+            hidden_patch, _candidate_hidden = _car_hidden_patch(hidden_path, baseline_hidden, hidden_columns)
+        except RepairInputError as exc:
+            # All hidden columns were already present: nothing to apply.
+            hidden_patch = ""
+            hidden_rejection = str(exc)[:500]
+        if hidden_patch:
+            if validate_patch_text(hidden_patch, "cars") != [ALLOWED_FILES["cars"][4]]:
+                raise RepairInputError("generated hidden patch touches a path outside the hidden config")
+            patches.append(hidden_patch)
     if brand_aliases:
         brand_path = _car_brand_path()
         baseline_brand = _car_brand_from_text(brand_path.read_text(encoding="utf-8"))

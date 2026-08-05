@@ -94,6 +94,7 @@ function loadAppForTest() {
       atomicSources: typeof atomicSources === "function" ? atomicSources : undefined,
       getFilteredRows: getFilteredRows,
       groupRowsBySeries: groupRowsBySeries,
+      sortSeriesGroups: sortSeriesGroups,
       initializeRows: initializeRows,
       renderEverything: renderEverything,
       renderResultsOnly: renderResultsOnly,
@@ -116,6 +117,26 @@ function loadAppForTest() {
   vm.runInNewContext(source, context, { filename: appPath });
   return { elements, hooks: context.window.CARS_TEST_HOOKS };
 }
+
+test("card sort by price orders series groups", () => {
+  const { hooks } = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("汽车之家+懂车帝", 2025, "甲系列 2025款"), { "车系": "甲系列", "官方指导价": "20.5", "百公里加速(s)": "5.2", "纯电续航(km)": "600" }),
+    Object.assign(row("汽车之家", 2025, "乙系列 2025款"), { "车系": "乙系列", "官方指导价": "12.8", "百公里加速(s)": "6.9", "纯电续航(km)": "400" }),
+    Object.assign(row("懂车帝", 2025, "丙系列 2025款"), { "车系": "丙系列", "官方指导价": "30.0", "百公里加速(s)": "3.9", "纯电续航(km)": "700" }),
+  ]);
+  let groups = hooks.groupRowsBySeries(hooks.getFilteredRows());
+  hooks.state.cardSort = { field: "官方指导价", dir: "asc" };
+  groups = hooks.sortSeriesGroups(groups);
+  assert.equal(groups[0].name.includes("乙"), true);
+  assert.equal(groups[2].name.includes("丙"), true);
+  hooks.state.cardSort = { field: "百公里加速(s)", dir: "asc" };
+  groups = hooks.sortSeriesGroups(groups);
+  assert.equal(groups[0].name.includes("丙"), true);
+  hooks.state.cardSort = null;
+  groups = hooks.groupRowsBySeries(hooks.getFilteredRows());
+  assert.equal(groups[0].rows[0]["数据来源"].includes("汽车之家"), true);
+});
 
 function row(source, year, name) {
   return {

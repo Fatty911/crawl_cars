@@ -48,14 +48,15 @@ def test_requires_different_positive_values_before_calling_a_pair_a_package() ->
     assert report["suspect_column_count"] >= 2
 
 
-def test_reports_unclassified_numeric_suffix_as_review_only() -> None:
+def test_reports_digit_english_column_as_value_only_header() -> None:
     report = diagnose_columns(
         [{"品牌": "甲", "车型名称": "A", "layout_seat_3": "1"}]
     )
 
-    item = _suspect(report, "numeric_suffix_header", "layout_seat_3")
-    assert item["suggested_attribute"] == "layout_seat"
-    assert item["confidence"] < 0.8
+    # layout_seat_3 is a digit-containing english value column: a hide
+    # candidate (value_only_header) rather than review-only.
+    item = _suspect(report, "value_only_header", "layout_seat_3")
+    assert item["confidence"] >= 0.9
     assert report["status"] == "suspects-found"
 
 
@@ -94,14 +95,25 @@ def test_diagnoses_bare_value_headers_and_package_value_headers() -> None:
     assert "NOMI Mate 3.0" not in diag["candidate_attributes"]
 
 
-def test_known_english_attributes_and_identifiers_are_not_flagged() -> None:
+def test_english_identifiers_stay_attributes_and_internal_columns_are_hide_candidates() -> None:
     rows = [
         {"品牌": "A", "车型名称": "M", "filter_group_car_year": "2026", "departure_angle": "20", "ota_version": "1.2"},
         {"品牌": "A", "车型名称": "M", "filter_group_car_year": "2025", "departure_angle": "21", "ota_version": "1.3"},
     ]
     diag = diagnose_columns(rows)
     flagged = {item["column"] for item in diag["suspects"]}
+    # Pure english identifier columns may be real attributes; they stay in
+    # candidate_attributes for the repair Agent to map (not hide).
     assert "filter_group_car_year" not in flagged
     assert "departure_angle" not in flagged
     assert "ota_version" not in flagged
-    assert "filter_group_car_year" in diag["candidate_attributes"]
+    for column in ("filter_group_car_year", "departure_angle", "ota_version"):
+        assert column in diag["candidate_attributes"], column
+    # Mixed english-value columns (digits/underscores) are hide candidates.
+    rows2 = [
+        {"品牌": "A", "车型名称": "M", "speaker_speaker_count_6": "●"},
+        {"品牌": "A", "车型名称": "M", "speaker_speaker_count_6": "●"},
+    ]
+    diag2 = diagnose_columns(rows2)
+    kinds2 = {item["kind"] for item in diag2["suspects"] if item["column"] == "speaker_speaker_count_6"}
+    assert kinds2 == {"value_only_header"}, kinds2

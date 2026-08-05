@@ -1,5 +1,612 @@
 {
   "version": 1,
   "note": "AI 修复工作流维护的列名别名映射。column=Pages 中把属性值编码进列名的列；canonical=规范属性名（必须存在于 Pages 已知属性集合，且不能是身份列）；value=可选，该列代表的值，行内该列有正值时注入到 canonical 列。注意：v4 后缀 one-hot 列（如 driving_assist_chip_v4_*）由 publish 规范化无条件折叠，不依赖本文件；本文件仅控制其余值型列名的映射。",
-  "aliases": []
+  "aliases": [
+    {
+      "column": "0-100km/h加速(s)",
+      "canonical": "百公里加速(s)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "0-100km/h加速时间(s)",
+      "canonical": "百公里加速(s)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "4G_5G网络",
+      "canonical": "4G/5G网络",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "CLTC纯电续航",
+      "canonical": "纯电续航(km)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "CLTC纯电续航里程(km)",
+      "canonical": "纯电续航(km)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "CO2热泵空调包",
+      "canonical": "热泵空调",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "CO2热泵空调包_1",
+      "canonical": "热泵空调",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "CO2热泵空调包_2",
+      "canonical": "热泵空调",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "CO2热泵空调系统",
+      "canonical": "热泵空调",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "CO2热泵空调系统_1",
+      "canonical": "热泵空调",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "CO2热泵空调系统_2",
+      "canonical": "热泵空调",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "NEDC纯电续航里程(km)",
+      "canonical": "纯电续航(km)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "NFC钥匙",
+      "canonical": "蓝牙/数字钥匙",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "NOA城市路段",
+      "canonical": "NOA城市领航",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "USB_Type-C接口数量",
+      "canonical": "USB/Type-C接口数量",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "UWB钥匙",
+      "canonical": "蓝牙/数字钥匙",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "battery_temperature_management_system_heating_v3",
+      "canonical": "电池温控(加热)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "battery_warranty_v3",
+      "canonical": "电池组质保",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "quick_charge_interface_v3",
+      "canonical": "快充接口",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "主驾驶座椅记忆",
+      "canonical": "座椅记忆",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "全速自适应巡航控制_ACC_",
+      "canonical": "全速自适应巡航",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "制动力分配_EBD_CBC等_",
+      "canonical": "制动力分配(EBD/CBC等)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "前悬挂",
+      "canonical": "前悬挂形式",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "前悬挂类型",
+      "canonical": "前悬挂形式",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "前悬架类型",
+      "canonical": "前悬挂形式",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "前轮胎规格尺寸",
+      "canonical": "前轮胎规格",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "前轮距[mm]",
+      "canonical": "前轮距(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "前轮距_mm_",
+      "canonical": "前轮距(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "功放最大输出功率（W）",
+      "canonical": "功放最大输出功率(W)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "发动机远程启动",
+      "canonical": "远程启动",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后备厢容积(L)",
+      "canonical": "行李舱容积(L)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后备厢容积_L_",
+      "canonical": "行李舱容积(L)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后座出风口",
+      "canonical": "后排出风口",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后悬挂",
+      "canonical": "后悬挂形式",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后悬挂类型",
+      "canonical": "后悬挂形式",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后悬架类型",
+      "canonical": "后悬挂形式",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后视镜记忆",
+      "canonical": "外后视镜记忆",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后轮胎规格尺寸",
+      "canonical": "后轮胎规格",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后轮距[mm]",
+      "canonical": "后轮距(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后轮距_mm_",
+      "canonical": "后轮距(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "哨兵(千里眼)模式",
+      "canonical": "哨兵模式/千里眼",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "哨兵模式_千里眼",
+      "canonical": "哨兵模式/千里眼",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "哨兵（千里眼）模式",
+      "canonical": "哨兵模式/千里眼",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "城市智驾",
+      "canonical": "NOA城市领航",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "城市辅助驾驶",
+      "canonical": "NOA城市领航",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "城市领航辅助",
+      "canonical": "NOA城市领航",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "外后视镜功能",
+      "canonical": "外后视镜记忆",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "多媒体/充电接口",
+      "canonical": "多媒体充电接口",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "多媒体_充电接口",
+      "canonical": "多媒体充电接口",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "宽度(mm)",
+      "canonical": "宽(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "座位数",
+      "canonical": "座位数(个)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "座位数[个]",
+      "canonical": "座位数(个)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "座位数_个_",
+      "canonical": "座位数(个)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "手机APP远程功能",
+      "canonical": "远程控制",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "手机互联_映射",
+      "canonical": "手机互联",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "手机映射",
+      "canonical": "手机互联",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "手机钥匙",
+      "canonical": "蓝牙/数字钥匙",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "数字钥匙",
+      "canonical": "蓝牙/数字钥匙",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "整备质量[kg]",
+      "canonical": "整备质量(kg)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "整备质量_kg_",
+      "canonical": "整备质量(kg)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最大功率[kW]",
+      "canonical": "最大功率(kW)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最大功率_kW_",
+      "canonical": "最大功率(kW)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最大扭矩[N·m]",
+      "canonical": "最大扭矩(N·m)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最大扭矩_N·m_",
+      "canonical": "最大扭矩(N·m)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最小转弯半径(m)",
+      "canonical": "最小转弯半径",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最小转弯半径_m_",
+      "canonical": "最小转弯半径",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最高车速",
+      "canonical": "最高车速(km/h)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最高车速[km/h]",
+      "canonical": "最高车速(km/h)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "最高车速_km_h_",
+      "canonical": "最高车速(km/h)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "每缸气门数(个)",
+      "canonical": "每缸气门数",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "每缸气门数[个]",
+      "canonical": "每缸气门数",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "每缸气门数_个_",
+      "canonical": "每缸气门数",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "油箱容积_L_",
+      "canonical": "油箱容积(L)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "满载质量_kg_",
+      "canonical": "满载质量(kg)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "热泵管理系统",
+      "canonical": "热泵空调",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "燃料形式",
+      "canonical": "能源类型",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "电动座椅记忆功能",
+      "canonical": "座椅记忆",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "电池能量_kWh_",
+      "canonical": "电池能量(kWh)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "百公里加速时间",
+      "canonical": "百公里加速(s)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "纯电续航",
+      "canonical": "纯电续航(km)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "自适应巡航",
+      "canonical": "自适应巡航(ACC)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "自适应巡航控制_ACC_",
+      "canonical": "自适应巡航(ACC)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "蓝牙_车载电话",
+      "canonical": "蓝牙/车载电话",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "蓝牙钥匙",
+      "canonical": "蓝牙/数字钥匙",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "行李厢12V电源接口",
+      "canonical": "行李舱12V电源接口",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "车机系统内存_GB_",
+      "canonical": "车机系统内存(GB)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "车机系统存储_GB_",
+      "canonical": "车机系统存储(GB)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "车门数",
+      "canonical": "车门数(个)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "车门数[个]",
+      "canonical": "车门数(个)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "车门数_个_",
+      "canonical": "车门数(个)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "轴距[mm]",
+      "canonical": "轴距(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "轴距_mm_",
+      "canonical": "轴距(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "远程启动功能",
+      "canonical": "远程启动",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "远程操控",
+      "canonical": "远程控制",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "钥匙类型",
+      "canonical": "蓝牙/数字钥匙",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "长*宽*高(mm)",
+      "canonical": "长x宽x高(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "长*宽*高[mm]",
+      "canonical": "长x宽x高(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "长*宽*高_mm_",
+      "canonical": "长x宽x高(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "长度(mm)",
+      "canonical": "长(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "风阻系数_Cd_",
+      "canonical": "风阻系数(Cd)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "高度(mm)",
+      "canonical": "高(mm)",
+      "confidence": 1.0,
+      "evidence": "synced from filter_conditions.json columnAliases"
+    }
+  ]
 }
