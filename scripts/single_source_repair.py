@@ -493,7 +493,7 @@ Pages URL：{pages_url}
 【车系来源缺口】（source-fetch 根因）：已发布数据中某些车系缺少部分来源（可能源站未收录或爬虫未抓取）。仅评估记录，不自动应用；如确认值得后续补抓（车系行数多、缺源影响大），请在响应中输出 fetch_gaps 数组，每项 {{"brand": 品牌, "series": 车系, "missing_source": 缺失来源, "confidence": 0.9..1, "evidence": 说明}}，只能从本清单选择：
 {_json(report.get("source_gaps") or [])[:40]}
 
-【品牌写法疑似对】（schema-normalization 根因）：同一车系在不同来源被归到不同品牌名下（如易车把问界M8 归"鸿蒙智行"，懂车帝归"AITO 问界"；汽车之家把飞凡R7 归"荣威"），导致跨源行无法匹配。注意：本清单是"车系级品牌修正"——只允许把 {brand, series} 这个具体车系的品牌修正为 target_brand（如 荣威+飞凡R7 → 飞凡汽车），严禁全局品牌映射（荣威≠飞凡，荣威官网有独立车型"全新R7"）。批准前请核对车型名称样本（samples）确认是同一车型，必要时以品牌官网车型列表为证据。如需修复，请在响应中输出 brand_aliases 数组，每项 {{"brand": 本清单中的 brand 原值, "series": 本清单中的 series 原值, "target_brand": 本清单中对应的 target_brand 原值, "confidence": 0.9..1, "evidence": 说明}}，必须逐字使用本清单中的值：
+【品牌写法疑似对】（schema-normalization 根因）：同一车系在不同来源被归到不同品牌名下（如易车把问界M8 归"鸿蒙智行"，懂车帝归"AITO 问界"；汽车之家把飞凡R7 归"荣威"），导致跨源行无法匹配。注意：本清单是"车系级品牌修正"——只允许把 {{brand, series}} 这个具体车系的品牌修正为 target_brand（如 荣威+飞凡R7 → 飞凡汽车），严禁全局品牌映射（荣威≠飞凡，荣威官网有独立车型"全新R7"）。批准前请核对车型名称样本（samples）确认是同一车型，必要时以品牌官网车型列表为证据。如需修复，请在响应中输出 brand_aliases 数组，每项 {{"brand": 本清单中的 brand 原值, "series": 本清单中的 series 原值, "target_brand": 本清单中对应的 target_brand 原值, "confidence": 0.9..1, "evidence": 说明}}，必须逐字使用本清单中的值：
 {_json(report.get("brand_alias_gaps") or [])[:40]}
 """
     size_kb = max(1, len(body.encode("utf-8")) // 1000)
