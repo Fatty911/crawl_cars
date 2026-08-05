@@ -490,6 +490,47 @@ _RANGE_NAME_PATTERN = re.compile(r"(?<!\d)(\d{3,4}(?:\.\d+)?)\s*(?:km|公里)", 
 _SERIES_ALIASES = {"腾势n9dm": "腾势n9"}
 _EXTERNAL_SERIES_ALIASES: dict[str, str] = {}
 _SERIES_ALIASES_LOADED = False
+_EXTERNAL_BRAND_ALIASES: dict[str, str] = {}
+_BRAND_ALIASES_LOADED = False
+
+def _load_brand_aliases() -> dict[str, str]:
+    """Load the AI-maintainable brand alias map once (config/brand_aliases.json).
+    Missing config is cached as an empty map; corrupt or unreadable config
+    returns an empty map without caching so the next call retries.
+    """
+    global _EXTERNAL_BRAND_ALIASES, _BRAND_ALIASES_LOADED
+    if _BRAND_ALIASES_LOADED:
+        return _EXTERNAL_BRAND_ALIASES
+    aliases: dict[str, Any] = {"series_brand_aliases": []}
+    try:
+        path = os.path.join(DIR, "config", "brand_aliases.json")
+        with open(path, encoding="utf-8") as handle:
+            value = json.load(handle)
+        for item in value.get("series_brand_aliases", []) if isinstance(value, dict) else []:
+            if not isinstance(item, dict):
+                continue
+            brand = str(item.get("brand") or "").strip()
+            series = str(item.get("series") or "").strip()
+            target = str(item.get("target_brand") or "").strip()
+            if brand and series and target and target != brand:
+                aliases["series_brand_aliases"].append({"brand": brand, "series": series, "target_brand": target})
+    except FileNotFoundError:
+        pass  # missing config is the normal empty state; cache it
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return {}  # corrupt/unreadable: do not cache, retry next call
+    _BRAND_ALIASES_LOADED = True
+    _EXTERNAL_BRAND_ALIASES = aliases
+    return aliases
+_PIPE_SUFFIX_PATTERN = re.compile(r"\|[^|]+$")
+
+def normalize_brand_text(value: str) -> str:
+    """Normalize a brand name for matching: lowercase, strip whitespace
+    and punctuation, drop pipe source-marker suffixes ("奇瑞风云|高德" -> "奇瑞风云"), apply the built-in brand map and the external alias map."
+    """
+    text = normalize_match_text(value)
+    text = _PIPE_SUFFIX_PATTERN.sub("", text)
+    return BRAND_NORMALIZE.get(text, text)
+
 
 def _load_series_aliases() -> dict[str, str]:
     """Load the AI-maintainable series alias map once (config/series_aliases.json).
@@ -882,17 +923,30 @@ def normalize_for_match(text):
     return text
 
 
+def _apply_series_brand_alias(brand: str, series: str) -> str:
+    """Series-scoped brand correction from config/brand_aliases.json.
+    Global brand aliases are unsafe (e.g. 荣威R7 exists as its own model,
+    so 荣威->飞凡 must never be global); the correction unit is
+    (brand, series) -> target brand.  Empty config => zero change.
+    """
+    if not brand or not series:
+        return brand
+    external = _load_brand_aliases() if not _BRAND_ALIASES_LOADED else _EXTERNAL_BRAND_ALIASES
+    for item in external.get("series_brand_aliases", []):
+        if item.get("brand") == brand and item.get("series") == series:
+            return item.get("target_brand") or brand
+    return brand
+
 def series_year_key(row):
     """生成车系+年款匹配键"""
-    brand = normalize_match_text(row.get('品牌', ''))
-    brand = BRAND_NORMALIZE.get(brand, brand)
+    brand = normalize_brand_text(row.get('品牌', ''))
     series = normalize_series_match_text(row.get('车系', ''))
+    brand = _apply_series_brand_alias(brand, series)
     # 品牌为空时从车系名推导
     if not brand and series:
         derived = derive_brand(row.get('车系', ''))
         if derived:
-            brand = normalize_match_text(derived)
-            brand = BRAND_NORMALIZE.get(brand, brand)
+            brand = normalize_brand_text(derived)
     year = ''
     year_str = str(row.get('年款', ''))
     year_match = re.search(r'(\d{4})', year_str)
@@ -909,15 +963,14 @@ def series_year_key(row):
 
 def series_key(row):
     """生成车系匹配键（不含年款，更宽松）"""
-    brand = normalize_match_text(row.get('品牌', ''))
-    brand = BRAND_NORMALIZE.get(brand, brand)
+    brand = normalize_brand_text(row.get('品牌', ''))
     series = normalize_series_match_text(row.get('车系', ''))
+    brand = _apply_series_brand_alias(brand, series)
     # 品牌为空时从车系名推导
     if not brand and series:
         derived = derive_brand(row.get('车系', ''))
         if derived:
-            brand = normalize_match_text(derived)
-            brand = BRAND_NORMALIZE.get(brand, brand)
+            brand = normalize_brand_text(derived)
     return f"{brand}|{series}" if brand and series else ''
 
 

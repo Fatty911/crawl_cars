@@ -13,6 +13,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+DIR = Path(__file__).resolve().parents[1]
+
 try:
     from publish_identity import (
         autohome_publish_identity_valid,
@@ -1519,6 +1521,98 @@ def visible_card_stats(rows: list[dict[str, Any]]) -> dict[str, int | float]:
     }
 
 
+def _viewport_single_fingerprints(rows: list[dict[str, Any]]) -> set[str]:
+    """Fingerprints of single-source rows inside the Pages default filter view.
+
+    Uses the front-end default semantics (defaultMin/defaultMax/defaultEnabled)
+    from config/filter_conditions.json, matching what a user sees on open.
+    """
+    try:
+        from merge_data import check_numeric_condition as _cnc, check_feature as _cf
+    except ModuleNotFoundError:
+        try:
+            from scripts.merge_data import check_numeric_condition as _cnc, check_feature as _cf
+        except ModuleNotFoundError:
+            return set()
+    cfg_path = os.path.join(DIR, "config", "filter_conditions.json")
+    try:
+        with open(cfg_path, encoding="utf-8") as handle:
+            cfg = json.load(handle)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return set()
+    fps: set[str] = set()
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        ok = True
+        for c in cfg.get("conditions", []) if isinstance(cfg, dict) else []:
+            if not isinstance(c, dict):
+                continue
+            if c.get("type") == "range":
+                f = c.get("field")
+                mn = c.get("defaultMin")
+                mx = c.get("defaultMax")
+                try:
+                    mn_f = float(mn) if mn not in (None, "", "-") else None
+                    mx_f = float(mx) if mx not in (None, "", "-") else None
+                except (TypeError, ValueError):
+                    return set()  # corrupt config: degrade to an empty viewport
+                if mn_f is not None:
+                    if not _cnc(r, f, mn_f, ">="):
+                        ok = False
+                        break
+                if mx_f is not None:
+                    if not _cnc(r, f, mx_f, "<="):
+                        ok = False
+                        break
+            else:
+                if not c.get("defaultEnabled", False):
+                    continue
+                if not _cf(r, c.get("fields", []), c.get("keywords", []), c.get("requireKeyword", False)):
+                    ok = False
+                    break
+        if not ok:
+            continue
+        src = str(r.get("数据来源") or "")
+        if "+" in src:
+            continue
+        brand = _norm_brand_series(r.get("品牌") or "")
+        series = _norm_series_name(r.get("车系") or "")
+        year = str(r.get("年款") or "").strip()
+        if brand and series:
+            fps.add(f"{brand}|{series}|{year}")
+    return fps
+
+
+def _norm_brand_series(value: Any) -> str:
+    try:
+        from merge_data import normalize_brand_text as _nbt
+    except ModuleNotFoundError:
+        try:
+            from scripts.merge_data import normalize_brand_text as _nbt
+        except ModuleNotFoundError:
+            return str(value or "").strip().lower()
+    try:
+        return _nbt(value)
+    except Exception:
+        return str(value or "").strip().lower()
+
+
+def _norm_series_name(value: Any) -> str:
+    """Series normalization matching series_year_key semantics."""
+    try:
+        from merge_data import normalize_series_match_text as _nsmt
+    except ModuleNotFoundError:
+        try:
+            from scripts.merge_data import normalize_series_match_text as _nsmt
+        except ModuleNotFoundError:
+            return str(value or "").strip().lower()
+    try:
+        return _nsmt(value)
+    except Exception:
+        return str(value or "").strip().lower()
+
+
 def discover_single_source_candidates(
     rows: list[dict[str, Any]],
     *,
@@ -1526,8 +1620,8 @@ def discover_single_source_candidates(
 ) -> dict[str, Any]:
     """Find bounded cross-source candidates from the full universe of single-source series.
 
-    Candidates are ordered hot-brand-first: brands with the most rows in the
-    live payload are repaired first, then by match score/margin.
+    Candidates are ordered viewport-first (single rows inside the Pages
+    default filter view), then hot-brand-first, then by match score/margin.
     """
     if limit < 1:
         raise ValueError("candidate limit must be positive")
@@ -1536,6 +1630,7 @@ def discover_single_source_candidates(
         for row in rows
         if isinstance(row, dict) and str(row.get("品牌") or "").strip()
     )
+    viewport_fps = _viewport_single_fingerprints(rows)
     baseline, _stats = annotate_safe_visible_components(rows)
     nodes = _frontend_nodes(baseline, key_function=_strict_frontend_visible_key)
     single_indexes = {
@@ -1610,6 +1705,20 @@ def discover_single_source_candidates(
         )
         candidate_id = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()[:24]
         is_new_candidate = candidate_id not in candidates_by_id
+        single_member = _manifest_member(single)
+        viewport_flag = 0
+        if viewport_fps:
+            fp = "|".join(
+                [
+                    _norm_brand_series(single_member.get("brand") or ""),
+                    _norm_series_name(single_member.get("series") or ""),
+                    str(single_member.get("year") or "").strip(),
+                ]
+            )
+            if fp in viewport_fps:
+                viewport_flag = 1
+        previous = candidates_by_id.get(candidate_id, {}).get("viewport", 0)
+        viewport_flag = viewport_flag or previous
         candidates_by_id[candidate_id] = {
             "candidate_id": candidate_id,
             "effect": (
@@ -1625,6 +1734,7 @@ def discover_single_source_candidates(
             "alternative_count": len(alternatives),
             "reasons": best_reasons,
             "members": members,
+            "viewport": viewport_flag,
         }
         if is_new_candidate:
             counts["unique_candidate"] += 1
@@ -1633,6 +1743,7 @@ def discover_single_source_candidates(
         candidates_by_id.values(),
         key=lambda item: (
             item["effect"] != "new_multi_card",
+            -int(item.get("viewport") or 0),
             -brand_row_counts.get(str(item.get("brand") or "").strip(), 0),
             -item["score"],
             -item["margin"],

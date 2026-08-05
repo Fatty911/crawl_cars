@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+from scripts.single_source_repair import ROOT  # noqa: E402
 from scripts.single_source_repair import (
     ALLOWED_FILES,
     RepairInputError,
@@ -199,6 +200,7 @@ class SingleSourceRepairTests(unittest.TestCase):
                 "config/safe_v2_absorption_manifest.json",
                 "config/column_header_aliases.json",
                 "config/series_aliases.json",
+                "config/brand_aliases.json",
             ),
         )
         report = {
@@ -665,6 +667,149 @@ class SingleSourceRepairTests(unittest.TestCase):
             self.assertNotIn("plus", g["source"])
             self.assertNotIn("glb", g["source"])
             self.assertNotIn("glc", g["target"])
+
+
+
+    def test_brand_alias_validation_allowlist_and_duplicates(self) -> None:
+        from scripts.single_source_repair import _car_brand_aliases
+
+        report = {
+            "brand_alias_gaps": [
+                {"brand": "鸿蒙智行", "series": "问界m8", "target_brand": "aito问界", "source_rows": 24, "target_rows": 48},
+                {"brand": "荣威", "series": "飞凡r7", "target_brand": "飞凡汽车", "source_rows": 6, "target_rows": 8},
+            ]
+        }
+        ok = _car_brand_aliases(
+            {"brand_aliases": [{"brand": "鸿蒙智行", "series": "问界m8", "target_brand": "aito问界", "confidence": 0.95}]},
+            report,
+        )
+        self.assertEqual(1, len(ok))
+        self.assertEqual("鸿蒙智行", ok[0]["brand"])
+        # target_brand outside the diagnosed gap is rejected
+        with self.assertRaises(RepairInputError):
+            _car_brand_aliases(
+                {"brand_aliases": [{"brand": "鸿蒙智行", "series": "问界m8", "target_brand": "奥迪", "confidence": 0.95}]},
+                report,
+            )
+        # (brand, series) outside the allowlist is rejected
+        with self.assertRaises(RepairInputError):
+            _car_brand_aliases(
+                {"brand_aliases": [{"brand": "特斯拉", "series": "model3", "target_brand": "aito问界", "confidence": 0.95}]},
+                report,
+            )
+        # low confidence is rejected
+        with self.assertRaises(RepairInputError):
+            _car_brand_aliases(
+                {"brand_aliases": [{"brand": "鸿蒙智行", "series": "问界m8", "target_brand": "aito问界", "confidence": 0.8}]},
+                report,
+            )
+        # duplicates are rejected
+        dup = [
+            {"brand": "鸿蒙智行", "series": "问界m8", "target_brand": "aito问界", "confidence": 0.95},
+            {"brand": "鸿蒙智行", "series": "问界m8", "target_brand": "aito问界", "confidence": 0.95},
+        ]
+        with self.assertRaises(RepairInputError):
+            _car_brand_aliases({"brand_aliases": dup}, report)
+        # missing field means no repair
+        self.assertEqual([], _car_brand_aliases({}, report))
+
+    def test_diagnose_brand_alias_gaps_merges_spellings(self) -> None:
+        from scripts.single_source_repair import diagnose_brand_alias_gaps
+
+        rows = [
+            {"品牌": "AITO 问界", "车系": "问界M8", "数据来源": "汽车之家"},
+            {"品牌": "AITO问界", "车系": "问界M8", "数据来源": "懂车帝"},
+            {"品牌": "鸿蒙智行", "车系": "问界M8", "数据来源": "易车"},
+            {"品牌": "小鹏", "车系": "小鹏G6", "数据来源": "汽车之家"},
+            {"品牌": "小鹏汽车", "车系": "小鹏G6", "数据来源": "懂车帝"},
+            {"品牌": "荣威", "车系": "飞凡R7", "数据来源": "汽车之家"},
+            {"品牌": "荣威", "车系": "荣威R7", "数据来源": "汽车之家"},
+            {"品牌": "奇瑞风云|高德", "车系": "风云T10", "数据来源": "汽车之家"},
+        ] * 4
+        # 鸿蒙智行 (4 rows) vs AITO问界 (8 rows) -> series-scoped pair
+        gaps = diagnose_brand_alias_gaps(rows)
+        hongmeng = [g for g in gaps if g["brand"] == "鸿蒙智行" and g["series"] == "问界m8"]
+        self.assertTrue(any(g["target_brand"] == "aito问界" for g in hongmeng), gaps)
+        # 荣威+飞凡R7 (4) vs 飞凡汽车+飞凡R7 (4): equal rows -> conservative skip;
+        # 荣威+荣威R7 must never be aliased to another brand
+        for g in gaps:
+            self.assertNotIn("|", g["brand"])
+        self.assertFalse(any(g["brand"] == "荣威" and g["series"] == "荣威r7" for g in gaps), gaps)
+
+
+
+    def test_car_brand_path_points_at_brand_aliases(self) -> None:
+        from scripts.single_source_repair import _car_brand_path
+
+        self.assertTrue(
+            str(_car_brand_path()).endswith("config/brand_aliases.json"),
+            _car_brand_path(),
+        )
+        self.assertEqual(
+            _car_brand_path(),
+            ROOT / ALLOWED_FILES["cars"][3],
+        )
+
+    def test_car_brand_patch_is_deterministic_and_sorted(self) -> None:
+        from scripts.single_source_repair import ROOT, _car_brand_patch
+
+        bp = ROOT / "config" / "brand_aliases.json"
+        baseline = json.loads(bp.read_text(encoding="utf-8"))
+        validated = [
+            {"brand": "鸿蒙智行", "series": "问界m8", "target_brand": "aito问界", "confidence": 0.95, "evidence": "e1"},
+            {"brand": "荣威", "series": "飞凡r7", "target_brand": "飞凡汽车", "confidence": 0.9, "evidence": "e2"},
+        ]
+        patch1, candidate1 = _car_brand_patch(bp, baseline, validated)
+        patch2, candidate2 = _car_brand_patch(bp, baseline, validated)
+        self.assertEqual(patch1, patch2)
+        self.assertEqual(candidate1, candidate2)
+        self.assertEqual(
+            [(a["brand"], a["series"]) for a in candidate1["series_brand_aliases"]],
+            sorted((a["brand"], a["series"]) for a in validated),
+        )
+
+    def test_car_brand_from_text_rejects_bad_files(self) -> None:
+        from scripts.single_source_repair import _car_brand_from_text
+
+        with self.assertRaises(RepairInputError):
+            _car_brand_from_text('{"version": 1}')
+        with self.assertRaises(RepairInputError):
+            _car_brand_from_text('{"series_brand_aliases": "x"}')
+        with self.assertRaises(RepairInputError):
+            _car_brand_from_text('{"series_brand_aliases": [{"brand": "a", "series": "s", "target_brand": "a", "confidence": 0.95}]}')
+        with self.assertRaises(RepairInputError):
+            _car_brand_from_text('{"series_brand_aliases": [{"brand": "a", "series": "s", "target_brand": "b", "confidence": 0.5}]}')
+        ok = _car_brand_from_text('{"series_brand_aliases": [{"brand": "a", "series": "s", "target_brand": "b", "confidence": 0.95}]}')
+        self.assertEqual("a", ok["series_brand_aliases"][0]["brand"])
+
+    def test_viewport_fingerprints_degrade_safely(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from scripts.prepare_pages_payload import _viewport_single_fingerprints
+
+        rows = [
+            {"品牌": "问界", "车系": "问界M7", "车型名称": "Max 六座", "年款": "2026", "数据来源": "仅懂车帝",
+             "百公里加速(s)": "4.8", "纯电续航(km)": "200", "最高车速(km/h)": "200"},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            # corrupt config (non-numeric defaultMin) -> empty set, no crash
+            bad_dir = Path(td) / "config"
+            bad_dir.mkdir(parents=True, exist_ok=True)
+            bad = bad_dir / "filter_conditions.json"
+            bad.write_text(
+                json.dumps({"conditions": [{"type": "range", "field": "百公里加速(s)", "defaultMin": "abc"}]}),
+                encoding="utf-8",
+            )
+            orig_dir = None
+            import scripts.prepare_pages_payload as pp
+            orig_dir = pp.DIR
+            try:
+                pp.DIR = Path(td)
+                fps = _viewport_single_fingerprints(rows)
+                self.assertEqual(set(), fps)
+            finally:
+                pp.DIR = orig_dir
 
 if __name__ == "__main__":
     unittest.main()

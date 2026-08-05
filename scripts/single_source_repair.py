@@ -53,6 +53,7 @@ ALLOWED_FILES = {
         "config/safe_v2_absorption_manifest.json",
         "config/column_header_aliases.json",
         "config/series_aliases.json",
+        "config/brand_aliases.json",
     ),
     "laptops": (
         "scripts/merge_data.py",
@@ -487,6 +488,9 @@ Pages URL：{pages_url}
 
 【车系来源缺口】（source-fetch 根因）：已发布数据中某些车系缺少部分来源（可能源站未收录或爬虫未抓取）。仅评估记录，不自动应用；如确认值得后续补抓（车系行数多、缺源影响大），请在响应中输出 fetch_gaps 数组，每项 {{"brand": 品牌, "series": 车系, "missing_source": 缺失来源, "confidence": 0.9..1, "evidence": 说明}}，只能从本清单选择：
 {_json(report.get("source_gaps") or [])[:40]}
+
+【品牌写法疑似对】（schema-normalization 根因）：同一车系在不同来源被归到不同品牌名下（如易车把问界M8 归"鸿蒙智行"，懂车帝归"AITO 问界"；汽车之家把飞凡R7 归"荣威"），导致跨源行无法匹配。注意：本清单是"车系级品牌修正"——只允许把 {brand, series} 这个具体车系的品牌修正为 target_brand（如 荣威+飞凡R7 → 飞凡汽车），严禁全局品牌映射（荣威≠飞凡，荣威官网有独立车型"全新R7"）。批准前请核对车型名称样本（samples）确认是同一车型，必要时以品牌官网车型列表为证据。如需修复，请在响应中输出 brand_aliases 数组，每项 {{"brand": 本清单中的 brand 原值, "series": 本清单中的 series 原值, "target_brand": 本清单中对应的 target_brand 原值, "confidence": 0.9..1, "evidence": 说明}}，必须逐字使用本清单中的值：
+{_json(report.get("brand_alias_gaps") or [])[:40]}
 """
     size_kb = max(1, len(body.encode("utf-8")) // 1000)
     return f"""【重要读取要求】本 prompt.md 总长约 {size_kb} KB，包含完整候选报告。你必须用 Read 工具按 offset 递增（每次约 2000 字符）把整个文件读到末尾（offset 超过文件大小时 Read 会返回空内容，即已读完），然后才能输出 JSON。禁止在未读完整个文件前回答。
@@ -739,7 +743,7 @@ def _car_selection(
     candidate_report: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], float, list[str], str]:
     required = {"approved_candidate_ids", "confidence", "evidence", "analysis"}
-    optional = {"column_aliases", "series_aliases", "fetch_gaps"}
+    optional = {"column_aliases", "series_aliases", "fetch_gaps", "brand_aliases"}
     if not required.issubset(set(response)) or set(response) - required - optional:
         raise RepairInputError("car model response fields do not match the fixed schema")
     if "column_aliases" in response and not isinstance(response.get("column_aliases"), list):
@@ -900,6 +904,39 @@ def _car_series_from_text(text: str) -> dict[str, Any]:
         if not math.isfinite(float(confidence)) or not 0.9 <= float(confidence) <= 1:
             raise RepairInputError("series alias confidence must be within 0.9..1")
     return series
+
+
+def _car_brand_path() -> Path:
+    return ROOT / ALLOWED_FILES["cars"][3]
+
+
+def _car_brand_from_text(text: str) -> dict[str, Any]:
+    brand = _strict_json_load(text, "brand aliases")
+    if not isinstance(brand, dict):
+        raise RepairInputError("brand aliases must be an object")
+    if "series_brand_aliases" not in brand or not isinstance(brand["series_brand_aliases"], list):
+        raise RepairInputError("brand aliases must contain a series_brand_aliases array")
+    known: set[tuple[str, str]] = set()
+    for item in brand["series_brand_aliases"]:
+        if not isinstance(item, dict):
+            raise RepairInputError("each brand alias entry must be an object")
+        b = str(item.get("brand") or "").strip()
+        s = str(item.get("series") or "").strip()
+        t = str(item.get("target_brand") or "").strip()
+        if not b or not s or not t or t == b:
+            raise RepairInputError("brand alias entry needs distinct brand, series and target_brand")
+        if (b, s) in known:
+            raise RepairInputError("brand alias file contains a duplicate (brand, series)")
+        known.add((b, s))
+        item["brand"] = b
+        item["series"] = s
+        item["target_brand"] = t
+        confidence = item.get("confidence")
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            raise RepairInputError("brand alias confidence must be a JSON number")
+        if not math.isfinite(float(confidence)) or not 0.9 <= float(confidence) <= 1:
+            raise RepairInputError("brand alias confidence must be within 0.9..1")
+    return brand
 
 
 def _car_aliases_from_text(text: str) -> dict[str, Any]:
@@ -1086,6 +1123,94 @@ def _car_series_patch(
         raise RepairInputError("validated series aliases produced no config change")
     patch = f"diff --git a/{relative} b/{relative}\n{body}"
     return patch, candidate_series
+
+
+def _car_brand_aliases(
+    response: dict[str, Any],
+    candidate_report: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Validate brand-alias approvals against the deterministic gap allowlist."""
+    raw = response.get("brand_aliases", [])
+    if not isinstance(raw, list):
+        raise RepairInputError("car model brand_aliases must be an array")
+    allowed: dict[tuple[str, str], set[str]] = {}
+    for gap in candidate_report.get("brand_alias_gaps", []):
+        if not isinstance(gap, dict):
+            continue
+        brand = str(gap.get("brand") or "").strip()
+        series = str(gap.get("series") or "").strip()
+        target = str(gap.get("target_brand") or "").strip()
+        if brand and series and target:
+            allowed.setdefault((brand, series), set()).add(target)
+    validated: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            raise RepairInputError("brand alias entry must be an object")
+        brand = str(item.get("brand") or "").strip()
+        series = str(item.get("series") or "").strip()
+        target_brand = str(item.get("target_brand") or "").strip()
+        pair = (brand, series)
+        if not brand or not series or not target_brand:
+            raise RepairInputError("brand alias entry needs brand, series and target_brand")
+        if pair in seen:
+            raise RepairInputError("brand alias (brand, series) is duplicated")
+        seen.add(pair)
+        targets = allowed.get(pair, set())
+        if not targets or target_brand not in targets:
+            raise RepairInputError("brand alias is outside the deterministic gap allowlist")
+        confidence = item.get("confidence")
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            raise RepairInputError("brand alias confidence must be a JSON number")
+        if not math.isfinite(float(confidence)) or not 0.9 <= float(confidence) <= 1:
+            raise RepairInputError("brand alias confidence must be within 0.9..1")
+        evidence = item.get("evidence")
+        evidence_text = str(evidence).strip()[:200] if evidence is not None else ""
+        validated.append(
+            {
+                "brand": brand,
+                "series": series,
+                "target_brand": target_brand,
+                "confidence": float(confidence),
+                "evidence": evidence_text,
+            }
+        )
+    return validated
+
+
+def _car_brand_patch(
+    brand_path: Path,
+    baseline_brand: dict[str, Any],
+    validated: list[dict[str, Any]],
+) -> tuple[str, dict[str, Any]]:
+    """Merge validated brand aliases into config/brand_aliases.json."""
+    candidate_brand = json.loads(json.dumps(baseline_brand, ensure_ascii=False))
+    existing = {
+        (str(item.get("brand") or ""), str(item.get("series") or "")): item
+        for item in candidate_brand.get("series_brand_aliases", [])
+        if isinstance(item, dict)
+    }
+    for alias in validated:
+        existing[(alias["brand"], alias["series"])] = alias
+    candidate_brand["series_brand_aliases"] = [
+        existing[key] for key in sorted(existing, key=lambda pair: (pair[0], pair[1]))
+    ]
+    baseline_text = brand_path.read_text(encoding="utf-8")
+    candidate_text = json.dumps(candidate_brand, ensure_ascii=False, indent=2) + "\n"
+    relative = brand_path.relative_to(ROOT).as_posix()
+    body = "".join(
+        difflib.unified_diff(
+            baseline_text.splitlines(keepends=True),
+            candidate_text.splitlines(keepends=True),
+            fromfile=f"a/{relative}",
+            tofile=f"b/{relative}",
+        )
+    )
+    if not body:
+        # idempotent success: aliases already present -> no patch to apply
+        return "", candidate_brand
+    patch = f"diff --git a/{relative} b/{relative}\n{body}"
+    return patch, candidate_brand
 
 
 def _car_manifest_patch(
@@ -1545,6 +1670,83 @@ def diagnose_source_gaps(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return gaps[:60]
 
 
+def _norm_brand_text(value: str) -> str:
+    """Brand normalization matching merge_data semantics (best effort)."""
+    try:
+        from merge_data import normalize_brand_text as _nbt
+    except ModuleNotFoundError:
+        try:
+            from scripts.merge_data import normalize_brand_text as _nbt
+        except ModuleNotFoundError:
+            return str(value or "").strip().lower()
+    try:
+        return _nbt(value)
+    except Exception:
+        return str(value or "").strip().lower()
+
+
+def diagnose_brand_alias_gaps(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Same normalized series name carried under different brand spellings.
+
+    These split one series into several pseudo-series (问界M8 appears as
+    AITO 问界 / AITO问界 / AITO / 鸿蒙智行), so cross-source rows never
+    match.  Pipe source-marker suffixes are already normalized away by
+    merge_data.normalize_brand_text and are not reported.
+    """
+    from collections import defaultdict as _dd
+
+    by_series: dict[str, dict[str, Counter[str]]] = _dd(lambda: _dd(Counter))
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        brand = str(r.get("品牌") or "").strip()
+        series = str(r.get("车系") or "").strip()
+        if not brand or not series:
+            continue
+        nb = _norm_brand_text(brand)
+        ns = _norm_series_text(series)
+        if not nb or not ns:
+            continue
+        by_series[ns][nb][brand] += 1
+    already_mapped: set[tuple[str, str]] = set()
+    try:
+        import json as _json
+
+        _bm_path = ROOT / "config" / "brand_aliases.json"
+        if _bm_path.exists():
+            _bm = _json.loads(_bm_path.read_text(encoding="utf-8"))
+            for _item in _bm.get("series_brand_aliases", []) if isinstance(_bm, dict) else []:
+                if isinstance(_item, dict) and _item.get("brand") and _item.get("series"):
+                    already_mapped.add((str(_item["brand"]).strip(), str(_item["series"]).strip()))
+    except (OSError, ValueError, TypeError):
+        already_mapped = set()
+    gaps: list[dict[str, Any]] = []
+    for ns, brand_counts in by_series.items():
+        if len(brand_counts) < 2:
+            continue
+        items = sorted(brand_counts.items(), key=lambda kv: -sum(kv[1].values()))
+        dominant_norm, dominant_raw = items[0]
+        dominant_rows = sum(dominant_raw.values())
+        for norm, raw in items[1:]:
+            rows_n = sum(raw.values())
+            if rows_n < 2 or rows_n >= dominant_rows:
+                continue
+            if (norm, ns) in already_mapped:
+                continue
+            gaps.append(
+                {
+                    "brand": norm,
+                    "series": ns,
+                    "target_brand": dominant_norm,
+                    "source_rows": rows_n,
+                    "target_rows": dominant_rows,
+                    "samples": [f"{b} x{c}" for b, c in raw.most_common(3)],
+                }
+            )
+    gaps.sort(key=lambda g: -g["source_rows"])
+    return gaps[:80]
+
+
 def _propose_car_manifest(
     args: argparse.Namespace,
     output_dir: Path,
@@ -1559,6 +1761,7 @@ def _propose_car_manifest(
     candidate_report["column_diagnosis"] = report.get("column_diagnosis", {})
     candidate_report["series_alias_gaps"] = diagnose_series_alias_gaps(rows)
     candidate_report["source_gaps"] = diagnose_source_gaps(rows)
+    candidate_report["brand_alias_gaps"] = diagnose_brand_alias_gaps(rows)
     report["candidate_search"] = candidate_report
     report["input_sha256"] = _sha256(data_path)
     report["pages_url"] = args.pages_url
@@ -1618,6 +1821,12 @@ def _propose_car_manifest(
     except RepairInputError as exc:
         fetch_gaps = []
         fetch_gap_rejection = str(exc)[:500]
+    try:
+        brand_aliases = _car_brand_aliases(response, candidate_report)
+        brand_alias_rejection = ""
+    except RepairInputError as exc:
+        brand_aliases = []
+        brand_alias_rejection = str(exc)[:500]
     result.update(
         confidence=confidence,
         root_cause="merge-match",
@@ -1631,8 +1840,10 @@ def _propose_car_manifest(
         fetch_gap_count=len(fetch_gaps),
         fetch_gap_rejection=fetch_gap_rejection,
         fetch_gaps=fetch_gaps[:20],
+        brand_alias_count=len(brand_aliases),
+        brand_alias_rejection=brand_alias_rejection,
     )
-    if not selected and not column_aliases and not series_aliases:
+    if not selected and not column_aliases and not series_aliases and not brand_aliases:
         result.update(status="analysis-only", reason="model approved no deterministic candidate")
         _write_result(output_dir, result)
         return 0
@@ -1668,6 +1879,22 @@ def _propose_car_manifest(
         if validate_patch_text(series_patch, "cars") != [ALLOWED_FILES["cars"][2]]:
             raise RepairInputError("generated series patch touches a path outside the series config")
         patches.append(series_patch)
+    if brand_aliases:
+        brand_path = _car_brand_path()
+        baseline_brand = _car_brand_from_text(brand_path.read_text(encoding="utf-8"))
+        brand_patch, _candidate_brand = _car_brand_patch(brand_path, baseline_brand, brand_aliases)
+        if brand_patch:
+            if validate_patch_text(brand_patch, "cars") != [ALLOWED_FILES["cars"][3]]:
+                raise RepairInputError("generated brand patch touches a path outside the brand config")
+            patches.append(brand_patch)
+    if not patches:
+        result.update(
+            status="approved",
+            reason="approved brand/alias repairs are already applied (idempotent)",
+            patch_paths=[],
+        )
+        _write_result(output_dir, result)
+        return 0
     combined = "\n".join(patches) + "\n"
     paths, replay = _validate_car_ephemeral_patch(combined, data_path, payload)
     (output_dir / "single_source_repair.patch").write_text(combined, encoding="utf-8")
@@ -1678,6 +1905,8 @@ def _propose_car_manifest(
         parts.append(f"{len(column_aliases)} column alias(es)")
     if series_aliases:
         parts.append(f"{len(series_aliases)} series alias(es)")
+    if brand_aliases:
+        parts.append(f"{len(brand_aliases)} brand alias(es)")
     reason = "validated " + " and ".join(parts) + " against the full Pages payload"
     result.update(
         status="approved",
