@@ -1,4 +1,5 @@
 """合并汽车之家、懂车帝、易车和零整比数据，统一表头，对比差异，并过滤符合条件的车型。"""
+from typing import Any
 import csv
 import glob
 import json
@@ -480,6 +481,61 @@ def canonical_value(value):
         return "-"
     compact = re.sub(r"\s+", "", text)
     return VALUE_SYNONYMS.get(compact, text)
+_VALUE_UNIT_SUFFIX = re.compile(r"(英寸|吋|喇叭|个|秒|s|km|公里|kg|毫米|mm|kW|马力|万元|元|%|L|m|W|度|°|门|座|速)$")
+_SHIFT_SUFFIX = ('换挡|变速箱|变速|挡|档'.split("|"))
+_DATE_FAMILY = re.compile(r"^(\d{4})[-.](\d{1,2})(?:[-.](\d{1,2}))?$")
+_DATE_FIELDS = ('上市时间|上市日期|上市年份|上市月份'.split("|"))
+_SHIFT_FIELDS = ('换挡形式|变速箱类型'.split("|"))
+
+
+def _date_family(compact: str):
+    """(year, month, day_or_None) for date-like values."""
+    match = _DATE_FAMILY.match(compact)
+    if not match:
+        return None
+    return (match.group(1), int(match.group(2)), match.group(3))
+
+def canonical_compare(value: Any, field: str | None = None) -> str:
+    """Normalized comparison key that folds format/unit/separator/suffix
+    differences without changing the stored value."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    compact = re.sub(r"\s+", "", text)
+    field = str(field or "")
+    if field in _DATE_FIELDS:
+        family = _date_family(compact)
+        if family:
+            if family[2]:
+                return "date:%s-%02d-%02d" % (family[0], family[1], int(family[2]))
+            return "date:%s-%02d" % (family[0], family[1])
+    if field in _SHIFT_FIELDS:
+        stripped = compact
+        for suffix in _SHIFT_SUFFIX:
+            if stripped.endswith(suffix):
+                stripped = stripped[: -len(suffix)]
+        if stripped:
+            return "shift:%s" % stripped
+    no_unit = _VALUE_UNIT_SUFFIX.sub("", compact)
+    if re.fullmatch(r"\d+(?:\.\d+)?", no_unit):
+        return "num:%s" % no_unit
+    if re.search(r"[*×xX]", compact):
+        dims = [d for d in re.split(r"[*×xX]", compact) if d]
+        if dims and all(re.fullmatch(r"\d+(?:\.\d+)?", d) for d in dims):
+            return "dims:%s" % "x".join(dims)
+    return canonical_value(text)
+
+def _date_conflict_foldable(left: str, right: str) -> bool:
+    """True when both sides share year+month and at least one side lacks
+    the day (precision gap), so folding cannot hide a day-level diff."""
+    lf = _date_family(re.sub(r"\s+", "", str(left or "")))
+    rf = _date_family(re.sub(r"\s+", "", str(right or "")))
+    if not lf or not rf:
+        return False
+    if lf[0] != rf[0] or lf[1] != rf[1]:
+        return False
+    return lf[2] is None or rf[2] is None
+
 
 
 _CHINESE_SEAT_DIGITS = {"二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
@@ -718,16 +774,16 @@ def match_score(ah_row, dcd_row, require_year, _cache=None):
     if ah_year and dcd_year and ah_year != dcd_year:
         return 0.0, ["year_mismatch"]
     if _cache is not None:
-        ah_signature = _cache["ah"]["signature"]
-        dcd_signature = _cache["dcd"]["signature"]
+        ah_signature = _cache["left"]["signature"]
+        dcd_signature = _cache["right"]["signature"]
         conflict_reason = _variant_conflict_from_signatures(ah_signature, dcd_signature)
     else:
         conflict_reason = model_variant_conflict_reason(ah_row, dcd_row)
     if conflict_reason:
         return 0.0, [conflict_reason]
     if _cache is not None:
-        ah_tokens = _cache["ah"]["tokens"]
-        dcd_tokens = _cache["dcd"]["tokens"]
+        ah_tokens = _cache["left"]["tokens"]
+        dcd_tokens = _cache["right"]["tokens"]
     else:
         ah_tokens = tokenize_model(ah_row)
         dcd_tokens = tokenize_model(dcd_row)
@@ -748,8 +804,8 @@ def match_score(ah_row, dcd_row, require_year, _cache=None):
             score += weight
             reasons.append("same_" + field)
     if _cache is not None:
-        ah_evidence = _cache["ah"]["evidence"]
-        dcd_evidence = _cache["dcd"]["evidence"]
+        ah_evidence = _cache["left"]["evidence"]
+        dcd_evidence = _cache["right"]["evidence"]
     else:
         ah_evidence = model_positive_evidence(ah_row)
         dcd_evidence = model_positive_evidence(dcd_row)
@@ -778,16 +834,27 @@ def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_c
             f"autohome={len(ah_unused)} dongchedi={len(dcd_unused)} candidates={candidate_count}"
         )
         return pairs
-    use_cache = getattr(score_func, "__name__", "") == "match_score"
+    score_name = getattr(score_func, "__name__", "")
+    use_cache = score_name in ("match_score", "yiche_match_score")
     if use_cache:
-        ah_cache = [
-            {"tokens": tokenize_model(r), "signature": model_variant_signature(r), "evidence": model_positive_evidence(r)}
-            for r in ah_unused
-        ]
-        dcd_cache = [
-            {"tokens": tokenize_model(r), "signature": model_variant_signature(r), "evidence": model_positive_evidence(r)}
-            for r in dcd_unused
-        ]
+        if score_name == "match_score":
+            ah_cache = [
+                {"tokens": tokenize_model(r), "signature": model_variant_signature(r), "evidence": model_positive_evidence(r)}
+                for r in ah_unused
+            ]
+            dcd_cache = [
+                {"tokens": tokenize_model(r), "signature": model_variant_signature(r), "evidence": model_positive_evidence(r)}
+                for r in dcd_unused
+            ]
+        else:
+            ah_cache = [
+                {"tokens": tokenize_yiche_model(r)}
+                for r in ah_unused
+            ]
+            dcd_cache = [
+                {"tokens": tokenize_yiche_model(r)}
+                for r in dcd_unused
+            ]
     else:
         ah_cache = dcd_cache = None
 
@@ -796,7 +863,7 @@ def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_c
             if use_cache:
                 score, reasons = score_func(
                     ah_row, dcd_row, require_year,
-                    _cache={"ah": ah_cache[ai], "dcd": dcd_cache[di]},
+                    _cache={"left": ah_cache[ai], "right": dcd_cache[di]},
                 )
             else:
                 score, reasons = score_func(ah_row, dcd_row, require_year)
@@ -1541,7 +1608,23 @@ def merge_source_rows(source_rows):
         elif len({norm_val for _, _, norm_val in values}) == 1:
             merged[key] = values[0][2]
         else:
-            merged[key] = "|".join(f"{source_name}:{raw_val}" for source_name, raw_val, _ in values)
+            if key in _DATE_FIELDS:
+                date_folded = True
+                for _di in range(len(values)):
+                    for _dj in range(_di + 1, len(values)):
+                        if not _date_conflict_foldable(values[_di][1], values[_dj][1]):
+                            date_folded = False
+                            break
+                    if not date_folded:
+                        break
+                if date_folded:
+                    merged[key] = max((raw for _, raw, _ in values), key=len)
+                    continue
+            compare_keys = {canonical_compare(raw_val, key) for _, raw_val, _ in values}
+            if len(compare_keys) == 1:
+                merged[key] = max((raw for _, raw, _ in values), key=len)
+            else:
+                merged[key] = "|".join(f"{source_name}:{raw_val}" for source_name, raw_val, _ in values)
 
     return merged
 
@@ -1769,15 +1852,19 @@ def _canonical_yiche_year_values(row):
     return years
 
 
-def _base_yiche_match_score(current_row, yiche_row, require_year):
+def _base_yiche_match_score(current_row, yiche_row, require_year, _cache=None):
     current_year = row_year(current_row)
     yiche_year = row_year(yiche_row)
     if require_year and (not current_year or not yiche_year):
         return 0.0, ["year_missing"]
     if current_year and yiche_year and current_year != yiche_year:
         return 0.0, ["year_mismatch"]
-    current_tokens = tokenize_yiche_model(current_row)
-    yiche_tokens = tokenize_yiche_model(yiche_row)
+    if _cache is not None:
+        current_tokens = _cache["left"]["tokens"]
+        yiche_tokens = _cache["right"]["tokens"]
+    else:
+        current_tokens = tokenize_yiche_model(current_row)
+        yiche_tokens = tokenize_yiche_model(yiche_row)
     union = current_tokens | yiche_tokens
     intersection = current_tokens & yiche_tokens
     token_score = (len(intersection) / len(union)) if union else 0.0
@@ -1854,7 +1941,7 @@ def _canonical_yiche_row_energy_values(row):
     return values
 
 
-def yiche_match_score(current_row, yiche_row, require_year):
+def yiche_match_score(current_row, yiche_row, require_year, _cache=None):
     current_years = _canonical_yiche_year_values(current_row)
     yiche_years = _canonical_yiche_year_values(yiche_row)
     if require_year and (not current_years or not yiche_years):
@@ -1875,7 +1962,7 @@ def yiche_match_score(current_row, yiche_row, require_year):
     yiche_level = normalize_match_text(yiche_row.get("级别"))
     if current_level and yiche_level and current_level != yiche_level:
         return 0.0, ["level_mismatch"]
-    return _base_yiche_match_score(current_row, yiche_row, require_year)
+    return _base_yiche_match_score(current_row, yiche_row, require_year, _cache=_cache)
 
 
 def _preserved_value_parts(value):
@@ -1906,9 +1993,22 @@ def _merge_existing_with_source(current, current_source, source_name, incoming):
             result[key] = added
             continue
         parts = _preserved_value_parts(existing)
-        existing_norms = {canonical_value(value) for _, value in parts}
-        if canonical_value(added) in existing_norms:
+        existing_norms = {canonical_compare(value, key) for _, value in parts}
+        if canonical_compare(added, key) in existing_norms:
             continue
+        if key in _DATE_FIELDS:
+            all_values = [value for _, value in parts] + [added]
+            date_folded = True
+            for _vi in range(len(all_values)):
+                for _vj in range(_vi + 1, len(all_values)):
+                    if not _date_conflict_foldable(all_values[_vi], all_values[_vj]):
+                        date_folded = False
+                        break
+                if not date_folded:
+                    break
+            if date_folded:
+                result[key] = max(all_values, key=len)
+                continue
         if parts and all(label for label, _ in parts):
             result[key] = f"{existing}|{source_name}:{added}"
         else:
