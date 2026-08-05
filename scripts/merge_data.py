@@ -698,27 +698,39 @@ def identity_match_key(row, name):
     )
 
 
-def model_variant_conflict_reason(left_row, right_row):
-    left_signature = model_variant_signature(left_row)
-    right_signature = model_variant_signature(right_row)
+def _variant_conflict_from_signatures(left_signature, right_signature):
     for field in ("tier", "seat", "lidar", "drive"):
         left_values = left_signature[field]
         right_values = right_signature[field]
         if left_values and right_values and left_values.isdisjoint(right_values):
-            return f"{field}_mismatch"
+            return field + "_mismatch"
     return ""
 
+def model_variant_conflict_reason(left_row, right_row):
+    left_signature = model_variant_signature(left_row)
+    right_signature = model_variant_signature(right_row)
+    return _variant_conflict_from_signatures(left_signature, right_signature)
 
-def match_score(ah_row, dcd_row, require_year):
+
+def match_score(ah_row, dcd_row, require_year, _cache=None):
     ah_year = row_year(ah_row)
     dcd_year = row_year(dcd_row)
     if ah_year and dcd_year and ah_year != dcd_year:
         return 0.0, ["year_mismatch"]
-    conflict_reason = model_variant_conflict_reason(ah_row, dcd_row)
+    if _cache is not None:
+        ah_signature = _cache["ah"]["signature"]
+        dcd_signature = _cache["dcd"]["signature"]
+        conflict_reason = _variant_conflict_from_signatures(ah_signature, dcd_signature)
+    else:
+        conflict_reason = model_variant_conflict_reason(ah_row, dcd_row)
     if conflict_reason:
         return 0.0, [conflict_reason]
-    ah_tokens = tokenize_model(ah_row)
-    dcd_tokens = tokenize_model(dcd_row)
+    if _cache is not None:
+        ah_tokens = _cache["ah"]["tokens"]
+        dcd_tokens = _cache["dcd"]["tokens"]
+    else:
+        ah_tokens = tokenize_model(ah_row)
+        dcd_tokens = tokenize_model(dcd_row)
     union = ah_tokens | dcd_tokens
     inter = ah_tokens & dcd_tokens
     token_score = (len(inter) / len(union)) if union else 0.0
@@ -735,8 +747,12 @@ def match_score(ah_row, dcd_row, require_year):
         if av and dv and av == dv:
             score += weight
             reasons.append("same_" + field)
-    ah_evidence = model_positive_evidence(ah_row)
-    dcd_evidence = model_positive_evidence(dcd_row)
+    if _cache is not None:
+        ah_evidence = _cache["ah"]["evidence"]
+        dcd_evidence = _cache["dcd"]["evidence"]
+    else:
+        ah_evidence = model_positive_evidence(ah_row)
+        dcd_evidence = model_positive_evidence(dcd_row)
     for field, weight in (("battery", 0.04), ("range", 0.04), ("range_class", 0.04)):
         if ah_evidence[field] and dcd_evidence[field] and not ah_evidence[field].isdisjoint(dcd_evidence[field]):
             score += weight
@@ -762,9 +778,28 @@ def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_c
             f"autohome={len(ah_unused)} dongchedi={len(dcd_unused)} candidates={candidate_count}"
         )
         return pairs
+    use_cache = getattr(score_func, "__name__", "") == "match_score"
+    if use_cache:
+        ah_cache = [
+            {"tokens": tokenize_model(r), "signature": model_variant_signature(r), "evidence": model_positive_evidence(r)}
+            for r in ah_unused
+        ]
+        dcd_cache = [
+            {"tokens": tokenize_model(r), "signature": model_variant_signature(r), "evidence": model_positive_evidence(r)}
+            for r in dcd_unused
+        ]
+    else:
+        ah_cache = dcd_cache = None
+
     for ai, ah_row in enumerate(ah_unused):
         for di, dcd_row in enumerate(dcd_unused):
-            score, reasons = score_func(ah_row, dcd_row, require_year)
+            if use_cache:
+                score, reasons = score_func(
+                    ah_row, dcd_row, require_year,
+                    _cache={"ah": ah_cache[ai], "dcd": dcd_cache[di]},
+                )
+            else:
+                score, reasons = score_func(ah_row, dcd_row, require_year)
             if score >= threshold:
                 candidates.append((score, ai, di, reasons))
     candidates.sort(key=lambda item: (-item[0], model_sort_key(ah_unused[item[1]]), model_sort_key(dcd_unused[item[2]])))

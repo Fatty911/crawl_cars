@@ -185,7 +185,7 @@ def _request(
         headers = {"Authorization": f"Bearer {provider.key()}", "Content-Type": "application/json"}
         headers.update(dict(provider.extra_headers))
         request = urllib.request.Request(provider.endpoint(), data=payload, headers=headers, method="POST")
-        request_timeout = timeout if timeout is not None else float(os.environ.get("FREE_LLM_TIMEOUT", "120"))
+        request_timeout = timeout if timeout is not None else float(os.environ.get("FREE_LLM_TIMEOUT", "25"))
         with urllib.request.urlopen(request, timeout=request_timeout) as response:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
             if len(raw) > MAX_RESPONSE_BYTES:
@@ -239,12 +239,20 @@ def route(
     configured_total = sum(1 for provider in provider_list if provider.key())
     prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
     request_id = prompt_sha256[:16]
+    deadline = time.monotonic() + float(os.environ.get("FREE_LLM_TOTAL_BUDGET", "150"))
+    max_model_attempts = int(os.environ.get("FREE_LLM_MAX_MODEL_ATTEMPTS", "6"))
+    model_attempts = 0
     for provider in provider_list:
+        if time.monotonic() > deadline or model_attempts >= max_model_attempts:
+            break
         key = provider.key()
         if not key:
             continue
         configured += 1
         for model in provider.models():
+            if model_attempts >= max_model_attempts or time.monotonic() > deadline:
+                break
+            model_attempts += 1
             record: dict[str, Any] = {"provider": provider.label, "model": model}
             try:
                 text, status, retry_after = _request(
@@ -276,7 +284,7 @@ def route(
                     kind=_classify_http(status) if status is not None else "protocol_error",
                 )
                 if retry_after:
-                    time.sleep(retry_after)
+                    time.sleep(min(retry_after, 10.0, max(0.0, deadline - time.monotonic())))
             except FreeRouteError as exc:
                 record.update(status=None, kind=exc.kind, error=str(exc))
             except RuntimeError as exc:
