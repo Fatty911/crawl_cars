@@ -5,6 +5,7 @@ import glob
 import json
 import os
 import re
+import functools
 from datetime import date
 
 try:
@@ -495,6 +496,7 @@ def _date_family(compact: str):
         return None
     return (match.group(1), int(match.group(2)), match.group(3))
 
+@functools.lru_cache(maxsize=1000000)
 def canonical_compare(value: Any, field: str | None = None) -> str:
     """Normalized comparison key that folds format/unit/separator/suffix
     differences without changing the stored value."""
@@ -503,6 +505,9 @@ def canonical_compare(value: Any, field: str | None = None) -> str:
         return ""
     compact = re.sub(r"\s+", "", text)
     field = str(field or "")
+    if field not in _DATE_FIELDS and field not in _SHIFT_FIELDS:
+        if not re.search(r"[\d.*×xX]", compact):
+            return canonical_value(text)
     if field in _DATE_FIELDS:
         family = _date_family(compact)
         if family:
@@ -525,6 +530,7 @@ def canonical_compare(value: Any, field: str | None = None) -> str:
             return "dims:%s" % "x".join(dims)
     return canonical_value(text)
 
+@functools.lru_cache(maxsize=1000000)
 def _date_conflict_foldable(left: str, right: str) -> bool:
     """True when both sides share year+month and at least one side lacks
     the day (precision gap), so folding cannot hide a day-level diff."""
