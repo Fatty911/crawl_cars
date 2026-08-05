@@ -617,11 +617,23 @@
     return order.length;
   }
 
+  function sourceCount(row) {
+    var value = String(row["数据来源"] || "").trim();
+    if (!value) {
+      return 0;
+    }
+    return value.split("+").length;
+  }
+
   function compareRowsByLevel(a, b, level) {
     var av = a[level.field];
     var bv = b[level.field];
     var order = parseCustomOrder(level.customOrder);
     var result;
+    if (level.field === "数据来源") {
+      result = sourceCount(a) - sourceCount(b);
+      return level.dir === "desc" ? -result : result;
+    }
     if (order.length) {
       result = customOrderIndex(av, level.customOrder) - customOrderIndex(bv, level.customOrder);
       if (result === 0) {
@@ -645,10 +657,26 @@
 
   function sortRows(rows) {
     var levels = activeSortLevels();
-    if (!levels.length) {
-      return rows;
+    var explicitSource = null;
+    for (var levelIndex = 0; levelIndex < levels.length; levelIndex += 1) {
+      if (levels[levelIndex].field === "数据来源") {
+        explicitSource = levels[levelIndex];
+        break;
+      }
     }
     return rows.map(function (row, index) { return { row: row, index: index }; }).sort(function (a, b) {
+      if (explicitSource) {
+        var sourceResult = sourceCount(a.row) - sourceCount(b.row);
+        if (sourceResult !== 0) {
+          return explicitSource.dir === "desc" ? -sourceResult : sourceResult;
+        }
+      } else {
+        var leftCount = sourceCount(a.row);
+        var rightCount = sourceCount(b.row);
+        if (leftCount !== rightCount) {
+          return rightCount - leftCount;
+        }
+      }
       for (var i = 0; i < levels.length; i += 1) {
         var result = compareRowsByLevel(a.row, b.row, levels[i]);
         if (result !== 0) {

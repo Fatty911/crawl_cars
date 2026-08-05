@@ -2,7 +2,6 @@
   "version": 1,
   "defaultDataset": "latest",
   "hiddenByDefault": [
-    "数据来源",
     "ABS防抱死",
     "制动防抱死",
     "刹车防抱死"
