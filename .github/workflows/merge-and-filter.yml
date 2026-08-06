@@ -12,6 +12,8 @@ on:
     paths:
       - docs/**
       - config/filter_conditions.json
+      - config/hidden_columns.json
+      - config/column_header_aliases.json
       - scripts/prepare_pages_payload.py
       - scripts/publish_identity.py
       - scripts/verify_publish_superset.py
