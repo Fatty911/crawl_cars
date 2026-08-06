@@ -656,7 +656,12 @@ jobs:
             -m "Single-Source-Repair-Round: ${{ needs.propose.outputs.round }}" \
             -m "Single-Source-Repair-Base-SHA: $SOURCE_SHA"
           # Rebase onto the (code-only moved) main so the push stays linear.
+          # Unshallow first: a shallow clone has no common ancestor with the
+          # fetched main, so `pull --rebase` mis-replays remote commits as
+          # local ones and fails with spurious conflicts.
+          git fetch --unshallow origin --quiet 2>/dev/null || git fetch origin --quiet 2>/dev/null || true
           git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" pull --rebase origin main || {
+            git rebase --abort 2>/dev/null || true
             echo "publish rebase failed; aborting" >&2
             exit 1
           }
