@@ -492,6 +492,11 @@ Pages URL：{pages_url}
 5. `column_aliases` 不影响候选批准：即使不做任何映射也要正常完成 approved_candidate_ids 判断。
 6. `hidden_columns`（可选，数组）：仅对 `column_diagnosis.suspects` 中标记为 value_only_header 的纯值/选装包/英文/内部列使用——这类列无法映射到真实属性，直接隐藏（发布页面不再显示）。不得隐藏 candidate_attributes 中的合法属性与身份列。隐藏同样不影响候选批准。
 
+持续自优化要求（每轮必须执行，不只等具体报错）：
+1. 除批准候选外，本轮必须评估 `column_diagnosis.suspects` 中的列名泄漏并输出 `column_aliases`/`hidden_columns`（有可修复项就修，没有则空数组并说明）；不要因为"候选批准已完成"而跳过列名优化。
+2. 同时评估 `candidate_search.series_alias_gaps` 与 `brand_alias_gaps`：有跨源写法差异（如"皓影e:HEV" vs "皓影 e:HEV"、大小写/空格/分隔符差异）且证据确凿时，输出 `series_aliases`/`brand_aliases` 合并它们；不确定就保持空数组。
+3. `self_optimization` 字段强烈建议填写（校验层为软性，缺省不拒绝）：用不超过 300 字中文说明本轮除具体报错外做的自优化（列名/别名/隐藏/缺口分析），以及下一轮可继续优化的方向。没有具体报错时也必须给出自优化结论。（阈值说明：prompt 300 字为软上限，代码存储截断 800 字为硬保护，历史留痕截断 400 字为摘要。）
+
 只输出一个严格 JSON 对象，不要 Markdown，不要代码围栏，不要额外字段：
 {{
   "approved_candidate_ids": ["24位candidate_id"],
@@ -501,7 +506,8 @@ Pages URL：{pages_url}
   "hidden_columns": ["NOMI Mate 3.0_1", "NOMI Mate 3.0_2"],
   "confidence": 0.0,
   "evidence": ["批准依据"],
-  "analysis": "不超过1200字的中文说明"
+  "analysis": "不超过1200字的中文说明",
+  "self_optimization": "不超过300字：本轮列名/别名/隐藏等自优化执行摘要与下轮方向"
 }}
 （没有需要修复的列名时 `column_aliases` 输出空数组；没有需要隐藏的列时 `hidden_columns` 输出空数组；没有候选批准时 approved_candidate_ids 输出空数组。）
 
@@ -772,11 +778,13 @@ def _car_selection(
     candidate_report: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], float, list[str], str]:
     required = {"approved_candidate_ids", "confidence", "evidence", "analysis"}
-    optional = {"column_aliases", "series_aliases", "fetch_gaps", "brand_aliases", "hidden_columns"}
+    optional = {"column_aliases", "series_aliases", "fetch_gaps", "brand_aliases", "hidden_columns", "self_optimization"}
     if not required.issubset(set(response)) or set(response) - required - optional:
         raise RepairInputError("car model response fields do not match the fixed schema")
     if "column_aliases" in response and not isinstance(response.get("column_aliases"), list):
         raise RepairInputError("car model column_aliases must be an array")
+    if "self_optimization" in response and not isinstance(response.get("self_optimization"), str):
+        raise RepairInputError("car model self_optimization must be a string")
     raw_ids = response["approved_candidate_ids"]
     if not isinstance(raw_ids, list) or any(not isinstance(item, str) for item in raw_ids):
         raise RepairInputError("approved_candidate_ids must be a string array")
@@ -2001,6 +2009,9 @@ def _propose_car_manifest(
     model_response, model = model_result
     result["model"] = model
     response = _json_response(model_response)
+    self_opt = response.get("self_optimization")
+    if isinstance(self_opt, str) and self_opt.strip():
+        result["self_optimization"] = self_opt.strip()[:800]
     selected, column_aliases, confidence, evidence, analysis = _car_selection(response, candidate_report)
     try:
         _car_column_aliases(response, candidate_report)

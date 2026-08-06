@@ -536,6 +536,54 @@ jobs:
         env:
           CHAIN_ID: ${{ steps.context.outputs.chain_id }}
 
+      - name: Append optimization history
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          result = {}
+          try:
+              result = json.loads(Path('single_source_repair_result.json').read_text(encoding='utf-8'))
+          except Exception:
+              pass
+          report = {}
+          try:
+              report = json.loads(Path('single_source_report.json').read_text(encoding='utf-8'))
+          except Exception:
+              pass
+          diagnosis = result.get('column_diagnosis') or report.get('column_diagnosis') or {}
+          record = {
+              'ts': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'round': result.get('round'),
+              'status': result.get('status'),
+              'single_rate': result.get('single_rate'),
+              'multi_rate': report.get('multi_rate'),
+              'candidate_count': result.get('candidate_count'),
+              'suspects': len(diagnosis.get('suspects') or []),
+              'column_aliases': result.get('column_alias_count', 0),
+              'hidden_columns': result.get('hidden_column_count', 0),
+              'series_aliases': result.get('series_alias_count', 0),
+              'brand_aliases': result.get('brand_alias_count', 0),
+              'self_optimization': (result.get('self_optimization') or '')[:400],
+          }
+          history = []
+          if Path('optimization_history.json').exists():
+              try:
+                  history = json.loads(Path('optimization_history.json').read_text(encoding='utf-8'))
+              except Exception:
+                  history = []
+          history.append(record)
+          Path('optimization_history.json').write_text(
+              json.dumps(history, ensure_ascii=False, indent=1) + '\n', encoding='utf-8'
+          )
+          print('history record appended:', len(history))
+          PY
+
       - name: Upload diagnosis and patch proposal
         if: always()
         uses: actions/upload-artifact@v4
@@ -547,6 +595,7 @@ jobs:
             single_source_repair_result.json
             single_source_repair.patch
             single_source_root_cause.md
+            optimization_history.json
           if-no-files-found: warn
           retention-days: 3
 
