@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 763
+    "approved_components": 792
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -18081,6 +18081,673 @@
           "year": "2026",
           "sources": [
             "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "04152cb8538201c181005ed3",
+      "members": [
+        {
+          "brand": "魏牌",
+          "series": "摩卡PHEV",
+          "model": "Hi4 Max版 四驱长续航",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "魏牌",
+          "series": "魏牌摩卡",
+          "model": "26款 Hi4 Max版 1.5T 200km 四驱长续航",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0c1e460d1eb98dd6ab0fbe98",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越L",
+          "model": "1.5T DCT欢乐 7座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越L",
+          "model": "豪越L 2026款 1.5TD DCT 欢乐 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0e8eb87efad58170ed6858c2",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PRO新能源",
+          "model": "23款 冠军版 1.5T 42km 领先版 7座",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PRO新能源",
+          "model": "瑞虎8 PRO新能源 2023款 冠军版 1.5T 55km 领先版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "12cf24b426667da40d04e8c2",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗天工05",
+          "model": "26款 650km 超充版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗天工05",
+          "model": "红旗天工05 2026款 650 超充版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "169be782c03f120b385263d8",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "25款 改款 2.0T 两驱旗畅豪华商务版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "红旗H9 2025款 改款 2.0T 两驱旗畅豪华商务版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1a5f5826fbf51319462469da",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗天工06",
+          "model": "26款 520km 青春版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗天工06",
+          "model": "红旗天工06 2026款 520 青春版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1a88bc452255188b93d21316",
+      "members": [
+        {
+          "brand": "魏牌",
+          "series": "魏牌V9X PHEV",
+          "model": "2.0T 豪华加长版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "魏牌",
+          "series": "魏牌V9X",
+          "model": "26款 插混版 2.0T 310km 豪华加长版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "22c66bf8c89acef942cfe0d1",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PRO新能源",
+          "model": "24款 1.5T 80km 新宸版 7座",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PRO新能源",
+          "model": "瑞虎8 PRO新能源 2024款 1.5T 100km 新宸版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "2711898381e5480c4d6398fd",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "25款 改款 2.0T 两驱旗畅私享风尚版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "红旗H9 2025款 改款 2.0T 两驱旗畅私享风尚版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "49bedb034b23a610f8cdb2be",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "26款 第5代 1.5T 双离合旗舰型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "帝豪 2026款 第5代 1.5T DCT旗舰型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4a29cedb2cd48415dc33c50e",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "26款 第5代 1.5L CVT尊贵型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "帝豪 2026款 第5代 1.5L CVT尊贵型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4cc1460a2caa25f652c8a0ab",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "25款 改款 2.0T 两驱旗享私享风尚版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "红旗H9 2025款 改款 2.0T 两驱旗享私享风尚版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4e6adc78e3739c82008f1331",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "25款 改款 2.0T 两驱旗享豪华商务版 5座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "红旗H9 2025款 改款 2.0T 两驱旗享豪华商务版 5座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4edf5554e9620ad30c281993",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越L",
+          "model": "1.5T DCT美满 6座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越L",
+          "model": "豪越L 2026款 1.5TD DCT 美满 6座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "51910b239c4262447f8d105c",
+      "members": [
+        {
+          "brand": "长安",
+          "series": "逸动PHEV",
+          "model": "25款 智慧新蓝鲸 1.5L 145km 高能版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "长安",
+          "series": "逸动PHEV",
+          "model": "逸动新能源 2025款 智慧新蓝鲸 145KM 高能版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5b6b04e0e50b0540923621a6",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗天工05",
+          "model": "26款 750km 长续航版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗天工05",
+          "model": "红旗天工05 2026款 750  长续航版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "731e21e24bf35a678b21b06d",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越L",
+          "model": "1.5T DCT美满 7座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越L",
+          "model": "豪越L 2026款 1.5TD DCT 美满 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "76888cc121259af219399513",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗天工05",
+          "model": "26款 550km 青春版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗天工05",
+          "model": "红旗天工05 2026款 550 青春版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "841730e262f9047705be611b",
+      "members": [
+        {
+          "brand": "魏牌",
+          "series": "摩卡PHEV",
+          "model": "Hi4 Max版 四驱黑武士",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "魏牌",
+          "series": "魏牌摩卡",
+          "model": "26款 Hi4 Max版 1.5T 200km 四驱黑武士",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9256469bc30608d814a7d03b",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "26款 第5代 1.5L CVT豪华型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "帝豪 2026款 第5代 1.5L CVT豪华型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9675624b396d627b82badb30",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗天工05",
+          "model": "26款 850km 极充性能版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗天工05",
+          "model": "红旗天工05 2026款 850 极充性能版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a75c27ec916fac6b932cfd2d",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "25款 改款 3.0T 四驱旗领私享风尚版 4座",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗H9",
+          "model": "红旗H9 2025款 改款 3.0T 四驱旗领私享风尚版 4座",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "af02bb63e2f076a20854db99",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗E-QM5",
+          "model": "25款 500km 时代换电版(不含电池)",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗E-QM5",
+          "model": "红旗E-QM5 2025款 500km 时代换电版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b36b1cc4480684f46e445816",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "26款 400万纪念版 1.5L CVT星耀型",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "帝豪 2026款 400万纪念款 1.5L CVT星耀型",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "bb20ce1c6237aeba7ef4725d",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PRO新能源",
+          "model": "23款 冠军版 1.5T 80km 王者版 5座",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎8 PRO新能源",
+          "model": "瑞虎8 PRO新能源 2023款 冠军版 1.5T 100km 王者版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c28918ff7d5f9b4f3cd1f397",
+      "members": [
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎7 PLUS新能源",
+          "model": "23款 冠军版 1.5T 42km 锋行版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "奇瑞",
+          "series": "瑞虎7 PLUS新能源",
+          "model": "瑞虎7 PLUS新能源 2023款 冠军版 1.5T 55KM 锋行",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cf566d4959cb3fb8cdeb1f86",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗天工06",
+          "model": "26款 700km 长续航版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗天工06",
+          "model": "红旗天工06 2026款 700 长续航版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e10ab025b011091e97f3e7ff",
+      "members": [
+        {
+          "brand": "红旗",
+          "series": "红旗E-QM5",
+          "model": "25款 475km 出租换电版(不含电池)",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "红旗",
+          "series": "红旗E-QM5",
+          "model": "红旗E-QM5 2025款 475km 出租换电版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e33b7398d78d862db7ed8ae5",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越L",
+          "model": "1.5T DCT幸福 7座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越L",
+          "model": "豪越L 2026款 1.5TD DCT 幸福 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
           ]
         }
       ]
