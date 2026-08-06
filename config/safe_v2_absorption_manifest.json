@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 733
+    "approved_components": 763
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -17391,6 +17391,696 @@
           "year": "2023",
           "sources": [
             "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0306e5c3e4f952cb125bfaed",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途EX7",
+          "model": "26款 纯电版 726km 后驱Max",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "星途EX7",
+          "model": "星途EX7 2026款 纯电 两驱Max版 100kWh",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0d17406360829f1dd1999a57",
+      "members": [
+        {
+          "brand": "智己汽车",
+          "series": "智己LS8",
+          "model": "66 Ultra 科技旗舰大五座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "智己汽车",
+          "series": "智己LS8",
+          "model": "26款 66 Ultra 科技旗舰大五座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "14c301eeffde1f50213f681e",
+      "members": [
+        {
+          "brand": "智己汽车",
+          "series": "智己LS8",
+          "model": "66 Ultra 奢享大六座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "智己汽车",
+          "series": "智己LS8",
+          "model": "26款 66 Ultra 奢享大六座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "219b883d6685240998f4aab7",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "1.5T Hi4 150 Pro 磷酸铁锂",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "26款 1.5T Hi4 150 Pro",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "41f0850d4acfce9563aa9700",
+      "members": [
+        {
+          "brand": "魏牌",
+          "series": "魏牌V9X PHEV",
+          "model": "2.0T 行政加长版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "魏牌",
+          "series": "魏牌V9X",
+          "model": "26款 插混版 2.0T 470km 行政加长版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4abb211e15dc2591c5f50f7c",
+      "members": [
+        {
+          "brand": "魏牌",
+          "series": "蓝山",
+          "model": "智能进阶版 四驱 Ultra 黑武士",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "魏牌",
+          "series": "魏牌 蓝山",
+          "model": "魏牌 蓝山 2026款 智能进阶版 四驱Ultra黑武士",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6306cf763426c533e281bb5b",
+      "members": [
+        {
+          "brand": "广汽昊铂",
+          "series": "昊铂S600",
+          "model": "纯电 660 Max+",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "广汽昊铂",
+          "series": "昊铂S600",
+          "model": "26款 纯电版 660km 后驱Max+",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "69bb8bdbafecd70f12cf1151",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "1.5T Hi4 200 Ultra 领航版 三元锂",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "26款 1.5T Hi4 200 Ultra领航版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7d697bb5209df6e440ce5430",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "1.5T Hi4 150 Ultra 三元锂",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "26款 1.5T Hi4 150 Ultra 三元锂",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "828c899b44789241f91b38ef",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星纪元ET",
+          "model": "增程版 Max城区辅助驾驶",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "星纪元ET",
+          "model": "25款 增程版 265km 后驱Max城区辅助驾驶版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "88895ba08c6882d13037aed1",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途瑶光C-DM",
+          "model": "26款 1.5T 200km 四驱世纪版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "瑶光C-DM",
+          "model": "瑶光C-DM 2026款 四驱世纪版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "888f8b1a449f8838f5de47b2",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途瑶光C-DM",
+          "model": "寰球版 210超长续航两驱",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "瑶光C-DM",
+          "model": "瑶光C-DM 2026款 寰球版 210超长续航两驱",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8d4ab39e94740b4accdad037",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途瑶光C-DM",
+          "model": "寰球版 120长续航两驱",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "瑶光C-DM",
+          "model": "瑶光C-DM 2026款 寰球版 120长续航两驱",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "902706c322cae4a88a2708e1",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途EX7",
+          "model": "26款 纯电版 600km 后驱Max",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "星途EX7",
+          "model": "星途EX7 2026款 纯电 两驱Max版 77kWh",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9a0def2204420d395e7cc8b6",
+      "members": [
+        {
+          "brand": "乐道",
+          "series": "乐道L60",
+          "model": "530km 马到成功版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "乐道",
+          "series": "乐道L60",
+          "model": "乐道L60 2026款 85kWh Max+",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9ac29340b38ae5b8b8b7a659",
+      "members": [
+        {
+          "brand": "智己汽车",
+          "series": "智己LS8",
+          "model": "52 Max+ 奢享大六座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "智己汽车",
+          "series": "智己LS8",
+          "model": "26款 52 Max+ 奢享大六座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9d7474042b0795cf58579d83",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "1.5T Hi4 150 Ultra 领航版 三元锂",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "26款 1.5T Hi4 150 Ultra领航版 三元锂",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a11080a0a6655f1b6644f80b",
+      "members": [
+        {
+          "brand": "智己汽车",
+          "series": "智己LS8",
+          "model": "52 Max+ 科技旗舰大五座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "智己汽车",
+          "series": "智己LS8",
+          "model": "26款 52 Max+ 科技旗舰大五座",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "a8578003d7b928a04c98a74e",
+      "members": [
+        {
+          "brand": "广汽昊铂",
+          "series": "昊铂S600",
+          "model": "增程 215 四驱Ultra+",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "广汽昊铂",
+          "series": "昊铂S600",
+          "model": "26款 增程版 215km 四驱Ultra+",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c2f6ce642f4db2b3a9060a0e",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星纪元ET",
+          "model": "增程版 Pro高速辅助驾驶",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "星纪元ET",
+          "model": "25款 增程版 265km 后驱Pro高速辅助驾驶版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "c3582dc7073eab81e598bdcd",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "1.5T Hi4 150 Ultra 磷酸铁锂",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "26款 1.5T Hi4 150 Ultra 磷酸铁锂",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ca87a6bc0f7fa30615c491fa",
+      "members": [
+        {
+          "brand": "广汽昊铂",
+          "series": "昊铂S600",
+          "model": "增程 230 Max",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "广汽昊铂",
+          "series": "昊铂S600",
+          "model": "26款 增程版 230km 后驱Max",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cfd2d26c9a5bd1501221cbfb",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "1.5T Hi4 150 Ultra 领航版 磷酸铁锂",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "26款 1.5T Hi4 150 Ultra领航版 磷酸铁锂",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d7b4226d5e5c7c65ee852431",
+      "members": [
+        {
+          "brand": "奇瑞风云",
+          "series": "风云T9L",
+          "model": "200 四驱超能超舒适",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "奇瑞风云",
+          "series": "风云T9L",
+          "model": "26款 1.5T 200km 四驱超能超舒适",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "daef2c7af2e87535112559fc",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "1.5T Hi4 105 Pro 磷酸铁锂",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗猛龙PHEV",
+          "model": "26款 1.5T Hi4 105 Pro",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "daf05075520b4e2dc9895914",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途瑶光C-DM",
+          "model": "寰球版 200超长续航四驱",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "瑶光C-DM",
+          "model": "瑶光C-DM 2026款 寰球版 200超长续航四驱",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "dbac5fe31b5e29c6edf37228",
+      "members": [
+        {
+          "brand": "长安启源",
+          "series": "长安启源E07",
+          "model": "纯电 90kWh Max+四驱版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "长安启源",
+          "series": "长安启源E07",
+          "model": "长安启源E07 2025款 纯电 四驱 90kWh 大成版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f5d8ad35bd8d500db7aeff97",
+      "members": [
+        {
+          "brand": "魏牌",
+          "series": "蓝山",
+          "model": "智能进阶版 四驱 Max",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "魏牌",
+          "series": "魏牌 蓝山",
+          "model": "魏牌 蓝山 2026款 智能进阶版 四驱Max",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "fe5edeeebb34de0fa6d326a8",
+      "members": [
+        {
+          "brand": "魏牌",
+          "series": "蓝山",
+          "model": "智能进阶版 四驱 Max+",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "魏牌",
+          "series": "魏牌 蓝山",
+          "model": "魏牌 蓝山 2026款 智能进阶版 四驱Max+",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "fe80613e6e277da3981976f2",
+      "members": [
+        {
+          "brand": "广汽昊铂",
+          "series": "昊铂S600",
+          "model": "纯电 660 Max",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "广汽昊铂",
+          "series": "昊铂S600",
+          "model": "26款 纯电版 660km 后驱Max",
+          "year": "2026",
+          "sources": [
+            "易车"
           ]
         }
       ]
