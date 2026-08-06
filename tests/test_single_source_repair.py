@@ -341,7 +341,9 @@ class SingleSourceRepairTests(unittest.TestCase):
             dict(response, column_aliases=[response["column_aliases"][0], bad]),
             report,
         )
-        self.assertEqual([], _aliases)
+        # partial success: the duplicate bad entry is dropped, the valid one stays
+        self.assertEqual(1, len(_aliases))
+        self.assertEqual("NOMI Mate 3.0", _aliases[0]["column"])
 
     def test_car_alias_config_validation(self) -> None:
         _car_aliases_from_text('{"version": 1, "aliases": []}')
@@ -608,9 +610,11 @@ class SingleSourceRepairTests(unittest.TestCase):
         # outside the diagnosis allowlist -> rejected
         with self.assertRaises(RepairInputError):
             _car_hidden_columns({"hidden_columns": ["未诊断的列"]}, report)
-        # duplicates -> rejected
-        with self.assertRaises(RepairInputError):
-            _car_hidden_columns({"hidden_columns": ["专属曜黑套装", "专属曜黑套装"]}, report)
+        # duplicates -> the repeat is dropped, the valid entry stays
+        self.assertEqual(
+            ["专属曜黑套装"],
+            _car_hidden_columns({"hidden_columns": ["专属曜黑套装", "专属曜黑套装"]}, report),
+        )
         # batch limit
         with self.assertRaises(RepairInputError):
             _car_hidden_columns(

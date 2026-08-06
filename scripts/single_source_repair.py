@@ -827,39 +827,54 @@ def _car_column_aliases(
     candidate_attributes = set(diagnosis.get("candidate_attributes") or [])
     validated: list[dict[str, Any]] = []
     seen: set[str] = set()
+    rejections: list[str] = []
+
+    def _reject(message: str) -> None:
+        rejections.append(message[:300])
+
     for entry in raw:
         if not isinstance(entry, dict):
-            raise RepairInputError("each column alias must be an object")
+            _reject("each column alias must be an object")
+            continue
         column = str(entry.get("column") or "").strip()
         canonical = str(entry.get("canonical") or "").strip()
         if not column or not canonical or column == canonical:
-            raise RepairInputError("column alias needs distinct column and canonical names")
+            _reject(f"column alias needs distinct column and canonical names ({column!r})")
+            continue
         if column not in suspect_by_column:
-            raise RepairInputError(f"column alias target outside the diagnosis allowlist: {column!r}")
+            _reject(f"column alias target outside the diagnosis allowlist: {column!r}")
+            continue
         if canonical in PROTECTED_ATTRIBUTES:
-            raise RepairInputError(f"column alias canonical is a protected identity attribute: {canonical!r}")
+            _reject(f"column alias canonical is a protected identity attribute: {canonical!r}")
+            continue
         if canonical not in candidate_attributes:
-            raise RepairInputError(f"column alias canonical is not an existing attribute: {canonical!r}")
+            _reject(f"column alias canonical is not an existing attribute: {canonical!r}")
+            continue
         if column in seen:
-            raise RepairInputError("column aliases contain a duplicate column")
+            _reject("column aliases contain a duplicate column")
+            continue
         seen.add(column)
         confidence_value = entry.get("confidence")
         if isinstance(confidence_value, bool) or not isinstance(confidence_value, (int, float)):
-            raise RepairInputError("column alias confidence must be a JSON number")
+            _reject("column alias confidence must be a JSON number")
+            continue
         confidence = float(confidence_value)
         if not math.isfinite(confidence) or not MIN_COLUMN_ALIAS_CONFIDENCE <= confidence <= 1:
-            raise RepairInputError("column alias confidence must be finite and within 0.9..1")
+            _reject("column alias confidence must be finite and within 0.9..1")
+            continue
         # Low-confidence deterministic diagnosis (e.g. bare value headers at
         # 0.45) requires a higher model confidence before it may be applied.
         suspect_confidence = float(suspect_by_column[column].get("confidence") or 0.0)
         if suspect_confidence < 0.7 and confidence < 0.95:
-            raise RepairInputError(
+            _reject(
                 "column alias confidence below 0.95 for a low-confidence diagnosis "
                 f"({column!r} at diagnosis confidence {suspect_confidence})"
             )
+            continue
         evidence = entry.get("evidence")
         if not isinstance(evidence, str) or not evidence.strip():
-            raise RepairInputError("column alias must include non-empty string evidence")
+            _reject("column alias must include non-empty string evidence")
+            continue
         alias: dict[str, Any] = {
             "column": column,
             "canonical": canonical,
@@ -871,9 +886,12 @@ def _car_column_aliases(
             # _merge_distinct_values splits on '|'; free-text injection with a
             # pipe or newline would corrupt merged values downstream.
             if "|" in value or "\n" in value or "\r" in value:
-                raise RepairInputError("column alias value must not contain '|' or newlines")
+                _reject("column alias value must not contain '|' or newlines")
+                continue
             alias["value"] = value
         validated.append(alias)
+    if not validated and rejections:
+        raise RepairInputError("; ".join(rejections[:3]))
     return validated
 
 
@@ -1064,27 +1082,37 @@ def _car_hidden_columns(
             column = item.get("column")
             if isinstance(column, str):
                 diagnosis_conf[column] = conf_value
+    rejections: list[str] = []
     for entry in raw:
         if not isinstance(entry, str):
-            raise RepairInputError("each hidden column must be a string")
+            rejections.append("each hidden column must be a string")
+            continue
         column = entry.strip()
         if not column:
-            raise RepairInputError("hidden column must not be empty")
+            rejections.append("hidden column must not be empty")
+            continue
         if column in PROTECTED_ATTRIBUTES:
-            raise RepairInputError(f"hidden column is a protected identity attribute: {column!r}")
+            rejections.append(f"hidden column is a protected identity attribute: {column!r}")
+            continue
         if column in candidate_attributes:
-            raise RepairInputError(f"hidden column is a known attribute: {column!r}")
+            rejections.append(f"hidden column is a known attribute: {column!r}")
+            continue
         if column not in suspect_columns:
-            raise RepairInputError(f"hidden column outside the diagnosis allowlist: {column!r}")
+            rejections.append(f"hidden column outside the diagnosis allowlist: {column!r}")
+            continue
         if diagnosis_conf.get(column, 0.0) < 0.9:
-            raise RepairInputError(
+            rejections.append(
                 "hidden column has a low-confidence diagnosis and is not hideable "
                 f"({column!r} at diagnosis confidence {diagnosis_conf.get(column):.2f})"
             )
+            continue
         if column in seen:
-            raise RepairInputError("hidden columns contain a duplicate")
+            rejections.append("hidden columns contain a duplicate")
+            continue
         seen.add(column)
         validated.append(column)
+    if not validated and rejections:
+        raise RepairInputError("; ".join(rejections[:3]))
     return validated
 
 
