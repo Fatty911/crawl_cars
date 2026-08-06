@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 822
+    "approved_components": 850
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -19436,6 +19436,650 @@
           "series": "帝豪L HiP",
           "model": "帝豪L HiP 2024款 龙腾版 1.5TD-DHT Pro 100KM 超越型",
           "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "00c3ebde210d72bc9b1e46a9",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗M6",
+          "model": "24款 PLUS 1.5T 双离合花生好车定制版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗M6",
+          "model": "哈弗M6 2024款 PLUS 1.5T DCT花生好车定制版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0557b11cc37616268a3946d3",
+      "members": [
+        {
+          "brand": "东风风行",
+          "series": "星海S7",
+          "model": "25款 增程版 235km 尊誉版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东风风行",
+          "series": "星海S7",
+          "model": "星海S7 2025款 235增程 尊誉版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0dcd22edff30938181435687",
+      "members": [
+        {
+          "brand": "东风风行",
+          "series": "星海S7",
+          "model": "25款 增程版 235km 悦享版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东风风行",
+          "series": "星海S7",
+          "model": "星海S7 2025款 235增程 悦享版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0dde12973688deeb9e4e6d8c",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途瑶光C-DM",
+          "model": "星界版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "瑶光C-DM",
+          "model": "瑶光C-DM 2025款 星界版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "172813f06082fc3ce8889978",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗H9",
+          "model": "2.4T 柴油四驱极境版 5座",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗H9",
+          "model": "24款 2.4T 极境版 5座 柴油",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "25b5b1b4ce8e9202c33d6bed",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 130 3.0T P400 远征特别版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 130 3.0T 远征特别版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3e96263f603f33d88eaff342",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 110 3.0T P400 X-Dynamic HSE",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 110 3.0T X-Dynamic HSE",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "57537f7536e621905092207e",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗神兽",
+          "model": "23款 2.0T 四驱智尊版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗神兽",
+          "model": "哈弗神兽 2023款 2.0T 智尊四驱版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "595c68952079aab2bc2c4ba1",
+      "members": [
+        {
+          "brand": "东风风行",
+          "series": "星海S7",
+          "model": "25款 增程版 235km 奢享版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东风风行",
+          "series": "星海S7",
+          "model": "星海S7 2025款 235增程 奢享版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "661bc07d903b86f721d163ca",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途瑶光C-DM",
+          "model": "寰球版 120长续航两驱",
+          "year": "2027",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "瑶光C-DM",
+          "model": "瑶光C-DM 2027款 寰球版 120长续航两驱",
+          "year": "2027",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6e6b5ea54fe3ebbea764fe5b",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 110 3.0T P400 X",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 110 3.0T X",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "71b63c59f4c2a4007fc64784",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗H9",
+          "model": "2.4T 柴油四驱拓境版 7座",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗H9",
+          "model": "24款 2.4T 拓境版 7座 柴油",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7a4f6cd0bd596a5faef03c9c",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 110 3.0T P400 传奇版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 110 3.0T 传奇版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7eff75658c3933a4d96ebb33",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗枭龙",
+          "model": "23款 1.5L 110km 领航版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗枭龙",
+          "model": "哈弗枭龙 2023款 1.5L 110KM领航版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8ab6a2395fdc2b7a64533756",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗H6",
+          "model": "国潮版 1.5T 自动冠军版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗H6",
+          "model": "25款 国潮版 1.5T 两驱冠军版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8c0c0f0c8a77cdeb7407d6e4",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 130 3.0T P400 X-Dynamic SE",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 130 3.0T X-Dynamic SE",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8d631740a50f33927e2e7893",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗H9",
+          "model": "2.0T 汽油四驱拓境版 5座",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗H9",
+          "model": "24款 2.0T 拓境版 5座 汽油",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "8fba4da9d4dc3aa664beb694",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 110 4.4T P635 OCTA BLACK",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 110 OCTA BLACK",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "95ba24dba3893d495493fda7",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途ES",
+          "model": "27款 增程版 255km 四驱Ultra激光雷达版",
+          "year": "2027",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "星途ES",
+          "model": "星途ES 2027款 增程 255 Ultra四驱激光雷达版",
+          "year": "2027",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "96525c1df8fb93f1ba844f1c",
+      "members": [
+        {
+          "brand": "东风风行",
+          "series": "星海S7",
+          "model": "25款 增程版 235km 尊贵版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "东风风行",
+          "series": "星海S7",
+          "model": "星海S7 2025款 235增程 尊贵版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "9f1aef46ed5a7409e8da2380",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途ES",
+          "model": "27款 增程版 302km 后驱Max激光雷达版",
+          "year": "2027",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "星途ES",
+          "model": "星途ES 2027款 增程 302 Max激光雷达版",
+          "year": "2027",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "acecdff642a11b19ddaed1b6",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 110 3.0T P400 X-Dynamic SE",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 110 3.0T X-Dynamic SE",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b6d5c7c72dc29636e0d85a07",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗枭龙",
+          "model": "23款 1.5L 52km 领航版",
+          "year": "2023",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗枭龙",
+          "model": "哈弗枭龙 2023款 1.5L 52KM领航版",
+          "year": "2023",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "b9c2191dd295db93f93a888f",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途揽月",
+          "model": "2.0T 四驱五周年限定版-七座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "星途揽月",
+          "model": "星途揽月 2026款 400T 四驱五周年限定版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "bf5c325af31f98bfb64f72a8",
+      "members": [
+        {
+          "brand": "哈弗",
+          "series": "哈弗H9",
+          "model": "2.0T 汽油四驱极境版 5座",
+          "year": "2024",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "哈弗",
+          "series": "哈弗H9",
+          "model": "24款 2.0T 极境版 5座 汽油",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "cbbc6f2263c99484c3606a86",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 130 3.0T P400 X-Dynamic HSE",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 130 3.0T X-Dynamic HSE",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "db5bcdff5a14b5fbce31daff",
+      "members": [
+        {
+          "brand": "星途",
+          "series": "星途揽月",
+          "model": "2.0T 四驱飞鱼版-七座",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "星途",
+          "series": "星途揽月",
+          "model": "星途揽月 2026款 400T 四驱飞鱼版 7座",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ebdb059d4d5983ad2a1d738a",
+      "members": [
+        {
+          "brand": "路虎",
+          "series": "卫士",
+          "model": "26款 110 3.0T P400 暗黑特别版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "路虎",
+          "series": "路虎卫士",
+          "model": "路虎卫士 2026款 110 3.0T 暗黑特别版",
+          "year": "2026",
           "sources": [
             "汽车之家"
           ]
