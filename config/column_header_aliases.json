@@ -21,6 +21,13 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "AMG空气动力学组件(免费)",
+      "canonical": "AMG空气动力学组件",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "免费"
+    },
+    {
       "column": "CLTC纯电续航",
       "canonical": "纯电续航(km)",
       "confidence": 1.0,
@@ -67,6 +74,13 @@
       "canonical": "热泵空调",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "LED自适应大灯(含远光自动控制)",
+      "canonical": "LED自适应大灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "含远光自动控制"
     },
     {
       "column": "NEDC纯电续航里程(km)",
@@ -117,10 +131,31 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "中控屏尺寸(9吋)",
+      "canonical": "中控屏尺寸",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "9吋"
+    },
+    {
+      "column": "中控彩色屏幕(大屏)",
+      "canonical": "中控彩色屏幕",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "大屏"
+    },
+    {
       "column": "主驾驶座椅记忆",
       "canonical": "座椅记忆",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "二号格栅(灰中网)",
+      "canonical": "二号格栅",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "灰中网"
     },
     {
       "column": "全速自适应巡航控制_ACC_",
@@ -153,6 +188,13 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "前桥限滑方式(差速锁)",
+      "canonical": "前桥限滑方式",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "差速锁"
+    },
+    {
       "column": "前轮胎规格尺寸",
       "canonical": "前轮胎规格",
       "confidence": 1.0,
@@ -177,10 +219,31 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "双色车身(钛金灰不可选装)",
+      "canonical": "双色车身",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "钛金灰不可选装"
+    },
+    {
       "column": "发动机远程启动",
       "canonical": "远程启动",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "可变悬挂调节(软硬)",
+      "canonical": "可变悬挂调节",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "软硬"
+    },
+    {
+      "column": "可变悬挂调节(软硬+高低)",
+      "canonical": "可变悬挂调节",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "软硬+高低"
     },
     {
       "column": "后备厢容积(L)",
@@ -217,6 +280,20 @@
       "canonical": "后悬挂形式",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "后桥限滑方式(差速锁)",
+      "canonical": "后桥限滑方式",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "差速锁"
+    },
+    {
+      "column": "后桥限滑方式(限滑差速器)",
+      "canonical": "后桥限滑方式",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "限滑差速器"
     },
     {
       "column": "后视镜记忆",
@@ -279,6 +356,34 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "备胎放置方式(背负式)",
+      "canonical": "备胎放置方式",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "背负式"
+    },
+    {
+      "column": "备胎放置方式(隐藏式)",
+      "canonical": "备胎放置方式",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "隐藏式"
+    },
+    {
+      "column": "备胎规格(全尺寸)",
+      "canonical": "备胎规格",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "全尺寸"
+    },
+    {
+      "column": "备胎规格(非全尺寸)",
+      "canonical": "备胎规格",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "非全尺寸"
+    },
+    {
       "column": "外后视镜功能",
       "canonical": "外后视镜记忆",
       "confidence": 1.0,
@@ -295,6 +400,55 @@
       "canonical": "多媒体充电接口",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "多层隔音玻璃(全车)",
+      "canonical": "多层隔音玻璃",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "全车"
+    },
+    {
+      "column": "多层隔音玻璃(前排)",
+      "canonical": "多层隔音玻璃",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "前排"
+    },
+    {
+      "column": "多层隔音玻璃(后排)",
+      "canonical": "多层隔音玻璃",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "后排"
+    },
+    {
+      "column": "天窗类型(不可开启全景天窗)",
+      "canonical": "天窗类型",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "不可开启全景天窗"
+    },
+    {
+      "column": "天窗类型(单天窗)",
+      "canonical": "天窗类型",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "单天窗"
+    },
+    {
+      "column": "天窗类型(可开启全景天窗)",
+      "canonical": "天窗类型",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "可开启全景天窗"
+    },
+    {
+      "column": "奥迪高级驾驶辅助系统(搭载华为乾崑智驾®技术)",
+      "canonical": "奥迪高级驾驶辅助系统",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "搭载华为乾崑智驾®技术"
     },
     {
       "column": "宽度(mm)",
@@ -319,6 +473,62 @@
       "canonical": "座位数(个)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "座椅材质(仿皮)",
+      "canonical": "座椅材质",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "仿皮"
+    },
+    {
+      "column": "座椅材质(真皮)",
+      "canonical": "座椅材质",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "真皮"
+    },
+    {
+      "column": "座椅皮质风格(Merino真皮)",
+      "canonical": "座椅皮质风格",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "Merino真皮"
+    },
+    {
+      "column": "座椅皮质风格(Nappa真皮)",
+      "canonical": "座椅皮质风格",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "Nappa真皮"
+    },
+    {
+      "column": "座椅皮质风格(Sensatec合成皮)",
+      "canonical": "座椅皮质风格",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "Sensatec合成皮"
+    },
+    {
+      "column": "座椅皮质风格(温莎真皮)",
+      "canonical": "座椅皮质风格",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "温莎真皮"
+    },
+    {
+      "column": "影音系统(单碟CD)",
+      "canonical": "影音系统",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "单碟CD"
+    },
+    {
+      "column": "影音系统(单碟DVD)",
+      "canonical": "影音系统",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "单碟DVD"
     },
     {
       "column": "手机APP远程功能",
@@ -361,6 +571,48 @@
       "canonical": "整备质量(kg)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "方向盘材质(真皮)",
+      "canonical": "方向盘材质",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "真皮"
+    },
+    {
+      "column": "方向盘调节(上下+前后)",
+      "canonical": "方向盘调节",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "上下+前后"
+    },
+    {
+      "column": "无钥匙进入(主驾驶位)",
+      "canonical": "无钥匙进入",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "主驾驶位"
+    },
+    {
+      "column": "无钥匙进入(全车)",
+      "canonical": "无钥匙进入",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "全车"
+    },
+    {
+      "column": "无钥匙进入(前排)",
+      "canonical": "无钥匙进入",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "前排"
+    },
+    {
+      "column": "星光格栅包(仅外观颜色向阳金版本)",
+      "canonical": "星光格栅包",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "仅外观颜色向阳金版本"
     },
     {
       "column": "最大功率[kW]",
@@ -441,10 +693,52 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "液晶仪表样式(全液晶)",
+      "canonical": "液晶仪表样式",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "全液晶"
+    },
+    {
+      "column": "温度分区控制(双区空调)",
+      "canonical": "温度分区控制",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "双区空调"
+    },
+    {
       "column": "满载质量_kg_",
       "canonical": "满载质量(kg)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "灯光特色功能(像素式)",
+      "canonical": "灯光特色功能",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "像素式"
+    },
+    {
+      "column": "灯光特色功能(几何多光束)",
+      "canonical": "灯光特色功能",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "几何多光束"
+    },
+    {
+      "column": "灯光特色功能(可编程智能交互灯)",
+      "canonical": "灯光特色功能",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "可编程智能交互灯"
+    },
+    {
+      "column": "灯光特色功能(矩阵式)",
+      "canonical": "灯光特色功能",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "矩阵式"
     },
     {
       "column": "热泵管理系统",
@@ -465,6 +759,20 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "电池租用服务(60kWh电池包)",
+      "canonical": "电池租用服务",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "60kWh电池包"
+    },
+    {
+      "column": "电池租用服务(85kWh电池包)",
+      "canonical": "电池租用服务",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "85kWh电池包"
+    },
+    {
       "column": "电池能量_kWh_",
       "canonical": "电池能量(kWh)",
       "confidence": 1.0,
@@ -477,10 +785,38 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "科技舒享包(限时免费)",
+      "canonical": "科技舒享包",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "限时免费"
+    },
+    {
+      "column": "空调控制方式(自动)",
+      "canonical": "空调控制方式",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "自动"
+    },
+    {
+      "column": "第三排座椅(2座)",
+      "canonical": "第三排座椅",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "2座"
+    },
+    {
       "column": "纯电续航",
       "canonical": "纯电续航(km)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "胎压监测(胎压显示)",
+      "canonical": "胎压监测",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "胎压显示"
     },
     {
       "column": "自适应巡航",
@@ -495,6 +831,27 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "舒享包(限时3500)",
+      "canonical": "舒享包",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "限时3500"
+    },
+    {
+      "column": "舒享包(限时3500元)",
+      "canonical": "舒享包",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "限时3500元"
+    },
+    {
+      "column": "舒享包(限时免费)",
+      "canonical": "舒享包",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "限时免费"
+    },
+    {
       "column": "蓝牙_车载电话",
       "canonical": "蓝牙/车载电话",
       "confidence": 1.0,
@@ -507,10 +864,108 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "蔚来智能辅助驾驶NAD服务(380元_月)",
+      "canonical": "蔚来智能辅助驾驶NAD服务",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "380元_月"
+    },
+    {
+      "column": "蔚来智能辅助驾驶NAD服务(680元_月)",
+      "canonical": "蔚来智能辅助驾驶NAD服务",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "680元_月"
+    },
+    {
       "column": "行李厢12V电源接口",
       "canonical": "行李舱12V电源接口",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "越野穿越包(停售)",
+      "canonical": "越野穿越包",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "停售"
+    },
+    {
+      "column": "越野穿越包(顶火版)",
+      "canonical": "越野穿越包",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "顶火版"
+    },
+    {
+      "column": "车内氛围灯(10色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "10色"
+    },
+    {
+      "column": "车内氛围灯(11色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "11色"
+    },
+    {
+      "column": "车内氛围灯(128色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "128色"
+    },
+    {
+      "column": "车内氛围灯(12色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "12色"
+    },
+    {
+      "column": "车内氛围灯(256色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "256色"
+    },
+    {
+      "column": "车内氛围灯(30色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "30色"
+    },
+    {
+      "column": "车内氛围灯(32色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "32色"
+    },
+    {
+      "column": "车内氛围灯(64色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "64色"
+    },
+    {
+      "column": "车内氛围灯(单色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "单色"
+    },
+    {
+      "column": "车内氛围灯(多色)",
+      "canonical": "车内氛围灯",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "多色"
     },
     {
       "column": "车机系统内存_GB_",
@@ -523,6 +978,13 @@
       "canonical": "车机系统存储(GB)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "车窗一键升降(主驾驶位)",
+      "canonical": "车窗一键升降",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "主驾驶位"
     },
     {
       "column": "车门数",
@@ -553,6 +1015,27 @@
       "canonical": "轴距(mm)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "辅助驾驶级别(L0级)",
+      "canonical": "辅助驾驶级别",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "L0级"
+    },
+    {
+      "column": "辅助驾驶级别(L1级)",
+      "canonical": "辅助驾驶级别",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "L1级"
+    },
+    {
+      "column": "辅助驾驶级别(L2级)",
+      "canonical": "辅助驾驶级别",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "L2级"
     },
     {
       "column": "远程启动功能",
@@ -595,6 +1078,83 @@
       "canonical": "长(mm)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "音响品牌(B&O)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "B&O"
+    },
+    {
+      "column": "音响品牌(丹拿)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "丹拿"
+    },
+    {
+      "column": "音响品牌(哈曼卡顿)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "哈曼卡顿"
+    },
+    {
+      "column": "音响品牌(宝华韦健)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "宝华韦健"
+    },
+    {
+      "column": "音响品牌(柏林之声)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "柏林之声"
+    },
+    {
+      "column": "音响品牌(索尼)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "索尼"
+    },
+    {
+      "column": "音响品牌(英国之宝)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "英国之宝"
+    },
+    {
+      "column": "音响品牌(锐威)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "锐威"
+    },
+    {
+      "column": "音响品牌(雅马哈)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "雅马哈"
+    },
+    {
+      "column": "音响品牌(马克莱文森)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "马克莱文森"
+    },
+    {
+      "column": "领航辅助驾驶包(激光版)",
+      "canonical": "领航辅助驾驶包",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "激光版"
     },
     {
       "column": "风阻系数_Cd_",
