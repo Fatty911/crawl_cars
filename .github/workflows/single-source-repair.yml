@@ -618,7 +618,27 @@ jobs:
 
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" fetch origin main --depth=1
-          test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
+          if [[ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]]; then
+            # Mirror the bind gate: allow publish when main only moved code
+            # paths (scripts/ tests/ .github/); any data/docs/config change
+            # still aborts the publish.
+            git fetch origin "$SOURCE_SHA" "$(git rev-parse origin/main)" --quiet 2>/dev/null || true
+            code_only_publish=0
+            changed_files="$(git diff --name-only "$SOURCE_SHA" "origin/main" 2>/dev/null || true)"
+            if [[ -n "$changed_files" ]]; then
+              code_only_publish=1
+              while IFS= read -r changed; do
+                case "$changed" in
+                  scripts/*|tests/*|.github/*) ;;
+                  *) code_only_publish=0 ;;
+                esac
+              done <<< "$changed_files"
+            fi
+            if [[ "$code_only_publish" != "1" ]]; then
+              echo "main moved with data changes; aborting publish" >&2
+              exit 1
+            fi
+          fi
           python scripts/single_source_repair.py --repo-kind "$REPO_KIND" --check-patch proposal/single_source_repair.patch
           git apply --whitespace=error proposal/single_source_repair.patch
           python scripts/single_source_repair.py \
@@ -635,6 +655,11 @@ jobs:
             -m "Single-Source-Repair-Chain: ${{ needs.propose.outputs.chain_id }}" \
             -m "Single-Source-Repair-Round: ${{ needs.propose.outputs.round }}" \
             -m "Single-Source-Repair-Base-SHA: $SOURCE_SHA"
+          # Rebase onto the (code-only moved) main so the push stays linear.
+          git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" pull --rebase origin main || {
+            echo "publish rebase failed; aborting" >&2
+            exit 1
+          }
           git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" push origin HEAD:main
           printf 'commit_sha=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
