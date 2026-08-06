@@ -646,6 +646,11 @@ jobs:
             --validate-working-tree \
             --data proposal/pages_latest.json
 
+          # Deterministic column-name convergence: hide value-only columns
+          # and map value-suffixed headers so the published column set
+          # shrinks every round (loop continues until no new entries).
+          python scripts/apply_column_cleanup.py --input proposal/pages_latest.json || true
+
           git config user.name "Fatty911"
           git config user.email "xuerui911@gmail.com"
           git add -- $(git diff --name-only)
