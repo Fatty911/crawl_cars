@@ -87,8 +87,29 @@ jobs:
           fi
           remote_main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha' 2>/dev/null || true)"
           if [[ "$remote_main_sha" != "$SOURCE_SHA" ]]; then
-            printf '%s\n' 'reason=main-moved-after-pages-run' >> "$GITHUB_OUTPUT"
-            exit 0
+            # Allow binding when main only moved code paths (scripts/ tests/
+            # .github/) after the Pages run: the Pages payload is unchanged, so
+            # the repair chain may analyse it with the latest code. Any change
+            # to data, docs or config still invalidates the binding.
+            # Fail-closed: any fetch/diff failure or unexpected path aborts.
+            code_only=0
+            if git fetch origin main --quiet 2>/dev/null &&
+               git fetch origin "$SOURCE_SHA" "$remote_main_sha" --quiet 2>/dev/null; then
+              changed_files="$(git diff --name-only "$SOURCE_SHA" "$remote_main_sha" 2>/dev/null || true)"
+              if [[ -n "$changed_files" ]]; then
+                code_only=1
+                while IFS= read -r changed; do
+                  case "$changed" in
+                    scripts/*|tests/*|.github/*) ;;
+                    *) code_only=0 ;;
+                  esac
+                done <<< "$changed_files"
+              fi
+            fi
+            if [[ "$code_only" != "1" ]]; then
+              printf '%s\n' 'reason=main-moved-after-pages-run' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
 
           if ! gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PAGES_RUN_ID" > "$RUNNER_TEMP/single-source-pages-run.json"; then
