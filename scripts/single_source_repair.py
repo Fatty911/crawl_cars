@@ -451,8 +451,31 @@ def _build_car_candidate_prompt(report: dict[str, Any], base_sha: str, pages_url
     bounded_attributes = candidate_attributes[:400]
     # Shrink the embedded report so the reviewer can actually read it in a
     # single opencode session: the full dump made the session time out
-    # mid-read and answer empty (analysis-only).
-    bounded_report = dict(report)
+    # mid-read and answer empty (analysis-only).  We only keep what the
+    # reviewer acts on: candidates, top alias gaps, diagnosis digest.
+    bounded_report: dict[str, Any] = {
+        "single_rate": report.get("single_rate"),
+        "multi_rate": report.get("multi_rate"),
+        "total": report.get("total"),
+        "candidate_search": {
+            "method": (report.get("candidate_search") or {}).get("method"),
+            "candidate_count": (report.get("candidate_search") or {}).get("candidate_count"),
+            "raw_candidate_count": (report.get("candidate_search") or {}).get("raw_candidate_count"),
+            "target_brand_series": (report.get("candidate_search") or {}).get("target_brand_series"),
+            "baseline": (report.get("candidate_search") or {}).get("baseline"),
+            "candidates": (report.get("candidate_search") or {}).get("candidates", [])[:100],
+            "series_alias_gaps": (report.get("candidate_search") or {}).get("series_alias_gaps", [])[:25],
+            "source_gaps": (report.get("candidate_search") or {}).get("source_gaps", [])[:25],
+            "brand_alias_gaps": (report.get("candidate_search") or {}).get("brand_alias_gaps", [])[:25],
+        },
+    }
+    diagnosis = report.get("column_diagnosis") or {}
+    bounded_report["column_diagnosis"] = {
+        "candidate_attributes": diagnosis.get("candidate_attributes", [])[:400],
+        "suspects": (diagnosis.get("suspects") or [])[:40],
+        "total_columns": diagnosis.get("total_columns"),
+        "suspicious_columns": diagnosis.get("suspicious_columns"),
+    }
     candidate_search = bounded_report.get("candidate_search")
     if isinstance(candidate_search, dict):
         candidate_search = dict(candidate_search)
