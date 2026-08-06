@@ -520,7 +520,7 @@
     "online_unmatched": 0,
     "provenance_retirement_contradiction": 1,
     "raw_counterpart_missing": 94,
-    "approved_components": 792
+    "approved_components": 822
   },
   "permanent_negative_component_ids": [
     "visible-f-v2:bbbe78a9bb99adaead6af773",
@@ -18746,6 +18746,696 @@
           "series": "豪越L",
           "model": "豪越L 2026款 1.5TD DCT 幸福 7座",
           "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "0ba07d4b489045c681efff15",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "22款 1.8TD 双离合 进取型 7座",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "豪越 2022款 1.8TD DCT进取型 7座",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "110d326212359f0d3ea20c25",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "1.5TD 观野版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "26款 1.5T 观野版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "190d35489d4d648477db776f",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "领睿 PHEV",
+          "model": "铂领型",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "领睿 插电混动",
+          "model": "25款 1.5T 115km 铂领型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "1ca4498045e75aa84e55d3c5",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "22款 1.8TD 双离合 旗舰型 5座",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "豪越 2022款 1.8TD DCT旗舰型 5座",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "2074f2c03a352e0820506f7c",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "22款 1.8TD 双离合 豪华型 5座",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "豪越 2022款 1.8TD DCT豪华型 5座",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "2a68a04df14c6e5d2e2f8ef7",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "25款 1.5L 手动星耀型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪",
+          "model": "帝豪 2025款 1.5L 手动星耀版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "31e4448e6d9b43ba96d9dd53",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪甲醇",
+          "model": "24款 第4代 1.8L DHT醇享版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪甲醇",
+          "model": "帝豪 2024款 1.8L DHT醇享版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "341b20cf12c106740193a2c1",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "22款 1.8TD 双离合 进取型 5座",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "豪越 2022款 1.8TD DCT进取型 5座",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "34ebe1ab524f57c23b5ff798",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "22款 1.8TD 双离合 旗舰型 7座",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "豪越 2022款 1.8TD DCT旗舰型 7座",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "35824f6d5b57d5c26ffd65cd",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "星瑞",
+          "model": "24款 油混 1.5T 星云版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "星瑞",
+          "model": "星瑞L 2024款 油混 1.5TD 星云版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3739aee7975e3955e372be41",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "福特电马",
+          "model": "24款 504km 四驱GT版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "福特电马",
+          "model": "福特电马 2024款 GT",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "39e1039e0580fe89121b34ac",
+      "members": [
+        {
+          "brand": "魏牌",
+          "series": "魏牌V9X PHEV",
+          "model": "2.0T 豪华家庭版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "魏牌",
+          "series": "魏牌V9X",
+          "model": "26款 插混版 2.0T 402km 豪华家庭版Ultra+",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "39ec4689a12384c88ac4002c",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "25款 E-混动 2.0T EcoBoost 运动版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "蒙迪欧 2025款 2.0T EcoBoost E 混动 运动版",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "3fe15c565c684fb676381c73",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "1.5TD 潮玩版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "25款 1.5T 潮玩版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "4b85ee85dd80b8f5ca3a3f88",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "22款 1.8TD 双离合 豪华型 7座",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "豪越 2022款 1.8TD DCT豪华型 7座",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "5c9c0c27eb915f2634b5e157",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "26款 E-混动 2.0T EcoBoost 运动版ST-Line",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "蒙迪欧 2026款 2.0T EcoBoost  E 混动  运动版 ST-Line",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6314a334206d1861458e5d27",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "26款 E-混动 2.0T EcoBoost 运动版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "蒙迪欧 2026款 2.0T EcoBoost E 混动 运动版",
+          "year": "2026",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "6403bf91947c52ac01811be0",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "领睿 PHEV",
+          "model": "精领型",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "领睿 插电混动",
+          "model": "25款 1.5T 115km 精领型",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "765271ab50f4da378e476c37",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪甲醇",
+          "model": "24款 第4代 1.8L DHT醇净版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪甲醇",
+          "model": "帝豪 2024款 1.8L DHT醇净版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7905ff114e03b2a1f34551e9",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "领睿 PHEV",
+          "model": "尊领型PLUS",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "领睿 插电混动",
+          "model": "25款 1.5T 115km 尊领型PLUS",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "7d9bd93aae392152bb484efd",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "1.5TD 趣野版",
+          "year": "2025",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "25款 1.5T 趣野版",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "97b70af55bfa8e24143d5dce",
+      "members": [
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "25款 E-混动 2.0T EcoBoost 运动版ST-Line",
+          "year": "2025",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "福特",
+          "series": "蒙迪欧",
+          "model": "蒙迪欧 2025款 2.0T EcoBoost E 混动 运动版 ST-Line",
+          "year": "2025",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "ceb5f7b2944a745f6f1e5af7",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "星瑞",
+          "model": "24款 油混 1.5T 天宫版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "星瑞",
+          "model": "星瑞L 2024款 油混 1.5TD 天宫版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "d701c726434c91ecc6b821a9",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "22款 1.8TD 双离合 黑金限定版 5座",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "豪越 2022款 1.8TD DCT黑金限定版 5座",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "dc5ae437f60e279a16c680ae",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "星瑞",
+          "model": "24款 油混 1.5T 星河版",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "星瑞",
+          "model": "星瑞L 2024款 油混 1.5TD 星河版",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "def7ff49837ce8d18beadfe3",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L HiP",
+          "model": "24款 龙腾版 1.5T 100km 卓越型",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L HiP",
+          "model": "帝豪L HiP 2024款 龙腾版 1.5TD-DHT Pro 100KM 卓越型",
+          "year": "2024",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e1daa1510acf1dd724aa9809",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "1.5TD 逐岳版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "26款 1.5T 逐岳版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "e9a4bebe0fa411b14239e20a",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "22款 1.8TD 双离合 黑金限定版 7座",
+          "year": "2022",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "豪越",
+          "model": "豪越 2022款 1.8TD DCT黑金限定版 7座",
+          "year": "2022",
+          "sources": [
+            "汽车之家"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "f43f63b547cf9cb67f198036",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "1.5TD 寻川版",
+          "year": "2026",
+          "sources": [
+            "懂车帝"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "牛仔",
+          "model": "26款 1.5T 寻川版",
+          "year": "2026",
+          "sources": [
+            "易车"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_id": "fb84702137593291154f68f3",
+      "members": [
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L HiP",
+          "model": "24款 龙腾版 1.5T 100km 超越型",
+          "year": "2024",
+          "sources": [
+            "易车"
+          ]
+        },
+        {
+          "brand": "吉利汽车",
+          "series": "帝豪L HiP",
+          "model": "帝豪L HiP 2024款 龙腾版 1.5TD-DHT Pro 100KM 超越型",
+          "year": "2024",
           "sources": [
             "汽车之家"
           ]
