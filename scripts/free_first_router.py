@@ -67,16 +67,20 @@ class Provider:
 
 FREE_PROVIDERS = (
     Provider(
-        "nvidia-nim",
-        ("NVIDIA_NIM_API_KEY",),
-        "NVIDIA_NIM_BASE_URL",
-        "https://integrate.api.nvidia.com/v1",
-        "NVIDIA_NIM_MODEL_LIST",
-        (
-            "deepseek-ai/deepseek-v4-flash",
-            "nvidia/nemotron-3-super-120b-a12b",
-            "nvidia/nemotron-3-ultra-550b-a55b",
-        ),
+        "atomgit-free",
+        ("ATOMGIT_API_KEY",),
+        "ATOMGIT_BASE_URL",
+        "https://api-ai.gitcode.com/v1",
+        "ATOMGIT_MODEL_LIST",
+        ("zai-org/GLM-5.1",),
+    ),
+    Provider(
+        "modelscope-free",
+        ("MODELSCOPE_API_KEY",),
+        "MODELSCOPE_BASE_URL",
+        "https://api-inference.modelscope.cn/v1",
+        "MODELSCOPE_MODEL_LIST",
+        ("MiniMax/MiniMax-M3",),
     ),
     Provider(
         "openrouter-free",
@@ -104,20 +108,16 @@ FREE_PROVIDERS = (
         ("@cf/zai-org/glm-5.2",),
     ),
     Provider(
-        "modelscope-free",
-        ("MODELSCOPE_API_KEY",),
-        "MODELSCOPE_BASE_URL",
-        "https://api-inference.modelscope.cn/v1",
-        "MODELSCOPE_MODEL_LIST",
-        ("MiniMax/MiniMax-M3",),
-    ),
-    Provider(
-        "atomgit-free",
-        ("ATOMGIT_API_KEY",),
-        "ATOMGIT_BASE_URL",
-        "https://api-ai.gitcode.com/v1",
-        "ATOMGIT_MODEL_LIST",
-        ("zai-org/GLM-5.1",),
+        "nvidia-nim",
+        ("NVIDIA_NIM_API_KEY",),
+        "NVIDIA_NIM_BASE_URL",
+        "https://integrate.api.nvidia.com/v1",
+        "NVIDIA_NIM_MODEL_LIST",
+        (
+            "deepseek-ai/deepseek-v4-flash",
+            "nvidia/nemotron-3-super-120b-a12b",
+            "nvidia/nemotron-3-ultra-550b-a55b",
+        ),
     ),
 )
 
@@ -185,7 +185,7 @@ def _request(
         headers = {"Authorization": f"Bearer {provider.key()}", "Content-Type": "application/json"}
         headers.update(dict(provider.extra_headers))
         request = urllib.request.Request(provider.endpoint(), data=payload, headers=headers, method="POST")
-        request_timeout = timeout if timeout is not None else float(os.environ.get("FREE_LLM_TIMEOUT", "25"))
+        request_timeout = timeout if timeout is not None else float(os.environ.get("FREE_LLM_TIMEOUT", "12"))
         with urllib.request.urlopen(request, timeout=request_timeout) as response:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
             if len(raw) > MAX_RESPONSE_BYTES:
