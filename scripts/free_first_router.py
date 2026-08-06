@@ -185,7 +185,10 @@ def _request(
         headers = {"Authorization": f"Bearer {provider.key()}", "Content-Type": "application/json"}
         headers.update(dict(provider.extra_headers))
         request = urllib.request.Request(provider.endpoint(), data=payload, headers=headers, method="POST")
-        request_timeout = timeout if timeout is not None else float(os.environ.get("FREE_LLM_TIMEOUT", "12"))
+        provider_timeouts = {"atomgit-free": 30.0, "modelscope-free": 20.0, "nvidia-nim": 8.0}
+        request_timeout = timeout if timeout is not None else provider_timeouts.get(
+            provider.label, float(os.environ.get("FREE_LLM_TIMEOUT", "12"))
+        )
         with urllib.request.urlopen(request, timeout=request_timeout) as response:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
             if len(raw) > MAX_RESPONSE_BYTES:
