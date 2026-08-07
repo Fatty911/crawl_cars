@@ -210,6 +210,37 @@ def _collect_vn_bases(counts: Counter[str]) -> dict[str, str]:
     return bases
 
 
+def scan_data_quality(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Scan for render-breaking data shapes so the repair chain can fix them.
+
+    - pipe_multi_value_fields: columns whose values contain ``|`` separators
+      (e.g. 纯电续航(km) = "220|185|185" — the pages numeric-range renderer
+      would treat the tail as a unit suffix).
+    - year_duplicate_models: model names that already embed the model year
+      (e.g. "领克900 2026款 1.5T Halo 5座") while the 年款 field is set —
+      the pages model-title suffix would repeat it.
+    """
+    import re
+    pipe_counts: dict[str, int] = {}
+    year_dup: list[str] = []
+    for row in rows:
+        for key, value in row.items():
+            if isinstance(value, str) and "|" in value:
+                pipe_counts[key] = pipe_counts.get(key, 0) + 1
+        name = str(row.get("车型名称") or "")
+        year = str(row.get("年款") or "")
+        if year and re.search(r"\d{4}款", name) and year in name:
+            year_dup.append(name)
+    return {
+        "pipe_multi_value_fields": sorted(
+            pipe_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:20],
+        "pipe_multi_value_rows": sum(pipe_counts.values()),
+        "year_duplicate_models_count": len(year_dup),
+        "year_duplicate_models_sample": year_dup[:5],
+    }
+
+
 def diagnose_columns(rows: list[dict[str, Any]], *, limit: int = 120) -> dict[str, Any]:
     """Return bounded, deterministic evidence about suspicious column names.
 

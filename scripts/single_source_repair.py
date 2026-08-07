@@ -32,7 +32,7 @@ from typing import Any
 try:
     from column_name_diagnostics import PROTECTED_ATTRIBUTES, diagnose_columns
 except ModuleNotFoundError:
-    from scripts.column_name_diagnostics import PROTECTED_ATTRIBUTES, diagnose_columns
+    from scripts.column_name_diagnostics import PROTECTED_ATTRIBUTES, diagnose_columns, scan_data_quality
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -383,6 +383,7 @@ def analyze_payload(payload: Any, kind: str) -> dict[str, Any]:
             "cross_source_merge_gap": cross_source_merge_gap,
         },
         "column_diagnosis": diagnose_columns(rows),
+        "data_quality": scan_data_quality(rows),
         "top_single": top_single[:30],
         "sample": records[:8],
     }
