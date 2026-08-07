@@ -320,6 +320,16 @@ jobs:
         run: |
           python scripts/classify_crawl_failure.py step2_error.log --github-output "$GITHUB_OUTPUT"
 
+      - name: Set up Node.js for Agent tools
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install OpenCode CLI (latest, auto-upgrades)
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
+        run: npm install --global opencode-ai@latest
+
       - name: Auto-fix step2 error
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step2.outputs.failed == 'true' && steps.classify_step2.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
         run: |

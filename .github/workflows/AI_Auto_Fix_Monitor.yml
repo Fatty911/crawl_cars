@@ -114,6 +114,16 @@ jobs:
             echo '```'
           } > config/codex_auto_fix_context.md
 
+      - name: Set up Node.js for Agent tools
+        if: steps.inspect.outputs.should_fix == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install OpenCode CLI (latest, auto-upgrades)
+        if: steps.inspect.outputs.should_fix == 'true'
+        run: npm install --global opencode-ai@latest
+
       - name: Run free AI auto-fix route first
         id: free_ai_fix
         if: steps.inspect.outputs.should_fix == 'true'

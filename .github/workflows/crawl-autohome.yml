@@ -296,6 +296,16 @@ jobs:
         run: |
           python scripts/classify_crawl_failure.py step1_error.log --github-output "$GITHUB_OUTPUT"
 
+      - name: Set up Node.js for Agent tools
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install OpenCode CLI (latest, auto-upgrades)
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
+        run: npm install --global opencode-ai@latest
+
       - name: Auto-fix step1 error
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && steps.step1.outputs.failed == 'true' && steps.classify_step1.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
         run: |
@@ -372,6 +382,16 @@ jobs:
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true'
         run: |
           python scripts/classify_crawl_failure.py remaining_error.log --github-output "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js for Agent tools
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install OpenCode CLI (latest, auto-upgrades)
+        if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'
+        run: npm install --global opencode-ai@latest
 
       - name: Auto-fix remaining error
         if: steps.period.outputs.skip != 'true' && steps.window.outputs.skip != 'true' && env.REMAINING_FAILED == 'true' && steps.classify_remaining.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'

@@ -1334,8 +1334,15 @@ class WorkflowValidatorTests(unittest.TestCase):
     def test_debug_self_heal_without_exclusion_is_rejected(self) -> None:
         path = ROOT / ".github/workflows/crawl-dongchedi.yml"
         text = path.read_text(encoding="utf-8")
-        mutated = text.replace(
-            "steps.classify_step2.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'",
+        # 定位 Auto-fix step2 步骤本身，只在该步骤内移除 debug 排除；
+        # 前面的 setup 步骤可能包含相同的 if 表达式，不能成为替换目标。
+        marker = "      - name: Auto-fix step2 error"
+        self.assertIn(marker, text)
+        needle = "steps.classify_step2.outputs.should_fix == 'true' && github.event.inputs.debug_mode != 'true'"
+        self.assertIn(needle, text)
+        local = text.index(needle, text.index(marker))
+        mutated = text[:local] + text[local:].replace(
+            needle,
             "steps.classify_step2.outputs.should_fix == 'true'",
             1,
         )

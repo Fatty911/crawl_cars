@@ -311,6 +311,19 @@ jobs:
             echo 'agent=false' >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Set up Node.js for Agent tools
+        if: steps.prepare_agent.outputs.agent == 'true'
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install OpenCode CLI (latest, auto-upgrades)
+        if: steps.prepare_agent.outputs.agent == 'true'
+        continue-on-error: true
+        shell: bash
+        run: npm install --global opencode-ai@latest
+
       - name: Run configured free endpoints first
         id: free_route
         if: steps.prepare_agent.outputs.agent == 'true'
@@ -359,19 +372,6 @@ jobs:
           else
             echo 'valid=false' >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Set up Node.js for OpenCode Agent
-        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_validate.outputs.valid != 'true'
-        continue-on-error: true
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install fixed OpenCode CLI
-        if: steps.prepare_agent.outputs.agent == 'true' && steps.free_validate.outputs.valid != 'true'
-        continue-on-error: true
-        shell: bash
-        run: npm install --global opencode-ai@1.18.11
 
       - name: Prepare isolated OpenCode directory
         if: steps.prepare_agent.outputs.agent == 'true' && steps.free_validate.outputs.valid != 'true'
