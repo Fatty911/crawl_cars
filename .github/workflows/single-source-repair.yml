@@ -387,6 +387,9 @@ jobs:
         continue-on-error: true
         env:
           VOLCENGINE_AGENTPLAN_API_KEY: ${{ secrets.VOLCENGINE_AGENTPLAN_API_KEY }}
+          HTTPS_PROXY: ${{ secrets.DMIT_PROXY_URL }}
+          HTTP_PROXY: ${{ secrets.DMIT_PROXY_URL }}
+          NO_PROXY: localhost,127.0.0.1
           OPENCODE_CONFIG_CONTENT: >-
             {"autoupdate":false,"provider":{"volcengine-agentplan":{"npm":"@ai-sdk/openai-compatible","name":"Volcengine Agent Plan","options":{"baseURL":"https://ark.cn-beijing.volces.com/api/plan/v3","apiKey":"{env:VOLCENGINE_AGENTPLAN_API_KEY}"},"models":{"glm-5.2":{"limit":{"context":1000000,"output":16000}}}}},"agent":{"plan":{"model":"volcengine-agentplan/glm-5.2","permission":{"*":"deny","read":"allow","edit":"deny","bash":"deny","webfetch":"deny","task":"deny","question":"deny","external_directory":"deny"}}},"permission":{"*":"deny","read":"allow","edit":"deny","bash":"deny","webfetch":"deny","task":"deny","question":"deny","external_directory":"deny"}}
         shell: bash
