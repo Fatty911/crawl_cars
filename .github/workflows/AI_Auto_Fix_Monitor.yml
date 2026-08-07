@@ -170,6 +170,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "initial_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           PRIMARY_LOG="workflow_error.log"
           if [ ! -s "$PRIMARY_LOG" ]; then
             PRIMARY_LOG="workflow_full.log"
@@ -327,3 +328,19 @@ jobs:
           echo "codex_outcome=${{ steps.run_codex.outcome }}"
           echo "codex_fixed=${{ steps.codex_push.outputs.fixed }}"
           echo "legacy_fixed=${{ steps.legacy_ai_fix.outputs.fixed }}"
+
+
+      - name: Trigger Pages deployment after self-healing commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          initial="${{ steps.free_ai_fix.outputs.initial_sha }}"
+          current="$(git rev-parse HEAD 2>/dev/null || echo '')"
+          if [[ -n "$initial" && -n "$current" && "$initial" != "$current" ]]; then
+            echo "self-healing committed $current (was $initial); triggering Pages deploy"
+            gh workflow run merge-and-filter.yml -f mode=deploy_and_audit
+          else
+            echo "no new commit from self-healing (head $current); skip deploy"
+          fi
