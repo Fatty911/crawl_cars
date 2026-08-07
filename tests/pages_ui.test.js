@@ -369,7 +369,7 @@ test("Pages filter center groups models by series and uses price extrema as repr
   toggle = firstCard.children[0];
   assert.equal(toggle.getAttribute("aria-expanded"), "true");
   assert.equal(firstCard.children[2].children.length, 2);
-  assert.deepEqual(Array.from(firstCard.children[2].children, (item) => item.children[0].textContent), ["S2 低配", "S2 高配"]);
+  assert.deepEqual(Array.from(firstCard.children[2].children, (item) => item.children[0].textContent), ["S2 低配 2026款", "S2 高配 2026款"]);
 
   hooks.state.search = "S1";
   hooks.renderResultsOnly();
@@ -852,8 +852,8 @@ test("series card: common attrs in one meta line, differing attrs per model row"
       name: "系列一",
       representative: { "品牌": "甲", "级别": "中型SUV", "车型名称": "代表车" },
       rows: [
-        { "车型名称": "A 1", "品牌": "甲", "级别": "中型SUV", "能源类型": "纯电", "官方指导价": "20万", "百公里加速(s)": "5.5", "驱动方式": "四驱", "纯电续航(km)": "600" },
-        { "车型名称": "A 2", "品牌": "甲", "级别": "中型SUV", "能源类型": "增程", "官方指导价": "30万", "百公里加速(s)": "6.0", "驱动方式": "后驱", "纯电续航(km)": "200" }
+        { "车型名称": "A 1", "年款": 2025, "品牌": "甲", "级别": "中型SUV", "能源类型": "纯电", "官方指导价": "20万", "百公里加速(s)": "5.5", "驱动方式": "四驱", "纯电续航(km)": "600" },
+        { "车型名称": "A 2", "年款": 2026, "品牌": "甲", "级别": "中型SUV", "能源类型": "增程", "官方指导价": "30万", "百公里加速(s)": "6.0", "驱动方式": "后驱", "纯电续航(km)": "200" }
       ]
     }
   ];
@@ -883,6 +883,9 @@ test("series card: common attrs in one meta line, differing attrs per model row"
   const singleSnap = hooks.renderCards(singleGroups);
   assert.ok(singleSnap[0].meta.indexOf("能源类型: 纯电") !== -1 && singleSnap[0].meta.indexOf("纯电/") === -1, "能源全一致 -> 单值");
   assert.ok(singleSnap[0].meta.indexOf("官方指导价: 25万") !== -1 && singleSnap[0].meta.indexOf("-") === -1 || singleSnap[0].meta.indexOf("25万") !== -1, "价格全一致 -> 单值");
+  assert.ok(snapshots[0].rows[0].indexOf("A 1 2025款") !== -1, "年款作为型号结尾（2025款）");
+  assert.ok(snapshots[0].rows[1].indexOf("A 2 2026款") !== -1, "年款作为型号结尾（2026款）");
+  assert.ok(snapshots[0].rows[0].indexOf("年款:") === -1, "年款不再作为独立属性 chip");
   assert.ok(snapshots[0].rows[0].indexOf("驱动方式") !== -1, "车型行含驱动方式");
   assert.ok(snapshots[0].rows[0].indexOf("纯电续航(km)") !== -1, "车型行含续航");
   assert.ok(snapshots[0].rows[0].indexOf("纯电") !== -1, "车型行含能源值");

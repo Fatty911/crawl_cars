@@ -1549,14 +1549,15 @@
           var model = document.createElement("div");
           model.className = "series-model-row";
           var modelTitle = document.createElement("h4");
-          modelTitle.textContent = row["车型名称"] || "未命名车型";
+          var yearSuffix = row["年款"] ? " " + row["年款"] + "款" : "";
+          modelTitle.textContent = (row["车型名称"] || "未命名车型") + yearSuffix;
           var modelMeta = document.createElement("div");
           modelMeta.className = "card-meta";
-          appendCardMeta(modelMeta, row, ["年款", "能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]);
+          appendCardMeta(modelMeta, row, ["能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]);
           model.appendChild(modelTitle);
           model.appendChild(modelMeta);
           details.appendChild(model);
-          if (modelMeta) { cardSnapshot.rows.push(collectText(modelMeta)); }
+          if (modelMeta) { cardSnapshot.rows.push(collectText(modelTitle) + " " + collectText(modelMeta)); }
         });
         card.appendChild(details);
       }
