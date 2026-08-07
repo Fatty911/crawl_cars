@@ -673,7 +673,7 @@ jobs:
       pages: write
       id-token: write
     concurrency:
-      group: github-pages
+      group: github-pages-v2
       cancel-in-progress: false
     environment:
       name: github-pages
