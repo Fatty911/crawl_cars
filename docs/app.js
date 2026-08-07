@@ -1497,7 +1497,7 @@
       function collectText(el) {
         if (!el) { return ""; }
         if (el._textContent) { return el._textContent; }
-        return (el.children || []).map(collectText).join("");
+        return Array.from(el.children || []).map(collectText).join("");
       }
       if (meta) { cardSnapshot.meta = collectText(meta); }
       if (expanded) {
