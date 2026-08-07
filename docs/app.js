@@ -73,7 +73,7 @@
     mode: "center",
     cardLimit: 24,
     cardSort: null,
-    expandedSeries: new Set(),
+    collapsedSeries: new Set(),
     seriesViewSignature: "",
     mobileCategoryId: "",
     page: 1,
@@ -789,7 +789,7 @@
   function syncSeriesViewState() {
     var signature = currentSeriesViewSignature();
     if (signature !== state.seriesViewSignature) {
-      state.expandedSeries.clear();
+      state.collapsedSeries.clear();
       state.cardLimit = 24;
       state.seriesViewSignature = signature;
     }
@@ -1464,7 +1464,7 @@
     groups.slice(0, state.cardLimit).forEach(function (group, index) {
       var card = document.createElement("article");
       card.className = "series-card";
-      var expanded = state.expandedSeries.has(group.key);
+      var expanded = !state.collapsedSeries.has(group.key);
       var detailId = "series-models-" + index;
       var toggle = document.createElement("button");
       toggle.type = "button";
@@ -1910,7 +1910,7 @@
     els.centerMode.addEventListener("click", function () { state.mode = "center"; renderEverything(); });
     els.tableMode.addEventListener("click", function () {
       state.mode = "table";
-      state.expandedSeries.clear();
+      state.collapsedSeries.clear();
       renderEverything();
     });
     if (els.centerBrandFilter && els.centerSeriesFilter) {
@@ -1951,10 +1951,10 @@
       var toggle = event.target.closest(".series-card-toggle");
       if (!toggle) { return; }
       var key = toggle.dataset.seriesKey;
-      if (state.expandedSeries.has(key)) {
-        state.expandedSeries.delete(key);
+      if (state.collapsedSeries.has(key)) {
+        state.collapsedSeries.delete(key);
       } else {
-        state.expandedSeries.add(key);
+        state.collapsedSeries.add(key);
       }
       renderResultsOnly();
     });
@@ -2252,7 +2252,7 @@
     });
     state.rows = withDerivedDimensions(displayRows);
     state.rows = normalizeRowColumns(state.rows);
-    state.expandedSeries.clear();
+    state.collapsedSeries.clear();
     state.seriesViewSignature = "";
     state.cardLimit = 24;
     state.rangeFilters = cloneDefaultRangeFilters();

@@ -361,7 +361,15 @@ test("Pages filter center groups models by series and uses price extrema as repr
   let toggle = firstCard.children[0];
   assert.equal(toggle.children[0].textContent, "S2");
   assert.equal(toggle.children[1].textContent, "2 款车型符合条件");
+  // 默认展开：型号差异直接可见（用户需求：卡片显示各型号差别）
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(firstCard.children[2].children.length, 2);
+
+  elements.get("cardList").dispatch("click", { target: toggle });
+  firstCard = elements.get("cardList").children[0];
+  toggle = firstCard.children[0];
   assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  assert.equal(firstCard.children.length, 2);
 
   elements.get("cardList").dispatch("click", { target: toggle });
   firstCard = elements.get("cardList").children[0];
@@ -372,7 +380,7 @@ test("Pages filter center groups models by series and uses price extrema as repr
 
   hooks.state.search = "S1";
   hooks.renderResultsOnly();
-  assert.equal(hooks.state.expandedSeries.size, 0);
+  assert.equal(hooks.state.collapsedSeries.size, 0);
 
   hooks.state.search = "";
   hooks.state.sortLevels = [{ field: "官方指导价", dir: "desc", customOrder: "" }];
@@ -856,7 +864,7 @@ test("series card: common attrs in one meta line, differing attrs per model row"
       ]
     }
   ];
-  hooks.state.expandedSeries = new Set(["S1"]);
+  hooks.state.collapsedSeries = new Set(); // 默认展开
   const snapshots = hooks.renderCards(layoutGroups);
   assert.ok(snapshots.length === 1, "一个车系一张卡片");
   assert.ok(snapshots[0].meta.indexOf("品牌: 甲") !== -1, "卡片 meta 含共性属性品牌");
