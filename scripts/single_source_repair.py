@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from column_name_diagnostics import PROTECTED_ATTRIBUTES, diagnose_columns
+    from column_name_diagnostics import PROTECTED_ATTRIBUTES, diagnose_columns, scan_data_quality
 except ModuleNotFoundError:
     from scripts.column_name_diagnostics import PROTECTED_ATTRIBUTES, diagnose_columns, scan_data_quality
 
