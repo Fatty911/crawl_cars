@@ -29,7 +29,7 @@ DIRECT_PLAN_MARKERS = (
 EXPECTED_AGENT_STEPS = {
     ".github/workflows/single-source-repair.yml": {
         "key": "VOLCENGINE_AGENTPLAN_API_KEY",
-        "model": "volcengine-agentplan/deepseek-v4-flash",
+        "model": "volcengine-agentplan/glm-5.2",
     },
     ".github/workflows/merge-and-filter.yml": {
         "key": "KIMI_CODINGPLAN_API_KEY",
