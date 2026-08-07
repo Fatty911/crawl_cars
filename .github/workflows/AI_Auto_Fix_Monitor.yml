@@ -2,7 +2,7 @@ name: AI Auto Fix Monitor
 
 on:
   workflow_run:
-    workflows: ["汽车之家爬虫", "懂车帝爬虫"]
+    workflows: ["汽车之家爬虫", "懂车帝爬虫", "Pages 后单源根因修复", "CI"]
     types: [completed]
 
 concurrency:
@@ -83,7 +83,21 @@ jobs:
             exit 0
           fi
 
-          python scripts/check_workflow_expectations.py "${LOGS[@]}" --github-output "$GITHUB_OUTPUT"
+          if [[ "$WORKFLOW_NAME" == "汽车之家爬虫" || "$WORKFLOW_NAME" == "懂车帝爬虫" ]]; then
+            python scripts/check_workflow_expectations.py "${LOGS[@]}" --github-output "$GITHUB_OUTPUT"
+          else
+            # 非爬虫工作流（修复链/CI）：爬虫专用分类器不适用。
+            # 失败直接触发 Codex 自修复；成功不修（不跑爬虫漂移检查）。
+            if [[ "$WORKFLOW_CONCLUSION" == "failure" || "$WORKFLOW_CONCLUSION" == "timed_out" ]]; then
+              echo "classification=unknown" >> "$GITHUB_OUTPUT"
+              echo "reason=非爬虫工作流失败/超时，直接进入 Codex 自修复" >> "$GITHUB_OUTPUT"
+              echo "should_fix=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "classification=ok" >> "$GITHUB_OUTPUT"
+              echo "reason=非爬虫工作流成功" >> "$GITHUB_OUTPUT"
+              echo "should_fix=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
 
           {
             echo "# Codex Auto Fix Context"
