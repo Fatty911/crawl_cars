@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import unicodedata
 import urllib.error
@@ -557,21 +558,24 @@ Pages URL：{pages_url}
 
 
 def _call_repair_model(prompt: str) -> tuple[str, str]:
-    """Call only ordinary API fallbacks; Plan credentials never enter this function."""
+    """Call only ordinary API fallbacks through the OpenCode CLI (Agent tool).
+
+    The provider key is consumed only by the OpenCode process; this function
+    never issues HTTP requests to a model endpoint.  Plan credentials never
+    enter this function.
+    """
     providers = (
         {
             "label": "nvidia-nim",
             "key_env": "NVIDIA_NIM_API_KEY",
-            "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
+            "base_url": "https://integrate.api.nvidia.com/v1",
             "model": os.environ.get("NVIDIA_NIM_MODEL", "deepseek-ai/deepseek-v4-flash"),
-            "response_format": True,
         },
         {
             "label": "deepseek",
             "key_env": "DEEPSEEK_API_KEY",
-            "endpoint": "https://api.deepseek.com/chat/completions",
+            "base_url": "https://api.deepseek.com",
             "model": os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
-            "response_format": True,
         },
     )
     errors: list[str] = []
@@ -581,48 +585,73 @@ def _call_repair_model(prompt: str) -> tuple[str, str]:
         if not key:
             continue
         configured += 1
-        payload: dict[str, Any] = {
-            "model": provider["model"],
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,
-            "max_tokens": 4000,
+        read_only = {
+            "*": "deny",
+            "read": "allow",
+            "edit": "deny",
+            "bash": "deny",
+            "webfetch": "deny",
+            "task": "deny",
+            "question": "deny",
+            "external_directory": "deny",
         }
-        if provider["response_format"]:
-            payload["response_format"] = {"type": "json_object"}
-        body = json.dumps(payload).encode("utf-8")
+        config = {
+            "provider": {
+                provider["label"]: {
+                    "npm": "@ai-sdk/openai-compatible",
+                    "name": provider["label"],
+                    "options": {
+                        "baseURL": provider["base_url"].rstrip("/"),
+                        "apiKey": "{" + "env:" + provider["key_env"] + "}",
+                    },
+                    "models": {provider["model"]: {"limit": {"context": 131072, "output": 8192},
+                                                   "options": {"reasoningEffort": "high"}}},
+                }
+            },
+            "agent": {"plan": {"permission": read_only}},
+            "permission": read_only,
+        }
+        env = dict(os.environ)
+        env["OPENCODE_CONFIG_CONTENT"] = json.dumps(config, ensure_ascii=False)
+        env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
+        env["OPENCODE_DISABLE_TELEMETRY"] = "1"
+        opencode_bin = os.environ.get("OPENCODE_BIN", "opencode")
         for attempt in range(3):
-            request = urllib.request.Request(
-                provider["endpoint"],
-                data=body,
-                headers={
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                },
-                method="POST",
-            )
             try:
-                with urllib.request.urlopen(request, timeout=180) as response:
-                    result = json.loads(response.read().decode("utf-8"))
-                content = result["choices"][0]["message"]["content"]
-                if not isinstance(content, str) or not content.strip():
-                    raise ValueError("empty message content")
-                return content, f"{provider['label']}/{provider['model']}"
-            except urllib.error.HTTPError as exc:
-                errors.append(f"{provider['label']}:HTTP {exc.code}")
-                transient = exc.code == 429 or 500 <= exc.code < 600
-                if transient and attempt < 2:
-                    time.sleep(2 ** attempt)
-                    continue
-                break
-            except (urllib.error.URLError, TimeoutError) as exc:
-                errors.append(f"{provider['label']}:{type(exc).__name__}")
+                with tempfile.TemporaryDirectory(prefix="single-source-repair-") as tmpdir:
+                    prompt_path = os.path.join(tmpdir, "prompt.md")
+                    with open(prompt_path, "w", encoding="utf-8") as handle:
+                        handle.write(prompt)
+                    cmd = [
+                        opencode_bin, "run", "--pure", "--agent", "plan",
+                        "--model", provider["label"] + "/" + provider["model"],
+                        "--format", "default",
+                        "--dir", tmpdir,
+                        "--file", "prompt.md",
+                        "Answer the attached prompt directly. Do not call tools or modify files. Return only the requested JSON.",
+                    ]
+                    completed = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                errors.append(provider["label"] + ":" + type(exc).__name__)
                 if attempt < 2:
                     time.sleep(2 ** attempt)
                     continue
                 break
-            except (json.JSONDecodeError, KeyError, IndexError, TypeError, ValueError) as exc:
-                errors.append(f"{provider['label']}:{type(exc).__name__}")
+            if completed.returncode != 0:
+                combined = (completed.stderr or "") + (completed.stdout or "")
+                if re.search(r"\b429\b|rate.?limit|quota", combined, re.I):
+                    errors.append(provider["label"] + ":HTTP 429")
+                else:
+                    errors.append(provider["label"] + ":exit " + str(completed.returncode))
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
                 break
+            content = (completed.stdout or "").strip()
+            if not content:
+                errors.append(provider["label"] + ":empty content")
+                break
+            return content, provider["label"] + "/" + provider["model"]
     if not configured:
         raise RepairInputError("no repair model API key is available")
     raise RepairInputError("all repair model providers failed: " + ", ".join(errors))
