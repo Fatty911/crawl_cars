@@ -74,7 +74,7 @@ MAX_HIDDEN_COLUMNS = 200
 MAX_CAR_APPROVALS = 80
 MAX_AGENT_RESPONSE_BYTES = 512 * 1024
 AGENT_REQUEST_VERSION = 1
-DEFAULT_AGENT_MODEL = "volcengine-agentplan/deepseek-v4-flash"
+DEFAULT_AGENT_MODEL = "volcengine-agentplan/glm-5.2"
 SOURCE_ALIASES = {
     "ah": "汽车之家",
     "dcd": "懂车帝",
