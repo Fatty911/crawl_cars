@@ -1,7 +1,7 @@
 name: 部署车型配置网页
 
 concurrency:
-  group: pages-deploy-chain
+  group: pages-deploy-chain-v2
   cancel-in-progress: false
 
 on:

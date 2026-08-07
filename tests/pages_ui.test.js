@@ -95,6 +95,7 @@ function loadAppForTest() {
       getFilteredRows: getFilteredRows,
       groupRowsBySeries: groupRowsBySeries,
       sortSeriesGroups: sortSeriesGroups,
+      renderCards: renderCards,
       initializeRows: initializeRows,
       renderEverything: renderEverything,
       renderResultsOnly: renderResultsOnly,
@@ -622,6 +623,8 @@ test("Pages mobile layout keeps text readable, controls touchable, and the wide 
   assert.ok(pixels(declarations(mobile, ".center-hero p"), "font-size") >= 16);
   assert.ok(pixels(declarations(mobile, ".summary-label"), "font-size") >= 14);
   assert.ok(pixels(declarations(mobile, ".card-meta"), "font-size") >= 15);
+
+
   assert.ok(pixels(declarations(mobile, ".selected-tags span"), "font-size") >= 15);
   assert.ok(pixels(declarations(mobile, "th,\n  td"), "font-size") >= 14);
 
@@ -838,4 +841,30 @@ test("Pages hides the side condition section when every condition lives in the f
   hooks.renderEverything();
   assert.equal(elements.get("advancedConditionSection").hidden, false);
   assert.equal(elements.get("conditionList").children[0].children.length, 1);
+});
+
+test("series card: common attrs in one meta line, differing attrs per model row", () => {
+  const { hooks } = loadAppForTest();
+  const layoutGroups = [
+    {
+      key: "S1",
+      name: "系列一",
+      representative: { "品牌": "甲", "级别": "中型SUV", "车型名称": "代表车" },
+      rows: [
+        { "车型名称": "A 1", "品牌": "甲", "级别": "中型SUV", "能源类型": "纯电", "官方指导价": "20万", "百公里加速(s)": "5.5", "驱动方式": "四驱", "纯电续航(km)": "600" },
+        { "车型名称": "A 2", "品牌": "甲", "级别": "中型SUV", "能源类型": "增程", "官方指导价": "30万", "百公里加速(s)": "6.0", "驱动方式": "后驱", "纯电续航(km)": "200" }
+      ]
+    }
+  ];
+  hooks.state.expandedSeries = new Set(["S1"]);
+  const snapshots = hooks.renderCards(layoutGroups);
+  assert.ok(snapshots.length === 1, "一个车系一张卡片");
+  assert.ok(snapshots[0].meta.indexOf("品牌: 甲") !== -1, "卡片 meta 含共性属性品牌");
+  assert.ok(snapshots[0].meta.indexOf("级别: 中型SUV") !== -1, "卡片 meta 含共性属性级别");
+  assert.ok(snapshots[0].meta.indexOf("能源类型") === -1, "差异属性能源类型不进卡片 meta 单行");
+  assert.ok(snapshots[0].rows.length === 2, "展开区每个车型一行");
+  assert.ok(snapshots[0].rows[0].indexOf("驱动方式") !== -1, "车型行含驱动方式");
+  assert.ok(snapshots[0].rows[0].indexOf("纯电续航(km)") !== -1, "车型行含续航");
+  assert.ok(snapshots[0].rows[0].indexOf("纯电") !== -1, "车型行含能源值");
+  assert.ok(snapshots[0].rows[1].indexOf("增程") !== -1, "第二车型行含不同能源值");
 });

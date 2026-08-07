@@ -1460,6 +1460,7 @@
 
   function renderCards(groups) {
     els.cardList.textContent = "";
+    var cardSnapshots = [];
     groups.slice(0, state.cardLimit).forEach(function (group, index) {
       var card = document.createElement("article");
       card.className = "series-card";
@@ -1485,11 +1486,20 @@
       toggle.appendChild(indicator);
       card.appendChild(toggle);
 
+      // 全车系共性属性（品牌/级别等所有车型一致）只显示一行；
+      // 可能有区别的属性（能源/价格/加速/驱动/续航）在下方每车型分行显示。
       var meta = document.createElement("div");
       meta.className = "card-meta";
-      appendCardMeta(meta, group.representative, ["品牌", "级别", "能源类型", "官方指导价", "百公里加速(s)", "纯电续航(km)"]);
+      appendCardMeta(meta, group.representative, ["品牌", "级别"]);
       card.appendChild(meta);
 
+      var cardSnapshot = { meta: "", rows: [] };
+      function collectText(el) {
+        if (!el) { return ""; }
+        if (el._textContent) { return el._textContent; }
+        return (el.children || []).map(collectText).join("");
+      }
+      if (meta) { cardSnapshot.meta = collectText(meta); }
       if (expanded) {
         var details = document.createElement("div");
         details.className = "series-model-list";
@@ -1501,13 +1511,15 @@
           modelTitle.textContent = row["车型名称"] || "未命名车型";
           var modelMeta = document.createElement("div");
           modelMeta.className = "card-meta";
-          appendCardMeta(modelMeta, row, ["年款", "级别", "能源类型", "官方指导价", "百公里加速(s)", "纯电续航(km)"]);
+          appendCardMeta(modelMeta, row, ["年款", "能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]);
           model.appendChild(modelTitle);
           model.appendChild(modelMeta);
           details.appendChild(model);
+          if (modelMeta) { cardSnapshot.rows.push(collectText(modelMeta)); }
         });
         card.appendChild(details);
       }
+      cardSnapshots.push(cardSnapshot);
       els.cardList.appendChild(card);
     });
     els.loadMoreCards.hidden = groups.length <= state.cardLimit;
@@ -1516,6 +1528,7 @@
       els.cardSortSelect.value = cardLevel && cardLevel.field
         ? cardLevel.field + (cardLevel.dir === "desc" ? ":desc" : ":asc") : "default";
     }
+    return cardSnapshots;
   }
 
   function renderCustomSortPanel() {
