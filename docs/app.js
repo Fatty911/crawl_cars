@@ -73,7 +73,7 @@
     mode: "center",
     cardLimit: 24,
     cardSort: null,
-    collapsedSeries: new Set(),
+    expandedSeries: new Set(),
     seriesViewSignature: "",
     mobileCategoryId: "",
     page: 1,
@@ -789,7 +789,7 @@
   function syncSeriesViewState() {
     var signature = currentSeriesViewSignature();
     if (signature !== state.seriesViewSignature) {
-      state.collapsedSeries.clear();
+      state.expandedSeries.clear();
       state.cardLimit = 24;
       state.seriesViewSignature = signature;
     }
@@ -1458,13 +1458,52 @@
     });
   }
 
+  // 动态共性/差异汇总：全一致 -> 单值一行；数值差异 -> min-max 范围；枚举差异 -> 去重 join。
+  function appendCardSummary(container, rows, fields) {
+    fields.forEach(function (field) {
+      var values = [];
+      rows.forEach(function (row) {
+        var v = row[field];
+        if (v == null) { return; }
+        var s = String(v).trim();
+        if (s === "" || s === "-") { return; }
+        values.push(s);
+      });
+      if (!values.length) { return; }
+      var uniq = [];
+      values.forEach(function (v) { if (uniq.indexOf(v) === -1) { uniq.push(v); } });
+      var allNumeric = values.every(function (v) { return /^-?[\d.]+/.test(v); });
+      var text;
+      if (allNumeric && uniq.length > 1) {
+        var nums = values.map(function (v) { return parseFloat(v.match(/-?[\d.]+/)[0]); });
+        var min = Math.min.apply(null, nums);
+        var max = Math.max.apply(null, nums);
+        var suffix = "";
+        values.forEach(function (v) {
+          if (!suffix) {
+            var tail = v.replace(/^-?[\d.]+/, "");
+            if (tail) { suffix = tail; }
+          }
+        });
+        text = min === max ? String(min) + suffix : min + "-" + max + suffix;
+      } else if (uniq.length === 1) {
+        text = uniq[0];
+      } else {
+        text = uniq.join("/");
+      }
+      var chip = document.createElement("span");
+      chip.textContent = field + ": " + text;
+      container.appendChild(chip);
+    });
+  }
+
   function renderCards(groups) {
     els.cardList.textContent = "";
     var cardSnapshots = [];
     groups.slice(0, state.cardLimit).forEach(function (group, index) {
       var card = document.createElement("article");
       card.className = "series-card";
-      var expanded = !state.collapsedSeries.has(group.key);
+      var expanded = state.expandedSeries.has(group.key);
       var detailId = "series-models-" + index;
       var toggle = document.createElement("button");
       toggle.type = "button";
@@ -1490,7 +1529,9 @@
       // 可能有区别的属性（能源/价格/加速/驱动/续航）在下方每车型分行显示。
       var meta = document.createElement("div");
       meta.className = "card-meta";
-      appendCardMeta(meta, group.representative, ["品牌", "级别"]);
+      // 动态判定：筛选结果内全一致 -> 单值一行（共性）；数值有差异 -> 范围；
+      // 枚举有差异 -> 汇总枚举（如 纯电/插混）。
+      appendCardSummary(meta, group.rows, ["品牌", "级别", "能源类型", "官方指导价", "百公里加速(s)", "纯电续航(km)"]);
       card.appendChild(meta);
 
       var cardSnapshot = { meta: "", rows: [] };
@@ -1910,7 +1951,7 @@
     els.centerMode.addEventListener("click", function () { state.mode = "center"; renderEverything(); });
     els.tableMode.addEventListener("click", function () {
       state.mode = "table";
-      state.collapsedSeries.clear();
+      state.expandedSeries.clear();
       renderEverything();
     });
     if (els.centerBrandFilter && els.centerSeriesFilter) {
@@ -1951,10 +1992,10 @@
       var toggle = event.target.closest(".series-card-toggle");
       if (!toggle) { return; }
       var key = toggle.dataset.seriesKey;
-      if (state.collapsedSeries.has(key)) {
-        state.collapsedSeries.delete(key);
+      if (state.expandedSeries.has(key)) {
+        state.expandedSeries.delete(key);
       } else {
-        state.collapsedSeries.add(key);
+        state.expandedSeries.add(key);
       }
       renderResultsOnly();
     });
@@ -2252,7 +2293,7 @@
     });
     state.rows = withDerivedDimensions(displayRows);
     state.rows = normalizeRowColumns(state.rows);
-    state.collapsedSeries.clear();
+    state.expandedSeries.clear();
     state.seriesViewSignature = "";
     state.cardLimit = 24;
     state.rangeFilters = cloneDefaultRangeFilters();

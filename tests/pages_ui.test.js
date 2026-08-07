@@ -361,15 +361,8 @@ test("Pages filter center groups models by series and uses price extrema as repr
   let toggle = firstCard.children[0];
   assert.equal(toggle.children[0].textContent, "S2");
   assert.equal(toggle.children[1].textContent, "2 款车型符合条件");
-  // 默认展开：型号差异直接可见（用户需求：卡片显示各型号差别）
-  assert.equal(toggle.getAttribute("aria-expanded"), "true");
-  assert.equal(firstCard.children[2].children.length, 2);
-
-  elements.get("cardList").dispatch("click", { target: toggle });
-  firstCard = elements.get("cardList").children[0];
-  toggle = firstCard.children[0];
+  // 默认收起；点击展开后显示每车型差异行
   assert.equal(toggle.getAttribute("aria-expanded"), "false");
-  assert.equal(firstCard.children.length, 2);
 
   elements.get("cardList").dispatch("click", { target: toggle });
   firstCard = elements.get("cardList").children[0];
@@ -380,7 +373,7 @@ test("Pages filter center groups models by series and uses price extrema as repr
 
   hooks.state.search = "S1";
   hooks.renderResultsOnly();
-  assert.equal(hooks.state.collapsedSeries.size, 0);
+  assert.equal(hooks.state.expandedSeries.size, 0);
 
   hooks.state.search = "";
   hooks.state.sortLevels = [{ field: "官方指导价", dir: "desc", customOrder: "" }];
@@ -864,13 +857,32 @@ test("series card: common attrs in one meta line, differing attrs per model row"
       ]
     }
   ];
-  hooks.state.collapsedSeries = new Set(); // 默认展开
+  hooks.state.expandedSeries = new Set(["S1"]);
   const snapshots = hooks.renderCards(layoutGroups);
   assert.ok(snapshots.length === 1, "一个车系一张卡片");
-  assert.ok(snapshots[0].meta.indexOf("品牌: 甲") !== -1, "卡片 meta 含共性属性品牌");
-  assert.ok(snapshots[0].meta.indexOf("级别: 中型SUV") !== -1, "卡片 meta 含共性属性级别");
-  assert.ok(snapshots[0].meta.indexOf("能源类型") === -1, "差异属性能源类型不进卡片 meta 单行");
+  assert.ok(snapshots[0].meta.indexOf("品牌: 甲") !== -1, "卡片 meta 含共性属性品牌（单值一行）");
+  assert.ok(snapshots[0].meta.indexOf("级别: 中型SUV") !== -1, "卡片 meta 含共性属性级别（单值一行）");
+  assert.ok(snapshots[0].meta.indexOf("能源类型: 纯电/增程") !== -1, "能源类型有差异 -> 汇总枚举");
+  assert.ok(snapshots[0].meta.indexOf("官方指导价: 20-30万") !== -1, "价格有差异 -> 范围");
+  assert.ok(snapshots[0].meta.indexOf("百公里加速(s): 5.5-6") !== -1, "加速有差异 -> 范围");
+  assert.ok(snapshots[0].meta.indexOf("纯电续航(km): 200-600") !== -1, "续航有差异 -> 范围");
   assert.ok(snapshots[0].rows.length === 2, "展开区每个车型一行");
+
+  // 全一致时按共性显示单值（动态判定）
+  const singleGroups = [
+    {
+      key: "S2",
+      name: "系列二",
+      representative: { "品牌": "乙", "级别": "中大型车", "车型名称": "代表车" },
+      rows: [
+        { "车型名称": "B 1", "品牌": "乙", "级别": "中大型车", "能源类型": "纯电", "官方指导价": "25万", "百公里加速(s)": "6.0", "纯电续航(km)": "500" },
+        { "车型名称": "B 2", "品牌": "乙", "级别": "中大型车", "能源类型": "纯电", "官方指导价": "25万", "百公里加速(s)": "6.0", "纯电续航(km)": "500" }
+      ]
+    }
+  ];
+  const singleSnap = hooks.renderCards(singleGroups);
+  assert.ok(singleSnap[0].meta.indexOf("能源类型: 纯电") !== -1 && singleSnap[0].meta.indexOf("纯电/") === -1, "能源全一致 -> 单值");
+  assert.ok(singleSnap[0].meta.indexOf("官方指导价: 25万") !== -1 && singleSnap[0].meta.indexOf("-") === -1 || singleSnap[0].meta.indexOf("25万") !== -1, "价格全一致 -> 单值");
   assert.ok(snapshots[0].rows[0].indexOf("驱动方式") !== -1, "车型行含驱动方式");
   assert.ok(snapshots[0].rows[0].indexOf("纯电续航(km)") !== -1, "车型行含续航");
   assert.ok(snapshots[0].rows[0].indexOf("纯电") !== -1, "车型行含能源值");
