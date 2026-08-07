@@ -94,16 +94,16 @@
   },
   "agents": {
     "sisyphus": {
-      "model": "nvidia/nvidia-deepseek-v4-pro",
+      "model": "nvidia/nvidia-deepseek-v4-flash",
       "fallback_models": [
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
         "volcengine-coding/minimax-m3",
-        "deepseek/deepseek-v4-pro",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
-        "alibaba/qwen3.7-max",
+        "alibaba/qwen3.8-max",
         "proxy_xai/grok-4.3"
       ]
     },
@@ -113,27 +113,27 @@
         "copilot/copilot.gpt-5-mini",
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "oracle": {
-      "model": "nvidia/nvidia-glm-5.1",
+      "model": "nvidia/nvidia-glm-5.2",
       "fallback_models": [
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
@@ -146,72 +146,72 @@
         "copilot/copilot.gpt-5-mini",
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "deep": {
-      "model": "nvidia/nvidia-glm-5.1",
+      "model": "nvidia/nvidia-glm-5.2",
       "fallback_models": [
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "ultrabrain": {
-      "model": "nvidia/nvidia-glm-5.1",
+      "model": "nvidia/nvidia-glm-5.2",
       "fallback_models": [
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "visual-engineering": {
-      "model": "nvidia/nvidia-glm-5.1",
+      "model": "nvidia/nvidia-glm-5.2",
       "fallback_models": [
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "unspecified-high": {
-      "model": "nvidia/nvidia-glm-5.1",
+      "model": "nvidia/nvidia-glm-5.2",
       "fallback_models": [
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
@@ -222,57 +222,58 @@
         "copilot/copilot.gpt-5-mini",
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "artistry": {
-      "model": "nvidia/nvidia-glm-5.1",
+      "model": "nvidia/nvidia-glm-5.2",
       "fallback_models": [
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "writing": {
-      "model": "nvidia/nvidia-glm-5.1",
+      "model": "nvidia/nvidia-glm-5.2",
       "fallback_models": [
         "cloudflare-workers-ai/cf-glm-5.2",
         "nvidia/nvidia-nemotron-3-ultra",
-        "nvidia/nvidia-deepseek-v4-pro",
+        "nvidia/nvidia-deepseek-v4-flash",
         "modelscope/MiniMax/MiniMax-M3",
         "nvidia/nvidia-minimax-m3",
-        "volcengine-coding/deepseek-v4-pro",
-        "volcengine-coding/glm-latest",
-        "deepseek/deepseek-v4-pro",
+        "volcengine-coding/deepseek-v4-flash",
+        "volcengine-coding/glm-5.2",
+        "deepseek/deepseek-v4-flash",
         "mimo/mimo-v2.5-pro",
         "proxy_xai/grok-4.3"
       ]
     },
     "ReviewGLM": {
-      "model": "nvidia/nvidia-glm-5.1",
+      "model": "volcengine-coding/glm-5.2",
       "fallback_models": [
-        "volcengine-coding/glm-latest"
+        "nvidia/nvidia-glm-5.2",
+        "cloudflare-workers-ai/cf-glm-5.2"
       ]
     },
     "ReviewDeepseek": {
-      "model": "nvidia/nvidia-deepseek-v4-pro",
+      "model": "deepseek/deepseek-v4-flash",
       "fallback_models": [
-        "volcengine-coding/deepseek-v4-pro",
-        "deepseek/deepseek-v4-pro"
+        "nvidia/nvidia-deepseek-v4-flash",
+        "volcengine-coding/deepseek-v4-flash"
       ]
     },
     "ReviewGrok": {
@@ -280,7 +281,7 @@
       "fallback_models": []
     },
     "ReviewQwen": {
-      "model": "alibaba/qwen3.7-max",
+      "model": "alibaba/qwen3.8-max",
       "fallback_models": []
     },
     "ReviewMinimax": {
@@ -294,9 +295,10 @@
       "fallback_models": []
     },
     "ReviewKimi": {
-      "model": "nvidia/nvidia-kimi-k2.6",
+      "model": "volcengine-coding/kimi-k2.6",
       "fallback_models": [
-        "volcengine-coding/kimi-k2.6"
+        "nvidia/nvidia-kimi-k2.6",
+        "cloudflare-workers-ai/cf-kimi-k2.6"
       ]
     }
   },

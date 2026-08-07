@@ -266,13 +266,13 @@
 
 | Category | 主模型 | Fallback | 定位 |
 |---|---|---|---|
-| **ReviewGLM** | volcengine-coding/glm-5.1 | nvidia-glm-5.1, modal-glm-5.1, modelscope-glm-5 | GLM-5.1 评审 |
-| **ReviewDeepseek** | deepseek/deepseek-v4-pro | volcengine-deepseek | DeepSeek V4 评审 |
-| **ReviewKimi** | volcengine-coding/kimi-k2.6 | nvidia-kimi, cloudflare-kimi, openrouter-kimi-free, cf-kimi-k2.7 | Kimi K2.6 评审 |
-| **ReviewQwen** | alibaba/qwen3.7-max | — | Qwen 3.7 评审 |
-| **ReviewMimo** | mimo-tokenplan/mimo-v2.5-pro | — | MiMo V2.5 评审 |
+| **ReviewGLM** | volcengine-coding/glm-5.2 | nvidia/nvidia-glm-5.2, cloudflare-workers-ai/cf-glm-5.2 | GLM-5.2 评审 |
+| **ReviewDeepseek** | deepseek/deepseek-v4-flash | nvidia/nvidia-deepseek-v4-flash, volcengine-coding/deepseek-v4-flash | DeepSeek V4 Flash 评审 |
+| **ReviewKimi** | volcengine-coding/kimi-k2.6 | nvidia/nvidia-kimi-k2.6, cloudflare-workers-ai/cf-kimi-k2.6 | Kimi K2.6 评审 |
+| **ReviewQwen** | alibaba/qwen3.8-max | — | Qwen 3.8 Max 评审（仅夜间 22:00-08:00） |
+| **ReviewMimo** | mimo/mimo-v2.5-pro | — | MiMo V2.5 评审 |
 | **ReviewMinimax** | nvidia/nvidia-minimax-m3 | — | MiniMax M3 评审 |
-| **ReviewGrok** | proxy_xai/grok-4.3 | — | Grok 4.3 兜底评审 |
+| **ReviewGrok** | — | — | 已禁用 |
 | **ReviewGPT（外部）** | Codex ChatGPT Plan / gpt-5.5 | — | GPT-5.5 只读外部评审；非 OMO category |
 
 > ⚠️ **设计原则**：每个原生 ReviewXXX 只包含 XXX 家的模型。优先调用 ReviewGLM/ReviewKimi/ReviewDeepseek，ReviewGrok 作为兜底；ReviewGPT 走外部 Codex CLI。
