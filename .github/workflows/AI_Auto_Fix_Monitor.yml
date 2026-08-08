@@ -344,3 +344,19 @@ jobs:
           else
             echo "no new commit from self-healing (head $current); skip deploy"
           fi
+
+
+      - name: Check Pages frontend health (console/JS/DOM, no vision)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          pip install playwright -q 2>/dev/null
+          python -m playwright install chromium --with-deps > /dev/null 2>&1
+          python scripts/check_pages_frontend.py > pages_health.json 2>/tmp/pages_health_err.txt
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "前端体检脚本失败（rc=$rc）：$(head -c 300 /tmp/pages_health_err.txt)"
+            exit 0
+          fi
+          cat pages_health.json
