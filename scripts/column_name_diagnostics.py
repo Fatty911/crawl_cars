@@ -223,14 +223,29 @@ def scan_data_quality(rows: list[dict[str, Any]]) -> dict[str, Any]:
     import re
     pipe_counts: dict[str, int] = {}
     year_dup: list[str] = []
+    enum_variants: dict[str, dict[str, int]] = {}
     for row in rows:
         for key, value in row.items():
-            if isinstance(value, str) and "|" in value:
+            if not isinstance(value, str):
+                continue
+            if "|" in value:
                 pipe_counts[key] = pipe_counts.get(key, 0) + 1
+            if key in ("能源类型", "驱动方式", "级别", "车身结构"):
+                v = value.strip()
+                if v and v != "-":
+                    d = enum_variants.setdefault(key, {})
+                    d[v] = d.get(v, 0) + 1
         name = str(row.get("车型名称") or "")
         year = str(row.get("年款") or "")
         if year and re.search(r"\d{4}款", name) and year in name:
             year_dup.append(name)
+    # 枚举变体：同字段出现多个写法（含同义词/来源前缀）时报告
+    variant_report = {}
+    for key, counts in enum_variants.items():
+        if len(counts) >= 2:
+            variant_report[key] = sorted(
+                counts.items(), key=lambda item: (-item[1], item[0])
+            )
     return {
         "pipe_multi_value_fields": sorted(
             pipe_counts.items(), key=lambda item: (-item[1], item[0])
@@ -238,6 +253,7 @@ def scan_data_quality(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "pipe_multi_value_rows": sum(pipe_counts.values()),
         "year_duplicate_models_count": len(year_dup),
         "year_duplicate_models_sample": year_dup[:5],
+        "enum_variants": variant_report,
     }
 
 
