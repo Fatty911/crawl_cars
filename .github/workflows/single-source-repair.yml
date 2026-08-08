@@ -788,7 +788,7 @@ jobs:
 
       - name: Wait for the dispatched Pages run
         id: pages
-        if: steps.dispatch.outcome == 'success'
+        if: steps.dispatch.outcome == 'success' && steps.dispatch.outputs.dispatched_run_id != ''
         env:
           GH_TOKEN: ${{ github.token }}
           DISPATCHED_PAGES_RUN_ID: ${{ steps.dispatch.outputs.dispatched_run_id }}
