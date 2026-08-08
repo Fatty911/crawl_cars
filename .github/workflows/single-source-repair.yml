@@ -752,29 +752,30 @@ jobs:
         if: steps.push.outcome == 'success' || needs.propose.outputs.status == 'analysis-only'
         env:
           GH_TOKEN: ${{ github.token }}
-          REPAIR_COMMIT_SHA: ${{ steps.push.outputs.commit_sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
+          # Use actual current HEAD SHA (handles both push commits and analysis-only column cleanup pushes)
+          TARGET_SHA="$(git rev-parse HEAD)"
           dispatch_started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           printf 'dispatch_started=%s\n' "$dispatch_started" >> "$GITHUB_OUTPUT"
           before_run_ids="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/merge-and-filter.yml/runs?branch=main&event=workflow_dispatch&per_page=30" --jq '.workflow_runs[].id' | paste -sd, -)"
           remote_main_sha=""
           for attempt in $(seq 1 30); do
             remote_main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
-            if [[ "$remote_main_sha" == "$REPAIR_COMMIT_SHA" ]]; then
+            if [[ "$remote_main_sha" == "$TARGET_SHA" ]]; then
               break
             fi
             sleep 2
           done
-          test "$remote_main_sha" = "$REPAIR_COMMIT_SHA"
+          test "$remote_main_sha" = "$TARGET_SHA"
           gh workflow run merge-and-filter.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
             -f mode=deploy_and_audit
           dispatched_run_id=""
           for attempt in $(seq 1 30); do
-            dispatched_run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/merge-and-filter.yml/runs?branch=main&event=workflow_dispatch&per_page=30" | REPAIR_COMMIT_SHA="$REPAIR_COMMIT_SHA" DISPATCH_STARTED="$dispatch_started" BEFORE_RUN_IDS="$before_run_ids" python3 -c 'import json, os, sys; sha=os.environ["REPAIR_COMMIT_SHA"]; start=os.environ["DISPATCH_STARTED"]; before={int(v) for v in os.environ.get("BEFORE_RUN_IDS", "").split(",") if v}; runs=json.load(sys.stdin).get("workflow_runs", []); matches=[r for r in runs if int(r.get("id") or 0) not in before and r.get("head_sha")==sha and r.get("created_at", "") >= start]; matches.sort(key=lambda r: (r.get("created_at", ""), int(r.get("id") or 0))); print(matches[0].get("id", "") if matches else "")')"
+            dispatched_run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/merge-and-filter.yml/runs?branch=main&event=workflow_dispatch&per_page=30" | TARGET_SHA="$TARGET_SHA" DISPATCH_STARTED="$dispatch_started" BEFORE_RUN_IDS="$before_run_ids" python3 -c 'import json, os, sys; sha=os.environ["TARGET_SHA"]; start=os.environ["DISPATCH_STARTED"]; before={int(v) for v in os.environ.get("BEFORE_RUN_IDS", "").split(",") if v}; runs=json.load(sys.stdin).get("workflow_runs", []); matches=[r for r in runs if int(r.get("id") or 0) not in before and r.get("head_sha")==sha and r.get("created_at", "") >= start]; matches.sort(key=lambda r: (r.get("created_at", ""), int(r.get("id") or 0))); print(matches[0].get("id", "") if matches else "")')"
             if [[ "$dispatched_run_id" =~ ^[0-9]+$ ]]; then
               break
             fi
