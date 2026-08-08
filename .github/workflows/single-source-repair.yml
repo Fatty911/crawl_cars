@@ -726,6 +726,25 @@ jobs:
           git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" push origin HEAD:main
           printf 'commit_sha=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Deterministic column cleanup (analysis-only rounds)
+        if: needs.propose.outputs.status == 'analysis-only'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python scripts/apply_column_cleanup.py --input proposal/pages_latest.json || true
+          if [ -n "$(git status --porcelain -- config/)" ]; then
+            git config user.name "Fatty911"
+            git config user.email "xuerui911@gmail.com"
+            git add config/hidden_columns.json config/column_header_aliases.json
+            git commit -m "chore: deterministic column cleanup [single-source-repair]" || true
+            git -c "http.extraheader=AUTHORIZATION: basic ***" pull --rebase --autostash origin main 2>/dev/null || true
+            git -c "http.extraheader=AUTHORIZATION: basic ***" push origin HEAD:main || echo "cleanup push failed (retried next round)"
+          else
+            echo "cleanup: no config change"
+          fi
+
       - name: Trigger the next Pages deployment
         id: dispatch
         if: steps.push.outcome == 'success' || needs.propose.outputs.status == 'analysis-only'
