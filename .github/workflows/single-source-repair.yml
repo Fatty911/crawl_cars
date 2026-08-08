@@ -731,6 +731,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          PUSH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python scripts/apply_column_cleanup.py --input proposal/pages_latest.json || true
@@ -739,8 +740,9 @@ jobs:
             git config user.email "xuerui911@gmail.com"
             git add config/hidden_columns.json config/column_header_aliases.json
             git commit -m "chore: deterministic column cleanup [single-source-repair]" || true
-            git -c "http.extraheader=AUTHORIZATION: basic ***" pull --rebase --autostash origin main 2>/dev/null || true
-            git -c "http.extraheader=AUTHORIZATION: basic ***" push origin HEAD:main || echo "cleanup push failed (retried next round)"
+            PUSH_AUTH_HEADER="$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)"
+            git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" pull --rebase --autostash origin main 2>/dev/null || true
+            git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" push origin HEAD:main || echo "cleanup push failed (retried next round)"
           else
             echo "cleanup: no config change"
           fi
