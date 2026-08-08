@@ -38,7 +38,8 @@ jobs:
 
       - name: 下载线上车型清单（车系ID 来源）
         run: |
-          curl -sL --max-time 200 https://cars.jiucai.eu.org/data/latest.json -o /tmp/latest.json
+          # 自建站点直连（机场代理会破坏到 jiucai.eu.org 的连接）
+          curl -sL --noproxy '*' --max-time 240 https://cars.jiucai.eu.org/data/latest.json -o /tmp/latest.json
           test -s /tmp/latest.json
 
       - name: 增量爬取经销商报价（懂车帝 garage，不重爬全量）
