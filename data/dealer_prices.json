@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-08-08T10:01:02+08:00",
+ "updated_at": "2026-08-08T11:44:45+08:00",
  "series": {
   "1296": [
    {
@@ -162100,6 +162100,1002 @@
     "dealer_price": "4.78万",
     "price": "4.78万",
     "year": "2021"
+   }
+  ],
+  "903": [
+   {
+    "name": "R.S. 2.0T 街版",
+    "id": "13133",
+    "dealer_price": "33.99万",
+    "price": "33.99万",
+    "year": "2014"
+   },
+   {
+    "name": "R.S. 2.0T 赛版",
+    "id": "13134",
+    "dealer_price": "35.99万",
+    "price": "35.99万",
+    "year": "2014"
+   },
+   {
+    "name": "CC 2.0时尚导航版",
+    "id": "13138",
+    "dealer_price": "38.78万",
+    "price": "38.78万",
+    "year": "2011"
+   },
+   {
+    "name": "CC 2.0T 无级",
+    "id": "67095",
+    "dealer_price": "36.50万",
+    "price": "36.5万",
+    "year": "2010"
+   },
+   {
+    "name": "CC 2.0 手动 DCi",
+    "id": "67094",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2010"
+   },
+   {
+    "name": "CC 1.9 手动 DCi 131hp",
+    "id": "67093",
+    "dealer_price": "36.30万",
+    "price": "36.3万",
+    "year": "2010"
+   },
+   {
+    "name": "CC 1.6 手动 110hp",
+    "id": "67092",
+    "dealer_price": "36.00万",
+    "price": "36.0万",
+    "year": "2010"
+   },
+   {
+    "name": "CC 1.5 手动 DCi 110hp",
+    "id": "67091",
+    "dealer_price": "35.80万",
+    "price": "35.8万",
+    "year": "2010"
+   },
+   {
+    "name": "CC 1.4T 手动",
+    "id": "67090",
+    "dealer_price": "35.50万",
+    "price": "35.5万",
+    "year": "2010"
+   },
+   {
+    "name": "Hatchback 2.0T 手动",
+    "id": "67168",
+    "dealer_price": "28.80万",
+    "price": "28.8万",
+    "year": "2008"
+   },
+   {
+    "name": "CC 1.9 手动 DCi 131hp",
+    "id": "67089",
+    "dealer_price": "36.30万",
+    "price": "36.3万",
+    "year": "2008"
+   },
+   {
+    "name": "Hatchback 1.9 手动 DCi 131hp",
+    "id": "67167",
+    "dealer_price": "28.00万",
+    "price": "28.0万",
+    "year": "2008"
+   },
+   {
+    "name": "CC 1.6 手动 110hp",
+    "id": "67088",
+    "dealer_price": "35.80万",
+    "price": "35.8万",
+    "year": "2008"
+   },
+   {
+    "name": "Hatchback 1.6 手动 110hp",
+    "id": "67166",
+    "dealer_price": "27.60万",
+    "price": "27.6万",
+    "year": "2008"
+   },
+   {
+    "name": "Hatchback 1.6 手动 101hp",
+    "id": "67165",
+    "dealer_price": "27.50万",
+    "price": "27.5万",
+    "year": "2008"
+   },
+   {
+    "name": "CC 1.5 手动 DCi 90hp",
+    "id": "67087",
+    "dealer_price": "36.00万",
+    "price": "36.0万",
+    "year": "2008"
+   },
+   {
+    "name": "Hatchback 1.5 手动 DCi 90hp",
+    "id": "67162",
+    "dealer_price": "26.50万",
+    "price": "26.5万",
+    "year": "2008"
+   },
+   {
+    "name": "CC 1.5 手动 DCi 85hp",
+    "id": "67086",
+    "dealer_price": "35.80万",
+    "price": "35.8万",
+    "year": "2008"
+   },
+   {
+    "name": "Hatchback 1.5DCi 手动 85hp",
+    "id": "67164",
+    "dealer_price": "26.30万",
+    "price": "26.3万",
+    "year": "2008"
+   },
+   {
+    "name": "CC 1.5 手动 DCi 110hp",
+    "id": "67085",
+    "dealer_price": "35.80万",
+    "price": "35.8万",
+    "year": "2008"
+   },
+   {
+    "name": "Hatchback 1.5DCi 手动 110hp",
+    "id": "67163",
+    "dealer_price": "27.00万",
+    "price": "27.0万",
+    "year": "2008"
+   },
+   {
+    "name": "CC 1.5 手动 DCi 106hp",
+    "id": "67084",
+    "dealer_price": "36.00万",
+    "price": "36.0万",
+    "year": "2008"
+   },
+   {
+    "name": "Hatchback 1.5 手动 DCi 106hp",
+    "id": "67161",
+    "dealer_price": "26.80万",
+    "price": "26.8万",
+    "year": "2008"
+   },
+   {
+    "name": "2.0 手自一体 标准型",
+    "id": "67059",
+    "dealer_price": "19.90万",
+    "price": "19.9万",
+    "year": "2007"
+   },
+   {
+    "name": "2.0 手自一体 豪华型",
+    "id": "67060",
+    "dealer_price": "21.50万",
+    "price": "21.5万",
+    "year": "2007"
+   },
+   {
+    "name": "2.0 手自一体 舒适型",
+    "id": "67061",
+    "dealer_price": "20.30万",
+    "price": "20.3万",
+    "year": "2007"
+   },
+   {
+    "name": "CC 2.0T 手动",
+    "id": "67083",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2006"
+   },
+   {
+    "name": "CC GT 2.0T 手动",
+    "id": "67097",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 2.0T 手动",
+    "id": "67160",
+    "dealer_price": "28.60万",
+    "price": "28.6万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback GT 2.0T 手动",
+    "id": "67170",
+    "dealer_price": "29.00万",
+    "price": "29.0万",
+    "year": "2006"
+   },
+   {
+    "name": "CC GT 2.0 手动 DCi",
+    "id": "67096",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2006"
+   },
+   {
+    "name": "2.0 手动 DCi",
+    "id": "67057",
+    "dealer_price": "19.90万",
+    "price": "19.9万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 2.0 手动 DCi",
+    "id": "67081",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 2.0 手动 DCi",
+    "id": "67134",
+    "dealer_price": "26.80万",
+    "price": "26.8万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 2.0 手动 DCi",
+    "id": "67158",
+    "dealer_price": "28.30万",
+    "price": "28.3万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback GT 2.0 手动 DCi",
+    "id": "67169",
+    "dealer_price": "28.80万",
+    "price": "28.8万",
+    "year": "2006"
+   },
+   {
+    "name": "2.0 SEDAN 5MT",
+    "id": "13136",
+    "dealer_price": "19.80万",
+    "price": "19.8万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 2.0",
+    "id": "13137",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2006"
+   },
+   {
+    "name": "SEDAN 2.0 4AT",
+    "id": "13139",
+    "dealer_price": "19.50万",
+    "price": "19.5万",
+    "year": "2006"
+   },
+   {
+    "name": "2.0 手动",
+    "id": "67056",
+    "dealer_price": "19.80万",
+    "price": "19.8万",
+    "year": "2006"
+   },
+   {
+    "name": "2.0 手自一体",
+    "id": "67058",
+    "dealer_price": "19.50万",
+    "price": "19.5万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 2.0 手自一体",
+    "id": "67082",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 2.0 手动",
+    "id": "67080",
+    "dealer_price": "36.00万",
+    "price": "36.0万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 2.0 手动",
+    "id": "67133",
+    "dealer_price": "25.00万",
+    "price": "25.0万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 2.0 自动",
+    "id": "67135",
+    "dealer_price": "25.60万",
+    "price": "25.6万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 2.0 手动",
+    "id": "67157",
+    "dealer_price": "28.30万",
+    "price": "28.3万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 2.0 自动",
+    "id": "67159",
+    "dealer_price": "28.50万",
+    "price": "28.5万",
+    "year": "2006"
+   },
+   {
+    "name": "1.9 手动 DCi 131hp",
+    "id": "67054",
+    "dealer_price": "19.00万",
+    "price": "19.0万",
+    "year": "2006"
+   },
+   {
+    "name": "1.9 自动 DCi",
+    "id": "67055",
+    "dealer_price": "19.20万",
+    "price": "19.2万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 1.9 手动 DCi 131hp",
+    "id": "67078",
+    "dealer_price": "36.30万",
+    "price": "36.3万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 1.9 自动 DCi 131hp",
+    "id": "67079",
+    "dealer_price": "36.60万",
+    "price": "36.6万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 1.9 手动 DCi 131hp",
+    "id": "67131",
+    "dealer_price": "22.50万",
+    "price": "22.5万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 1.9 自动 DCi 131hp",
+    "id": "67132",
+    "dealer_price": "22.60万",
+    "price": "22.6万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 1.9 手动 DCi 131hp",
+    "id": "67155",
+    "dealer_price": "27.80万",
+    "price": "27.8万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 1.9 自动 Dci 131hp",
+    "id": "67156",
+    "dealer_price": "28.00万",
+    "price": "28.0万",
+    "year": "2006"
+   },
+   {
+    "name": "1.6 手动",
+    "id": "67052",
+    "dealer_price": "18.50万",
+    "price": "18.5万",
+    "year": "2006"
+   },
+   {
+    "name": "1.6 自动",
+    "id": "67053",
+    "dealer_price": "18.80万",
+    "price": "18.8万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 1.6 手动 110hp",
+    "id": "67076",
+    "dealer_price": "35.80万",
+    "price": "35.8万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 1.6 自动 110hp",
+    "id": "67077",
+    "dealer_price": "36.20万",
+    "price": "36.2万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 1.6 手动",
+    "id": "67129",
+    "dealer_price": "19.60万",
+    "price": "19.6万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 1.6 自动",
+    "id": "67130",
+    "dealer_price": "19.80万",
+    "price": "19.8万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 1.6 手动",
+    "id": "67153",
+    "dealer_price": "20.00万",
+    "price": "20.0万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 1.6 自动",
+    "id": "67154",
+    "dealer_price": "22.00万",
+    "price": "22.0万",
+    "year": "2006"
+   },
+   {
+    "name": "1.5 手动 DCi 85hp",
+    "id": "67051",
+    "dealer_price": "18.20万",
+    "price": "18.2万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 1.5 手动 DCi 85hp",
+    "id": "67075",
+    "dealer_price": "35.80万",
+    "price": "35.8万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 1.5 手动 DCi 85hp",
+    "id": "67128",
+    "dealer_price": "17.00万",
+    "price": "17.0万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 1.5DCi 手动 85hp",
+    "id": "67152",
+    "dealer_price": "26.00万",
+    "price": "26.0万",
+    "year": "2006"
+   },
+   {
+    "name": "1.5 手动 DCi 106hp",
+    "id": "67050",
+    "dealer_price": "18.00万",
+    "price": "18.0万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 1.5 手动 DCi 106hp",
+    "id": "67074",
+    "dealer_price": "36.00万",
+    "price": "36.0万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 1.5 手动 DCi 106hp",
+    "id": "67127",
+    "dealer_price": "17.50万",
+    "price": "17.5万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 1.5 手动 DCi 106hp",
+    "id": "67151",
+    "dealer_price": "26.50万",
+    "price": "26.5万",
+    "year": "2006"
+   },
+   {
+    "name": "1.4 手动 98hp",
+    "id": "67049",
+    "dealer_price": "16.50万",
+    "price": "16.5万",
+    "year": "2006"
+   },
+   {
+    "name": "CC 1.4 手动",
+    "id": "67073",
+    "dealer_price": "35.00万",
+    "price": "35.0万",
+    "year": "2006"
+   },
+   {
+    "name": "Estate 1.4 手动 98hp",
+    "id": "67126",
+    "dealer_price": "16.80万",
+    "price": "16.8万",
+    "year": "2006"
+   },
+   {
+    "name": "Hatchback 1.4 手动 98hp",
+    "id": "67150",
+    "dealer_price": "25.00万",
+    "price": "25.0万",
+    "year": "2006"
+   },
+   {
+    "name": "2.0 手自一体",
+    "id": "67048",
+    "dealer_price": "21.60万",
+    "price": "21.6万",
+    "year": "2005"
+   },
+   {
+    "name": "1.6 Coupe",
+    "id": "13135",
+    "dealer_price": "31.00万",
+    "price": "31.0万",
+    "year": "2004"
+   },
+   {
+    "name": "CC 1.6 自动 110hp",
+    "id": "67072",
+    "dealer_price": "31.00万",
+    "price": "31.0万",
+    "year": "2004"
+   },
+   {
+    "name": "CC 2.0T 手动",
+    "id": "67071",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2003"
+   },
+   {
+    "name": "Cabriolet 2.0 手自一体",
+    "id": "67063",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2003"
+   },
+   {
+    "name": "2.0 手动",
+    "id": "67046",
+    "dealer_price": "19.50万",
+    "price": "19.5万",
+    "year": "2003"
+   },
+   {
+    "name": "2.0 自动",
+    "id": "67047",
+    "dealer_price": "19.80万",
+    "price": "19.8万",
+    "year": "2003"
+   },
+   {
+    "name": "CC 2.0 手动",
+    "id": "67069",
+    "dealer_price": "36.00万",
+    "price": "36.0万",
+    "year": "2003"
+   },
+   {
+    "name": "CC 2.0 自动",
+    "id": "67070",
+    "dealer_price": "37.00万",
+    "price": "37.0万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 2.0 手动",
+    "id": "67124",
+    "dealer_price": "25.50万",
+    "price": "25.5万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 2.0 自动",
+    "id": "67125",
+    "dealer_price": "25.80万",
+    "price": "25.8万",
+    "year": "2003"
+   },
+   {
+    "name": "1.9 手动 DCi 131hp",
+    "id": "67045",
+    "dealer_price": "19.30万",
+    "price": "19.3万",
+    "year": "2003"
+   },
+   {
+    "name": "CC 1.9 手动 DCi 131hp",
+    "id": "67067",
+    "dealer_price": "36.80万",
+    "price": "36.8万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.9 手动 DCi 131hp",
+    "id": "67123",
+    "dealer_price": "23.80万",
+    "price": "23.8万",
+    "year": "2003"
+   },
+   {
+    "name": "1.9 手动 DCi 120hp",
+    "id": "67044",
+    "dealer_price": "19.00万",
+    "price": "19.0万",
+    "year": "2003"
+   },
+   {
+    "name": "CC 1.9 手动 DCi 120hp",
+    "id": "67066",
+    "dealer_price": "36.50万",
+    "price": "36.5万",
+    "year": "2003"
+   },
+   {
+    "name": "CC 1.9 自动 DCi 120hp",
+    "id": "67068",
+    "dealer_price": "36.80万",
+    "price": "36.8万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.9 手动 DCi 120hp",
+    "id": "67122",
+    "dealer_price": "23.50万",
+    "price": "23.5万",
+    "year": "2003"
+   },
+   {
+    "name": "1.6 手动",
+    "id": "67043",
+    "dealer_price": "18.60万",
+    "price": "18.6万",
+    "year": "2003"
+   },
+   {
+    "name": "CC 1.6 手动 113hp",
+    "id": "67064",
+    "dealer_price": "36.00万",
+    "price": "36.0万",
+    "year": "2003"
+   },
+   {
+    "name": "CC 1.6 自动 113hp",
+    "id": "67065",
+    "dealer_price": "36.20万",
+    "price": "36.2万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.6 手动",
+    "id": "67120",
+    "dealer_price": "19.00万",
+    "price": "19.0万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.6 自动",
+    "id": "67121",
+    "dealer_price": "19.50万",
+    "price": "19.5万",
+    "year": "2003"
+   },
+   {
+    "name": "1.5 手动 DCi 85hp",
+    "id": "67041",
+    "dealer_price": "17.90万",
+    "price": "17.9万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.5 手动 DCi 85hp",
+    "id": "67118",
+    "dealer_price": "17.30万",
+    "price": "17.3万",
+    "year": "2003"
+   },
+   {
+    "name": "1.5 手动 DCi 82hp",
+    "id": "67040",
+    "dealer_price": "17.60万",
+    "price": "17.6万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.5 手动 DCi 82hp",
+    "id": "67117",
+    "dealer_price": "17.50万",
+    "price": "17.5万",
+    "year": "2003"
+   },
+   {
+    "name": "1.5 手动 DCi 106hp",
+    "id": "67039",
+    "dealer_price": "18.50万",
+    "price": "18.5万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.5 手动 DCi 106hp",
+    "id": "67116",
+    "dealer_price": "17.80万",
+    "price": "17.8万",
+    "year": "2003"
+   },
+   {
+    "name": "1.5 手动 DCi 101hp",
+    "id": "67038",
+    "dealer_price": "18.00万",
+    "price": "18.0万",
+    "year": "2003"
+   },
+   {
+    "name": "1.5 自动 DCi 101hp",
+    "id": "67042",
+    "dealer_price": "18.20万",
+    "price": "18.2万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.5 手动 DCi 101hp",
+    "id": "67115",
+    "dealer_price": "17.60万",
+    "price": "17.6万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.5 自动 DCi 101hp",
+    "id": "67119",
+    "dealer_price": "18.00万",
+    "price": "18.0万",
+    "year": "2003"
+   },
+   {
+    "name": "1.4 手动 98hp",
+    "id": "67037",
+    "dealer_price": "16.80万",
+    "price": "16.8万",
+    "year": "2003"
+   },
+   {
+    "name": "Estate 1.4 手动 98hp",
+    "id": "67114",
+    "dealer_price": "16.50万",
+    "price": "16.5万",
+    "year": "2003"
+   },
+   {
+    "name": "1.4 手动 82hp",
+    "id": "67036",
+    "dealer_price": "16.50万",
+    "price": "16.5万",
+    "year": "2003"
+   },
+   {
+    "name": "Coupe 2.0T 手动",
+    "id": "67113",
+    "dealer_price": "36.80万",
+    "price": "36.8万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 2.0T 手动",
+    "id": "67149",
+    "dealer_price": "28.80万",
+    "price": "28.8万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 2.0 手动 135hp",
+    "id": "67111",
+    "dealer_price": "35.80万",
+    "price": "35.8万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 2.0 自动",
+    "id": "67112",
+    "dealer_price": "36.30万",
+    "price": "36.3万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 2.0 手动",
+    "id": "67147",
+    "dealer_price": "28.20万",
+    "price": "28.2万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 2.0 自动",
+    "id": "67148",
+    "dealer_price": "28.50万",
+    "price": "28.5万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.9 手动 DCi 131hp",
+    "id": "67109",
+    "dealer_price": "35.20万",
+    "price": "35.2万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.9 手动 DCi 131hp",
+    "id": "67146",
+    "dealer_price": "27.90万",
+    "price": "27.9万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.9 手动 DCi 120hp",
+    "id": "67108",
+    "dealer_price": "34.80万",
+    "price": "34.8万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.9 自动 DCi 120hp",
+    "id": "67110",
+    "dealer_price": "35.00万",
+    "price": "35.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.9 手动 DCi 120hp",
+    "id": "67145",
+    "dealer_price": "27.80万",
+    "price": "27.8万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.6 手动",
+    "id": "67106",
+    "dealer_price": "29.00万",
+    "price": "29.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.6 自动",
+    "id": "67107",
+    "dealer_price": "30.00万",
+    "price": "30.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.6 手动",
+    "id": "67143",
+    "dealer_price": "20.00万",
+    "price": "20.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.6 自动",
+    "id": "67144",
+    "dealer_price": "22.00万",
+    "price": "22.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Cabriolet 1.6 自动",
+    "id": "67062",
+    "dealer_price": "34.00万",
+    "price": "34.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.5T 手动 DCi 82hp",
+    "id": "67142",
+    "dealer_price": "26.20万",
+    "price": "26.2万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.5 手动 DCi 85hp",
+    "id": "67103",
+    "dealer_price": "27.80万",
+    "price": "27.8万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.5 手动 DCi 82hp",
+    "id": "67102",
+    "dealer_price": "26.00万",
+    "price": "26.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.5 自动 DCi 82hp",
+    "id": "67105",
+    "dealer_price": "26.50万",
+    "price": "26.5万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.5 手动 DCi 80hp",
+    "id": "67140",
+    "dealer_price": "26.00万",
+    "price": "26.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.5 手动 DCi 106hp",
+    "id": "67101",
+    "dealer_price": "28.00万",
+    "price": "28.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.5 手动 DCi 106hp",
+    "id": "67139",
+    "dealer_price": "26.50万",
+    "price": "26.5万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.5 手动 DCi 101hp",
+    "id": "67100",
+    "dealer_price": "27.00万",
+    "price": "27.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.5 自动 DCi 101hp",
+    "id": "67104",
+    "dealer_price": "27.50万",
+    "price": "27.5万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.5 手动 DCi 101hp",
+    "id": "67138",
+    "dealer_price": "26.30万",
+    "price": "26.3万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.5 自动 DCi 101hp",
+    "id": "67141",
+    "dealer_price": "26.50万",
+    "price": "26.5万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.4 手动 98hp",
+    "id": "67099",
+    "dealer_price": "22.00万",
+    "price": "22.0万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.4 手动 98hp",
+    "id": "67137",
+    "dealer_price": "25.30万",
+    "price": "25.3万",
+    "year": "2002"
+   },
+   {
+    "name": "Coupe 1.4 手动 82hp",
+    "id": "67098",
+    "dealer_price": "21.60万",
+    "price": "21.6万",
+    "year": "2002"
+   },
+   {
+    "name": "Hatchback 1.4 手动 82hp",
+    "id": "67136",
+    "dealer_price": "24.80万",
+    "price": "24.8万",
+    "year": "2002"
    }
   ]
  }
