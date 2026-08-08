@@ -33,6 +33,52 @@ MAX_NEW_HIDDEN = 200
 MAX_NEW_ALIASES = 100
 
 
+def _fold_compatible(rows: list[dict], col_a: str, col_b: str) -> bool:
+    """Both columns may be folded only if no row has conflicting non-empty
+    values (either equal or at least one side missing)."""
+    for row in rows:
+        va = row.get(col_a)
+        vb = row.get(col_b)
+        if va is None or str(va).strip() in ("", "-"):
+            continue
+        if vb is None or str(vb).strip() in ("", "-"):
+            continue
+        if str(va).strip() != str(vb).strip():
+            return False
+    return True
+
+
+def fold_duplicate_columns(rows: list[dict], existing_alias_cols: set[str], existing_hidden_set: set[str], seen_alias: set[str], seen_hidden: set[str], new_aliases: list[dict], max_new: int) -> list[dict]:
+    """Fold `Name(SUFFIX)` columns into their bare `Name` column as a
+    value-compatible alias (e.g. 上坡辅助(HAC) -> 上坡辅助)."""
+    import re
+    cols = sorted({k for row in rows for k in row.keys()})
+    base_groups: dict[str, list[str]] = {}
+    for c in cols:
+        m = re.match(r"^(.+?)\([^()]+\)$", c)
+        if m:
+            base_groups.setdefault(m.group(1), []).append(c)
+    for base, variants in sorted(base_groups.items()):
+        if base not in cols:
+            continue
+        if base in existing_hidden_set or base in seen_hidden:
+            continue
+        for v in sorted(variants):
+            if len(new_aliases) >= max_new:
+                return new_aliases
+            if v in existing_alias_cols or v in seen_alias or v in existing_hidden_set or v in seen_hidden:
+                continue
+            if _fold_compatible(rows, v, base):
+                new_aliases.append({
+                    "column": v,
+                    "canonical": base,
+                    "confidence": 0.95,
+                    "evidence": "deterministic duplicate-column fold (value-compatible)",
+                })
+                seen_alias.add(v)
+    return new_aliases
+
+
 def load_rows(path: Path) -> list[dict]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(data, dict):
@@ -105,6 +151,12 @@ def main() -> int:
                 new_aliases.append(alias)
                 seen_alias.add(column)
 
+    # 确定性重复列折叠（值兼容）：X(Y) -> X
+    new_aliases = fold_duplicate_columns(
+        rows, existing_alias_cols, existing_hidden_set,
+        seen_alias, seen_hidden, new_aliases, MAX_NEW_ALIASES,
+    )
+
     changed = False
     if new_hidden:
         existing_hidden.setdefault("hidden", [])
@@ -130,6 +182,7 @@ def main() -> int:
         "suspects_total": len(suspects),
         "new_hidden": len(new_hidden),
         "new_aliases": len(new_aliases),
+        "folded_duplicates": sum(1 for a in new_aliases if "duplicate-column fold" in str(a.get("evidence"))),
         "hidden_total": len(existing_hidden["hidden"]),
         "aliases_total": len(existing_aliases["aliases"]),
         "changed": changed,
