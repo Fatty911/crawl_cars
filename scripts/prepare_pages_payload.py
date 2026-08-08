@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import hashlib
 import json
-import os
 import re
 import tempfile
 from collections import Counter
@@ -1810,7 +1813,7 @@ def discover_single_source_candidates(
     }
 
 
-from scripts.dealer_price_overlay import overlay_dealer_prices
+from dealer_price_overlay import overlay_dealer_prices
 
 def prepare_rows_with_stats(
     rows: Any,
