@@ -1051,3 +1051,19 @@ jobs:
             llm_agent_prompt.md
           if-no-files-found: warn
           retention-days: 3
+
+      - name: Check merged Pages frontend (console/JS/DOM, no vision)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          pip install playwright -q 2>/dev/null
+          python -m playwright install chromium --with-deps > /dev/null 2>&1
+          python scripts/check_pages_frontend.py > pages_health.json 2>/tmp/pages_health_err.txt
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "前端体检失败（rc=$rc）：$(head -c 300 /tmp/pages_health_err.txt)"
+            exit 0
+          fi
+          cat pages_health.json
+          python3 -c "import json; h=json.load(open('pages_health.json',encoding='utf-8')); print('前端健康:', 'OK' if h.get('healthy') else 'DEGRADED', '| 卡片:', h.get('cards_rendered'), '| 表格行:', h.get('table_rows'), '| JS错误:', len(h.get('page_errors', [])), '| console错误:', len(h.get('console_errors', [])))"
