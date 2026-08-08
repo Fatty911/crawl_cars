@@ -862,7 +862,7 @@ test("series card: common attrs in one meta line, differing attrs per model row"
   assert.ok(snapshots.length === 1, "一个车系一张卡片");
   assert.ok(snapshots[0].meta.indexOf("品牌: 甲") !== -1, "卡片 meta 含共性属性品牌（单值一行）");
   assert.ok(snapshots[0].meta.indexOf("级别: 中型SUV") !== -1, "卡片 meta 含共性属性级别（单值一行）");
-  assert.ok(snapshots[0].meta.indexOf("能源类型: 纯电/增程") !== -1, "能源类型有差异 -> 汇总枚举");
+  assert.ok(snapshots[0].meta.indexOf("能源类型: 纯电动/增程") !== -1, "能源类型有差异 -> 汇总枚举（同义词已归一）");
   assert.ok(snapshots[0].meta.indexOf("官方指导价: 20-30万") !== -1, "价格有差异 -> 范围");
   assert.ok(snapshots[0].meta.indexOf("百公里加速(s): 5.5-6") !== -1, "加速有差异 -> 范围");
   assert.ok(snapshots[0].meta.indexOf("纯电续航(km): 200-600") !== -1, "续航有差异 -> 范围");
@@ -890,4 +890,37 @@ test("series card: common attrs in one meta line, differing attrs per model row"
   assert.ok(snapshots[0].rows[0].indexOf("纯电续航(km)") !== -1, "车型行含续航");
   assert.ok(snapshots[0].rows[0].indexOf("纯电") !== -1, "车型行含能源值");
   assert.ok(snapshots[0].rows[1].indexOf("增程") !== -1, "第二车型行含不同能源值");
+});
+
+test("display normalization: energy synonyms, pipe ranges, brand/series merge", () => {
+  const { hooks } = loadAppForTest();
+  // 1) brand + series merge: 阿维塔 07 vs 阿维塔07, 小鹏 vs 小鹏汽车
+  hooks.initializeRows([
+    Object.assign(row("汽车之家", 2026, "阿维塔 07 增程版"), { "品牌": "阿维塔", "车系": "阿维塔 07", "官方指导价": "21.99万" }),
+    Object.assign(row("懂车帝", 2026, "阿维塔07 纯电版"), { "品牌": "阿维塔", "车系": "阿维塔07", "官方指导价": "24.99万" }),
+    Object.assign(row("汽车之家", 2026, "G6 增程版"), { "品牌": "小鹏", "车系": "G6", "官方指导价": "17.68万" }),
+    Object.assign(row("懂车帝", 2026, "G6 纯电版"), { "品牌": "小鹏汽车", "车系": "G6", "官方指导价": "18.68万" })
+  ]);
+  let groups = hooks.groupRowsBySeries(hooks.getFilteredRows());
+  const keys = Array.from(groups, (g) => g.key);
+  assert.ok(keys.filter((k) => k.includes("阿维塔")).length === 1, "空格差异车系应合并为一张卡");
+  assert.ok(keys.filter((k) => k.includes("G6")).length === 1, "品牌同义词车系应合并为一张卡");
+  assert.equal(Array.from(groups, (g) => g.rows.length).sort().join(","), "2,2");
+
+  // 2) summary: energy synonyms + source prefixes + pipe ranges + 999 drop
+  const groups2 = [
+    {
+      key: "S1", name: "S1",
+      representative: { "品牌": "甲", "级别": "中型SUV", "车型名称": "代表" },
+      rows: [
+        { "车型名称": "A 1", "品牌": "甲", "级别": "中型SUV", "能源类型": "插电混合", "官方指导价": "19.99万", "纯电续航(km)": "230|163|230|163" },
+        { "车型名称": "A 2", "品牌": "甲", "级别": "中型SUV", "能源类型": "懂车帝:插电式混合动力|易车:插电混合", "官方指导价": "19.99万", "纯电续航(km)": "999" }
+      ]
+    }
+  ];
+  const snap = hooks.renderCards(groups2);
+  assert.ok(snap[0].meta.indexOf("能源类型: 插电式混合动力") !== -1, "同义词+来源前缀归一为单一写法");
+  assert.ok(snap[0].meta.indexOf("插电混合/") === -1, "不应出现未归一写法");
+  assert.ok(snap[0].meta.indexOf("纯电续航(km): 163-230") !== -1, "管道多值去重后显示范围");
+  assert.ok(snap[0].meta.indexOf("999") === -1, "999 占位不应显示");
 });

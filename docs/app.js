@@ -698,13 +698,24 @@
     return value !== null && Number.isFinite(value) && value > 0 ? value : null;
   }
 
+  var BRAND_NORM = {
+    "小鹏": "小鹏汽车",
+    "AITO": "AITO 问界",
+    "岚图": "岚图汽车"
+  };
+  function normBrand(b) {
+    return BRAND_NORM[b] || b;
+  }
   function seriesIdentity(row) {
-    var brand = String(row["品牌"] || "").trim();
-    var series = String(row["车系"] || "").trim();
+    var brand = normBrand(String(row["品牌"] || "").trim());
+    // 跨源写法差异：车系去空格仅用于分组 key（阿维塔 07 == 阿维塔07）；
+    // 显示名保留原始写法。
+    var seriesRaw = String(row["车系"] || "").trim();
+    var seriesKey = seriesRaw.replace(/\s+/g, "");
     var model = String(row["车型名称"] || "").trim();
     var year = String(row["年款"] || "").trim();
-    if (series) {
-      return { key: "series|" + brand + "|" + series, name: series };
+    if (seriesKey) {
+      return { key: "series|" + brand + "|" + seriesKey, name: seriesRaw || seriesKey };
     }
     return {
       key: "model|" + brand + "|" + model + "|" + year,
@@ -1458,6 +1469,17 @@
     });
   }
 
+  // 枚举值同义词归一（跨源写法差异）
+  var ENERGY_NORM = {
+    "插电混合": "插电式混合动力",
+    "纯电": "纯电动"
+  };
+  function normEnumValue(s) {
+    // 剥离来源前缀（懂车帝:xxx / 易车:xxx）
+    var stripped = s.replace(/^[^:：]+[:：]/, "");
+    stripped = stripped.trim();
+    return ENERGY_NORM[stripped] || stripped;
+  }
   // 动态共性/差异汇总：全一致 -> 单值一行；数值差异 -> min-max 范围；枚举差异 -> 去重 join。
   function appendCardSummary(container, rows, fields) {
     fields.forEach(function (field) {
@@ -1475,21 +1497,40 @@
       var allNumeric = values.every(function (v) { return /^-?[\d.]+/.test(v); });
       var text;
       if (allNumeric && uniq.length > 1) {
-        var nums = values.map(function (v) { return parseFloat(v.match(/-?[\d.]+/)[0]); });
-        var min = Math.min.apply(null, nums);
-        var max = Math.max.apply(null, nums);
+        // 管道/斜杠多值拆分（230|163|230|163、420|315|315/202|165/汽车之家:420|315）：取数字集，
+        // 去重、排除 999 占位，再求 min-max；后缀取首个非空（如 万）。
+        var nums = [];
         var suffix = "";
         values.forEach(function (v) {
-          if (!suffix) {
-            var tail = v.replace(/^-?[\d.]+/, "");
-            if (tail) { suffix = tail; }
-          }
+          String(v).split(/[|/]/).forEach(function (part) {
+            part = part.replace(/^[^:：]*[:：]/, "");
+            var m = part.match(/-?[\d.]+/);
+            if (!m) { return; }
+            var n = parseFloat(m[0]);
+            if (n === 999) { return; }
+            if (nums.indexOf(n) === -1) { nums.push(n); }
+            if (!suffix) {
+              var tail = part.replace(/^-?[\d.]+/, "");
+              if (tail) { suffix = tail; }
+            }
+          });
         });
+        if (!nums.length) { return; }
+        var min = Math.min.apply(null, nums);
+        var max = Math.max.apply(null, nums);
         text = min === max ? String(min) + suffix : min + "-" + max + suffix;
       } else if (uniq.length === 1) {
-        text = uniq[0];
+        text = normEnumValue(uniq[0]);
       } else {
-        text = uniq.join("/");
+        // 枚举多值：逐值归一 + 去重
+        var normalized = [];
+        uniq.forEach(function (v) {
+          String(v).split(/[|/]/).forEach(function (part) {
+            var nv = normEnumValue(part);
+            if (nv && normalized.indexOf(nv) === -1) { normalized.push(nv); }
+          });
+        });
+        text = normalized.join("/");
       }
       var chip = document.createElement("span");
       chip.textContent = field + ": " + text;
