@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_DATA = {
+    "data/dealer_prices.json",
     "data/diff_20260706.csv",
     "data/dongchedi_20260302.json",
     "data/dongchedi_series_list.json",
