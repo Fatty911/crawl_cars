@@ -454,7 +454,10 @@ MERGE_ANALYSIS_STATS = {}
 MERGE_DISPOSITION_LEDGER = []
 
 
-from scripts.dealer_price_overlay import overlay_dealer_prices
+try:
+    from dealer_price_overlay import overlay_dealer_prices
+except ModuleNotFoundError:
+    from scripts.dealer_price_overlay import overlay_dealer_prices
 
 def _safe_identity_key(row):
     """Return a stable identity string for ledger records."""
