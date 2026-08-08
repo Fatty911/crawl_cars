@@ -15,6 +15,18 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "20英寸驭风轮毂(电光紫粉)",
+      "canonical": "20英寸驭风轮毂",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
+      "column": "21英寸极锋轮毂(金色)",
+      "canonical": "21英寸极锋轮毂",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "4G_5G网络",
       "canonical": "4G/5G网络",
       "confidence": 1.0,
@@ -83,6 +95,18 @@
       "value": "含远光自动控制"
     },
     {
+      "column": "MANUFAKTUR匠心高定套装(亮色漆面)",
+      "canonical": "MANUFAKTUR匠心高定套装",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
+      "column": "MANUFAKTUR匠心高定套装(哑光漆面)",
+      "canonical": "MANUFAKTUR匠心高定套装",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "NEDC纯电续航里程(km)",
       "canonical": "纯电续航(km)",
       "confidence": 1.0,
@@ -99,6 +123,12 @@
       "canonical": "NOA城市领航",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "Nappa真皮套装(此套装不支持单项选装)",
+      "canonical": "Nappa真皮套装",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     },
     {
       "column": "USB_Type-C接口数量",
@@ -138,6 +168,12 @@
       "value": "9吋"
     },
     {
+      "column": "中控屏幕尺寸(英寸)",
+      "canonical": "中控屏幕尺寸",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "中控彩色屏幕(大屏)",
       "canonical": "中控彩色屏幕",
       "confidence": 0.95,
@@ -162,6 +198,12 @@
       "canonical": "全速自适应巡航",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "内饰套装(2024款)",
+      "canonical": "内饰套装",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     },
     {
       "column": "制动力分配_EBD_CBC等_",
@@ -211,6 +253,24 @@
       "canonical": "前轮距(mm)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "副驾驶屏幕尺寸(10.33)",
+      "canonical": "副驾驶屏幕尺寸",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
+      "column": "副驾驶屏幕尺寸(12.3)",
+      "canonical": "副驾驶屏幕尺寸",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
+      "column": "副驾驶屏幕尺寸(15.5)",
+      "canonical": "副驾驶屏幕尺寸",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     },
     {
       "column": "功放最大输出功率（W）",
@@ -318,6 +378,12 @@
       "canonical": "后轮距(mm)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "吸顶屏套装(2026款)",
+      "canonical": "吸顶屏套装",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     },
     {
       "column": "哨兵(千里眼)模式",
@@ -449,6 +515,12 @@
       "confidence": 0.95,
       "evidence": "deterministic column-cleanup loop",
       "value": "搭载华为乾崑智驾®技术"
+    },
+    {
+      "column": "宁德时代5C骁遥超级增·混电池(45.06kWh)",
+      "canonical": "宁德时代5C骁遥超级增·混电池",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     },
     {
       "column": "宽度(mm)",
@@ -615,6 +687,12 @@
       "value": "仅外观颜色向阳金版本"
     },
     {
+      "column": "智能驾驶辅助系统Pro(1)",
+      "canonical": "智能驾驶辅助系统Pro",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "最大功率[kW]",
       "canonical": "最大功率(kW)",
       "confidence": 1.0,
@@ -693,6 +771,12 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "液晶仪表尺寸(in)(12.3)",
+      "canonical": "液晶仪表尺寸(in)",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "液晶仪表样式(全液晶)",
       "canonical": "液晶仪表样式",
       "confidence": 0.95,
@@ -711,6 +795,12 @@
       "canonical": "满载质量(kg)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "激光雷达10%反射率探测距离(m)",
+      "canonical": "激光雷达10%反射率探测距离",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     },
     {
       "column": "灯光特色功能(像素式)",
@@ -753,6 +843,12 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "生态麂皮套装(限观山灰内饰)",
+      "canonical": "生态麂皮套装",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "电动座椅记忆功能",
       "canonical": "座椅记忆",
       "confidence": 1.0,
@@ -779,6 +875,12 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "畅享音质包(Pioneer)",
+      "canonical": "畅享音质包",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "百公里加速时间",
       "canonical": "百公里加速(s)",
       "confidence": 1.0,
@@ -790,6 +892,12 @@
       "confidence": 0.95,
       "evidence": "deterministic column-cleanup loop",
       "value": "限时免费"
+    },
+    {
+      "column": "科技舒享套装(Max版本标配)",
+      "canonical": "科技舒享套装",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     },
     {
       "column": "空调控制方式(自动)",
@@ -882,6 +990,18 @@
       "canonical": "行李舱12V电源接口",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "豪华包(限时免费)",
+      "canonical": "豪华包",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
+      "column": "豪华尊享套装(限时免费赠送)",
+      "canonical": "豪华尊享套装",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     },
     {
       "column": "越野穿越包(停售)",
@@ -987,6 +1107,12 @@
       "value": "主驾驶位"
     },
     {
+      "column": "车身稳定控制(ESP/DSC/VSC等)",
+      "canonical": "车身稳定控制",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "车门数",
       "canonical": "车门数(个)",
       "confidence": 1.0,
@@ -1087,6 +1213,24 @@
       "value": "B&O"
     },
     {
+      "column": "音响品牌(BOSE)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
+      "column": "音响品牌(Beats)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
+      "column": "音响品牌(Infinity)",
+      "canonical": "音响品牌",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "音响品牌(丹拿)",
       "canonical": "音响品牌",
       "confidence": 0.95,
@@ -1167,6 +1311,12 @@
       "canonical": "高(mm)",
       "confidence": 1.0,
       "evidence": "synced from filter_conditions.json columnAliases"
+    },
+    {
+      "column": "高性能套件(2024款)",
+      "canonical": "高性能套件",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
     }
   ]
 }
