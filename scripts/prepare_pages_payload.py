@@ -1810,6 +1810,8 @@ def discover_single_source_candidates(
     }
 
 
+from scripts.dealer_price_overlay import overlay_dealer_prices
+
 def prepare_rows_with_stats(
     rows: Any,
     min_year: int,
@@ -1818,6 +1820,7 @@ def prepare_rows_with_stats(
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if not isinstance(rows, list):
         raise ValueError("Pages payload input must be a JSON array")
+    rows = overlay_dealer_prices(rows)
     prepared = []
     stats = {
         "droppedMissingOfficialPrice": 0,
