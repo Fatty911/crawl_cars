@@ -33,9 +33,23 @@ MAX_NEW_HIDDEN = 200
 MAX_NEW_ALIASES = 100
 
 
+# 值等价归一表：同一特性的不同写法（折叠时统一注入 canonical 侧的值）。
+_VALUE_EQUIV = {
+    "标配": "支持",
+    "有": "支持",
+    "标准": "支持",
+    "具备": "支持",
+}
+
+
+def _norm_value(v: str) -> str:
+    return _VALUE_EQUIV.get(v.strip(), v.strip())
+
+
 def _fold_compatible(rows: list[dict], col_a: str, col_b: str) -> bool:
     """Both columns may be folded only if no row has conflicting non-empty
-    values (either equal or at least one side missing)."""
+    values after equivalence normalization (either equal after _norm_value
+    or at least one side missing)."""
     for row in rows:
         va = row.get(col_a)
         vb = row.get(col_b)
@@ -43,7 +57,7 @@ def _fold_compatible(rows: list[dict], col_a: str, col_b: str) -> bool:
             continue
         if vb is None or str(vb).strip() in ("", "-"):
             continue
-        if str(va).strip() != str(vb).strip():
+        if _norm_value(str(va)) != _norm_value(str(vb)):
             return False
     return True
 
@@ -69,12 +83,16 @@ def fold_duplicate_columns(rows: list[dict], existing_alias_cols: set[str], exis
             if v in existing_alias_cols or v in seen_alias or v in existing_hidden_set or v in seen_hidden:
                 continue
             if _fold_compatible(rows, v, base):
-                new_aliases.append({
+                alias_entry = {
                     "column": v,
                     "canonical": base,
                     "confidence": 0.95,
                     "evidence": "deterministic duplicate-column fold (value-compatible)",
-                })
+                }
+                # 值等价归一（标配/有 -> 支持）：注入统一值，避免页面显示混杂写法
+                if any(_norm_value(str(r.get(v))) != str(r.get(v)) for r in rows if r.get(v)):
+                    alias_entry["value"] = "支持"
+                new_aliases.append(alias_entry)
                 seen_alias.add(v)
     return new_aliases
 
