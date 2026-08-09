@@ -1094,6 +1094,13 @@ def check_numeric_condition(row, field_name, threshold, op):
         numbers = parse_numbers(row.get(candidate, "-"))
         if numbers:
             break
+    if not numbers and "纯电续航" in field_name:
+        for variant in ("纯电续航(CLTC)", "纯电续航(NEDC)", "纯电续航(km)"):
+            if variant == field_name:
+                continue
+            numbers = parse_numbers(row.get(variant, "-"))
+            if numbers:
+                break
     if not numbers:
         return False
     if op == "<=":
