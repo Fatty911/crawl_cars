@@ -850,7 +850,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: read
+      contents: write
       issues: write
     steps:
       - uses: actions/checkout@v4
@@ -1051,6 +1051,29 @@ jobs:
             llm_agent_prompt.md
           if-no-files-found: warn
           retention-days: 3
+
+      - name: 同步列名归并（确定性 cleanup，型号归并之后立即推进）
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUSH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl -sL --noproxy '*' --max-time 240 https://cars.jiucai.eu.org/data/latest.json -o /tmp/cleanup_latest.json || true
+          test -s /tmp/cleanup_latest.json || exit 0
+          python scripts/apply_column_cleanup.py --input /tmp/cleanup_latest.json || true
+          if [ -n "$(git status --porcelain -- config/)" ]; then
+            git config user.name "Fatty911"
+            git config user.email "xuerui911@gmail.com"
+            git add config/hidden_columns.json config/column_header_aliases.json
+            git commit -m "chore: deterministic column cleanup [deploy-chain]" || true
+            PUSH_AUTH_HEADER="$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)"
+            git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" pull --rebase --autostash origin main 2>/dev/null || true
+            git -c "http.extraheader=AUTHORIZATION: basic $PUSH_AUTH_HEADER" push origin HEAD:main || echo "cleanup push failed (retried next round)"
+          else
+            echo "列名归并：无变化"
+          fi
 
       - name: Check merged Pages frontend (console/JS/DOM, no vision)
         if: always()
