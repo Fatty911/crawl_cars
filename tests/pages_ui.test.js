@@ -853,7 +853,7 @@ test("series card: common attrs in one meta line, differing attrs per model row"
       representative: { "品牌": "甲", "级别": "中型SUV", "车型名称": "代表车" },
       rows: [
         { "车型名称": "A 1", "年款": 2025, "品牌": "甲", "级别": "中型SUV", "能源类型": "纯电", "官方指导价": "20万", "百公里加速(s)": "5.5", "驱动方式": "四驱", "纯电续航(km)": "600" },
-        { "车型名称": "A 2", "年款": 2026, "品牌": "甲", "级别": "中型SUV", "能源类型": "增程", "官方指导价": "30万", "百公里加速(s)": "6.0", "驱动方式": "后驱", "纯电续航(km)": "200" }
+        { "车型名称": "A 2 2026款", "年款": 2026, "品牌": "甲", "级别": "中型SUV", "能源类型": "增程", "官方指导价": "30万", "百公里加速(s)": "6.0", "驱动方式": "后驱", "纯电续航(km)": "200" }
       ]
     }
   ];
@@ -886,6 +886,8 @@ test("series card: common attrs in one meta line, differing attrs per model row"
   assert.ok(snapshots[0].rows[0].indexOf("A 1 2025款") !== -1, "年款作为型号结尾（2025款）");
   assert.ok(snapshots[0].rows[1].indexOf("A 2 2026款") !== -1, "年款作为型号结尾（2026款）");
   assert.ok(snapshots[0].rows[0].indexOf("年款:") === -1, "年款不再作为独立属性 chip");
+  assert.ok(snapshots[0].rows[0].indexOf("2025款 2025款") === -1, "年款后缀不重复");
+  assert.ok(snapshots[0].rows[1].indexOf("2026款 2026款") === -1, "名称已含年款时后缀被抑制（真阳性）");
   assert.ok(snapshots[0].rows[0].indexOf("驱动方式") !== -1, "车型行含驱动方式");
   assert.ok(snapshots[0].rows[0].indexOf("纯电续航(km)") !== -1, "车型行含续航");
   assert.ok(snapshots[0].rows[0].indexOf("纯电") !== -1, "车型行含能源值");

@@ -1591,7 +1591,9 @@
           model.className = "series-model-row";
           var modelTitle = document.createElement("h4");
           var yearSuffix = row["年款"] ? " " + row["年款"] + "款" : "";
-          modelTitle.textContent = (row["车型名称"] || "未命名车型") + yearSuffix;
+          var baseName = row["车型名称"] || "未命名车型";
+          if (yearSuffix && new RegExp("(?:19|20)\\d{2}款").test(baseName)) yearSuffix = "";
+          modelTitle.textContent = baseName + yearSuffix;
           var modelMeta = document.createElement("div");
           modelMeta.className = "card-meta";
           appendCardMeta(modelMeta, row, ["能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]);

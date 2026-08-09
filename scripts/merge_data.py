@@ -2185,6 +2185,8 @@ def write_csv(path, rows, fieldnames):
 
 def write_json(path, rows):
     with open(path, "w", encoding="utf-8") as f:
+        if isinstance(rows, list):
+            rows = dedupe_merged_rows(rows)
         json.dump(rows, f, ensure_ascii=False, indent=2)
 
 
@@ -2232,6 +2234,62 @@ def partition_publishable_rows(rows):
 
 
 
+
+
+def _price_norm(value):
+    """'19.99万' -> '19.99'; '' -> ''"""
+    s = str(value or '').replace('万', '').strip()
+    return s
+
+
+def dedupe_merged_rows(rows):
+    if not isinstance(rows, list):
+        return rows
+    """Collapse rows that are the same SKU merged at different levels.
+
+    Key: normalized series + year + price + tier/seat signature. Rows sharing
+    the key are combined: the row with the richest source label wins, the
+    source labels are unioned (deduped), and 数据来源 is set to the merged
+    label. Returns a new list (input untouched).
+    """
+    from collections import OrderedDict
+    groups = OrderedDict()
+    _TRIM_WORDS = re.compile(
+        r"大满配|超满配|满配|豪华|尊贵|尊享|智享|行政|精英|舒适|运动|旗舰|标准|尊荣|尊越"
+    )
+    for row in rows:
+        sig = model_variant_signature(row)
+        name_text = str(row.get('车型名称', '') or '')
+        trims = tuple(sorted(set(_TRIM_WORDS.findall(name_text))))
+        key = (
+            normalize_match_text(str(row.get('车系', '') or '')),
+            str(row.get('年款', '') or ''),
+            _price_norm(row.get('官方指导价')),
+            tuple(sorted(sig['tier'])),
+            tuple(sorted(sig['seat'])),
+            trims,
+        )
+        groups.setdefault(key, []).append(row)
+
+    out = []
+    for group in groups.values():
+        if len(group) == 1:
+            out.append(group[0])
+            continue
+        labels = []
+        best = group[0]
+        for row in group:
+            label = str(row.get('数据来源', '') or '')
+            if label and label not in labels:
+                labels.append(label)
+            base_score = str(best.get('数据来源', '') or '').count('+')
+            cand_score = label.count('+')
+            if cand_score > base_score:
+                best = row
+        base = dict(best)
+        base['数据来源'] = '、'.join(labels) if labels else base.get('数据来源', '')
+        out.append(base)
+    return out
 def main():
     today = os.environ.get("MERGE_DATE") or date.today().strftime("%Y%m%d")
 
