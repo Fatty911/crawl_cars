@@ -1089,8 +1089,11 @@ def series_key(row):
     return f"{brand}|{series}" if brand and series else ''
 
 
-def check_numeric_condition(row, field_name, threshold, op):
-    numbers = parse_numbers(row.get(field_name, "-"))
+def check_numeric_condition(row, field_name, threshold, op):
+    for candidate in field_name.split("|"):
+        numbers = parse_numbers(row.get(candidate, "-"))
+        if numbers:
+            break
     if not numbers:
         return False
     if op == "<=":

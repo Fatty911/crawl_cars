@@ -176,7 +176,7 @@
       "id": "ev_range",
       "label": "纯电续航",
       "type": "range",
-      "field": "纯电续航(km)",
+      "field": "纯电续航(km)|纯电续航(CLTC)|纯电续航(NEDC)",
       "unit": "km",
       "defaultMin": "150",
       "defaultMax": "",
