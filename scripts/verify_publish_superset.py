@@ -19,11 +19,12 @@ def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> di
         raise ValueError("2022+ baseline and candidate must both be non-empty")
     baseline_keys = {identity_key(row) for row in baseline_rows}
     candidate_keys = {identity_key(row) for row in candidate_rows}
-    if len(candidate_keys) < len(baseline_keys):
-        raise ValueError(
-            f"candidate unique identity count decreased: baseline={len(baseline_keys)} candidate={len(candidate_keys)}"
-        )
     missing = baseline_keys - candidate_keys
+    if len(candidate_keys) < len(baseline_keys):
+        sample = sorted(missing)[:10]
+        raise ValueError(
+            f"candidate unique identity count decreased: baseline={len(baseline_keys)} candidate={len(candidate_keys)} missing={len(missing)} sample={sample}"
+        )
     if missing:
         sample = sorted(missing)[:5]
         raise ValueError(f"candidate is missing {len(missing)} baseline identities: {sample}")
