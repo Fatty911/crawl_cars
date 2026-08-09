@@ -656,10 +656,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  wait-ci:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: 等待 CI 测试成功
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 180); do
+            STATE=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=${{ github.sha }}&name=CI" --jq '.workflow_runs[0] | (.status) + "|" + (.conclusion // "")' 2>/dev/null)
+            case "$STATE" in
+              completed\|success) echo "CI 通过"; exit 0 ;;
+              *failure*\|*cancelled*\|*timed_out*\|*action_required*\|*stale*) echo "CI 失败: $STATE"; exit 1 ;;
+            esac
+            sleep 30
+          done
+          echo "等待 CI 超时（90 分钟）"; exit 1
+
   deploy:
-    needs: [create-release]
+    needs: [create-release, wait-ci]
     if: >-
       always() &&
+      needs.wait-ci.result != 'failure' &&
       (github.event_name != 'workflow_dispatch' || inputs.mode != 'audit_only') &&
       (
         github.event_name != 'workflow_dispatch' ||

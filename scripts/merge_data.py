@@ -2268,6 +2268,7 @@ def dedupe_merged_rows(rows):
             tuple(sorted(sig['tier'])),
             tuple(sorted(sig['seat'])),
             trims,
+            normalize_match_text(name_text),
         )
         groups.setdefault(key, []).append(row)
 
