@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
-from merge_data import atomic_source_names, partition_publishable_rows, series_year_key
+from merge_data import dedupe_merged_rows, atomic_source_names, partition_publishable_rows, series_year_key
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 from prepare_pages_payload import (
     VISIBLE_COMPONENT_EVIDENCE,
@@ -79,6 +79,7 @@ def _annotation_violations(rows: list[dict]) -> tuple[list[dict], set[object], s
 
 def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head_sha: str) -> dict:
     baseline_rows, baseline_publish_stats = partition_publishable_rows(baseline_rows)
+    baseline_rows = dedupe_merged_rows(baseline_rows)
     candidate_rows, candidate_publish_stats = partition_publishable_rows(candidate_rows)
     baseline_rows, invalid_baseline = filter_valid_identity_rows(baseline_rows)
     candidate_rows, invalid_candidate = filter_valid_identity_rows(candidate_rows)
