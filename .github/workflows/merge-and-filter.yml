@@ -728,13 +728,22 @@ jobs:
           for TAG in "${TAGS[@]}"; do
             rm -rf release-files
             mkdir -p release-files
-            if ! gh release download "$TAG" \
-              --repo "${{ github.repository }}" \
-              --dir release-files \
-              --pattern 'merged_*.json' \
-              --pattern 'filtered_cars_*.json' \
-              --pattern 'merged_*.csv' \
-              --pattern 'filtered_cars_*.csv'; then
+            DOWNLOADED=false
+            for ATTEMPT in 1 2 3; do
+              if gh release download "$TAG" \
+                --repo "${{ github.repository }}" \
+                --dir release-files \
+                --pattern 'merged_*.json' \
+                --pattern 'filtered_cars_*.json' \
+                --pattern 'merged_*.csv' \
+                --pattern 'filtered_cars_*.csv'; then
+                DOWNLOADED=true
+                break
+              fi
+              echo "下载 $TAG 第 $ATTEMPT 次失败，5 秒后重试"
+              sleep 5
+            done
+            if [ "$DOWNLOADED" != "true" ]; then
               if [ -n "$RELEASE_TAG" ]; then
                 echo "指定 Release $TAG 下载失败"
                 exit 1
