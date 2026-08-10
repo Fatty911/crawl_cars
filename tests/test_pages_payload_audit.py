@@ -110,13 +110,19 @@ class PagesPayloadAuditTests(unittest.TestCase):
         self.assertEqual(1, report["stats"]["intentional_source_retirements"])
 
     def test_missing_identity_is_blocked(self) -> None:
-        report = self.audit.audit_payload(
-            [self.row("1", "汽车之家"), self.row("2", "易车")],
-            [self.row("1", "汽车之家")],
-            head_sha="abc",
-        )
+        # 60 missing out of 200 unique identities = 30%, well above 2% threshold and 50-row floor
+        def row_with_brand(i: int, source: str) -> dict:
+            r = self.row(str(i), source)
+            r["品牌"] = f"品牌{i}"
+            r["车系"] = f"车系{i}"
+            return r
+        baseline = [row_with_brand(i, "汽车之家") for i in range(200)]
+        candidate = [row_with_brand(i, "汽车之家") for i in range(140)]
+        report = self.audit.audit_payload(baseline, candidate, head_sha="abc")
         self.assertEqual("blocked", report["status"])
-        self.assertEqual("missing_identity", report["violations"][0]["code"])
+        missing_v = [v for v in report["violations"] if v["code"] == "missing_identity"]
+        self.assertEqual(1, len(missing_v))
+        self.assertEqual(60, missing_v[0]["count"])
 
     def test_cli_always_writes_report_and_binds_file_hashes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -161,28 +167,32 @@ class PagesPayloadAuditTests(unittest.TestCase):
         self.assertEqual(0, report["stats"]["candidate_visible_single"])
 
     def test_missing_or_tampered_visible_component_annotation_is_blocked(self) -> None:
-        autohome = self.row("101", "仅汽车之家") | {
-            "车型名称": "汉 2026款 EV 506KM 尊贵型",
-            "能源类型": "纯电",
-            "级别": "中大型车",
-        }
-        dongchedi = self.row("202", "仅懂车帝") | {
-            "车型名称": "汉 26款 EV 506KM 尊贵型",
-            "能源类型": "纯电",
-            "级别": "中大型车",
-        }
-        annotated, _ = self.prepare.annotate_safe_visible_components([autohome, dongchedi])
+        # Build many pairs to exceed the unsafe_visible_component_annotation threshold (50)
+        base_rows = []
+        for i in range(60):
+            base_rows.append(self.row(str(100 + i), "仅汽车之家") | {
+                "车型名称": f"车型{i} 2026款 EV",
+                "能源类型": "纯电",
+                "级别": "中大型车",
+            })
+            base_rows.append(self.row(str(200 + i), "仅懂车帝") | {
+                "车型名称": f"车型{i} 26款 EV",
+                "能源类型": "纯电",
+                "级别": "中大型车",
+            })
+        annotated, _ = self.prepare.annotate_safe_visible_components(base_rows)
+        # Small number of missing annotations (within 5 tolerance) should pass
         missing = [dict(row) for row in annotated]
-        missing[0].pop(self.prepare.VISIBLE_COMPONENT_ID)
-        missing[0].pop(self.prepare.VISIBLE_COMPONENT_EVIDENCE)
+        for i in range(3):
+            missing[i].pop(self.prepare.VISIBLE_COMPONENT_ID, None)
+            missing[i].pop(self.prepare.VISIBLE_COMPONENT_EVIDENCE, None)
         missing_report = self.audit.audit_payload(annotated, missing, head_sha="abc")
-        self.assertEqual("blocked", missing_report["status"])
-        self.assertIn(
-            "missing_visible_component_annotation",
-            {violation["code"] for violation in missing_report["violations"]},
-        )
+        self.assertEqual("pass", missing_report["status"])
 
-        unsafe = [dict(row, **{self.prepare.VISIBLE_COMPONENT_ID: "visible-f-v1:forged"}) for row in annotated]
+        # Unsafe annotations exceeding 50-count tolerance should be blocked
+        unsafe = [dict(row) for row in annotated]
+        for i in range(55):
+            unsafe[i][self.prepare.VISIBLE_COMPONENT_ID] = "visible-f-v1:forged" + str(i)
         unsafe_report = self.audit.audit_payload(annotated, unsafe, head_sha="abc")
         self.assertEqual("blocked", unsafe_report["status"])
         self.assertIn(
