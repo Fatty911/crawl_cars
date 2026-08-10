@@ -815,14 +815,18 @@ jobs:
           with open("site/data/filtered.json", encoding="utf-8") as f:
               filtered = json.load(f)
 
+          import shutil
+          shutil.copy("site/data/latest.json", f"site/data/latest_{date}.json")
+          shutil.copy("site/data/filtered.json", f"site/data/filtered_{date}.json")
+
           manifest = {
               "date": date,
               "updatedAt": datetime.now(timezone.utc).isoformat(),
               "rowCount": len(latest),
               "filteredRowCount": len(filtered),
               "files": {
-                  "latestJson": "data/latest.json",
-                  "filteredJson": "data/filtered.json",
+                  "latestJson": f"data/latest_{date}.json",
+                  "filteredJson": f"data/filtered_{date}.json",
                   "latestCsv": f"data/merged_{date}.csv",
                   "filteredCsv": f"data/filtered_cars_{date}.csv",
               },
