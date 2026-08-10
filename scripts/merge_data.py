@@ -2359,6 +2359,17 @@ def dedupe_merged_rows(rows):
             if cand_score > base_score:
                 best = row
         base = dict(best)
+        name_candidates = [str(row.get('车型名称', '') or '').strip() for row in group
+                           if str(row.get('车型名称', '') or '').strip()]
+        if name_candidates:
+            base['车型名称'] = max(name_candidates, key=len)
+        for field in ('品牌', '车系', '年款'):
+            if not str(base.get(field, '') or '').strip() or base.get(field) == '-':
+                for row in group:
+                    v = str(row.get(field, '') or '').strip()
+                    if v and v != '-':
+                        base[field] = row[field]
+                        break
         base['数据来源'] = '、'.join(labels) if labels else base.get('数据来源', '')
         out.append(base)
     return out
