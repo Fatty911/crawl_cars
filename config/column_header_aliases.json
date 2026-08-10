@@ -747,6 +747,12 @@
       "evidence": "synced from filter_conditions.json columnAliases"
     },
     {
+      "column": "杜比全景声(Dolby Atmos)",
+      "canonical": "杜比全景声",
+      "confidence": 0.95,
+      "evidence": "deterministic duplicate-column fold (value-compatible)"
+    },
+    {
       "column": "每缸气门数(个)",
       "canonical": "每缸气门数",
       "confidence": 1.0,
