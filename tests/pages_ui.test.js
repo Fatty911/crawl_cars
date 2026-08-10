@@ -111,6 +111,7 @@ function loadAppForTest() {
       selectedCountForCategory: selectedCountForCategory,
       activateMobileCategory: activateMobileCategory,
       restoreDefaultFilters: restoreDefaultFilters,
+      formatDataTimestamp: formatDataTimestamp,
       state: state
     };
   }());`
@@ -119,6 +120,16 @@ function loadAppForTest() {
   return { elements, hooks: context.window.CARS_TEST_HOOKS };
 }
 
+
+test("data generation time formats to minute precision", () => {
+  const { hooks } = loadAppForTest();
+  // 2026-08-10 11:43 UTC -> local minute precision, no seconds
+  const out = hooks.formatDataTimestamp("2026-08-10T11:43:47.546481+00:00");
+  assert.match(out, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/, "YYYY-MM-DD HH:mm");
+  assert.ok(!/:\d{2}:\d{2}/.test(out), "no seconds in output");
+  assert.equal(hooks.formatDataTimestamp(""), "", "empty iso -> empty");
+  assert.equal(hooks.formatDataTimestamp("not-a-date"), "", "invalid iso -> empty");
+});
 test("card sort by price orders series groups", () => {
   const { hooks } = loadAppForTest();
   hooks.initializeRows([

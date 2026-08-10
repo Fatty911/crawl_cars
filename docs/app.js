@@ -2354,6 +2354,15 @@
     }
   }
 
+  function formatDataTimestamp(iso) {
+    if (!iso) { return ""; }
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) { return ""; }
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+
   function loadData() {
     return Promise.all([
       fetchJson("filter_conditions.json").catch(function () { return fallbackConfig; }),
@@ -2368,7 +2377,9 @@
       }
       return fetchJson(state.manifest.files.latestJson || "data/latest.json").then(function (latest) {
         initializeRows(latest);
-        var dateText = state.manifest.date ? "数据日期 " + state.manifest.date : "最新数据";
+        var updatedText = formatDataTimestamp(state.manifest.updatedAt);
+        var dateText = updatedText ? "数据生成时间 " + updatedText
+          : (state.manifest.date ? "数据日期 " + state.manifest.date : "最新数据");
         els.dataMeta.textContent = dateText + " · 综合核验 " + state.rows.length + " 款车型";
       });
     });
