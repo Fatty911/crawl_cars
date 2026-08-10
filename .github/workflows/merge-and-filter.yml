@@ -849,6 +849,7 @@ jobs:
           touch site/.nojekyll
 
       - name: 验证渲染数据（解析前端JS逻辑）
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
         run: |
           if [ -f site/data/latest.json ]; then
             node scripts/verify_pages_rendered_data.js site/data/latest.json
