@@ -12,9 +12,27 @@ from merge_data import dedupe_merged_rows, keep_pages_year, partition_publishabl
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
 
 
+
+def _identity_safe_rows(rows):
+    """Drop rows that cannot form an identity key.
+
+    Used after dedup-style transformations that may merge source labels
+    across rows with different identity completeness.  Without this filter,
+    identity_key() raises on rows that gained a new source label via merge
+    but do not satisfy that source identity requirements.
+    """
+    valid, invalid = filter_valid_identity_rows(rows)
+    if invalid:
+        print(f"note: dropped {len(invalid)} post-dedupe rows without verifiable identity (baseline dedupe artefact)")
+    return valid
+
+
 def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> dict[str, int]:
     baseline_rows = [row for row in baseline_rows if keep_pages_year(row)]
     baseline_rows = dedupe_merged_rows(baseline_rows)
+    # Dedupe can merge rows with different source identity completeness;
+    # filter before building identity keys to avoid identity_key() raising.
+    baseline_rows = _identity_safe_rows(baseline_rows)
     candidate_rows = [row for row in candidate_rows if keep_pages_year(row)]
     if not baseline_rows or not candidate_rows:
         raise ValueError("2022+ baseline and candidate must both be non-empty")
