@@ -816,8 +816,9 @@ jobs:
               filtered = json.load(f)
 
           import shutil
-          shutil.copy("site/data/latest.json", f"site/data/latest_{date}.json")
-          shutil.copy("site/data/filtered.json", f"site/data/filtered_{date}.json")
+          stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+          shutil.copy("site/data/latest.json", f"site/data/latest_{stamp}.json")
+          shutil.copy("site/data/filtered.json", f"site/data/filtered_{stamp}.json")
 
           manifest = {
               "date": date,
@@ -825,8 +826,8 @@ jobs:
               "rowCount": len(latest),
               "filteredRowCount": len(filtered),
               "files": {
-                  "latestJson": f"data/latest_{date}.json",
-                  "filteredJson": f"data/filtered_{date}.json",
+                  "latestJson": f"data/latest_{stamp}.json",
+                  "filteredJson": f"data/filtered_{stamp}.json",
                   "latestCsv": f"data/merged_{date}.csv",
                   "filteredCsv": f"data/filtered_cars_{date}.csv",
               },
