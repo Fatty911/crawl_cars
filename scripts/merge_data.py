@@ -871,17 +871,33 @@ def pair_rows_by_features(ah_rows, dcd_rows, stats, level, threshold=0.58, max_c
     else:
         ah_cache = dcd_cache = None
 
-    for ai, ah_row in enumerate(ah_unused):
-        for di, dcd_row in enumerate(dcd_unused):
-            if use_cache:
-                score, reasons = score_func(
-                    ah_row, dcd_row, require_year,
-                    _cache={"left": ah_cache[ai], "right": dcd_cache[di]},
-                )
-            else:
-                score, reasons = score_func(ah_row, dcd_row, require_year)
-            if score >= threshold:
-                candidates.append((score, ai, di, reasons))
+    if use_cache:
+        dcd_token_index = {}
+        for di, entry in enumerate(dcd_cache):
+            for tok in entry["tokens"]:
+                dcd_token_index.setdefault(tok, set()).add(di)
+        for ai, ah_row in enumerate(ah_unused):
+            ah_tokens = ah_cache[ai]["tokens"]
+            if ah_tokens:
+                cand_di = set()
+                for tok in ah_tokens:
+                    cand_di.update(dcd_token_index.get(tok, ()))
+            else:
+                cand_di = range(len(dcd_unused))
+            for di in cand_di:
+                dcd_row = dcd_unused[di]
+                score, reasons = score_func(
+                    ah_row, dcd_row, require_year,
+                    _cache={"left": ah_cache[ai], "right": dcd_cache[di]},
+                )
+                if score >= threshold:
+                    candidates.append((score, ai, di, reasons))
+    else:
+        for ai, ah_row in enumerate(ah_unused):
+            for di, dcd_row in enumerate(dcd_unused):
+                score, reasons = score_func(ah_row, dcd_row, require_year)
+                if score >= threshold:
+                    candidates.append((score, ai, di, reasons))
     candidates.sort(key=lambda item: (-item[0], model_sort_key(ah_unused[item[1]]), model_sort_key(dcd_unused[item[2]])))
 
     top_by_a = {}
@@ -1188,31 +1204,41 @@ SCHEMA_UNDERSCORE_UNITS = {
 }
 
 
-def normalize_schema_unit_header(header):
-    """Normalize punctuation-only unit spellings without changing the measured metric."""
-    normalized = str(header).strip().translate(str.maketrans({"（": "(", "）": ")", "—": "-", "–": "-"}))
-    unit_pattern = "|".join(re.escape(unit) for unit in sorted(SCHEMA_UNIT_TOKENS, key=len, reverse=True))
-    normalized = re.sub(rf"\[({unit_pattern})\]$", r"(\1)", normalized)
-    for encoded, display in sorted(SCHEMA_UNDERSCORE_UNITS.items(), key=lambda item: len(item[0]), reverse=True):
-        suffix = f"_{encoded}_"
-        if normalized.endswith(suffix):
-            normalized = f"{normalized[:-len(suffix)]}({display})"
-            break
-    return normalized
+_UNIT_HEADER_TRANS = str.maketrans({"（": "(", "）": ")", "—": "-", "–": "-"})
+_UNIT_HEADER_PATTERN = re.compile(
+    r"\[(" + "|".join(re.escape(unit) for unit in sorted(SCHEMA_UNIT_TOKENS, key=len, reverse=True)) + r")\]$"
+)
+_UNDERSCORE_UNITS_SORTED = sorted(
+    SCHEMA_UNDERSCORE_UNITS.items(), key=lambda item: len(item[0]), reverse=True
+)
+
+@functools.lru_cache(maxsize=65536)
+def normalize_schema_unit_header(header):
+    """Normalize punctuation-only unit spellings without changing the measured metric."""
+    normalized = str(header).strip().translate(_UNIT_HEADER_TRANS)
+    normalized = _UNIT_HEADER_PATTERN.sub(r"(\1)", normalized)
+    for encoded, display in _UNDERSCORE_UNITS_SORTED:
+        suffix = f"_{encoded}_"
+        if normalized.endswith(suffix):
+            normalized = f"{normalized[:-len(suffix)]}({display})"
+            break
+    return normalized
 
 
-def norm(header):
-    header = str(header).strip()
-    header = HEADER_MAP.get(header, header)
-    header = normalize_schema_unit_header(header)
-    header = HEADER_MAP.get(header, header)
-    # Only the documented v4 schema may use a structured suffix mapping.
-    m_v4 = re.match(r'^(.+)_v4_(.+)$', header)
-    if m_v4:
-        base_v4_key = m_v4.group(1) + "_v4"
-        if base_v4_key in HEADER_MAP:
-            return HEADER_MAP[base_v4_key]
-    return header
+_V4_HEADER_PATTERN = re.compile(r"^(.+)_v4_(.+)$")
+
+@functools.lru_cache(maxsize=65536)
+def norm(header):
+    header = str(header).strip()
+    header = HEADER_MAP.get(header, header)
+    header = normalize_schema_unit_header(header)
+    header = HEADER_MAP.get(header, header)
+    m_v4 = _V4_HEADER_PATTERN.match(header)
+    if m_v4:
+        base_v4_key = m_v4.group(1) + "_v4"
+        if base_v4_key in HEADER_MAP:
+            return HEADER_MAP[base_v4_key]
+    return header
 
 
 AUDITED_PUBLISH_EXACT_HEADERS = {
@@ -2173,16 +2199,19 @@ def atomic_source_names(value):
     return names
 
 
-def collect_fields(rows):
-    fields = []
-    for field in ZERO_RATIO_FIELDS:
-        if any(row.get(field) for row in rows) and field not in fields:
-            fields.append(field)
-    for row in rows:
-        for key in row:
-            if key not in FIXED and key not in fields:
-                fields.append(key)
-    return FIXED + fields
+def collect_fields(rows):
+    fields = []
+    seen = set(fields)
+    for field in ZERO_RATIO_FIELDS:
+        if any(row.get(field) for row in rows) and field not in seen:
+            fields.append(field)
+            seen.add(field)
+    for row in rows:
+        for key in row:
+            if key not in FIXED and key not in seen:
+                fields.append(key)
+                seen.add(key)
+    return FIXED + fields
 
 
 def write_csv(path, rows, fieldnames):
