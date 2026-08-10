@@ -2228,6 +2228,7 @@ def write_json(path, rows):
     with open(path, "w", encoding="utf-8") as f:
         if isinstance(rows, list):
             rows = dedupe_merged_rows(rows)
+            rows = [_dedupe_source_labels(r) for r in rows]
         json.dump(rows, f, ensure_ascii=False, indent=2)
 
 
@@ -2283,6 +2284,34 @@ def _price_norm(value):
     return s
 
 
+
+def _dedupe_source_labels(row):
+    label = str(row.get("数据来源", "") or "")
+    if not label:
+        return row
+    seen = []
+    for part in label.split("、"):
+        part = part.strip()
+        if part and part not in seen:
+            seen.append(part)
+    row["数据来源"] = "、".join(seen)
+    return row
+
+def _sku_core_name(name, series):
+    """Reduce a model name to its SKU core so variant spellings merge.
+    Strips series prefix, year, displacement/range spec tokens; keeps
+    trim words (大满配/超满配/豪华...) and distinctive tokens."""
+    text = normalize_match_text(name)
+    if series:
+        s = normalize_match_text(series)
+        text = text.replace(s, " ")
+    text = re.sub(r"(?:19|20)?\d{2}\u6b3e?", " ", text)
+    text = re.sub(r"\d+(?:\.\d+)?", " ", text)
+    text = re.sub(r"(?<![a-z])[a-z](?![a-z])", " ", text, flags=re.I)
+    text = re.sub(r"\b[a-z]{1,3}\b", " ", text, flags=re.I)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
 def dedupe_merged_rows(rows):
     if not isinstance(rows, list):
         return rows
@@ -2302,6 +2331,7 @@ def dedupe_merged_rows(rows):
         sig = model_variant_signature(row)
         name_text = str(row.get('车型名称', '') or '')
         trims = tuple(sorted(set(_TRIM_WORDS.findall(name_text))))
+        core_name = _sku_core_name(name_text, str(row.get('车系', '') or ''))
         key = (
             normalize_match_text(str(row.get('车系', '') or '')),
             str(row.get('年款', '') or ''),
@@ -2309,7 +2339,7 @@ def dedupe_merged_rows(rows):
             tuple(sorted(sig['tier'])),
             tuple(sorted(sig['seat'])),
             trims,
-            normalize_match_text(name_text),
+            core_name,
         )
         groups.setdefault(key, []).append(row)
 

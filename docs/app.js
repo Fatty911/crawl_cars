@@ -1410,8 +1410,12 @@
   function appendCardMeta(container, row, fields) {
     fields.forEach(function (field) {
       if (row[field] && row[field] !== "-") {
+        var value = row[field];
+        if (field === "能源类型") {
+          value = normEnumValue(String(value));
+        }
         var chip = document.createElement("span");
-        chip.textContent = field + ": " + row[field];
+        chip.textContent = field + ": " + value;
         container.appendChild(chip);
       }
     });

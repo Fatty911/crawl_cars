@@ -836,6 +836,7 @@ jobs:
               json.dump(manifest, f, ensure_ascii=False, indent=2)
           PY
 
+
             FOUND_DATA=true
             echo "使用 $TAG 发布网页数据：$ROWS 行"
             break
@@ -846,6 +847,14 @@ jobs:
           fi
 
           touch site/.nojekyll
+
+      - name: 验证渲染数据（解析前端JS逻辑）
+        run: |
+          if [ -f site/data/latest.json ]; then
+            node scripts/verify_pages_rendered_data.js site/data/latest.json
+          else
+            echo "无数据文件，跳过渲染验证"
+          fi
 
       - name: 上传 Pages 发布审计证据
         if: ${{ always() && hashFiles('pages-audit-report.json') != '' }}
