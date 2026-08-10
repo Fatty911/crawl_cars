@@ -1513,6 +1513,8 @@ def derive_brand(series_name):
     return SERIES_TO_BRAND.get(series_name, '')
 
 
+_OPTION_PAIR_PATTERN = re.compile(r"^(.+)_(\d+)$")
+
 def normalize_source_row_headers(row):
     """Strip only boundary whitespace from source keys and preserve collisions."""
     normalized = {}
@@ -1532,7 +1534,7 @@ def normalize_option_package_fields(rows):
     for row in rows:
         grouped = {}
         for key, value in row.items():
-            match = re.match(r"^(.+)_(\d+)$", key)
+            match = _OPTION_PAIR_PATTERN.match(key)
             if match:
                 grouped.setdefault(match.group(1), {})[match.group(2)] = value
         for base, pair in grouped.items():
