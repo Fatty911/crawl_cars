@@ -729,7 +729,7 @@ jobs:
             rm -rf release-files
             mkdir -p release-files
             DOWNLOADED=false
-            for ATTEMPT in 1 2 3; do
+            for ATTEMPT in 1 2 3 4 5; do
               if gh release download "$TAG" \
                 --repo "${{ github.repository }}" \
                 --dir release-files \
@@ -740,8 +740,8 @@ jobs:
                 DOWNLOADED=true
                 break
               fi
-              echo "下载 $TAG 第 $ATTEMPT 次失败，5 秒后重试"
-              sleep 5
+              echo "下载 $TAG 第 $ATTEMPT 次失败，20 秒后重试"
+              sleep 20
             done
             if [ "$DOWNLOADED" != "true" ]; then
               if [ -n "$RELEASE_TAG" ]; then
