@@ -2371,7 +2371,12 @@ def dedupe_merged_rows(rows):
                         base[field] = row[field]
                         break
         if any(not is_yiche_row(r) for r in group):
-            labels = [l for l in labels if '易车' not in l]
+            yi_approved = next((r.get('易车上市状态') for r in group if is_yiche_row(r) and r.get('易车上市状态') == 'approved'), None)
+            if yi_approved:
+                if not base.get('易车上市状态'):
+                    base['易车上市状态'] = yi_approved
+            else:
+                labels = [l for l in labels if '易车' not in l]
         base['数据来源'] = '、'.join(labels) if labels else base.get('数据来源', '')
         out.append(base)
     return out
