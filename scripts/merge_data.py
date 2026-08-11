@@ -2423,6 +2423,7 @@ def main():
     all_rows = overlay_dealer_prices(all_rows)
     all_rows = enrich_zero_ratio(all_rows, load_zero_ratio_rows())
     all_rows, publish_stats = partition_publishable_rows(all_rows)
+    print('[DIAG至境-partition]', [r.get('车型名称') + '|' + str(r.get('官方指导价', '')) + '|' + str(r.get('数据来源', '')) for r in all_rows if '至境E7' in str(r.get('车系', '') or '')])
     print(
         f"发布身份门禁: valid={len(all_rows)} invalid_brand={publish_stats['invalid_brand']} "
         f"invalid_model_name={publish_stats['invalid_model_name']} "
@@ -2449,6 +2450,7 @@ def main():
     if dup_count:
         print(f"identity_key 去重: 移除 {dup_count} 条重复身份行 ({len(all_rows)} -> {len(deduped_rows)})")
     all_rows = deduped_rows
+    print('[DIAG至境-identity去重]', [r.get('车型名称') + '|' + str(r.get('官方指导价', '')) + '|' + str(r.get('数据来源', '')) for r in all_rows if '至境E7' in str(r.get('车系', '') or '')])
     before_year_filter = len(all_rows)
     all_rows = [row for row in all_rows if keep_pages_year(row)]
     print(f"2022年及以后车型: {len(all_rows)}/{before_year_filter}")
