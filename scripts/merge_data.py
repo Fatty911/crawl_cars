@@ -2452,7 +2452,17 @@ def main():
     all_rows = deduped_rows
     print('[DIAG至境-identity去重]', [r.get('车型名称') + '|' + str(r.get('官方指导价', '')) + '|' + str(r.get('数据来源', '')) for r in all_rows if '至境E7' in str(r.get('车系', '') or '')])
     before_year_filter = len(all_rows)
-    all_rows = [row for row in all_rows if keep_pages_year(row)]
+    _kept_after_year = []
+    for _row in all_rows:
+        if keep_pages_year(_row):
+            _kept_after_year.append(_row)
+        elif '至境E7' in str(_row.get('车系', '') or ''):
+            print('[DIAG至境-year-filter] DROPPED | 名称:', _row.get('车型名称'), '| 年款:', repr(_row.get('年款')), '| 来源:', _row.get('数据来源'), '| 车款ID:', repr(_row.get('车款ID')), '| 易车状态:', repr(_row.get('易车上市状态')), '| 上市时间:', repr(_row.get('上市时间')), '| 品牌:', repr(_row.get('品牌')), '| is_yiche:', _row.get('数据来源'))
+    all_rows = _kept_after_year
+    zj_after = [r for r in all_rows if '至境E7' in str(r.get('车系', '') or '')]
+    print('[DIAG至境-after-year-filter] count:', len(zj_after))
+    for _r in zj_after:
+        print('[DIAG至境-after-year-filter]', _r.get('车型名称'), '|', _r.get('官方指导价'), '|', _r.get('数据来源'), '| 年款:', repr(_r.get('年款')))
     print(f"2022年及以后车型: {len(all_rows)}/{before_year_filter}")
 
     filtered_rows = [row for row in all_rows if filter_car(row)]
