@@ -901,6 +901,27 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
+      - name: 验证线上渲染数据（部署后探测JS解析结果）
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
+        run: |
+          set -euo pipefail
+          for ATTEMPT in 1 2 3 4 5; do
+            if curl --fail --show-error --silent --location --retry 2 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 120 \
+              https://cars.jiucai.eu.org/data/latest.json \
+              --output /tmp/live-latest.json; then
+              if node scripts/verify_pages_rendered_data.js /tmp/live-latest.json; then
+                echo "线上渲染数据验证通过（解析前端JS逻辑后符合预期）"
+                exit 0
+              fi
+              echo "线上数据与预期不符（可能 CDN 传播中），15 秒后重试"
+            else
+              echo "拉取线上数据失败，15 秒后重试"
+            fi
+            sleep 15
+          done
+          echo "线上渲染数据验证失败（多次重试后仍不符合预期）"
+          exit 1
+
   audit:
     name: Single-source audit
     needs: deploy
