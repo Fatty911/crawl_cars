@@ -744,11 +744,32 @@ jobs:
               sleep 20
             done
             if [ "$DOWNLOADED" != "true" ]; then
-              if [ -n "$RELEASE_TAG" ]; then
-                echo "指定 Release $TAG 下载失败"
-                exit 1
+              echo "gh release download 失败，fallback curl 直连资产 URL"
+              mapfile -t ASSET_URLS < <(gh release view "$TAG" --repo "${{ github.repository }}" --json assets --jq '.assets[].url' 2>/dev/null)
+              for URL in "${ASSET_URLS[@]}"; do
+                case "$URL" in
+                  *merged_*.json|*filtered_cars_*.json|*merged_*.csv|*filtered_cars_*.csv)
+                    for ATTEMPT in 1 2 3; do
+                      if curl --fail --show-error --silent --location --retry 2 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 300 "$URL" --output "release-files/$(basename "$URL")"; then
+                        break
+                      fi
+                      echo "curl 下载 $(basename "$URL") 第 $ATTEMPT 次失败，20 秒后重试"
+                      sleep 20
+                    done
+                    ;;
+                esac
+              done
+              mapfile -t FALLBACK_JSON < <(find release-files -maxdepth 1 -type f -name 'merged_*.json' -print)
+              if [ "${#FALLBACK_JSON[@]}" -ge 1 ]; then
+                DOWNLOADED=true
               fi
-              continue
+              if [ "$DOWNLOADED" != "true" ]; then
+                if [ -n "$RELEASE_TAG" ]; then
+                  echo "指定 Release $TAG 下载失败"
+                  exit 1
+                fi
+                continue
+              fi
             fi
 
             mapfile -t MERGED_JSON_FILES < <(find release-files -maxdepth 1 -type f -name 'merged_*.json' -print)
