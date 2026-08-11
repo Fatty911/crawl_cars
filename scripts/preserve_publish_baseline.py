@@ -342,6 +342,21 @@ def main() -> int:
     args = parser.parse_args()
 
     baseline_rows = [row for row in load_json_rows(args.baseline) if keep_pages_year(row)]
+    seen_b = set()
+    dedup_b = []
+    for row in baseline_rows:
+        try:
+            k = identity_key(row)
+        except ValueError:
+            dedup_b.append(row)
+            continue
+        if k in seen_b:
+            continue
+        seen_b.add(k)
+        dedup_b.append(row)
+    if len(dedup_b) != len(baseline_rows):
+        print(f"baseline identity 去重: {len(baseline_rows)} -> {len(dedup_b)} (旧管线重复行)")
+    baseline_rows = dedup_b
     baseline_rows, baseline_publish_stats = partition_publishable_rows(baseline_rows)
     baseline_rows, invalid_baseline_rows = filter_valid_identity_rows(baseline_rows)
     candidate_rows, candidate_publish_stats = partition_publishable_rows(load_json_rows(args.merged_json))
