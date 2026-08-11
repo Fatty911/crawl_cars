@@ -2417,6 +2417,9 @@ def main():
 
     # 再合并（按车型去重）
     all_rows = merge_rows(autohome_rows, dongchedi_rows, yiche_rows)
+    for _lr in MERGE_DISPOSITION_LEDGER:
+        if '至境E7' in str(_lr.get('model_name', '')) or '至境E7' in str(_lr.get('identity_key', '')):
+            print('[DIAG至境]', _lr.get('decision'), '|', _lr.get('reason_code'), '|', _lr.get('level'), '|', _lr.get('model_name'), '|', _lr.get('source'))
     all_rows = overlay_dealer_prices(all_rows)
     all_rows = enrich_zero_ratio(all_rows, load_zero_ratio_rows())
     all_rows, publish_stats = partition_publishable_rows(all_rows)
