@@ -984,9 +984,24 @@ def test_brand_init_empty_then_recovers_from_structured_api(monkeypatch):
     assert found["https://car.yiche.com/changanqiyuanq05-11958/peizhi/"]["series"] == "长安启源Q05"
 
 
-def test_brand_init_repeated_empty_fails_closed(monkeypatch):
+def test_brand_init_empty_falls_back_to_builtin_list(monkeypatch):
+    """When both HTML extraction and the master-brand API return nothing,
+    the frontier falls back to FALLBACK_MASTER_BRANDS instead of failing."""
     monkeypatch.setattr(yiche, "fetch", lambda session, url: "<html></html>")
     monkeypatch.setattr(yiche, "fetch_yiche_api", lambda session, endpoint, parameters: {"data": []})
+    frontier = yiche.YicheDiscoveryFrontier(requests.Session(), retry_backoff=0, max_brand_attempts=2)
+    discovered = frontier.discover()
+    # The fallback list has brands; discover() should return series from the first brand
+    assert isinstance(discovered, dict)
+    assert frontier.brands_total == len(yiche.FALLBACK_MASTER_BRANDS)
+    assert frontier.initialized is True
+
+
+def test_brand_init_repeated_empty_fails_closed_when_no_fallback(monkeypatch):
+    """With FALLBACK_MASTER_BRANDS empty, repeated discovery failure still raises."""
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: "<html></html>")
+    monkeypatch.setattr(yiche, "fetch_yiche_api", lambda session, endpoint, parameters: {"data": []})
+    monkeypatch.setattr(yiche, "FALLBACK_MASTER_BRANDS", [])
     frontier = yiche.YicheDiscoveryFrontier(requests.Session(), retry_backoff=0, max_brand_attempts=2)
     with pytest.raises(RuntimeError, match="结构化品牌发现反复不可用"):
         frontier.discover()

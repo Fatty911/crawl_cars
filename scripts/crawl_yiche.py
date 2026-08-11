@@ -75,6 +75,99 @@ LEGACY_INCIDENT = {
     ],
 }
 
+# Fallback master brand list used when both HTML scraping and the master-brand API
+# are unavailable (e.g. site redesign or API deprecation).  Derived from the last
+# known-good LEGACY_INCIDENT brand scan.  Brand names are placeholders; the real
+# brand name is read from each series payload returned by the brand API.
+FALLBACK_MASTER_BRANDS = [
+    ("9", "brand_9"),
+    ("295", "brand_295"),
+    ("619", "brand_619"),
+    ("629", "brand_629"),
+    ("819", "brand_819"),
+    ("97", "brand_97"),
+    ("92", "brand_92"),
+    ("881", "brand_881"),
+    ("555", "brand_555"),
+    ("861", "brand_861"),
+    ("848", "brand_848"),
+    ("458", "brand_458"),
+    ("423", "brand_423"),
+    ("313", "brand_313"),
+    ("268", "brand_268"),
+    ("536", "brand_536"),
+    ("634", "brand_634"),
+    ("528", "brand_528"),
+    ("654", "brand_654"),
+    ("318", "brand_318"),
+    ("719", "brand_719"),
+    ("712", "brand_712"),
+    ("496", "brand_496"),
+    ("753", "brand_753"),
+    ("766", "brand_766"),
+    ("326", "brand_326"),
+    ("393", "brand_393"),
+    ("493", "brand_493"),
+    ("473", "brand_473"),
+    ("360", "brand_360"),
+    ("319", "brand_319"),
+    ("422", "brand_422"),
+    ("474", "brand_474"),
+    ("491", "brand_491"),
+    ("499", "brand_499"),
+    ("532", "brand_532"),
+    ("650", "brand_650"),
+    ("653", "brand_653"),
+    ("656", "brand_656"),
+    ("679", "brand_679"),
+    ("693", "brand_693"),
+    ("715", "brand_715"),
+    ("720", "brand_720"),
+    ("755", "brand_755"),
+    ("786", "brand_786"),
+    ("844", "brand_844"),
+    ("15", "brand_15"),
+    ("2", "brand_2"),
+    ("3", "brand_3"),
+    ("26", "brand_26"),
+    ("127", "brand_127"),
+    ("82", "brand_82"),
+    ("163", "brand_163"),
+    ("59", "brand_59"),
+    ("5", "brand_5"),
+    ("157", "brand_157"),
+    ("85", "brand_85"),
+    ("14", "brand_14"),
+    ("195", "brand_195"),
+    ("172", "brand_172"),
+    ("135", "brand_135"),
+    ("744", "brand_744"),
+    ("683", "brand_683"),
+    ("427", "brand_427"),
+    ("456", "brand_456"),
+    ("129", "brand_129"),
+    ("236", "brand_236"),
+    ("211", "brand_211"),
+    ("216", "brand_216"),
+    ("806", "brand_806"),
+    ("411", "brand_411"),
+    ("168", "brand_168"),
+    ("746", "brand_746"),
+    ("417", "brand_417"),
+    ("352", "brand_352"),
+    ("263", "brand_263"),
+    ("671", "brand_671"),
+    ("607", "brand_607"),
+    ("286", "brand_286"),
+    ("320", "brand_320"),
+    ("282", "brand_282"),
+    ("641", "brand_641"),
+    ("548", "brand_548"),
+    ("377", "brand_377"),
+]
+
+
+
 
 HEADER_MAP = {
     "厂商指导价": "价格",
@@ -833,6 +926,9 @@ class YicheDiscoveryFrontier:
                     time.sleep(self.retry_backoff * (2 ** (attempt - 1)))
             self.brands_total = len(self.brand_queue)
             if self.legacy_scanned_master_ids:
+                # Fallback is intentionally skipped in resume mode: the legacy
+                # checkpoint was built from a verified brand ordering and we
+                # must not silently mix in a different list.
                 prefix = [master_id for master_id, _ in self.brand_queue[:len(self.legacy_scanned_master_ids)]]
                 if prefix != self.legacy_scanned_master_ids:
                     raise RuntimeError("易车 legacy checkpoint 品牌前缀已变化，拒绝不确定恢复")
@@ -852,6 +948,15 @@ class YicheDiscoveryFrontier:
                 self.brand_queue = self.brand_queue[len(self.legacy_scanned_master_ids):]
                 self.brands_scanned = len(self.legacy_scanned_master_ids)
                 self.pages_scanned = len(self.legacy_scanned_master_ids)
+            elif not self.brand_queue and FALLBACK_MASTER_BRANDS:
+                # Both HTML extraction and the master-brand API are unavailable.
+                # Fall back to the last known-good master brand list so the crawler
+                # can still produce data for the majority of brands.
+                self.brand_queue = list(FALLBACK_MASTER_BRANDS)
+                self.brands_total = len(self.brand_queue)
+                errors.append("fallback_master_brands")
+                print(f"易车品牌发现回退到内置列表（{self.brands_total} 个品牌）— HTML 与发现 API 均不可用")
+
             self.initialized = True
             print(
                 f"易车可信发现初始化: brands_total={self.brands_total} source={DEFAULT_DISCOVERY_URLS[0]} "
