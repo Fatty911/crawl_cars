@@ -1,0 +1,117 @@
+name: 部署前端展示
+
+# 独立的前端部署路径：仅当 docs/**（前端页面/脚本/样式）或 config/filter_conditions.json
+# 变更时触发。与 merge-and-filter.yml（爬虫+merge 数据部署链）完全解耦：
+#   - 独立 concurrency group，不与数据部署链互斥
+#   - 不跑 merge-data / create-release / 数据审计，不被爬取或 merge 状态阻塞
+#   - 数据直接取最新 Release（数据已就绪则更新，未就绪则沿用现有数据，前端改动仍可先行上线）
+# 适用于纯前端展示改动；涉及数据/爬虫/merge 逻辑的改动仍走 merge-and-filter.yml。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'config/filter_conditions.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-frontend-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@main
+
+      - name: 设置 Python
+        uses: actions/setup-python@main
+        with:
+          python-version: "3.12"
+
+      - name: 准备静态站点
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          rm -rf site release-files
+          mkdir -p site/data site/config
+          cp -R docs/. site/
+          cp config/filter_conditions.json site/config/filter_conditions.json
+
+          # 下载最新 Release 的数据资产（merged/filtered json+csv），gh 失败 fallback curl
+          mkdir -p release-files
+          mapfile -t TAGS < <(gh release list --repo "${{ github.repository }}" --limit 5 --json tagName --jq '.[].tagName')
+          DOWNLOADED=false
+          for TAG in "${TAGS[@]}"; do
+            rm -rf release-files
+            mkdir -p release-files
+            if gh release download "$TAG" \
+              --repo "${{ github.repository }}" \
+              --dir release-files \
+              --pattern 'merged_*.json' \
+              --pattern 'filtered_cars_*.json' \
+              --pattern 'merged_*.csv' \
+              --pattern 'filtered_cars_*.csv'; then
+              DOWNLOADED=true
+              break
+            fi
+          done
+          if [ "$DOWNLOADED" != "true" ]; then
+            mapfile -t ASSET_URLS < <(gh release view "${TAGS[0]}" --repo "${{ github.repository }}" --json assets --jq '.assets[].url' 2>/dev/null)
+            for URL in "${ASSET_URLS[@]}"; do
+              case "$URL" in
+                *merged_*.json|*filtered_cars_*.json|*merged_*.csv|*filtered_cars_*.csv)
+                  curl --fail --show-error --silent --location --retry 3 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 300 "$URL" --output "release-files/$(basename "$URL")" || true
+                  ;;
+              esac
+            done
+          fi
+
+          mapfile -t MERGED_JSON_FILES < <(find release-files -maxdepth 1 -type f -name 'merged_*.json' -print)
+          mapfile -t FILTERED_JSON_FILES < <(find release-files -maxdepth 1 -type f -name 'filtered_cars_*.json' -print)
+          mapfile -t MERGED_CSV_FILES < <(find release-files -maxdepth 1 -type f -name 'merged_*.csv' -print)
+          mapfile -t FILTERED_CSV_FILES < <(find release-files -maxdepth 1 -type f -name 'filtered_cars_*.csv' -print)
+
+          if [ "${#MERGED_JSON_FILES[@]}" -ge 1 ] && [ "${#FILTERED_JSON_FILES[@]}" -ge 1 ]; then
+            MERGED_JSON="${MERGED_JSON_FILES[0]}"
+            cp "$MERGED_JSON" site/data/latest.json
+            cp "${FILTERED_JSON_FILES[0]}" site/data/filtered.json
+            python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json || true
+            python scripts/prepare_pages_payload.py --input site/data/filtered.json --output site/data/filtered.json || true
+            if [ "${#MERGED_CSV_FILES[@]}" -ge 1 ]; then cp "${MERGED_CSV_FILES[0]}" "site/data/$(basename "${MERGED_CSV_FILES[0]}")"; fi
+            if [ "${#FILTERED_CSV_FILES[@]}" -ge 1 ]; then cp "${FILTERED_CSV_FILES[0]}" "site/data/$(basename "${FILTERED_CSV_FILES[0]}")"; fi
+            echo "已使用 Release 数据部署前端（$(basename "$MERGED_JSON")）"
+          else
+            echo "警告：未找到最新 Release 数据资产，站点仅含前端文件（无数据）"
+          fi
+
+      - name: 验证渲染数据（解析前端JS逻辑）
+        run: |
+          if [ -f site/data/latest.json ]; then
+            node scripts/verify_pages_rendered_data.js site/data/latest.json
+          else
+            echo "无数据文件，跳过渲染验证"
+          fi
+
+      - name: 配置 GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: 上传 Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
