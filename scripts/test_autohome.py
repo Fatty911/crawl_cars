@@ -706,6 +706,7 @@ def discover_history_targets(series_id, brand, series_name, manifest):
                 "series": series_name,
                 "url": autohome_history_config_url(spec_id),
                 "target_type": "history",
+                "discovery": "year-api",
             })
     if targets_by_year:
         return [targets_by_year[y] for y in sorted(targets_by_year)], True
@@ -748,6 +749,7 @@ def has_history_discovery_state(series_id, manifest):
     return any(
         isinstance(value, dict)
         and value.get("target_type") == "history"
+        and value.get("discovery") == "year-api"
         and str(value.get("car_id")) == str(series_id)
         for value in manifest.values()
     )
