@@ -443,6 +443,13 @@
       "value": "全尺寸"
     },
     {
+      "column": "备胎规格(未知)",
+      "canonical": "备胎规格",
+      "confidence": 0.95,
+      "evidence": "deterministic column-cleanup loop",
+      "value": "未知"
+    },
+    {
       "column": "备胎规格(非全尺寸)",
       "canonical": "备胎规格",
       "confidence": 0.95,
