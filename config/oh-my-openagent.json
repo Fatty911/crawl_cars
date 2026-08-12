@@ -270,10 +270,10 @@
       ]
     },
     "ReviewDeepseek": {
-      "model": "deepseek/deepseek-v4-flash",
+      "model": "deepseek/deepseek-v4-pro",
       "fallback_models": [
-        "nvidia/nvidia-deepseek-v4-flash",
-        "volcengine-coding/deepseek-v4-flash"
+        "deepseek/deepseek-v4-flash",
+        "nvidia/nvidia-deepseek-v4-flash"
       ]
     },
     "ReviewGrok": {

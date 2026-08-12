@@ -294,9 +294,20 @@
             "context": 1000000,
             "output": 384000
           }
+        },
+        "deepseek-v4-pro": {
+          "id": "deepseek-v4-pro",
+          "limit": {
+            "context": 1048576,
+            "output": 131072
+          },
+          "options": {
+            "reasoningEffort": "max"
+          }
         }
       },
       "whitelist": [
+        "deepseek-v4-pro",
         "deepseek-v4-flash"
       ]
     },
