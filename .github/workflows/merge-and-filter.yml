@@ -890,7 +890,7 @@ jobs:
           touch site/.nojekyll
 
       - name: 验证渲染数据（解析前端JS逻辑）
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.mode == 'merge_and_deploy'
         run: |
           if [ -f site/data/latest.json ]; then
             node scripts/verify_pages_rendered_data.js site/data/latest.json
@@ -922,7 +922,7 @@ jobs:
         uses: actions/deploy-pages@v5
 
       - name: 验证线上渲染数据（部署后探测JS解析结果）
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.mode == 'merge_and_deploy'
         run: |
           set -euo pipefail
           for ATTEMPT in 1 2 3 4 5; do
@@ -943,7 +943,7 @@ jobs:
           exit 1
 
       - name: 恢复列名扫描历史
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.mode == 'merge_and_deploy'
         uses: actions/cache@main
         with:
           path: column-scan-history.json
@@ -952,7 +952,7 @@ jobs:
 
       - name: 扫描线上列名并归并（访问 Pages 解析 JS）
         id: scan
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
+        if: github.event_name != 'workflow_dispatch' || inputs.mode == 'merge_and_deploy'
         run: |
           set -euo pipefail
           if [ -f column-scan-history.json ]; then
