@@ -13,6 +13,8 @@ from merge_data import (
     IDENTITY_FIELDS,
     atomic_source_names,
     collect_fields,
+    clean_brand_field,
+    is_excluded_brand,
     annotate_ev_range,
     filter_car,
     has_explicit_battery_field_inconsistency,
@@ -378,6 +380,8 @@ def main() -> int:
         if value:
             stats[key] = value
     rows = [annotate_ev_range(row) for row in rows]
+    rows = [clean_brand_field(row) for row in rows]
+    rows = [row for row in rows if not is_excluded_brand(row)]
     write_publish_assets(rows, args.merged_json, args.merged_csv, args.filtered_json, args.filtered_csv)
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0
