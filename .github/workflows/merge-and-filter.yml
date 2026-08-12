@@ -930,15 +930,16 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
         uses: actions/cache@main
         with:
-          path: /tmp/column_scan_history.json
+          path: column-scan-history.json
           key: column-scan-history-v1-${{ github.run_id }}
           restore-keys: column-scan-history-v1-
 
       - name: 扫描线上列名并归并（访问 Pages 解析 JS）
+        id: scan
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
         run: |
           set -euo pipefail
-          if [ -f /tmp/column_scan_history.json ]; then
+          if [ -f column-scan-history.json ]; then
             echo "恢复列名扫描历史（跨部署持续归并）"
           else
             echo "首次扫描：建立全量列名基线（后续只报告新增列名）"
@@ -946,7 +947,7 @@ jobs:
           node scripts/scan_pages_columns.js \
             --url https://cars.jiucai.eu.org/ \
             --data site/data/latest.json \
-            --history /tmp/column_scan_history.json \
+            --history column-scan-history.json \
             --out site/data/column_scan_report.json \
             --repo-root . | tee /tmp/scan_out.json | python3 -c "
           import json, sys
@@ -971,10 +972,10 @@ jobs:
           retention-days: 3
 
       - name: 保存列名扫描历史
-        if: ${{ always() && hashFiles('/tmp/column_scan_history.json') != '' }}
+        if: steps.scan.conclusion == 'success'
         uses: actions/cache/save@main
         with:
-          path: /tmp/column_scan_history.json
+          path: column-scan-history.json
           key: column-scan-history-v1-${{ github.run_id }}
 
   audit:
