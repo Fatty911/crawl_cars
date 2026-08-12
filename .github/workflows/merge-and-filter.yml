@@ -1039,6 +1039,11 @@ jobs:
           python3 scripts/analyze_single_source.py --data ./data/latest.json --output ./audit_report.json
           cat ./audit_report.json | head -50
 
+      - name: SPU 归并分析（SKU 所在车系的单源行配对候选）
+        run: |
+          python3 scripts/spu_merge_analysis.py --data ./data/latest.json --output ./spu_merge_report.json
+          cat ./spu_merge_report.json | head -40
+
       - name: Prepare deterministic audit prompt for Agent
         id: audit_prompt
         run: |
@@ -1206,6 +1211,7 @@ jobs:
           name: single-source-audit-${{ github.run_id }}
           path: |
             audit_report.json
+            spu_merge_report.json
             llm_analysis.md
             llm_agent_prompt.md
           if-no-files-found: warn
