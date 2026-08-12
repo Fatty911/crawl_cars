@@ -292,6 +292,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node scripts/pages_frontend_facts.js pages_latest.json pages_frontend_facts.json \
+            || echo "前端视角事实采集失败（降级继续，不阻断修复链）"
           python scripts/single_source_repair.py \
             --repo-kind "$REPO_KIND" \
             --data pages_latest.json \
@@ -299,6 +301,7 @@ jobs:
             --base-sha "$SOURCE_SHA" \
             --pages-run-id "$PAGES_RUN_ID" \
             --pages-url "$PAGES_URL" \
+            --frontend-facts pages_frontend_facts.json \
             --chain-id "${{ steps.context.outputs.chain_id }}" \
             --round "${{ steps.context.outputs.round }}" \
             --agent-prompt-out repair_agent_prompt.md \
