@@ -399,6 +399,7 @@ jobs:
         id: plan_agent
         if: steps.prepare_agent.outputs.agent == 'true' && steps.free_validate.outputs.valid != 'true'
         continue-on-error: true
+        timeout-minutes: 25
         env:
           VOLCENGINE_AGENTPLAN_API_KEY: ${{ secrets.VOLCENGINE_AGENTPLAN_API_KEY }}
           HTTPS_PROXY: ${{ secrets.DMIT_PROXY_URL }}
