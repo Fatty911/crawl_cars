@@ -50,11 +50,15 @@ jobs:
       issue_number: ${{ steps.context.outputs.issue_number }}
     steps:
       - name: Checkout exact Pages source SHA
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.source_sha }}
-          fetch-depth: 0
-          persist-credentials: false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SOURCE_SHA_REF="${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.source_sha }}"
+          git clone --no-checkout --filter=blob:none "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" .
+          git fetch origin "$SOURCE_SHA_REF"
+          git checkout FETCH_HEAD
+          git rev-parse HEAD
 
       - name: Set up Python
         uses: actions/setup-python@v5
