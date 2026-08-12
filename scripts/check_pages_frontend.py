@@ -9,7 +9,36 @@ import re
 
 from playwright.sync_api import sync_playwright
 
-URL = "https://cars.jiucai.eu.org/"
+URL = os.environ.get("PAGES_URL") or os.environ.get("GITHUB_PAGES_URL") or ""
+
+
+def resolve_pages_url() -> str:
+    """不写死域名：env PAGES_URL 优先，其次仓库 remote 推导 + gh api 查询，最后 github.io 推导。"""
+    if URL:
+        return URL.rstrip("/") + "/"
+    try:
+        import subprocess
+
+        repo = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True, text=True, timeout=10,
+        ).stdout.strip()
+        m = re.search(r"(?:github\.com[:/])([^/]+)/([^/.]+)", repo)
+        if m:
+            owner, name = m.group(1), m.group(2)
+            out = subprocess.run(
+                ["gh", "api", f"repos/{owner}/{name}/pages", "--jq", ".html_url"],
+                capture_output=True, text=True, timeout=20,
+            )
+            if out.returncode == 0 and out.stdout.strip():
+                return out.stdout.strip().rstrip("/") + "/"
+            return f"https://{owner}.github.io/{name}/"
+    except Exception:
+        pass
+    raise SystemExit("无法确定 Pages URL：请设置 PAGES_URL 环境变量")
+
+
+URL = resolve_pages_url()
 
 
 def main() -> int:

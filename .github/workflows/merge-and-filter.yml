@@ -93,6 +93,14 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@main
 
+      - name: 获取 Pages URL
+        run: |
+          PAGES_URL=$(gh api repos/$GITHUB_REPOSITORY/pages --jq .html_url 2>/dev/null | sed 's#/$##')
+          if [ -z "$PAGES_URL" ]; then
+            PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          fi
+          echo "PAGES_URL=$PAGES_URL" >> $GITHUB_ENV
+
       - name: 设置Python环境
         uses: actions/setup-python@main
         with:
@@ -319,7 +327,7 @@ jobs:
           if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ] || [ "${#DONGCHEDI_STABLE[@]}" -ne 1 ]; then
             echo "当前半月 stable artifact 不齐备，改用 Pages 已发布精确单源行作为缺失 stable 基线"
             curl --fail --show-error --silent --location --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 180 \
-              https://cars.jiucai.eu.org/data/latest.json \
+              $PAGES_URL/data/latest.json \
               --output merge-inputs/current-pages-latest.json
             if [ "${#AUTOHOME_STABLE[@]}" -ne 1 ]; then
               python scripts/filter_pages_source_baseline.py --input merge-inputs/current-pages-latest.json --output merge-inputs/stable/autohome/autoHome_pages_baseline.json --source autohome --min-rows 50
@@ -559,7 +567,7 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --show-error --silent --location --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 180 \
-            https://cars.jiucai.eu.org/data/latest.json \
+            $PAGES_URL/data/latest.json \
             --output /tmp/current-pages-latest.json
           python scripts/preserve_publish_baseline.py \
             --baseline /tmp/current-pages-latest.json \
@@ -702,6 +710,14 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@main
 
+      - name: 获取 Pages URL
+        run: |
+          PAGES_URL=$(gh api repos/$GITHUB_REPOSITORY/pages --jq .html_url 2>/dev/null | sed 's#/$##')
+          if [ -z "$PAGES_URL" ]; then
+            PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          fi
+          echo "PAGES_URL=$PAGES_URL" >> $GITHUB_ENV
+
       - name: 安装 Chrome（线上 Pages 列名扫描用）
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'merge_and_deploy'
         uses: browser-actions/setup-chrome@v2
@@ -804,7 +820,7 @@ jobs:
             fi
 
             curl --fail --show-error --silent --location --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 180 \
-              https://cars.jiucai.eu.org/data/latest.json \
+              $PAGES_URL/data/latest.json \
               --output /tmp/current-pages-latest.json
             python scripts/verify_publish_superset.py \
               --baseline /tmp/current-pages-latest.json \
@@ -911,7 +927,7 @@ jobs:
           set -euo pipefail
           for ATTEMPT in 1 2 3 4 5; do
             if curl --fail --show-error --silent --location --retry 2 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 120 \
-              https://cars.jiucai.eu.org/data/latest.json \
+              $PAGES_URL/data/latest.json \
               --output /tmp/live-latest.json; then
               if node scripts/verify_pages_rendered_data.js /tmp/live-latest.json; then
                 echo "线上渲染数据验证通过（解析前端JS逻辑后符合预期）"
@@ -945,7 +961,7 @@ jobs:
             echo "首次扫描：建立全量列名基线（后续只报告新增列名）"
           fi
           node scripts/scan_pages_columns.js \
-            --url https://cars.jiucai.eu.org/ \
+            --url $PAGES_URL \
             --data site/data/latest.json \
             --history column-scan-history.json \
             --out site/data/column_scan_report.json \
@@ -997,6 +1013,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 获取 Pages URL
+        run: |
+          PAGES_URL=$(gh api repos/$GITHUB_REPOSITORY/pages --jq .html_url 2>/dev/null | sed 's#/$##')
+          if [ -z "$PAGES_URL" ]; then
+            PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          fi
+          echo "PAGES_URL=$PAGES_URL" >> $GITHUB_ENV
+
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -1006,16 +1031,8 @@ jobs:
 
       - name: Fetch latest.json from Pages
         run: |
-          REPO=$(echo ${{ github.repository }} | sed 's|.*/||')
-          case "$REPO" in
-            crawl_cars) PAGES_URL="https://cars.jiucai.eu.org/data/latest.json" ;;
-            crawl_phones) PAGES_URL="https://phones.jiucai.eu.org/data/latest.json" ;;
-            crawl_laptops) PAGES_URL="https://nbs.jiucai.eu.org/data/latest.json" ;;
-            *) echo "Unknown repo"; exit 0 ;;
-          esac
-          echo "PAGES_URL=$PAGES_URL"
           mkdir -p ./data
-          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 180 "$PAGES_URL" -o ./data/latest.json || echo "FETCH_FAILED"
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 180 "$PAGES_URL/data/latest.json" -o ./data/latest.json || echo "FETCH_FAILED"
 
       - name: Analyze single-source data
         run: |
@@ -1202,7 +1219,7 @@ jobs:
           PUSH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          curl -sL --noproxy '*' --max-time 240 https://cars.jiucai.eu.org/data/latest.json -o /tmp/cleanup_latest.json || true
+          curl -sL --noproxy '*' --max-time 240 $PAGES_URL/data/latest.json -o /tmp/cleanup_latest.json || true
           test -s /tmp/cleanup_latest.json || exit 0
           python scripts/apply_column_cleanup.py --input /tmp/cleanup_latest.json || true
           if [ -n "$(git status --porcelain -- config/)" ]; then

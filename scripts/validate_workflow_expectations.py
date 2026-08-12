@@ -480,7 +480,7 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         and preserve_position != -1
         and upload_position != -1
         and merge_position < preserve_position < verify_position < upload_position
-        and "https://cars.jiucai.eu.org/data/latest.json" in text
+        and "$PAGES_URL/data/latest.json" in text
         and text.count("--retry-all-errors") >= 2
         and "Debug 保留当前 Pages 发布基线" not in text
         and "Debug 发布防缩小校验" not in text,
@@ -525,7 +525,7 @@ def check_deploy_workflow(path: Path, errors: list[str]) -> None:
         and copy_position != -1
         and upload_position != -1
         and verify_position < copy_position < upload_position
-        and "https://cars.jiucai.eu.org/data/latest.json" in text
+        and "$PAGES_URL/data/latest.json" in text
         and "--retry-all-errors" in text,
         f"{path.name} 缺少复制/上传 Pages 数据前的全路径防缩小复核",
         errors,

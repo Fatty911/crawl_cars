@@ -8,20 +8,23 @@
  *   1. 用 headless 浏览器（优先 CHROME_PATH 环境变量，其次自动探测 chromium/chrome，
  *      playwright 安装目录）访问线上 Pages URL，等待 app.js 渲染完成。
  *   2. 从真实 DOM 提取渲染后的表头列名（#tableHead th button span 文本）
- *      以及数据列（firstRow 对象键），同时下载线上 latest.json 作数据源。
+ *      以及数据列（全部行的键并集——宽表含稀疏/变体列），同时下载线上 latest.json 作数据源。
  *   3. 对每个扫描到的列名执行归并：
- *        - 命中共识列（canonical）→ mapped
  *        - 命中别名映射（config/column_header_aliases.json column→canonical，
  *          docs/filter_conditions.json columnAliases canonical→[alias]）→ alias→canonical
- *        - 未命中 → unmapped（输出到报告，供 AI 修复链自发现新列名/未归并列名）
+ *        - 命中规范列/历史记录 → 已归并
+ *        - 未命中 → 新增待归并（输出到报告，供 AI 修复链自发现新列名/未归并列名）
  *   4. 输出 JSON 报告（stdout + 可选文件），exit 0 不阻断部署（只采集不阻断）。
+ *   5. Pages URL 不写死：--url 显式指定，否则依次取 env PAGES_URL/GITHUB_PAGES_URL、
+ *      GitHub API（repos/{owner}/{repo}/pages html_url）、{owner}.github.io/{repo}/ 推导。
  *
  * 用法:
- *   node scripts/scan_pages_columns.js [--url https://cars.jiucai.eu.org/]
+ *   node scripts/scan_pages_columns.js [--url https://<pages-domain>/]
  *       [--data /path/to/latest.json] [--out /path/to/scan-report.json]
- *       [--repo-root .] [--no-browser]
+ *       [--repo-root .] [--history /path/to/history.json] [--no-browser]
  *
- * 环境变量: CHROME_PATH 指定浏览器可执行文件（workflow 用 browser-actions/setup-chrome@v2 后自动设置）。
+ * 环境变量: CHROME_PATH 浏览器可执行文件；PAGES_URL / GITHUB_PAGES_URL 线上 Pages 根 URL；
+ *           GITHUB_REPOSITORY（owner/repo）用于 API 查询/推导 Pages 域名。
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -33,12 +36,38 @@ function argValue(name, def) {
   const i = args.indexOf(name);
   return i >= 0 && args[i + 1] ? args[i + 1] : def;
 }
-const URL_ = argValue("--url", "https://cars.jiucai.eu.org/");
 const DATA_PATH = argValue("--data", "");
 const OUT_PATH = argValue("--out", "");
 const REPO_ROOT = argValue("--repo-root", ".");
 const HISTORY_PATH = argValue("--history", "");
 const NO_BROWSER = args.includes("--no-browser");
+
+// ---- Pages URL 动态解析（不写死域名）----
+// 优先级：--url 参数 > env PAGES_URL/GITHUB_PAGES_URL > GitHub API html_url > github.io 推导
+function resolvePagesUrl() {
+  const explicit = argValue("--url", "");
+  if (explicit) return explicit.replace(/\/+$/, "") + "/";
+
+  const envUrl = process.env.PAGES_URL || process.env.GITHUB_PAGES_URL;
+  if (envUrl) return envUrl.replace(/\/+$/, "") + "/";
+
+  const repo = process.env.GITHUB_REPOSITORY;
+  if (repo) {
+    const [owner, name] = repo.split("/");
+    // 1) API 查询（自定义域名优先）
+    try {
+      const token = process.env.GITHUB_TOKEN;
+      const curlArgs = ["-fsSL", "--max-time", "15", "https://api.github.com/repos/" + repo + "/pages"];
+      if (token) curlArgs.unshift("-H", "Authorization: Bearer " + token);
+      const out = execFileSync("curl", curlArgs, { encoding: "utf8", timeout: 20000 });
+      const htmlUrl = JSON.parse(out).html_url;
+      if (htmlUrl) return htmlUrl.replace(/\/+$/, "") + "/";
+    } catch (_) { /* API 失败走推导 */ }
+    // 2) github.io 推导
+    return "https://" + owner + ".github.io/" + name + "/";
+  }
+  return "";
+}
 
 // ---- 浏览器探测 ----
 function probeChrome() {
@@ -120,7 +149,7 @@ function extractHeadersFromDom(dom) {
 }
 
 // ---- 归并知识库 ----
-function loadMergeKnowledge(repoRoot) {
+function loadMergeKnowledge(repoRoot, historyPath) {
   const kb = {
     aliasToCanonical: new Map(), // 别名列 -> 规范列
     knownColumns: new Set(),     // 历史出现过的全部列名（canonical + 别名）
@@ -166,10 +195,9 @@ function loadMergeKnowledge(repoRoot) {
     }
   }
   // 3. 历史扫描记录（跨轮次持续归并：上次未归并的列名视为已知，避免重复报告）
-  const histPath = HISTORY_PATH || path.join(repoRoot, "site", "data", "column_scan_history.json");
-  if (fs.existsSync(histPath)) {
+  if (historyPath && fs.existsSync(historyPath)) {
     try {
-      const hist = JSON.parse(fs.readFileSync(histPath, "utf8"));
+      const hist = JSON.parse(fs.readFileSync(historyPath, "utf8"));
       const cols = hist.seenColumns || [];
       for (const c of cols) kb.knownColumns.add(c);
     } catch (_) { /* ignore */ }
@@ -209,22 +237,27 @@ function mergeScan(columnNames, regularColumns, kb, historyKnown) {
 // ---- 主流程 ----
 async function main() {
   const startedAt = new Date().toISOString();
-  const kb = loadMergeKnowledge(REPO_ROOT);
+  const pagesUrl = resolvePagesUrl();
+  const kb = loadMergeKnowledge(REPO_ROOT, HISTORY_PATH);
   let dom = null;
   let browserUsed = null;
 
   if (!NO_BROWSER) {
-    const chrome = probeChrome();
-    if (chrome) {
-      try {
-        dom = fetchRenderedDom(chrome, URL_);
-        browserUsed = chrome;
-        console.error(`[scan] 浏览器渲染成功: ${chrome} (${dom.length} 字符)`);
-      } catch (e) {
-        console.error(`[scan] 浏览器渲染失败，回退数据文件: ${e.message}`);
-      }
+    if (!pagesUrl) {
+      console.error("[scan] 未指定 Pages URL（用 --url 或设 PAGES_URL/GITHUB_REPOSITORY），跳过浏览器 DOM 扫描");
     } else {
-      console.error("[scan] 未探测到浏览器，使用数据文件模式（--no-browser 同效）");
+      const chrome = probeChrome();
+      if (chrome) {
+        try {
+          dom = fetchRenderedDom(chrome, pagesUrl);
+          browserUsed = chrome;
+          console.error(`[scan] 浏览器渲染成功: ${chrome} (${dom.length} 字符)`);
+        } catch (e) {
+          console.error(`[scan] 浏览器渲染失败，回退数据文件: ${e.message}`);
+        }
+      } else {
+        console.error("[scan] 未探测到浏览器，使用数据文件模式（--no-browser 同效）");
+      }
     }
   }
 
@@ -257,10 +290,9 @@ async function main() {
       console.error(`[scan] 读取 ${DATA_PATH} 失败: ${e.message}`);
     }
   }
-  if (dataColumns.length === 0) {
+  if (dataColumns.length === 0 && pagesUrl) {
     try {
-      const { execFileSync: ef } = require("node:child_process");
-      const raw = ef("curl", ["-fsSL", "--max-time", "60", URL_ + "data/latest.json"], {
+      const raw = execFileSync("curl", ["-fsSL", "--max-time", "60", pagesUrl + "data/latest.json"], {
         encoding: "utf8", timeout: 70000, maxBuffer: 128 * 1024 * 1024,
       });
       const d = JSON.parse(raw);
@@ -270,10 +302,13 @@ async function main() {
         regularColumns = Object.keys(rows[0]);
         dataColumns = collectColumns(rows);
       }
-      dataSource = URL_ + "data/latest.json";
+      dataSource = pagesUrl + "data/latest.json";
     } catch (e) {
       console.error(`[scan] 拉取线上数据失败: ${e.message}`);
     }
+  }
+  if (dataColumns.length === 0) {
+    console.error("[scan] 无数据源（--data 文件缺失且无法拉取线上数据），输出空报告");
   }
 
   // 扫描列名集合：浏览器 DOM 表头 ∪ 数据列
@@ -312,7 +347,7 @@ async function main() {
 
   const report = {
     scannedAt: startedAt,
-    url: URL_,
+    url: pagesUrl,
     browserUsed: browserUsed,
     dataSource: dataSource,
     rowCount: rowCount,

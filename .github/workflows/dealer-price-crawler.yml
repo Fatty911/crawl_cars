@@ -36,10 +36,18 @@ jobs:
         run: |
           python scripts/setup_proxy_runtime.py --github-env "$GITHUB_ENV" || echo "代理不可用，尝试直连"
 
+      - name: 获取 Pages URL
+        run: |
+          PAGES_URL=$(curl -fsSL --max-time 15 "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages" | python3 -c "import json,sys;print(json.load(sys.stdin).get('html_url',''))" 2>/dev/null | sed 's#/$##')
+          if [ -z "$PAGES_URL" ]; then
+            PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          fi
+          echo "PAGES_URL=$PAGES_URL" >> $GITHUB_ENV
+
       - name: 下载线上车型清单（车系ID 来源）
         run: |
           # 自建站点直连（机场代理会破坏到 jiucai.eu.org 的连接）
-          curl -sL --noproxy '*' --max-time 240 https://cars.jiucai.eu.org/data/latest.json -o /tmp/latest.json
+          curl -sL --noproxy '*' --max-time 240 "$PAGES_URL/data/latest.json" -o /tmp/latest.json
           test -s /tmp/latest.json
 
       - name: 增量爬取经销商报价（懂车帝 garage，不重爬全量）

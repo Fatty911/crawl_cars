@@ -26,7 +26,7 @@ permissions: {}
 
 env:
   REPO_KIND: cars
-  PAGES_URL: https://cars.jiucai.eu.org/data/latest.json
+  PAGES_URL: ""
   PAGES_WORKFLOW_NAMES: 部署车型配置网页
   PAGES_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.pages_run_id }}
   SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.source_sha }}
@@ -47,8 +47,15 @@ jobs:
       status: ${{ steps.result.outputs.status }}
       chain_id: ${{ steps.result.outputs.chain_id || steps.context.outputs.chain_id }}
       round: ${{ steps.result.outputs.round || steps.context.outputs.round }}
-      issue_number: ${{ steps.context.outputs.issue_number }}
     steps:
+      - name: 获取 Pages URL
+        run: |
+          PAGES_URL=$(curl -fsSL --max-time 15 "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages" | python3 -c "import json,sys;print(json.load(sys.stdin).get('html_url',''))" 2>/dev/null | sed 's#/$##')
+          if [ -z "$PAGES_URL" ]; then
+            PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          fi
+          echo "PAGES_URL=$PAGES_URL/data/latest.json" >> $GITHUB_ENV
+
       - name: Checkout exact Pages source SHA
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
