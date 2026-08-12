@@ -13,6 +13,7 @@ from merge_data import (
     IDENTITY_FIELDS,
     atomic_source_names,
     collect_fields,
+    annotate_ev_range,
     filter_car,
     has_explicit_battery_field_inconsistency,
     keep_pages_year,
@@ -376,6 +377,7 @@ def main() -> int:
     }.items():
         if value:
             stats[key] = value
+    rows = [annotate_ev_range(row) for row in rows]
     write_publish_assets(rows, args.merged_json, args.merged_csv, args.filtered_json, args.filtered_csv)
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0
