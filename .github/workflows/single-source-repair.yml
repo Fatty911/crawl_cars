@@ -104,7 +104,7 @@ jobs:
                 code_only=1
                 while IFS= read -r changed; do
                   case "$changed" in
-                    scripts/*|tests/*|.github/*) ;;
+                    scripts/*|tests/*|.github/*|data/dealer_prices.json) ;;
                     *) code_only=0 ;;
                   esac
                 done <<< "$changed_files"
@@ -689,7 +689,7 @@ jobs:
               code_only_publish=1
               while IFS= read -r changed; do
                 case "$changed" in
-                  scripts/*|tests/*|.github/*) ;;
+                  scripts/*|tests/*|.github/*|data/dealer_prices.json) ;;
                   *) code_only_publish=0 ;;
                 esac
               done <<< "$changed_files"
