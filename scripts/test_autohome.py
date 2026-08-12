@@ -657,6 +657,69 @@ def parse_sale_history_targets(series_id, brand, series_name, sale_html):
 
 
 def discover_history_targets(series_id, brand, series_name, manifest):
+    """按年遍历 getParamConf&year=YYYY 发现全部历史款 SKU（2022..当前年）。
+
+    sale.html 只列出有现车/报价的 SKU，停产老款大量缺失（如途昂 2023
+    sale.html 仅 1 款，API year=2023 返回 31 款）。API 不可用时回退 sale.html。
+    """
+    targets_by_year = {}
+    api_ok = False
+    for year in range(CURRENT_YEAR, 2021, -1):
+        api_url = (
+            f"https://car-web-api.autohome.com.cn/car/param/getParamConf"
+            f"?mode=1&site=1&seriesid={series_id}&year={year}"
+        )
+        try:
+            resp = session.get(api_url, timeout=15, headers={"Referer": "https://car.autohome.com.cn/"})
+        except requests.exceptions.RequestException:
+            continue
+        content_type = resp.headers.get("content-type", "")
+        if resp.status_code != 200 or "application/json" not in content_type.lower():
+            continue
+        try:
+            payload = resp.json()
+        except ValueError:
+            continue
+        if payload.get("returncode") != 0:
+            continue
+        datalist = (payload.get("result") or {}).get("datalist") or []
+        if not datalist:
+            continue
+        api_ok = True
+        for spec in datalist:
+            spec_id = str(spec.get("specid") or spec.get("specId") or "")
+            if not spec_id.isdigit():
+                continue
+            spec_name = str(spec.get("specname") or "")
+            year_match = re.search(r"(?:19|20)\d{2}\s*款", spec_name)
+            spec_year = year_match.group(0).replace("款", "").strip() if year_match else str(year)
+            if not spec_year.isdigit() or not (2022 <= int(spec_year) <= CURRENT_YEAR):
+                continue
+            if re.search(r"预售|未上市|即将上市|概念", spec_name):
+                continue
+            targets_by_year.setdefault(spec_year, {
+                "cache_key": cache_key_for_history_target(series_id, spec_year, spec_id),
+                "car_id": str(series_id),
+                "spec_id": spec_id,
+                "year": spec_year,
+                "brand": brand,
+                "series": series_name,
+                "url": autohome_history_config_url(spec_id),
+                "target_type": "history",
+            })
+    if targets_by_year:
+        return [targets_by_year[y] for y in sorted(targets_by_year)], True
+    if api_ok:
+        manifest[f"{series_id}_history_no_data"] = {
+            "car_id": str(series_id),
+            "brand": brand,
+            "series": series_name,
+            "target_type": "history_terminal_no_data",
+            "terminal": True,
+            "url": f"https://www.autohome.com.cn/{series_id}/sale.html",
+        }
+        return [], True
+    # API 不可用：回退 sale.html
     sale_url = f"https://www.autohome.com.cn/{series_id}/sale.html"
     try:
         resp = session.get(sale_url, timeout=15)
