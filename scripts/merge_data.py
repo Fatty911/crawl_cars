@@ -2380,7 +2380,7 @@ def dedupe_merged_rows(rows):
         base['数据来源'] = '、'.join(labels) if labels else base.get('数据来源', '')
         out.append(base)
     return out
-def main():
+def annotate_ev_range(row):    """纯电续航(km) 展示值规范化：不能充电的车写 0；多标准（NEDC/CLTC/WLTC/工信部）并存时标注标准。"""    et = str(row.get('能源类型', '') or '')    if et and not any(k in et for k in ('插电', '纯电', '增程', '电动')):        row['纯电续航(km)'] = '0'        return row    std_fields = (        ('CLTC', ('纯电续航(CLTC)', 'CLTC纯电续航(km)', 'CLTC纯电续航_km_', 'CLTC纯电续航里程(km)', 'CLTC纯电续航里程_km_')),        ('NEDC', ('纯电续航(NEDC)', 'NEDC纯电续航(km)', 'NEDC纯电续航_km_', 'NEDC纯电续航里程(km)', 'NEDC纯电续航里程_km_')),        ('WLTC', ('WLTC纯电续航里程(km)', 'WLTC纯电续航里程_km_', 'WLTC纯电续航(km)', 'WLTC纯电续航_km_')),        ('工信部', ('工信部纯电续航里程(km)', '工信部纯电续航里程_km_', '工信部纯电续航(km)', '工信部纯电续航_km_')),    )    parts = []    seen = set()    for std, fields in std_fields:        for f in fields:            v = str(row.get(f, '') or '').strip()            if v and v not in ('-', '999', '0'):                m = re.search(r'\d+(?:\.\d+)?', v)                if m and m.group(0) not in seen:                    seen.add(m.group(0))                    parts.append(f'{std}:{m.group(0)}')                break    if parts:        row['纯电续航(km)'] = ' / '.join(parts)    elif str(row.get('纯电续航(km)', '') or '').strip() == '999':        row['纯电续航(km)'] = '0'    return rowdef main():
     today = os.environ.get("MERGE_DATE") or date.today().strftime("%Y%m%d")
 
     autohome_file = find_latest("autoHome_*.json")
@@ -2454,7 +2454,7 @@ def main():
         print(f"identity_key 去重: 移除 {dup_count} 条重复身份行 ({len(all_rows)} -> {len(deduped_rows)})")
     all_rows = deduped_rows
     before_year_filter = len(all_rows)
-    all_rows = [row for row in all_rows if keep_pages_year(row)]
+    all_rows = [row for row in all_rows if keep_pages_year(row)]    all_rows = [annotate_ev_range(row) for row in all_rows]
     print(f"2022年及以后车型: {len(all_rows)}/{before_year_filter}")
 
     filtered_rows = [row for row in all_rows if filter_car(row)]

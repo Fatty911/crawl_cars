@@ -666,7 +666,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           for i in $(seq 1 180); do
-            STATE=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=${{ github.sha }}&name=CI" --jq '.workflow_runs[0] | (.status) + "|" + (.conclusion // "")' 2>/dev/null)
+            STATE=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=${{ github.sha }}&per_page=30" --jq '[.workflow_runs[] | select(.name == "CI")] | .[0] | (.status) + "|" + (.conclusion // "")' 2>/dev/null)
             case "$STATE" in
               completed\|success) echo "CI 通过"; exit 0 ;;
               *failure*\|*cancelled*\|*timed_out*\|*action_required*\|*stale*) echo "CI 失败: $STATE"; exit 1 ;;
