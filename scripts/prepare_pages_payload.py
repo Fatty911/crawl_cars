@@ -181,10 +181,18 @@ def _load_hidden_columns() -> set[str]:
 def normalize_publish_row_headers(row: dict[str, Any]) -> dict[str, Any]:
     normalized = {}
     hidden_columns = _load_hidden_columns()
+    # 纯电续航(km)="0" 是 annotate_ev_range 写入的"不能充电"权威标记：
+    # 无论字段遍历顺序（NEDC/CLTC/WLTC/工信部 等标准字段经 alias 归一到同一
+    # canonical 可能先于 0 进入 normalized），该 canonical 一律锁定为 "0"，
+    # 防止 _merge_distinct_values("605", "0") 因 0 非正值把 0 丢弃。
+    ev_zero_lock = str(row.get("纯电续航(km)") or "").strip() in ("0", "0.0")
     for key, value in row.items():
         if key in hidden_columns:
             continue
         canonical = normalize_audited_publish_header(key)
+        if canonical == "纯电续航(km)" and ev_zero_lock:
+            normalized[canonical] = "0"
+            continue
         alias = header_alias_lookup(key)
         if alias and alias.get("value") and positive_value(value):
             value = alias["value"]

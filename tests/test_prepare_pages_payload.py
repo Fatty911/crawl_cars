@@ -786,3 +786,106 @@ def test_normalize_publish_row_headers_skips_injection_when_row_value_is_negativ
         out = normalize_publish_row_headers(row)
     assert out["车载智能系统"] == "Banyan"
     assert "NOMI Mate 3.0" not in out
+
+
+def test_normalize_keeps_ev_range_zero_when_standard_field_folds_in() -> None:
+    """纯电续航(km)=0（不能充电权威标记）不被 NEDC/CLTC 等标准字段覆盖。
+
+    回归：氢燃料/燃油车行在 merge 阶段 annotate_ev_range 写入 0，
+    但 prepare_pages_payload normalize 时 NEDC纯电续航里程(km) 经 alias
+    归一到同一 canonical，_merge_distinct_values("0", "605") 因 0 非正值
+    被 605 覆盖（线上 605 事故）。
+    """
+    from scripts.prepare_pages_payload import normalize_publish_row_headers
+
+    _ensure_dual_modules()
+
+    def lookup(key):
+        mapping = {
+            "NEDC纯电续航里程(km)": {"canonical": "纯电续航(km)"},
+            "纯电续航_km_": {"canonical": "纯电续航(km)"},
+        }
+        return mapping.get(key)
+
+    row = {
+        "品牌": "大通",
+        "车型名称": "22款 605km 豪华版",
+        "能源类型": "氢燃料",
+        "纯电续航(km)": "0",
+        "NEDC纯电续航(km)": "605",
+        "NEDC纯电续航里程(km)": "605",
+    }
+    with mock.patch("merge_data.header_alias_lookup", side_effect=lookup), mock.patch(
+        "scripts.merge_data.header_alias_lookup",
+        side_effect=lookup,
+    ), mock.patch(
+        "scripts.prepare_pages_payload.header_alias_lookup",
+        side_effect=lookup,
+    ):
+        out = normalize_publish_row_headers(row)
+    assert out["纯电续航(km)"] == "0"
+    assert "605" not in out.get("纯电续航(km)", "")
+
+
+def test_normalize_still_merges_positive_ev_range_values() -> None:
+    """非 0 场景不受影响：不同标准数值正常合并（保留原行为）。"""
+    from scripts.prepare_pages_payload import normalize_publish_row_headers
+
+    _ensure_dual_modules()
+
+    def lookup(key):
+        mapping = {
+            "NEDC纯电续航里程(km)": {"canonical": "纯电续航(km)"},
+        }
+        return mapping.get(key)
+
+    row = {
+        "品牌": "甲",
+        "车型名称": "M",
+        "纯电续航(km)": "CLTC:750",
+        "NEDC纯电续航里程(km)": "605",
+    }
+    with mock.patch("merge_data.header_alias_lookup", side_effect=lookup), mock.patch(
+        "scripts.merge_data.header_alias_lookup",
+        side_effect=lookup,
+    ), mock.patch(
+        "scripts.prepare_pages_payload.header_alias_lookup",
+        side_effect=lookup,
+    ):
+        out = normalize_publish_row_headers(row)
+    assert out["纯电续航(km)"] != "0"
+
+
+def test_normalize_keeps_ev_zero_when_standard_field_arrives_first() -> None:
+    """顺序回归：NEDC 字段先进入 normalized（生产真实字段顺序）时 0 仍锁定。
+
+    上一版修复只在 canonical 已存在 0 时跳过覆盖，但 NEDC 先入时
+    normalized["纯电续航(km)"]="605"，随后 0 到达被 _merge_distinct_values 丢弃。
+    """
+    from scripts.prepare_pages_payload import normalize_publish_row_headers
+
+    _ensure_dual_modules()
+
+    def lookup(key):
+        mapping = {
+            "NEDC纯电续航里程(km)": {"canonical": "纯电续航(km)"},
+        }
+        return mapping.get(key)
+
+    # NEDC 字段排在 纯电续航(km) 之前（dict 保持插入序）
+    row = {
+        "品牌": "大通",
+        "车型名称": "22款 605km 豪华版",
+        "能源类型": "氢燃料",
+        "NEDC纯电续航里程(km)": "605",
+        "纯电续航(km)": "0",
+    }
+    with mock.patch("merge_data.header_alias_lookup", side_effect=lookup), mock.patch(
+        "scripts.merge_data.header_alias_lookup",
+        side_effect=lookup,
+    ), mock.patch(
+        "scripts.prepare_pages_payload.header_alias_lookup",
+        side_effect=lookup,
+    ):
+        out = normalize_publish_row_headers(row)
+    assert out["纯电续航(km)"] == "0"
