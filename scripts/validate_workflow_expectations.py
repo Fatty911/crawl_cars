@@ -41,8 +41,21 @@ WINDOW_TEXT = "8:00-12:30"
 AFTERNOON_TEXT = "13:00-22:00"
 
 
+def resolve_workflow_file(path: Path) -> Path:
+    """停用的 GitHub 工作流被改名为 *.yml.disabled（CNB 迁移后禁用了若干条）。
+
+    期望检查仍要针对停用件执行：否则将来重新启用时会带着过期结构上线。
+    """
+    if path.is_file():
+        return path
+    disabled = Path(str(path) + ".disabled")
+    if disabled.is_file():
+        return disabled
+    raise FileNotFoundError(f"workflow missing: {path} (also checked {disabled.name})")
+
+
 def load_yaml(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as f:
+    with resolve_workflow_file(path).open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -73,7 +86,7 @@ def pages_push_paths_cover(path: Path, dependencies: tuple[str, ...]) -> list[st
 
 def check_crawler_workflow(path: Path, errors: list[str]) -> None:
     data = load_yaml(path)
-    text = path.read_text(encoding="utf-8")
+    text = resolve_workflow_file(path).read_text(encoding="utf-8")
     schedules = data.get(True, {}).get("schedule", [])
 
     assert_condition(not schedules, f"{path.name} 不应继续依赖 GitHub Actions schedule", errors)
@@ -229,7 +242,7 @@ def check_crawler_workflow(path: Path, errors: list[str]) -> None:
 
 def check_yiche_workflow(path: Path, errors: list[str]) -> None:
     data = load_yaml(path)
-    text = path.read_text(encoding="utf-8")
+    text = resolve_workflow_file(path).read_text(encoding="utf-8")
     schedules = data.get(True, {}).get("schedule", [])
 
     assert_condition(not schedules, f"{path.name} 不应继续依赖 GitHub Actions schedule", errors)
@@ -295,7 +308,7 @@ def check_yiche_workflow(path: Path, errors: list[str]) -> None:
 
 
 def check_trigger(path: Path, errors: list[str]) -> None:
-    text = path.read_text(encoding="utf-8")
+    text = resolve_workflow_file(path).read_text(encoding="utf-8")
     assert_condition("$((8 * 60))" in text, "crawl-trigger.yml 未使用 08:00 作为上午触发起点", errors)
     assert_condition(WINDOW_TEXT in text, "crawl-trigger.yml 未同步 08:00-12:30 文案", errors)
     assert_condition(AFTERNOON_TEXT in text, "crawl-trigger.yml 未同步 13:00-22:00 文案", errors)
@@ -305,14 +318,14 @@ def check_trigger(path: Path, errors: list[str]) -> None:
 
 
 def check_budget_script(path: Path, errors: list[str]) -> None:
-    text = path.read_text(encoding="utf-8")
+    text = resolve_workflow_file(path).read_text(encoding="utf-8")
     assert_condition('"afternoon": (13 * 60, 22 * 60)' in text, "crawl_budget.py 未设置 13:00-22:00 下午窗口", errors)
     assert_condition("MAX_WORKFLOW_SECONDS" in text, "crawl_budget.py 缺少 Action 总时限预算", errors)
     assert_condition("PROGRESS_COMMIT_BUFFER_SECONDS" in text, "crawl_budget.py 缺少进度提交缓冲", errors)
 
 
 def check_dongchedi_reset_script(path: Path, errors: list[str]) -> None:
-    text = path.read_text(encoding="utf-8")
+    text = resolve_workflow_file(path).read_text(encoding="utf-8")
     assert_condition(
         'Path(__file__).resolve().parent / "dongchedi" / "progress.json"' in text,
         "reset_dongchedi_progress.py 必须重置爬虫实际使用的 scripts/dongchedi/progress.json",
@@ -327,7 +340,7 @@ def check_dongchedi_reset_script(path: Path, errors: list[str]) -> None:
 
 def check_ai_monitor(path: Path, errors: list[str]) -> None:
     data = load_yaml(path)
-    text = path.read_text(encoding="utf-8")
+    text = resolve_workflow_file(path).read_text(encoding="utf-8")
     workflow_run = data.get(True, {}).get("workflow_run", {})
     workflows = set(workflow_run.get("workflows", []))
 
@@ -339,7 +352,7 @@ def check_ai_monitor(path: Path, errors: list[str]) -> None:
 
 def check_merge_workflow(path: Path, errors: list[str]) -> None:
     data = load_yaml(path)
-    text = path.read_text(encoding="utf-8")
+    text = resolve_workflow_file(path).read_text(encoding="utf-8")
     inputs = data.get(True, {}).get("workflow_dispatch", {}).get("inputs", {})
     assert_condition(
         {"debug_mode", "crawler_run_id", "crawler_run_attempt", "trigger_source"}.issubset(inputs),
@@ -504,7 +517,7 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
 
 def check_deploy_workflow(path: Path, errors: list[str]) -> None:
     data = load_yaml(path)
-    text = path.read_text(encoding="utf-8")
+    text = resolve_workflow_file(path).read_text(encoding="utf-8")
     triggers = data.get(True, {})
     inputs = triggers.get("workflow_dispatch", {}).get("inputs", {})
     push = triggers.get("push", {})
@@ -532,8 +545,24 @@ def check_deploy_workflow(path: Path, errors: list[str]) -> None:
     )
 
 
+def read_workflow_text(path: Path, errors: list[str]) -> str | None:
+    """GitHub 工作流停用时文件被改名为 *.yml.disabled（CNB 迁移后禁用了部分 GitHub 工作流）。
+
+    期望检查仍必须对停用件生效：否则将来重新启用时会带着过期结构上线。
+    两种文件名都不存在时记为错误而不是抛异常，避免校验器本身崩溃。
+    """
+    try:
+        return resolve_workflow_file(path).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        errors.append(f"{path.name}: expected workflow is missing (also checked {path.name}.disabled)")
+    errors.append(f"{path.name}: expected workflow is missing (also checked {path.name}.disabled)")
+    return None
+
+
 def check_single_source_repair_workflow(path: Path, errors: list[str]) -> None:
-    text = path.read_text(encoding="utf-8")
+    text = read_workflow_text(path, errors)
+    if text is None:
+        return
     assert_condition(
         'DISPATCH_STARTED="$dispatch_started"' in text
         and "BEFORE_RUN_IDS" in text

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import zlib
 import importlib.util
 import os
 import subprocess
@@ -54,6 +55,22 @@ def load_prepare_debug_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+
+def _apply_publish_boundary_defaults(row: dict) -> None:
+    """带数据来源的行必须满足发布边界（官方指导价 + 上市时间）才可发布。
+
+    夹具统一补齐这两项；各用例自身的非法性（缺品牌、缺车型名称、易车身份不全、
+    重复身份）仍由用例自己表达，不因此被掩盖。
+    """
+    if str(row.get("数据来源") or "").strip():
+        # 价格必须逐行确定性地不同：SKU 级去重键含 (车系, 年款, 官方指导价, ...)，
+        # 统一注入同一价格会把本应不同的身份判成重复行而合并掉。
+        # 不能用 hash()——跨子进程不稳定，这里要跨进程可复现。
+        digest = zlib.crc32(str(row.get("车型名称") or "").encode("utf-8")) % 40
+        row.setdefault("官方指导价", f"{20 + digest / 10:.2f}万")
+        row.setdefault("上市时间", "2026-01")
 
 
 class ZeroToWholeRatioDateTests(unittest.TestCase):
@@ -547,6 +564,7 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             for row in baseline + candidate:
                 row.setdefault("品牌", "测试品牌")
+                _apply_publish_boundary_defaults(row)
             root = Path(tmp)
             baseline_path = root / "baseline.json"
             candidate_path = root / "candidate.json"
@@ -751,6 +769,7 @@ class PreservePublishBaselineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             for row in baseline + candidate:
                 row.setdefault("品牌", "测试品牌")
+                _apply_publish_boundary_defaults(row)
             root = Path(tmp)
             paths = {
                 "baseline": root / "baseline.json",

@@ -1,0 +1,618 @@
+# crawl_cars — CNB 流水线：push CI+AI 自修复 / 半月增量爬取
+# 增量闭环：爬取→合并→保留基线→产物与断点提交回本仓，下轮 checkout 基于上轮基线续爬合并
+# 代理：PROXY_SUBSCRIPTIONS 走 CNB 仓库环境变量（设置→环境变量），缺失即失败，禁止直连裸爬
+# 模型: deepseek-v4-flash (免费 CodeBuddy V4.1 Flash)
+
+main:
+  push:
+    - docker:
+        image: python:3.11
+      env:
+        GITLAB_TOKEN: ${GITLAB_TOKEN}
+      stages:
+        - name: install-deps
+          script: pip install -r requirements.txt 2>/dev/null || true
+        - name: 推送代码到GitLab
+          script: |
+            # 令牌缺失时显式跳过（该仓 CNB 环境变量未配 GITLAB_TOKEN 时不得把整条 push CI 打红）
+            if [ -z "$GITLAB_TOKEN" ]; then
+              echo "未配置 GITLAB_TOKEN：跳过 GitLab 镜像同步"
+              exit 0
+            fi
+            # token 不入 URL/进程表：走 GIT_ASKPASS
+            cat > /tmp/gl-askpass.sh <<'AASK'
+            #!/bin/sh
+            case "$1" in
+              *sername*) echo "oauth2" ;;
+              *) printf '%s' "$GITLAB_TOKEN" ;;
+            esac
+            AASK
+            chmod +x /tmp/gl-askpass.sh
+            git remote remove gitlab 2>/dev/null || true
+            git remote add gitlab https://gitlab.com/xuerui911/crawl_cars.git
+            if GIT_ASKPASS=/tmp/gl-askpass.sh git push gitlab main --force-with-lease 2>&1 \
+                || GIT_ASKPASS=/tmp/gl-askpass.sh git push gitlab main 2>&1; then
+              echo "GITLAB_PUSH=done"
+              echo "GITLAB_PUSH=done" >> _stage_context_.env
+            else
+              echo "⚠️ GitLab 镜像推送失败（多端镜像非必需，不阻断主流水线；令牌无效或过期请重新签发）"
+              echo "GITLAB_PUSH=failed" >> _stage_context_.env
+            fi
+            rm -f /tmp/gl-askpass.sh
+        - name: pytest
+          script: |
+            python -m pytest tests/ -x --tb=short 2>&1 | tee _test_result_.txt
+            rc=${PIPESTATUS[0]}
+            echo "PYTEST_EXIT=$rc" >> _stage_context_.env
+            # 此前退出码取 tee 的 0，测试失败从不使流水线变红（结构性假绿），现诚实穿透
+            exit "$rc"
+        - name: 语法校验
+          script: |
+            if python -m py_compile scripts/*.py; then
+              echo "SYNTAX=PASS" >> _stage_context_.env
+            else
+              echo "SYNTAX=FAIL" >> _stage_context_.env
+              echo "❌ SYNTAX 未通过：原写法 A && echo PASS || echo FAIL 的退出码恒为 0，属结构性假绿，现改为硬失败"
+              exit 1
+            fi
+        - name: 治理校验
+          script: |
+            python scripts/validate_workflow_expectations.py || echo "WARN: workflow expectations 未通过"
+            python scripts/validate_plan_agent_boundary.py || echo "WARN: plan/agent 边界未通过"
+            python scripts/scan_direct_llm_calls.py scripts .github || echo "WARN: 存在 LLM 直调"
+      failStages:
+        - name: 诊断-收集失败上下文
+          script: |
+            {
+              echo "## 失败概览"
+              echo "| 项目 | 内容 |"
+              echo "| --- | --- |"
+              echo "| 失败阶段 | $CNB_BUILD_FAILED_STAGE_NAME |"
+              echo "| 失败原因 | \`$CNB_BUILD_FAILED_MSG\` |"
+              echo "| 触发分支 | $CNB_BRANCH |"
+              echo "| 提交 | $CNB_COMMIT_SHORT |"
+              echo "| 构建日志 | $CNB_BUILD_WEB_URL |"
+              echo ""
+              echo "## 测试输出（最后50行）"
+              echo '```'
+              tail -50 _test_result_.txt 2>/dev/null || echo "(无)"
+              echo '```'
+              echo ""
+              echo "## 阶段上下文"
+              cat _stage_context_.env 2>/dev/null || echo "(无)"
+            } > _fail_context_.md
+        - name: 备份受保护文件
+          script: |
+            for f in AGENTS.md ai_tools/opencode/opencode.json ai_tools/opencode/oh-my-openagent.json; do
+              [ -f "$f" ] && cp "$f" "${f}.protected_backup"
+            done
+        - name: AI-修复-第1轮
+          type: npc:go
+          options:
+            model: deepseek-v4-flash
+            thinkingLevel: max
+            maxTurns: 40
+            contextWindow: 256k
+            systemPrompt: |
+              你是汽车报价爬虫修复专家。阅读 _fail_context_.md 中的失败上下文。
+              这是第1轮修复（最多2轮）。分析根因后修改代码。
+              规则：不伪造数据、不折叠真冲突、不删校验、不降防护。
+              车系/车型身份字段必须完整，指导价与经销商报价分离。
+              修复后写报告到 _fix_report_.md。
+            userPrompt: |
+              读取 _fail_context_.md，分析失败并修复。修复后写报告到 _fix_report_.md。
+        - name: 恢复受保护文件
+          script: |
+            for f in AGENTS.md ai_tools/opencode/opencode.json ai_tools/opencode/oh-my-openagent.json; do
+              if [ -f "${f}.protected_backup" ] && ! cmp -s "$f" "${f}.protected_backup" 2>/dev/null; then
+                echo "⚠️ 恢复受保护文件 $f"
+                cp "${f}.protected_backup" "$f"
+              fi
+            done
+            find . -name '*.protected_backup' -delete
+        - name: 验证-语法校验
+          script: |
+            python -m py_compile scripts/*.py 2>/dev/null && echo "SYNTAX_VALIDATE=PASS" >> _fix_report_.md || { echo "SYNTAX_VALIDATE=FAIL" >> _fix_report_.md; exit 1; }
+        - name: 验证-pytest
+          script: |
+            python -m pytest tests/ -x --tb=short 2>&1 | tee _test_after_fix_.txt
+            rc=${PIPESTATUS[0]}
+            if [ "$rc" -eq 0 ]; then echo "PYTEST_VALIDATE=PASS" >> _fix_report_.md; else echo "PYTEST_VALIDATE=FAIL" >> _fix_report_.md; fi
+            echo "PYTEST_EXIT_AFTER=$rc" >> _stage_context_.env
+        - name: 审查-NPC代码审查
+          type: npc:go
+          options:
+            model: deepseek-v4-flash
+            thinkingLevel: high
+            maxTurns: 15
+            contextWindow: 128k
+            systemPrompt: |
+              你是代码审查员。读取 _fail_context_.md、_fix_report_.md、_test_after_fix_.txt。
+              检查：车系身份完整、报价字段分离、merge门禁、测试断言同步。
+              写审查结果到 _review_result_.md，第一行 VERDICT: PASS 或 VERDICT: FAIL。
+            userPrompt: |
+              审查修复结果，输出到 _review_result_.md。
+        - name: 最终判定
+          script: |
+            # 反篡改闸：自修复不得改动断言或流水线配置（为变绿改测试属禁止项，改为机器强制）
+            if ! git diff --quiet -- tests .cnb.yml 2>/dev/null; then
+              echo "X 自修复改动了 tests/ 或 .cnb.yml，判定为篡改门禁，硬失败"
+              git diff --stat -- tests .cnb.yml || true
+              exit 1
+            fi
+            AFTERRC=$(grep -o 'PYTEST_EXIT_AFTER=[0-9]*' _stage_context_.env 2>/dev/null | tail -1)
+            if [ "${AFTERRC#PYTEST_EXIT_AFTER=}" != "0" ]; then
+              echo "X 修复后 pytest 仍非零退出（$AFTERRC），修复未真正通过"
+              exit 1
+            fi
+            VERDICT=$(head -1 _review_result_.md 2>/dev/null | grep -o 'PASS\|FAIL' || echo "UNKNOWN")
+            echo "审查结果: $VERDICT"
+            [ "$VERDICT" = "PASS" ] && echo "✅ 修复通过" || { echo "❌ 修复未通过"; exit 1; }
+
+  "crontab: 5 8 1,16 * *":
+    # 半月增量爬取（每月 1/16 日 08:05 Asia/Shanghai，落在人类作息窗口 08:00-12:30 内；对齐负责人半月增量本意，撤销 09-20 移植期错峰 5/20）
+    # 汽车之家/懂车帝走 --incremental 只爬新增车系；易车不带 GitHub 时代 artifact 断点恢复（CNB 无 artifact）
+    - runner:
+        cpus: 2
+      docker:
+        image: python:3.12
+      imports:
+        - https://cnb.cool/xuerui911-mirror/crawl-secrets/-/blob/main/env.yml
+      # CNB Job 无输出默认 10min 即强杀；爬虫按窗口预算最长可跑 ~5.25h（08:05 触发，
+      # 易车 10800s + 汽车之家/懂车帝各 2700s×3）加合并发布，10h 覆盖最坏情况
+      timeout: 10h
+      stages:
+        - name: 检查代理配置
+          script: |
+            if [ -z "$PROXY_SUBSCRIPTIONS" ]; then
+              echo "❌ 未注入 PROXY_SUBSCRIPTIONS：本流水线经 imports 引用 xuerui911-mirror/crawl-secrets env.yml，请检查该私仓。防反爬必须走 Mihomo 代理。"
+              exit 1
+            fi
+        - name: install-deps
+          script: python -m pip install -r requirements.txt
+        - name: 安装浏览器
+          script: |
+            # test_autohome.py 第四步与 crawl_dongchedi.py 依赖 Chrome/chromedriver（GitHub 侧用 setup-chrome@v2 + setup-chromedriver@v2）
+            set -e
+            if command -v chromedriver >/dev/null 2>&1; then
+              chromedriver --version
+              exit 0
+            fi
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends chromium chromium-driver
+            chromedriver --version
+        - name: 启动Mihomo代理
+          script: |
+            set -e
+            # 本仓 setup_proxy_runtime.py 只支持 --github-env（无 --require-proxy/--clear），且代理失败会降级直连，故显式硬校验
+            : > /tmp/proxy.env
+            python scripts/setup_proxy_runtime.py --github-env /tmp/proxy.env --test-url https://www.autohome.com.cn
+            sed 's/^\([A-Za-z_][A-Za-z0-9_]*\)=/export \1=/' /tmp/proxy.env > /tmp/proxy.sh
+            . /tmp/proxy.sh
+            if [ "${PROXY_ENABLED:-false}" != "true" ]; then
+              echo "❌ 代理未启用（PROXY_ENABLED!=true），防反爬要求禁止直连裸爬，终止本轮"
+              exit 1
+            fi
+            printf 'export CHROME_PROXY_SERVER=http://127.0.0.1:7890\n' >> /tmp/proxy.sh
+            . /tmp/proxy.sh
+            echo "代理就绪：$HTTP_PROXY"
+        - name: 获取线上发布基线
+          timeout: 1h
+          script: |
+            set -e
+            . /tmp/proxy.sh
+            mkdir -p /tmp/cnb-baseline
+            # 基线=当前已发布数据，不用空基线（空基线会让 superset 校验假绿、发布行数塌陷）
+            # 来源优先级：① 上一轮回推的 docs/data/latest.json（=已发布数据本体，零网络依赖）
+            #            ② 在线全量（原站 / Codeberg）。
+            # 不设陈旧子集兜底：拿不到完整基线就中止本轮（绝不拿 910 行旧快照当基线，
+            # 那会让发布集塌陷到 910∪增量且 superset 校验因基线同步变小而假绿）
+            if [ -f docs/data/latest.json ]; then
+              ROWS=$(python -c "import json;d=json.load(open('docs/data/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
+              if [ "${ROWS:-0}" -ge 1000 ]; then
+                cp docs/data/latest.json /tmp/cnb-baseline/latest.json
+                echo "BASELINE=repo-docs rows=$ROWS"
+                exit 0
+              fi
+              echo "⚠️ repo docs 基线行数异常（$ROWS），转在线来源"
+            fi
+            # 全量基线 ~115MB：代理带宽下 300s 必超时（09-30 12:07 实测三源全挂的根因），放宽到 1800s
+            # codeberg 源暂移除：xuerui911.codeberg.page 404 + cars3 证书未签出（000），等 x3 HTTPS 恢复再加回
+            for URL in \
+              "https://cars.jiucai.eu.org/data/latest.json"; do
+              if curl --fail --show-error --silent --location --retry 2 --retry-all-errors \
+                   --retry-delay 10 --connect-timeout 20 --max-time 1800 \
+                   -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
+                   "$URL" \
+                   -o /tmp/cnb-baseline/latest.json; then
+                ROWS=$(python -c "import json;d=json.load(open('/tmp/cnb-baseline/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
+                if [ "${ROWS:-0}" -ge 1000 ]; then
+                  echo "BASELINE=$URL rows=$ROWS"
+                  exit 0
+                fi
+                echo "⚠️ $URL 基线不可用或行数异常（$ROWS），尝试下一个来源"
+              fi
+            done
+            echo "❌ 所有基线来源均不可用，禁止本轮发布（绝不退化为空基线）"
+            exit 1
+        - name: 爬取-汽车之家
+          timeout: 1h
+          script: |
+            . /tmp/proxy.sh
+            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
+            rc=0
+            python scripts/test_autohome.py --step 1 --auto --time-limit 2700 --max-cars 0 --incremental \
+              > /tmp/autohome-step1.log 2>&1 || rc=$?
+            tail -n 20 /tmp/autohome-step1.log
+            if [ $rc -eq 0 ]; then echo "汽车之家 step1 完成"
+            elif [ $rc -eq 10 ]; then echo "汽车之家 step1 预算到点收尾（设计内，进度已保存）"
+            else echo "汽车之家 step1 失败 rc=$rc，继续后续步骤"; fi
+            for s in 2 3 4 5 6; do
+              python scripts/test_autohome.py --step $s || echo "汽车之家 step$s 失败，继续"
+            done
+        - name: 归一化汽车之家产物路径
+          script: |
+            # test_autohome.py:1871 写 scripts/，merge_data.py 只在仓根 glob；对齐 GitHub crawl-autohome.yml:428-438
+            # POSIX 版：09-30 实测 bash 数组/nullglob 写法在增量零产出场景下使本 stage error（12:07/13:59 两轮），
+            # 改 find+cp，任何 shell、任何产物状态都不阻断；产物有无由下游合并的 nullglob 容错自然处理
+            find scripts -maxdepth 1 -name 'autoHome_*.json' -exec cp -pf {} . \; || true
+            find scripts -maxdepth 1 -name 'autoHome_*.csv' -exec cp -pf {} . \; || true
+            ls -l autoHome_*.json autoHome_*.csv 2>/dev/null || echo "仓根无 autoHome_* 产物（零产出或增量无新增，继续）"
+            exit 0
+        - name: 爬取-懂车帝
+          timeout: 2h
+          script: |
+            . /tmp/proxy.sh
+            # crawl_dongchedi.py:17 依赖仓根在 sys.path（GitHub crawl-dongchedi.yml:41 的 PYTHONPATH）
+            export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
+            python scripts/crawl_budget.py configure || true
+            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
+            rc=0
+            python scripts/crawl_dongchedi.py --step 1 --auto --time-limit 2700 \
+              > /tmp/dongchedi-step1.log 2>&1 || rc=$?
+            tail -n 20 /tmp/dongchedi-step1.log
+            if [ $rc -eq 0 ]; then echo "懂车帝 step1 完成"
+            elif [ $rc -eq 10 ]; then echo "懂车帝 step1 预算到点收尾（设计内，进度已保存）"
+            else echo "懂车帝 step1 失败 rc=$rc，继续后续步骤"; fi
+            rc=0
+            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit 2700 --max-series 0 --incremental \
+              > /tmp/dongchedi-step2.log 2>&1 || rc=$?
+            tail -n 20 /tmp/dongchedi-step2.log
+            if [ $rc -eq 0 ]; then echo "懂车帝 step2 完成"
+            elif [ $rc -eq 10 ]; then echo "懂车帝 step2 预算到点收尾（设计内，进度已保存）"
+            else echo "懂车帝 step2 失败 rc=$rc，继续"; fi
+        - name: 归一化懂车帝产物路径
+          script: |
+            shopt -s nullglob
+            files=(scripts/dongchedi_*.json scripts/dongchedi_*.csv)
+            if [ ${#files[@]} -eq 0 ]; then
+              echo "未发现 scripts/dongchedi_* 输出"
+            else
+              cp -pf "${files[@]}" .
+              ls -l dongchedi_*.json dongchedi_*.csv
+            fi
+        - name: 爬取-易车
+          timeout: 6h
+          script: |
+            . /tmp/proxy.sh
+            # 预算必须走人类作息窗口（GitHub 原设计 morning 10800 / afternoon 21000，
+            # 北京时间 08:00-12:30 与 13:00-22:00，窗口末留 900s 安全缓冲）。
+            # 移植到 CNB 时 configure 被裸调、RUN_TIME 从未落地，--time-limit 退化成硬编码 2700，
+            # 等于每轮只爬约 6 个品牌。这里接回窗口值并保留回退默认：
+            # configure 判定窗口外或没产出时，绝不退化成「不爬」。
+            python scripts/crawl_budget.py configure --github-env /tmp/cnb-budget.env --github-output /tmp/cnb-budget.out || true
+            [ -f /tmp/cnb-budget.env ] && . /tmp/cnb-budget.env
+            RUN_TIME="${RUN_TIME:-2700}"
+            if grep -q "^skip=true$" /tmp/cnb-budget.out 2>/dev/null; then
+              echo "易车预算提示: configure 判定当前处于作息窗口外，本轮仍按回退 RUN_TIME=${RUN_TIME}s 执行"
+            else
+              echo "易车预算: RUN_TIME=${RUN_TIME}s (窗口 08:00-12:30 / 13:00-22:00, 缓冲 900s)"
+            fi
+            # 断点必须落在 crawl_state/：既被「回推增量状态」的 git add 覆盖（跨轮累积），
+            # 又不匹配 merge 的 yiche_*.json glob（不污染合并）。
+            mkdir -p crawl_state
+            export YICHE_CHECKPOINT_PATH=crawl_state/yiche_frontier.json
+            resume_args=()
+            if [ -s "$YICHE_CHECKPOINT_PATH" ]; then
+              resume_args=(
+                --resume-checkpoint "$YICHE_CHECKPOINT_PATH"
+                --resume-source-run-id ""
+                --resume-source-artifact-id ""
+                --resume-source-artifact-sha256 ""
+                --resume-source-checkpoint-sha256 "$(sha256sum "$YICHE_CHECKPOINT_PATH" | cut -d' ' -f1)"
+                --resume-source-head-sha ""
+                --resume-source-crawler-sha256 "$(sha256sum scripts/crawl_yiche.py | cut -d' ' -f1)"
+              )
+              brands_remaining=$(python -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8')).get('remaining_brands', '?'))" "$YICHE_CHECKPOINT_PATH" 2>/dev/null || echo '?')
+              echo "易车续跑：基于上一轮断点 $YICHE_CHECKPOINT_PATH (brands_remaining=$brands_remaining)"
+            else
+              echo "易车首轮：无断点，按全量发现起始"
+            fi
+            rc=0
+            python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series 0 \
+              "${resume_args[@]}" --output "yiche_$(date +%Y%m%d).json" \
+              > /tmp/yiche-main.log 2>&1 || rc=$?
+            tail -n 20 /tmp/yiche-main.log
+            if [ $rc -eq 0 ]; then echo "易车 单源失败 rc=$rc，继续 完成"
+            elif [ $rc -eq 10 ]; then echo "易车 单源失败 rc=$rc，继续 预算到点收尾（设计内，进度已保存）"
+            else echo "易车 单源失败 rc=$rc，继续"; fi
+            cp /tmp/yiche-main.log crawl_state/yiche-last-run.log 2>/dev/null || true
+            # 续跑被判定不兼容时会一行不产；退回首轮，保证本轮仍有易车数据可合并
+            if [ ! -s "yiche_$(date +%Y%m%d).json" ]; then
+              echo "⚠️ 易车本轮无产出，退回首轮重爬"
+              rm -f "$YICHE_CHECKPOINT_PATH"
+              python scripts/crawl_yiche.py --time-limit "$((RUN_TIME / 2))" --max-series 0 \
+                --output "yiche_$(date +%Y%m%d).json" \
+                || echo "易车 重爬仍失败，继续"
+            fi
+        - name: 爬取-经销商报价
+          timeout: 1h
+          script: |
+            . /tmp/proxy.sh
+            rc=0
+            python scripts/crawl_dealer_prices.py --series-input /tmp/cnb-baseline/latest.json --min-rows 300 --delay 0.3 \
+              > /tmp/dealer.log 2>&1 || rc=$?
+            tail -n 20 /tmp/dealer.log
+            if [ $rc -eq 0 ]; then echo "经销商报价 单源失败 rc=$rc，继续 完成"
+            elif [ $rc -eq 10 ]; then echo "经销商报价 单源失败 rc=$rc，继续 预算到点收尾（设计内，进度已保存）"
+            else echo "经销商报价 单源失败 rc=$rc，继续"; fi
+        - name: 清理代理进程
+          script: pkill -f mihomo || true
+        - name: 合并-增量保留基线
+          timeout: 30m
+          script: |
+            set -e
+            DATE=$(date +%Y%m%d)
+            BASELINE=/tmp/cnb-baseline/latest.json
+            # 跨阶段共用同一日期键，避免 merge_data.py 与发布阶段在 UTC/本地跨零点时取到不同日期
+            echo "export MERGE_DATE=$DATE" > /tmp/cnb-date
+            export MERGE_DATE=$DATE
+            # crawl_yiche 的断点文件同名匹配 yiche_*.json，而 merge_data.py:2388 find_latest 取 mtime 最新者；
+            # 断点是 dict 而非行数组，被选中会污染或炸合并，先移出 glob 视野
+            mkdir -p /tmp/cnb-checkpoints
+            for f in yiche_checkpoint.json yiche_progress.json; do
+              [ -f "$f" ] && mv -f "$f" /tmp/cnb-checkpoints/ || true
+            done
+            shopt -s nullglob
+            set -- autoHome_*.json dongchedi_*.json yiche_*.json
+            [ $# -gt 0 ] || { echo "❌ 三个源均无数据文件，无法合并"; exit 1; }
+            python scripts/merge_data.py
+            [ -s "merged_${DATE}.json" ] || { echo "❌ merge_data.py 未产出 merged_${DATE}.json"; exit 1; }
+            python scripts/preserve_publish_baseline.py \
+              --baseline "$BASELINE" \
+              --merged-json "merged_${DATE}.json" \
+              --merged-csv "merged_${DATE}.csv" \
+              --filtered-json "filtered_cars_${DATE}.json" \
+              --filtered-csv "filtered_cars_${DATE}.csv"
+            python scripts/verify_publish_superset.py \
+              --baseline "$BASELINE" \
+              --candidate "merged_${DATE}.json"
+        - name: 组装发布站点
+          timeout: 30m
+          script: |
+            set -e
+            . /tmp/cnb-date
+            DATE=$MERGE_DATE
+            BASELINE=/tmp/cnb-baseline/latest.json
+            ROWS=$(python -c "import json; print(len(json.load(open('merged_${DATE}.json', encoding='utf-8'))))")
+            if [ "$ROWS" -lt 1000 ]; then
+              echo "❌ 合并数据少于 1000 行（当前 $ROWS），疑似爬取不完整，拒绝发布"
+              exit 1
+            fi
+            # 对齐 GitHub merge-and-filter.yml:736-739,830-877：site/ 每次重建，时间戳文件不在仓内累积
+            rm -rf site
+            mkdir -p site/data site/config
+            cp -R docs/. site/
+            cp config/filter_conditions.json site/config/filter_conditions.json
+            cp "merged_${DATE}.json" site/data/latest.json
+            cp "filtered_cars_${DATE}.json" site/data/filtered.json
+            python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022
+            python scripts/prepare_pages_payload.py --input site/data/filtered.json --output site/data/filtered.json --min-year 2022
+            python scripts/audit_pages_payload.py \
+              --baseline "$BASELINE" \
+              --candidate site/data/latest.json \
+              --report pages-audit-report.json \
+              --head-sha "$CNB_COMMIT"
+            cp "merged_${DATE}.csv" "site/data/merged_${DATE}.csv"
+            cp "filtered_cars_${DATE}.csv" "site/data/filtered_cars_${DATE}.csv"
+            python - "$DATE" <<'PY'
+            import json
+            import shutil
+            import sys
+            from datetime import datetime, timezone
+
+            date = sys.argv[1]
+            with open("site/data/latest.json", encoding="utf-8") as f:
+                latest = json.load(f)
+            with open("site/data/filtered.json", encoding="utf-8") as f:
+                filtered = json.load(f)
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            shutil.copy("site/data/latest.json", f"site/data/latest_{stamp}.json")
+            shutil.copy("site/data/filtered.json", f"site/data/filtered_{stamp}.json")
+            manifest = {
+                "date": date,
+                "updatedAt": datetime.now(timezone.utc).isoformat(),
+                "rowCount": len(latest),
+                "filteredRowCount": len(filtered),
+                "files": {
+                    "latestJson": f"data/latest_{stamp}.json",
+                    "filteredJson": f"data/filtered_{stamp}.json",
+                    "latestCsv": f"data/merged_{date}.csv",
+                    "filteredCsv": f"data/filtered_cars_{date}.csv",
+                },
+            }
+            with open("site/data/manifest.json", "w", encoding="utf-8") as f:
+                json.dump(manifest, f, ensure_ascii=False, indent=2)
+            print(manifest)
+            PY
+            touch site/.nojekyll
+            mkdir -p docs/analysis
+            python scripts/analysis/merge_evidence_report.py --input "merged_${DATE}.json" --output docs/analysis/merge_evidence_report.json || true
+            python scripts/crawl_zero_to_whole_ratio.py || true
+        - name: 验证渲染数据
+          timeout: 30m
+          image: node:22
+          script: node scripts/verify_pages_rendered_data.js site/data/latest.json
+        - name: 发布到Cloudflare Pages
+          timeout: 30m
+          image: node:22
+          script: |
+            set -e
+            if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+              echo "❌ 未注入 CLOUDFLARE_API_TOKEN：本流水线经 imports 引用 xuerui911-mirror/crawl-secrets env.yml，请检查该私仓。"
+              exit 1
+            fi
+            # CF Pages 单文件 25MiB 硬限：剔除超限文件，并把 manifest 默认视图指向 filtered 子集（全量由 Codeberg x3 提供）
+            rm -rf cf-site
+            cp -R site cf-site
+            find cf-site -type f -size +20M -print -delete
+            python - <<'PY'
+            import json, os
+            with open("cf-site/data/manifest.json", encoding="utf-8") as f:
+                m = json.load(f)
+            kept = {}
+            for key, path in m["files"].items():
+                if os.path.exists(os.path.join("cf-site", path)):
+                    kept[key] = path
+            if "latestJson" not in kept and "filteredJson" in kept:
+                kept["latestJson"] = kept["filteredJson"]
+            missing = set(m["files"]) - set(kept)
+            if missing and "latestJson" in kept:
+                print(f"CF 侧降级视图，剔除超限文件: {sorted(missing)}")
+            elif missing:
+                raise SystemExit(f"❌ 发布视图缺关键数据文件: {sorted(missing)}")
+            m["files"] = kept
+            m["note"] = "CF Pages 25MiB 单文件限制：全量 latest 由 Codeberg (cars3) 提供，此处默认视图指向 filtered 子集"
+            with open("cf-site/data/manifest.json", "w", encoding="utf-8") as f:
+                json.dump(m, f, ensure_ascii=False, indent=2)
+            PY
+            npx -y wrangler@latest pages deploy cf-site --project-name crawl-cars --commit-dirty=true
+        - name: 发布到Codeberg Pages
+          timeout: 1h
+          script: |
+            set -e
+            if [ -z "$CODEBERG_TOKEN" ]; then
+              echo "❌ 未注入 CODEBERG_TOKEN：本流水线经 imports 引用 xuerui911-mirror/crawl-secrets env.yml，请检查该私仓。"
+              exit 1
+            fi
+            # token 只留在环境变量里：URL 内嵌凭据会出现在进程表与构建日志中
+            cat > /tmp/cb-askpass.sh <<'AASK'
+            #!/bin/sh
+            case "$1" in
+              *sername*) echo "xuerui911" ;;
+              *) printf '%s' "$CODEBERG_TOKEN" ;;
+            esac
+            AASK
+            chmod +x /tmp/cb-askpass.sh
+            W=$(mktemp -d)
+            cp -R site/. "$W/"
+            printf '%s\n' 'cars3.jiucai.eu.org' > "$W/.domains"
+            cd "$W"
+            git init -q -b pages
+            git config core.hooksPath .git/hooks
+            git config user.email "xuerui911@gmail.com"
+            git config user.name "Fatty911"
+            git add -A
+            git commit -qm "pages: crawl publish $(date +%Y%m%d%H%M%S)"
+            GIT_ASKPASS=/tmp/cb-askpass.sh git push --force https://codeberg.org/xuerui911/crawl-cars.git pages:pages
+            rm -rf "$W" /tmp/cb-askpass.sh
+        - name: 线上验收
+          timeout: 30m
+          script: |
+            set -e
+            . /tmp/cnb-date
+            python - "$MERGE_DATE" <<'PY'
+            import json
+            import sys
+            import time
+            import urllib.request
+
+            today = sys.argv[1]
+            url = "https://cars2.jiucai.eu.org/data/manifest.json"
+            last = None
+            for attempt in range(12):
+                try:
+                    with urllib.request.urlopen(url, timeout=60) as r:
+                        m = json.load(r)
+                    if m.get("date") == today and m.get("rowCount", 0) >= 1000:
+                        print(f"线上验收通过: date={m['date']} rowCount={m['rowCount']} filteredRowCount={m.get('filteredRowCount')}")
+                        break
+                    last = m
+                except Exception as exc:
+                    last = repr(exc)
+                time.sleep(15)
+            else:
+                raise SystemExit(f"❌ 12 次轮询后线上仍是旧数据: {last}")
+            PY
+        - name: 回推增量状态
+          timeout: 1h
+          script: |
+            set -e
+            git config user.email "xuerui911@gmail.com"
+            git config user.name "Fatty911"
+            # 只回回断点与轻量报告；发布数据走 CF/Codeberg，不进仓（113MB 级文件入仓会使仓指数膨胀）
+            for d in crawl_state docs/analysis data; do [ -d "$d" ] && git add "$d" || true; done
+            git add pages-audit-report.json 2>/dev/null || true
+            if git diff --cached --quiet; then
+              echo "无增量变更"
+            else
+              git commit -m "chore: 半月增量爬取+发布 [skip ci]"
+              git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:main
+            fi
+      failStages:
+        - name: 失败日志归档到diag分支
+          script: |
+            # 失败现场日志推 diag 分支（force），构建日志平台侧不可 API 读取时的唯一诊断通道
+            mkdir -p diag
+            for f in /tmp/autohome-step1.log /tmp/dongchedi-step1.log /tmp/dongchedi-step2.log \
+                     /tmp/yiche-main.log /tmp/yiche-resume.log /tmp/dealer.log; do
+              [ -f "$f" ] && cp -pf "$f" diag/ || true
+            done
+            tail -n 100 /tmp/yiche-main.log > diag/yiche-tail100.txt 2>/dev/null || true
+            ls -la /tmp/*.log > diag/MANIFEST.txt 2>&1 || true
+            git config user.email "xuerui911@gmail.com"
+            git config user.name "cnb-diag"
+            git add diag
+            if git diff --cached --quiet; then
+              echo "diag 无新增日志"
+            else
+              git commit -m "chore: 失败日志归档 [skip ci]"
+              git push -f "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
+                || echo "diag 推送失败（不阻断）"
+            fi
+        - name: 清理代理
+          script: pkill -f mihomo || true
+
+  pull_request:
+    - stages:
+        - name: NPC-PR审查
+          type: npc:go
+          options:
+            model: deepseek-v4-flash
+            thinkingLevel: high
+            maxTurns: 20
+            systemPrompt: |
+              你是代码审查员。审查PR：车系身份完整、报价字段分离、merge门禁、测试断言同步。
+              给出 PASS 或 FAIL 及理由。
+            userPrompt: 审查本次 PR 的代码变更。
+        # 原稿在此挂 CF/Codeberg 部署（且部署无数据的 docs/）——GitHub 的 deploy-frontend.yml 不由 PR 触发，
+        # PR 部署会用空数据覆盖生产站点，故移除；发布统一走 crontab 数据链（site/ 含数据）。
+
+$:
+  issue.open:
+    - stages:
+        - name: 检查fix标签
+          script: echo "$CNB_ISSUE_LABELS" | grep -q 'fix' || exit 0
+        - name: AI-Issue驱动修复
+          type: npc:go
+          options:
+            model: deepseek-v4-flash
+            thinkingLevel: max
+            maxTurns: 50
+            contextWindow: 256k
+            systemPrompt: |
+              你是自动化修复 Agent。读取 Issue，理解需求，读代码定位，修改，运行 pytest，创建 PR。
+              规则：不伪造数据、不折叠真冲突、不删校验、不降防护
+            userPrompt: |
+              Issue 标题: $CNB_ISSUE_TITLE
+              Issue 描述: $CNB_ISSUE_DESCRIPTION

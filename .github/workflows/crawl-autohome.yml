@@ -48,6 +48,7 @@ concurrency:
 
 jobs:
   autohome-crawl:
+    if: false  # CNB 为工作流主力，GitHub Actions 禁跑爬虫/AI 自修复
     runs-on: ubuntu-latest
     timeout-minutes: 390
     permissions:

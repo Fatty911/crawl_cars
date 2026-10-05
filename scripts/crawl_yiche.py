@@ -303,6 +303,15 @@ class CrawlInterrupted(Exception):
         super().__init__(f"crawler interrupted by signal {signum}")
 
 
+def producer_repository_identity():
+    """仓库身份：写入断点与校验断点必须用同一个解析结果。
+
+    CNB 运行时 GITHUB_REPOSITORY 不存在，写入端与校验端曾各自使用不同的默认值，
+    使每一轮都无法续跑自己产出的断点，只能退回从零重爬。
+    """
+    return os.getenv("GITHUB_REPOSITORY", "")
+
+
 def file_sha256(path):
     digest = hashlib.sha256()
     with open(path, "rb") as source:
@@ -370,7 +379,7 @@ class CrawlObserver:
             "schema_version": YICHE_CHECKPOINT_SCHEMA_VERSION,
             "state_compat_version": YICHE_CHECKPOINT_STATE_COMPAT_VERSION,
             "producer": {
-                "repository": os.getenv("GITHUB_REPOSITORY", ""),
+                "repository": producer_repository_identity(),
                 "workflow": ".github/workflows/crawl-yiche.yml",
                 "run_id": os.getenv("GITHUB_RUN_ID", ""),
                 "run_attempt": os.getenv("GITHUB_RUN_ATTEMPT", ""),
@@ -459,6 +468,40 @@ class CrawlObserver:
         if self.thread is not None and self.thread is not threading.current_thread():
             self.thread.join(timeout=1)
         self.checkpoint(progress=True, rows=rows, force=True, status=status, **state)
+
+
+# 易车 WAF 命中时用 HTTP 200 返回一个腾讯验证码壳页，正文只有一千多字节。
+# 它既不是 403 也不是空页面：若不单独识别，调用方会把「被挡」误判成「没有在售车款」，
+# 从而丢弃配置 API 已经取到的完整数据。
+CAPTCHA_MARKERS = ("TCaptcha", "WafCaptcha", "tcaptcha", "captcha.js")
+CAPTCHA_PAGE_MAX_BYTES = 8192
+
+
+def is_captcha_challenge(html):
+    """判断响应体是否为 WAF 验证码壳页，而非真实车系页。"""
+    text = html or ""
+    if len(text.encode("utf-8", "replace")) > CAPTCHA_PAGE_MAX_BYTES:
+        return False
+    return any(marker in text for marker in CAPTCHA_MARKERS)
+
+
+def new_session():
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0"})
+    return session
+
+
+def rotate_session(session):
+    """关闭并重建会话以切换出口 IP。
+
+    mihomo 的 load-balance 组按新建连接挑选节点，复用同一 Session 的连接池会让
+    重试继续打在同一个被封的出口上，等于没有重试。
+    """
+    try:
+        session.close()
+    except Exception:
+        pass
+    return new_session()
 
 
 def session_get(session, url, **kwargs):
@@ -1023,6 +1066,18 @@ def extract_from_config_api(payload, target=None):
                 value = clean_text(raw_value.get("value"))
                 if (not value or value == "-") and raw_value.get("subList"):
                     value = clean_text(raw_value["subList"][0].get("value"))
+                # paramType=2 的项目把子功能放在 subList[].desc 里，例如"大灯功能"下的
+                # 自动开闭、"远程控制功能"下的车辆启动。只取 subList[0] 的符号会把整张
+                # 子项表压成一个 ●，使下游条件无法判断具体配置。此处按子项增量展开，
+                # 不改变原列取值，避免影响既有表头约定。
+                for sub_entry in raw_value.get("subList") or []:
+                    if not isinstance(sub_entry, dict):
+                        continue
+                    sub_desc = clean_text(sub_entry.get("desc"))
+                    sub_value = clean_text(sub_entry.get("value"))
+                    if not sub_desc or not sub_value or sub_value == "-":
+                        continue
+                    rows[index][f"{key} - {sub_desc}"] = sub_value
                 model_name = clean_text(
                     base_info.get("carName") or base_info.get("carname") or base_info.get("name")
                     or raw_value.get("carName") or raw_value.get("carname") or raw_value.get("name")
@@ -1084,7 +1139,9 @@ def is_real_config_row(row):
         and model not in {"", "-"}
         and bool(re.fullmatch(r"(?:19|20)\d{2}", year))
         and contains_chinese(brand)
-        and contains_chinese(series)
+        # 车系名允许拉丁字母（Model Y / Cayenne / ID.4 X）：URL 片段式垃圾车系另有
+        # is_slug_series 拦截，早先的 contains_chinese(车系) 会把整个外资车系删掉
+        and not is_slug_series(series)
         and status == "approved"
         and any(clean_text(value) for key, value in row.items() if key not in IDENTITY_FIELDS)
     )
@@ -1241,7 +1298,7 @@ def load_resume_checkpoint(
         raise ValueError("checkpoint schema/state compatibility mismatch")
     producer = payload.get("producer") or {}
     if (
-        producer.get("repository") != os.getenv("GITHUB_REPOSITORY", "Fatty911/crawl_cars")
+        producer.get("repository") != producer_repository_identity()
         or str(producer.get("run_id")) != str(source_run_id)
         or producer.get("head_sha") != source_head_sha
         or producer.get("workflow") != ".github/workflows/crawl-yiche.yml"
@@ -1367,9 +1424,14 @@ def approve_rows_from_sale_page(session, page_url, rows, target=None):
     if not sale_ids and needs_sale_page:
         for candidate_url in (series_home_url(page_url), mobile_series_home_url(page_url)):
             try:
-                ids, names = extract_sale_model_refs(fetch(session, candidate_url))
+                page_html = fetch(session, candidate_url)
             except requests.RequestException as exc:
                 errors.append(f"{candidate_url} {type(exc).__name__}: {exc}")
+                continue
+            if is_captcha_challenge(page_html):
+                # 被 WAF 挡下不等于「无在售车款」：记为失败并换出口，交给上层重试
+                errors.append(f"{candidate_url} captcha_challenge")
+                session = rotate_session(session)
                 continue
             sale_ids.update(ids)
             sale_names.update(names)
@@ -1531,8 +1593,7 @@ def crawl(
     resume_state=None,
     resume_smoke_targets=0,
 ):
-    session = requests.Session()
-    session.headers.update({"User-Agent": "Mozilla/5.0"})
+    session = new_session()
     resume_state = dict(resume_state or {})
     all_rows = [dict(row) for row in resume_state.get("rows") or []]
     stats = dict(resume_state.get("stats") or {
@@ -1770,6 +1831,8 @@ def crawl(
             status_code = exc.response.status_code if exc.response is not None else None
             if status_code in {403, 429}:
                 stats[str(status_code)] += 1
+                session = rotate_session(session)
+                print(f"  易车出口受限({status_code})，已重建连接以切换出口 IP")
             try:
                 api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta) if serial_id else []
                 real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
@@ -1929,8 +1992,7 @@ def main():
     targets = {} if resume_state else {normalize_series_url(url): serial_id_from_url(url) for url in urls}
     if not targets and not resume_state:
         discovery_urls = args.discover_url or split_urls(os.getenv("YICHE_DISCOVERY_URLS", "")) or DEFAULT_DISCOVERY_URLS
-        session = requests.Session()
-        session.headers.update({"User-Agent": "Mozilla/5.0"})
+        session = new_session()
         targets = {normalize_series_url(url): make_target(serial_id_from_url(url)) for url in DEFAULT_SERIES_URLS}
         targets.update(discover_series_urls(session, discovery_urls, args.max_discovery_pages))
     if args.max_series > 0:
@@ -1939,8 +2001,7 @@ def main():
         print("未配置且未发现易车车系 URL，生成空数据文件。可通过 --url、--url-file、YICHE_SERIES_URLS 或 YICHE_DISCOVERY_URLS 配置。")
     discovery_callback = None
     if resume_state:
-        session = requests.Session()
-        session.headers.update({"User-Agent": "Mozilla/5.0"})
+        session = new_session()
         legacy_frontier = resume_state.get("legacy_frontier") or {}
         discovery_callback = YicheDiscoveryFrontier(
             session,

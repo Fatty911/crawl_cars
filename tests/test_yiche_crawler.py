@@ -12,6 +12,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import scripts.crawl_yiche as yiche
 
 
+@pytest.fixture(autouse=True)
+def _github_producer_environment(monkeypatch):
+    """本模块的断点夹具声明的是 GitHub 运行环境，显式固化仓库身份。
+
+    此前它依赖校验端的默认值才成立，本地与 CI 行为不同，属隐式耦合。
+    """
+    monkeypatch.setenv("GITHUB_REPOSITORY", "Fatty911/crawl_cars")
+
+
 def valid_v2_checkpoint_payload():
     target_url = "https://car.yiche.com/test/peizhi/"
     return {
