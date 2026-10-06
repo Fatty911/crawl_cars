@@ -265,6 +265,14 @@ main:
             . /tmp/proxy.sh
             # crawl_dongchedi.py:17 依赖仓根在 sys.path（GitHub crawl-dongchedi.yml:41 的 PYTHONPATH）
             export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
+            # debug_mode（对齐 GitHub workflow_dispatch inputs.debug_mode）：
+            # DEBUG_MODE=true 强制小批量，过作息窗口也能跑通全链并刷新 Pages 日期
+            if [ "${DEBUG_MODE:-false}" = "true" ]; then
+              MODE="debug小批量"
+              MR=20; BN_MR=20; MO_MR=20; TE_MR=20; UN_MR=20; UN_SL=240
+              TB=300; TB_B=300; TB_Z=300
+              echo "DEBUG_MODE=true: 强制小批量（每源约 20 条）"
+            fi
             python scripts/crawl_budget.py configure || true
             # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
             rc=0
