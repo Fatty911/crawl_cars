@@ -82,6 +82,10 @@ def main() -> int:
     parser.add_argument("--min-rows", type=int, default=2000,
                         help="abort if fewer series fetched than this (guards against mass blocking)")
     parser.add_argument("--delay", type=float, default=0.4, help="seconds between series requests")
+    parser.add_argument("--time-limit", type=int, default=0,
+                        help="墙钟上限(秒)，0 表示不限制；到点即停并按已抓到的部分判定")
+    parser.add_argument("--max-series", type=int, default=0,
+                        help="最多抓取的车系数，0 表示不限制")
     args = parser.parse_args()
 
     rows = json.loads(args.series_input.read_text(encoding="utf-8"))
@@ -97,6 +101,12 @@ def main() -> int:
     if not series_ids:
         print("no series ids found", file=sys.stderr)
         return 1
+    if args.max_series > 0 and len(series_ids) > args.max_series:
+        #限量必须是「取前缀」而不是随机采样：报价数据要能与上一轮逐车系对齐，
+        # 随机采样会让同一车系在两轮之间无规律地出现/消失，污染增量合并。
+        print(f"limiting to first {args.max_series}/{len(series_ids)} series "
+              "(deterministic prefix, keeps cross-run alignment)", file=sys.stderr)
+        series_ids = series_ids[: args.max_series]
 
     # 增量合并：保留已有数据中本轮未成功抓取的车系（部分失败不丢旧值）
     previous: dict[str, Any] = {"series": {}}
@@ -111,7 +121,16 @@ def main() -> int:
                               "series": dict(previous.get("series") or {})}
     fetched = 0
     failures = 0
+    deadline = time.monotonic() + args.time_limit if args.time_limit > 0 else None
+    timed_out = False
     for sid in series_ids:
+        if deadline is not None and time.monotonic() >= deadline:
+            # 到点收尾是设计内行为：已抓到的部分照常落盘，
+            # 下方 min-rows / 失败率闸照常判定，不因为「没跑完」就算失败。
+            timed_out = True
+            print(f"time limit {args.time_limit}s reached after {fetched} series; "
+                  "keeping partial result", file=sys.stderr)
+            break
         payload = fetch_garage(session, sid)
         if payload is None:
             failures += 1
@@ -125,7 +144,8 @@ def main() -> int:
         time.sleep(args.delay)
 
     print(f"done: {fetched}/{len(series_ids)} series, {failures} failures, "
-          f"{sum(len(v) for v in result['series'].values())} cars", file=sys.stderr)
+          f"{sum(len(v) for v in result['series'].values())} cars"
+          f"{', TIMED OUT' if timed_out else ''}", file=sys.stderr)
     if fetched < args.min_rows:
         print(f"aborting: only {fetched} series fetched (< {args.min_rows})", file=sys.stderr)
         return 1

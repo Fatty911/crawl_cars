@@ -129,6 +129,18 @@ main:
             printf 'export CHROME_PROXY_SERVER=http://127.0.0.1:7890\n' >> /tmp/proxy.sh
             . /tmp/proxy.sh
             echo "代理就绪：$HTTP_PROXY"
+        - name: 分配爬取时间预算
+          script: |
+            # CNB 有 120min 流水线硬上限（日志明示 maximum pipeline duration is exceeded: 120min），
+            # 超时整条构建被杀 —— 本轮无论爬到哪一步都拿不到产物，Pages 只能停在上一轮日期。
+            # GitHub Actions 时代各源 --time-limit 各自独立（汽车之家/懂车帝各 2700s、
+            # 易车最长 21000s），相加远超 CNB 上限，等于「每源留足预算 = 每源都被腰斩」。
+            # 这里按权重把总预算切给各爬取步，env 落盘供后续 stage source。
+            # 旧的 MR/BN_MR/TB 等死变量已删除：代码里没有任何 os.getenv 读它们（已全仓核查）。
+            python scripts/allocate_crawl_budget.py \
+              --output /tmp/cnb-crawl-budget.env \
+              --elapsed-seconds "${CNB_PIPELINE_ELAPSED_SECONDS:-0}"
+            cat /tmp/cnb-crawl-budget.env
         - name: 获取线上发布基线
           timeout: 1h
           script: |
@@ -172,9 +184,18 @@ main:
           timeout: 1h
           script: |
             . /tmp/proxy.sh
+            . /tmp/cnb-crawl-budget.env
+            # step1 的 --time-limit 从「硬编码 2700」改为读预算分配器：
+            # DEBUG_MODE 时为 480s（能跑通全链并刷新 Pages 日期），
+            # 生产时按权重从 120min 上限里切，且与懂车帝/易车共享同一总预算。
+            # max-cars 同理：DEBUG 时限 20 个车系、跳过全量历史发现，否则 0=不限制。
+            AH_MAX_CARS=0
+            if [ "${DEBUG_MODE:-false}" = "true" ]; then AH_MAX_CARS=20; fi
+            echo "汽车之家预算: step1 time-limit=${AUTOHOME_STEP1_TIME_LIMIT}s max-cars=${AH_MAX_CARS} debug=${CRAWL_BUDGET_DEBUG}"
             # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
             rc=0
-            python scripts/test_autohome.py --step 1 --auto --time-limit 2700 --max-cars 0 --incremental \
+            python scripts/test_autohome.py --step 1 --auto \
+              --time-limit "$AUTOHOME_STEP1_TIME_LIMIT" --max-cars "$AH_MAX_CARS" --incremental \
               > /tmp/autohome-step1.log 2>&1 || rc=$?
             tail -n 20 /tmp/autohome-step1.log
             if [ $rc -eq 0 ]; then echo "汽车之家 step1 完成"
@@ -196,27 +217,32 @@ main:
           timeout: 2h
           script: |
             . /tmp/proxy.sh
+            . /tmp/cnb-crawl-budget.env
             # crawl_dongchedi.py:17 依赖仓根在 sys.path（GitHub crawl-dongchedi.yml:41 的 PYTHONPATH）
             export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
             # debug_mode（对齐 GitHub workflow_dispatch inputs.debug_mode）：
-            # DEBUG_MODE=true 强制小批量，过作息窗口也能跑通全链并刷新 Pages 日期
+            # DEBUG_MODE=true 强制小批量，过作息窗口也能跑通全链并刷新 Pages 日期。
+            # 真正的 debug 开关是 --debug-limit（crawl_dongchedi.py:80，据此设 MAX_SERIES_PER_RUN
+            # 并强制 INCREMENTAL_MODE），不是下面删掉的那批变量。
+            DCD_DEBUG_ARGS=""
             if [ "${DEBUG_MODE:-false}" = "true" ]; then
-              MODE="debug小批量"
-              MR=20; BN_MR=20; MO_MR=20; TE_MR=20; UN_MR=20; UN_SL=240
-              TB=300; TB_B=300; TB_Z=300
-              echo "DEBUG_MODE=true: 强制小批量（每源约 20 条）"
+              DCD_DEBUG_ARGS="--debug-limit 20"
             fi
-            python scripts/crawl_budget.py configure || true
+            echo "懂车帝预算: step1=${DONGCHEDI_STEP1_TIME_LIMIT}s step2=${DONGCHEDI_STEP2_TIME_LIMIT}s debug=${CRAWL_BUDGET_DEBUG} args='${DCD_DEBUG_ARGS}'"
             # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
             rc=0
-            python scripts/crawl_dongchedi.py --step 1 --auto --time-limit 2700 \
+            # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
+            python scripts/crawl_dongchedi.py --step 1 --auto \
+              --time-limit "$DONGCHEDI_STEP1_TIME_LIMIT" $DCD_DEBUG_ARGS \
               > /tmp/dongchedi-step1.log 2>&1 || rc=$?
             tail -n 20 /tmp/dongchedi-step1.log
             if [ $rc -eq 0 ]; then echo "懂车帝 step1 完成"
             elif [ $rc -eq 10 ]; then echo "懂车帝 step1 预算到点收尾（设计内，进度已保存）"
             else echo "懂车帝 step1 失败 rc=$rc，继续后续步骤"; fi
             rc=0
-            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit 2700 --max-series 0 --incremental \
+            # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
+            python scripts/crawl_dongchedi.py --step 2 --auto \
+              --time-limit "$DONGCHEDI_STEP2_TIME_LIMIT" --max-series 0 --incremental $DCD_DEBUG_ARGS \
               > /tmp/dongchedi-step2.log 2>&1 || rc=$?
             tail -n 20 /tmp/dongchedi-step2.log
             if [ $rc -eq 0 ]; then echo "懂车帝 step2 完成"
@@ -235,18 +261,27 @@ main:
           timeout: 6h
           script: |
             . /tmp/proxy.sh
-            # 预算必须走人类作息窗口（GitHub 原设计 morning 10800 / afternoon 21000，
-            # 北京时间 08:00-12:30 与 13:00-22:00，窗口末留 900s 安全缓冲）。
-            # 移植到 CNB 时 configure 被裸调、RUN_TIME 从未落地，--time-limit 退化成硬编码 2700，
-            # 等于每轮只爬约 6 个品牌。这里接回窗口值并保留回退默认：
-            # configure 判定窗口外或没产出时，绝不退化成「不爬」。
-            python scripts/crawl_budget.py configure --github-env /tmp/cnb-budget.env --github-output /tmp/cnb-budget.out || true
-            [ -f /tmp/cnb-budget.env ] && . /tmp/cnb-budget.env
-            RUN_TIME="${RUN_TIME:-2700}"
-            if grep -q "^skip=true$" /tmp/cnb-budget.out 2>/dev/null; then
-              echo "易车预算提示: configure 判定当前处于作息窗口外，本轮仍按回退 RUN_TIME=${RUN_TIME}s 执行"
+            . /tmp/cnb-crawl-budget.env
+            # 预算必须同时受两个上限约束，取更严的那个：
+            #   ① 作息窗口（GitHub 原设计 morning 10800 / afternoon 21000，北京时间
+            #      08:00-12:30 与 13:00-22:00，窗口末留 900s安全缓冲）——
+            #      这是「什么时候爬」的人为约束；
+            #   ② CNB 流水线 120min 硬上限 —— 这是「最多能爬多久」的物理约束。
+            # 移植到 CNB 后 configure 被裸调、RUN_TIME 从未落地，退化成硬编码 2700；
+            # 现在窗口值由 configure 给出并写盘，且被分配器的 YICHE_TIME_LIMIT 钳制。
+            python scripts/crawl_budget.py configure --github-env /tmp/cnb-yiche-window.env --github-output /tmp/cnb-yiche-window.out || true
+            [ -f /tmp/cnb-yiche-window.env ] && . /tmp/cnb-yiche-window.env
+            WINDOW_RUN_TIME="${RUN_TIME:-0}"
+            if [ "$WINDOW_RUN_TIME" -le 0 ]; then
+              # 窗口外：窗口预算为 0，此时只受分配器约束（分配器已扣掉发布阶段开销）
+              RUN_TIME="$YICHE_TIME_LIMIT"
+              echo "易车预算: 窗口外，取分配器预算 RUN_TIME=${RUN_TIME}s"
+            elif [ "$WINDOW_RUN_TIME" -lt "$YICHE_TIME_LIMIT" ]; then
+              RUN_TIME="$WINDOW_RUN_TIME"
+              echo "易车预算: 取窗口预算 RUN_TIME=${RUN_TIME}s（窗口 08:00-12:30 / 13:00-22:00, 缓冲 900s）"
             else
-              echo "易车预算: RUN_TIME=${RUN_TIME}s (窗口 08:00-12:30 / 13:00-22:00, 缓冲 900s)"
+              RUN_TIME="$YICHE_TIME_LIMIT"
+              echo "易车预算: 窗口给出 ${WINDOW_RUN_TIME}s 但 120min 上限只允许 ${RUN_TIME}s，取后者"
             fi
             # 断点必须落在 crawl_state/：既被「回推增量状态」的 git add 覆盖（跨轮累积），
             # 又不匹配 merge 的 yiche_*.json glob（不污染合并）。
@@ -268,16 +303,24 @@ main:
             else
               echo "易车首轮：无断点，按全量发现起始"
             fi
+            # DEBUG 模式限量车系数，与懂车帝 --debug-limit 同一语义（限的是工作量，不是时间）
+            YICHE_EXTRA_ARGS=""
+            if [ "${DEBUG_MODE:-false}" = "true" ]; then
+              YICHE_EXTRA_ARGS="--max-series 20"
+            fi
             rc=0
+            # shellcheck disable=SC2086  # YICHE_EXTRA_ARGS 需按两个词拆开
             python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series 0 \
-              "$@" --output "yiche_$(date +%Y%m%d).json" \
+              "$@" $YICHE_EXTRA_ARGS --output "yiche_$(date +%Y%m%d).json" \
               > /tmp/yiche-main.log 2>&1 || rc=$?
             tail -n 20 /tmp/yiche-main.log
             if [ $rc -eq 0 ]; then echo "易车 单源失败 rc=$rc，继续 完成"
             elif [ $rc -eq 10 ]; then echo "易车 单源失败 rc=$rc，继续 预算到点收尾（设计内，进度已保存）"
             else echo "易车 单源失败 rc=$rc，继续"; fi
             cp /tmp/yiche-main.log crawl_state/yiche-last-run.log 2>/dev/null || true
-            # 续跑被判定不兼容时会一行不产；退回首轮，保证本轮仍有易车数据可合并
+            # 续跑被判定不兼容时会一行不产；退回首轮，保证本轮仍有易车数据可合并。
+            # 重爬预算必须再砍半：它是在主爬已经花掉 RUN_TIME 之后追加的，
+            # 不砍半就会把「分配器算好的总额」直接吃掉，合并阶段被腰斩。
             if [ ! -s "yiche_$(date +%Y%m%d).json" ]; then
               echo "⚠️ 易车本轮无产出，退回首轮重爬"
               rm -f "$YICHE_CHECKPOINT_PATH"
@@ -289,13 +332,25 @@ main:
           timeout: 1h
           script: |
             . /tmp/proxy.sh
+            . /tmp/cnb-crawl-budget.env
+            # 这一源原先既无--time-limit 也无 --max-series，是四个源里唯一完全无界的
+            # （串行遍历全部车系 + 每系sleep delay）。现给它显式上限，
+            # 与前三源共享同一总预算，避免它把合并/发布阶段的时间吃光。
+            DEALER_EXTRA_ARGS=""
+            if [ "${DEBUG_MODE:-false}" = "true" ]; then
+              # debug 下min-rows 必须同步下调，否则限量后必然触发「抓得太少」而 rc=1
+              DEALER_EXTRA_ARGS="--min-rows 20 --max-series 30"
+            fi
+            echo "经销商报价预算: time-limit=${DEALER_TIME_LIMIT}s extra='${DEALER_EXTRA_ARGS}'"
             rc=0
-            python scripts/crawl_dealer_prices.py --series-input /tmp/cnb-baseline/latest.json --min-rows 300 --delay 0.3 \
+            # shellcheck disable=SC2086  # DEALER_EXTRA_ARGS 需按多个词拆开
+            python scripts/crawl_dealer_prices.py --series-input /tmp/cnb-baseline/latest.json \
+              --min-rows 300 --delay 0.3 --time-limit "$DEALER_TIME_LIMIT" $DEALER_EXTRA_ARGS \
               > /tmp/dealer.log 2>&1 || rc=$?
             tail -n 20 /tmp/dealer.log
-            if [ $rc -eq 0 ]; then echo "经销商报价 单源失败 rc=$rc，继续 完成"
-            elif [ $rc -eq 10 ]; then echo "经销商报价 单源失败 rc=$rc，继续 预算到点收尾（设计内，进度已保存）"
-            else echo "经销商报价 单源失败 rc=$rc，继续"; fi
+            if [ $rc -eq 0 ]; then echo "经销商报价 完成"
+            elif [ $rc -eq 10 ]; then echo "经销商报价 预算到点收尾（设计内，进度已保存）"
+            else echo "经销商报价 失败 rc=$rc，继续"; fi
         - name: 清理代理进程
           script: pkill -x mihomo || true
         - name: 合并-增量保留基线
@@ -778,6 +833,18 @@ main:
             printf 'export CHROME_PROXY_SERVER=http://127.0.0.1:7890\n' >> /tmp/proxy.sh
             . /tmp/proxy.sh
             echo "代理就绪：$HTTP_PROXY"
+        - name: 分配爬取时间预算
+          script: |
+            # CNB 有 120min 流水线硬上限（日志明示 maximum pipeline duration is exceeded: 120min），
+            # 超时整条构建被杀 —— 本轮无论爬到哪一步都拿不到产物，Pages 只能停在上一轮日期。
+            # GitHub Actions 时代各源 --time-limit 各自独立（汽车之家/懂车帝各 2700s、
+            # 易车最长 21000s），相加远超 CNB 上限，等于「每源留足预算 = 每源都被腰斩」。
+            # 这里按权重把总预算切给各爬取步，env 落盘供后续 stage source。
+            # 旧的 MR/BN_MR/TB 等死变量已删除：代码里没有任何 os.getenv 读它们（已全仓核查）。
+            python scripts/allocate_crawl_budget.py \
+              --output /tmp/cnb-crawl-budget.env \
+              --elapsed-seconds "${CNB_PIPELINE_ELAPSED_SECONDS:-0}"
+            cat /tmp/cnb-crawl-budget.env
         - name: 获取线上发布基线
           timeout: 1h
           script: |
@@ -821,9 +888,18 @@ main:
           timeout: 1h
           script: |
             . /tmp/proxy.sh
+            . /tmp/cnb-crawl-budget.env
+            # step1 的 --time-limit 从「硬编码 2700」改为读预算分配器：
+            # DEBUG_MODE 时为 480s（能跑通全链并刷新 Pages 日期），
+            # 生产时按权重从 120min 上限里切，且与懂车帝/易车共享同一总预算。
+            # max-cars 同理：DEBUG 时限 20 个车系、跳过全量历史发现，否则 0=不限制。
+            AH_MAX_CARS=0
+            if [ "${DEBUG_MODE:-false}" = "true" ]; then AH_MAX_CARS=20; fi
+            echo "汽车之家预算: step1 time-limit=${AUTOHOME_STEP1_TIME_LIMIT}s max-cars=${AH_MAX_CARS} debug=${CRAWL_BUDGET_DEBUG}"
             # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
             rc=0
-            python scripts/test_autohome.py --step 1 --auto --time-limit 2700 --max-cars 0 --incremental \
+            python scripts/test_autohome.py --step 1 --auto \
+              --time-limit "$AUTOHOME_STEP1_TIME_LIMIT" --max-cars "$AH_MAX_CARS" --incremental \
               > /tmp/autohome-step1.log 2>&1 || rc=$?
             tail -n 20 /tmp/autohome-step1.log
             if [ $rc -eq 0 ]; then echo "汽车之家 step1 完成"
@@ -845,19 +921,30 @@ main:
           timeout: 2h
           script: |
             . /tmp/proxy.sh
+            . /tmp/cnb-crawl-budget.env
             # crawl_dongchedi.py:17 依赖仓根在 sys.path（GitHub crawl-dongchedi.yml:41 的 PYTHONPATH）
             export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
-            python scripts/crawl_budget.py configure || true
+            # 与 api_trigger 同语义：debug 开关是 --debug-limit，预算来自分配器。
+            # （此前此处连 api_trigger 的 debug 分支都没有，重跑永远按全量 2700s 跑，必然再超时）
+            DCD_DEBUG_ARGS=""
+            if [ "${DEBUG_MODE:-false}" = "true" ]; then
+              DCD_DEBUG_ARGS="--debug-limit 20"
+            fi
+            echo "懂车帝预算: step1=${DONGCHEDI_STEP1_TIME_LIMIT}s step2=${DONGCHEDI_STEP2_TIME_LIMIT}s debug=${CRAWL_BUDGET_DEBUG} args='${DCD_DEBUG_ARGS}'"
             # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
             rc=0
-            python scripts/crawl_dongchedi.py --step 1 --auto --time-limit 2700 \
+            # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
+            python scripts/crawl_dongchedi.py --step 1 --auto \
+              --time-limit "$DONGCHEDI_STEP1_TIME_LIMIT" $DCD_DEBUG_ARGS \
               > /tmp/dongchedi-step1.log 2>&1 || rc=$?
             tail -n 20 /tmp/dongchedi-step1.log
             if [ $rc -eq 0 ]; then echo "懂车帝 step1 完成"
             elif [ $rc -eq 10 ]; then echo "懂车帝 step1 预算到点收尾（设计内，进度已保存）"
             else echo "懂车帝 step1 失败 rc=$rc，继续后续步骤"; fi
             rc=0
-            python scripts/crawl_dongchedi.py --step 2 --auto --time-limit 2700 --max-series 0 --incremental \
+            # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
+            python scripts/crawl_dongchedi.py --step 2 --auto \
+              --time-limit "$DONGCHEDI_STEP2_TIME_LIMIT" --max-series 0 --incremental $DCD_DEBUG_ARGS \
               > /tmp/dongchedi-step2.log 2>&1 || rc=$?
             tail -n 20 /tmp/dongchedi-step2.log
             if [ $rc -eq 0 ]; then echo "懂车帝 step2 完成"
@@ -876,18 +963,27 @@ main:
           timeout: 6h
           script: |
             . /tmp/proxy.sh
-            # 预算必须走人类作息窗口（GitHub 原设计 morning 10800 / afternoon 21000，
-            # 北京时间 08:00-12:30 与 13:00-22:00，窗口末留 900s 安全缓冲）。
-            # 移植到 CNB 时 configure 被裸调、RUN_TIME 从未落地，--time-limit 退化成硬编码 2700，
-            # 等于每轮只爬约 6 个品牌。这里接回窗口值并保留回退默认：
-            # configure 判定窗口外或没产出时，绝不退化成「不爬」。
-            python scripts/crawl_budget.py configure --github-env /tmp/cnb-budget.env --github-output /tmp/cnb-budget.out || true
-            [ -f /tmp/cnb-budget.env ] && . /tmp/cnb-budget.env
-            RUN_TIME="${RUN_TIME:-2700}"
-            if grep -q "^skip=true$" /tmp/cnb-budget.out 2>/dev/null; then
-              echo "易车预算提示: configure 判定当前处于作息窗口外，本轮仍按回退 RUN_TIME=${RUN_TIME}s 执行"
+            . /tmp/cnb-crawl-budget.env
+            # 预算必须同时受两个上限约束，取更严的那个：
+            #   ① 作息窗口（GitHub 原设计 morning 10800 / afternoon 21000，北京时间
+            #      08:00-12:30 与 13:00-22:00，窗口末留 900s安全缓冲）——
+            #      这是「什么时候爬」的人为约束；
+            #   ② CNB 流水线 120min 硬上限 —— 这是「最多能爬多久」的物理约束。
+            # 移植到 CNB 后 configure 被裸调、RUN_TIME 从未落地，退化成硬编码 2700；
+            # 现在窗口值由 configure 给出并写盘，且被分配器的 YICHE_TIME_LIMIT 钳制。
+            python scripts/crawl_budget.py configure --github-env /tmp/cnb-yiche-window.env --github-output /tmp/cnb-yiche-window.out || true
+            [ -f /tmp/cnb-yiche-window.env ] && . /tmp/cnb-yiche-window.env
+            WINDOW_RUN_TIME="${RUN_TIME:-0}"
+            if [ "$WINDOW_RUN_TIME" -le 0 ]; then
+              # 窗口外：窗口预算为 0，此时只受分配器约束（分配器已扣掉发布阶段开销）
+              RUN_TIME="$YICHE_TIME_LIMIT"
+              echo "易车预算: 窗口外，取分配器预算 RUN_TIME=${RUN_TIME}s"
+            elif [ "$WINDOW_RUN_TIME" -lt "$YICHE_TIME_LIMIT" ]; then
+              RUN_TIME="$WINDOW_RUN_TIME"
+              echo "易车预算: 取窗口预算 RUN_TIME=${RUN_TIME}s（窗口 08:00-12:30 / 13:00-22:00, 缓冲 900s）"
             else
-              echo "易车预算: RUN_TIME=${RUN_TIME}s (窗口 08:00-12:30 / 13:00-22:00, 缓冲 900s)"
+              RUN_TIME="$YICHE_TIME_LIMIT"
+              echo "易车预算: 窗口给出 ${WINDOW_RUN_TIME}s 但 120min 上限只允许 ${RUN_TIME}s，取后者"
             fi
             # 断点必须落在 crawl_state/：既被「回推增量状态」的 git add 覆盖（跨轮累积），
             # 又不匹配 merge 的 yiche_*.json glob（不污染合并）。
@@ -909,16 +1005,24 @@ main:
             else
               echo "易车首轮：无断点，按全量发现起始"
             fi
+            # DEBUG 模式限量车系数，与懂车帝 --debug-limit 同一语义（限的是工作量，不是时间）
+            YICHE_EXTRA_ARGS=""
+            if [ "${DEBUG_MODE:-false}" = "true" ]; then
+              YICHE_EXTRA_ARGS="--max-series 20"
+            fi
             rc=0
+            # shellcheck disable=SC2086  # YICHE_EXTRA_ARGS 需按两个词拆开
             python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series 0 \
-              "$@" --output "yiche_$(date +%Y%m%d).json" \
+              "$@" $YICHE_EXTRA_ARGS --output "yiche_$(date +%Y%m%d).json" \
               > /tmp/yiche-main.log 2>&1 || rc=$?
             tail -n 20 /tmp/yiche-main.log
             if [ $rc -eq 0 ]; then echo "易车 单源失败 rc=$rc，继续 完成"
             elif [ $rc -eq 10 ]; then echo "易车 单源失败 rc=$rc，继续 预算到点收尾（设计内，进度已保存）"
             else echo "易车 单源失败 rc=$rc，继续"; fi
             cp /tmp/yiche-main.log crawl_state/yiche-last-run.log 2>/dev/null || true
-            # 续跑被判定不兼容时会一行不产；退回首轮，保证本轮仍有易车数据可合并
+            # 续跑被判定不兼容时会一行不产；退回首轮，保证本轮仍有易车数据可合并。
+            # 重爬预算必须再砍半：它是在主爬已经花掉 RUN_TIME 之后追加的，
+            # 不砍半就会把「分配器算好的总额」直接吃掉，合并阶段被腰斩。
             if [ ! -s "yiche_$(date +%Y%m%d).json" ]; then
               echo "⚠️ 易车本轮无产出，退回首轮重爬"
               rm -f "$YICHE_CHECKPOINT_PATH"
@@ -930,13 +1034,25 @@ main:
           timeout: 1h
           script: |
             . /tmp/proxy.sh
+            . /tmp/cnb-crawl-budget.env
+            # 这一源原先既无--time-limit 也无 --max-series，是四个源里唯一完全无界的
+            # （串行遍历全部车系 + 每系sleep delay）。现给它显式上限，
+            # 与前三源共享同一总预算，避免它把合并/发布阶段的时间吃光。
+            DEALER_EXTRA_ARGS=""
+            if [ "${DEBUG_MODE:-false}" = "true" ]; then
+              # debug 下min-rows 必须同步下调，否则限量后必然触发「抓得太少」而 rc=1
+              DEALER_EXTRA_ARGS="--min-rows 20 --max-series 30"
+            fi
+            echo "经销商报价预算: time-limit=${DEALER_TIME_LIMIT}s extra='${DEALER_EXTRA_ARGS}'"
             rc=0
-            python scripts/crawl_dealer_prices.py --series-input /tmp/cnb-baseline/latest.json --min-rows 300 --delay 0.3 \
+            # shellcheck disable=SC2086  # DEALER_EXTRA_ARGS 需按多个词拆开
+            python scripts/crawl_dealer_prices.py --series-input /tmp/cnb-baseline/latest.json \
+              --min-rows 300 --delay 0.3 --time-limit "$DEALER_TIME_LIMIT" $DEALER_EXTRA_ARGS \
               > /tmp/dealer.log 2>&1 || rc=$?
             tail -n 20 /tmp/dealer.log
-            if [ $rc -eq 0 ]; then echo "经销商报价 单源失败 rc=$rc，继续 完成"
-            elif [ $rc -eq 10 ]; then echo "经销商报价 单源失败 rc=$rc，继续 预算到点收尾（设计内，进度已保存）"
-            else echo "经销商报价 单源失败 rc=$rc，继续"; fi
+            if [ $rc -eq 0 ]; then echo "经销商报价 完成"
+            elif [ $rc -eq 10 ]; then echo "经销商报价 预算到点收尾（设计内，进度已保存）"
+            else echo "经销商报价 失败 rc=$rc，继续"; fi
         - name: 清理代理进程
           script: pkill -x mihomo || true
         - name: 合并-增量保留基线
