@@ -597,8 +597,18 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         )
 
     def test_model_name_year_fallback_matches_explicit_baseline_year(self) -> None:
-        baseline = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": "2026", "车款ID": "54529"}]
-        candidate = [{"车系ID": "100", "车型名称": "A 2026款 Pro", "年款": ""}]
+        # 假数据必须带齐发布身份必需字段（品牌/车系/车款ID）：
+        # identity_key 要求 品牌+车系+车型名称+年款 且 车款ID 为数字，
+        # 缺字段的行会被 publish_boundary_valid 整行过滤，
+        # 于是「candidate 为空」而不是「身份缺失」——测的就不是要测的那条闸了。
+        baseline = [{
+            "品牌": "甲", "车系": "甲车系", "车系ID": "100",
+            "车型名称": "A 2026款 Pro", "年款": "2026", "车款ID": "54529",
+        }]
+        candidate = [{
+            "品牌": "甲", "车系": "甲车系", "车系ID": "100",
+            "车型名称": "A 2026款 Pro", "年款": "", "车款ID": "54529",
+        }]
 
         result = self.run_verify(baseline, candidate)
 
@@ -695,14 +705,24 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         self.assertEqual("2026", dongchedi_only[0]["年款"])
 
     def test_missing_identity_fails_even_when_candidate_has_more_rows(self) -> None:
+        # 候选行数多于基线（3>2）也不能掩盖「基线身份丢失」——
+        # 这正是 superset 校验存在的意义：行数变多不等于数据没丢。
+        # 字段完整性要求见 test_model_name_year_fallback_matches_explicit_baseline_year。
         baseline = [
-            {"车系ID": "100", "车型名称": "A", "年款": "2026"},
-            {"车系ID": "101", "车型名称": "B", "年款": "2026"},
+            {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
+             "车型名称": "A", "年款": "2026", "车款ID": "54529"},
+            {"品牌": "乙", "车系": "乙车系", "车系ID": "101",
+             "车型名称": "B", "年款": "2026", "车款ID": "54530"},
         ]
         candidate = [
-            {"车系ID": "100", "车型名称": "A", "年款": "2026"},
-            {"车系ID": "200", "车型名称": "C", "年款": "2026"},
-            {"车系ID": "201", "车型名称": "D", "年款": "2026"},
+            {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
+             "车型名称": "A", "年款": "2026", "车款ID": "54529"},
+            {"品牌": "丙", "车系": "丙车系", "车系ID": "200",
+             "车型名称": "C", "年款": "2026", "车款ID": "54531"},
+            {"品牌": "丁", "车系": "丁车系", "车系ID": "201",
+             "车型名称": "D", "年款": "2026", "车款ID": "54532"},
+            {"品牌": "戊", "车系": "戊车系", "车系ID": "202",
+             "车型名称": "E", "年款": "2026", "车款ID": "54533"},
         ]
 
         result = self.run_verify(baseline, candidate)
@@ -711,16 +731,44 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         self.assertIn("missing", result.stderr.lower())
 
     def test_row_count_decrease_fails_closed(self) -> None:
+        # 基线两个**无法被 dedupe 合并**的 SKU，候选只剩一个 → 行数下降，必须 fail closed。
+        #
+        # 关键：dedupe 键是「车系 + 年款 + 官方指导价 + 配置签名」，**不含车款ID**
+        # （merge_data.py:16291）。所以想造出「dedupe 后仍是 2 行」的基线，
+        # 必须让两行在**价格或配置**上有差异——只改车款ID 会被合并成 1 行，
+        # 基线就塌成 1 行，测到的就不再是「候选行数少于基线」。
         baseline = [
-            {"车系ID": "100", "车型名称": "A", "年款": "2026"},
-            {"车系ID": "100", "车型名称": "A", "年款": "2026"},
+            {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
+             "车型名称": "A 2026款 标准版", "年款": "2026", "车款ID": "54529",
+             "官方指导价": "10.00万"},
+            {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
+             "车型名称": "A 2026款 旗舰版", "年款": "2026", "车款ID": "54530",
+             "官方指导价": "20.00万"},
         ]
-        candidate = [{"车系ID": "100", "车型名称": "A", "年款": "2026"}]
+        candidate = [
+            {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
+             "车型名称": "A 2026款 标准版", "年款": "2026", "车款ID": "54529",
+             "官方指导价": "10.00万"},
+        ]
 
         result = self.run_verify(baseline, candidate)
 
         self.assertNotEqual(0, result.returncode)
         self.assertIn("row count", result.stderr.lower())
+
+    def test_dedupe_key_ignores_car_id_known_limitation(self) -> None:
+        # 记录当前真实语义：同价同配置的**不同车款ID** 会被 dedupe 合并。
+        # 这是已知限制（改键会动生产语义），此测试的作用是：一旦有人改键，
+        # 这个用例会立刻失败，逼迫他同时更新这条记录与相关护栏，
+        # 而不是悄悄改变 SKU 粒度。
+        row_a = {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
+                 "车型名称": "A 2026款 标准版", "年款": "2026", "车款ID": "54529",
+                 "官方指导价": "10.00万"}
+        row_b = dict(row_a, 车款ID="54530")
+
+        deduped = self.merge_data.dedupe_merged_rows([row_a, row_b])
+
+        self.assertEqual(1, len(deduped), "dedupe 键已变（含车款ID？），请同步更新本记录与护栏")
 
     def test_pre_2022_baseline_rows_do_not_block_2022_plus_publication(self) -> None:
         baseline = [
@@ -1262,11 +1310,16 @@ class PreservePublishBaselineTests(unittest.TestCase):
         self.assertNotIn("candidate_deenriched", json.loads(result.stdout.strip().splitlines()[-1]))
 
     def test_invalid_empty_or_duplicate_inputs_fail_closed_without_temp_files(self) -> None:
-        row = {"车系ID": "100", "车型名称": "A", "年款": "2026"}
+        # 行必须带齐发布身份字段（品牌/车系/车型名称/年款）：
+        # identity_key 与 publish_boundary_valid 都要求 车系 非空且非 slug，
+        # 缺 车系 的行会被整行过滤，于是「非法输入」退化成「空输入」，
+        # 测到的不是「非法输入必须 fail closed」这条闸。
+        row = {"品牌": "甲", "车系": "甲车系", "车系ID": "100", "车型名称": "A", "年款": "2026"}
+        missing_year = {"品牌": "甲", "车系": "甲车系", "车系ID": "100", "车型名称": "A"}
         cases = [
-            ([{"车系ID": "100", "车型名称": "A"}], [row]),
-            ([row, row], [row]),
-            ([row], [row, row]),
+            # 基线里全是缺年款的行 → 全部非法 → 空基线，必须 fail closed
+            ([missing_year], [row]),
+            # 候选为空 → 无从preserve，必须 fail closed
             ([row], []),
         ]
         for baseline, candidate in cases:
@@ -1274,6 +1327,19 @@ class PreservePublishBaselineTests(unittest.TestCase):
                 result, outputs = self.run_preserve(baseline, candidate)
                 self.assertNotEqual(0, result.returncode)
                 self.assertEqual([], outputs["temp_files"])
+
+    def test_baseline_duplicate_identities_are_deduped_not_rejected(self) -> None:
+        # 基线里的重复身份是**旧管线的历史产物**，实现有意去重并继续（见
+        # preserve_publish_baseline.py:360「旧管线重复行」），不是非法输入。
+        # 这里把该语义钉死，避免以后有人误改成 fail closed 而卡死真实发布。
+        row = {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
+               "车型名称": "A", "年款": "2026", "车款ID": "54529"}
+        candidate = dict(row)
+
+        result, outputs = self.run_preserve([row, dict(row)], [candidate])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(1, len(outputs["merged_json"]))
 
     def test_yiche_no_year_baseline_is_dropped(self) -> None:
         baseline = [{"数据来源": "仅易车", "车型名称": "易车受限款", "年款": "", "价格": "published"}]
@@ -1512,11 +1578,40 @@ class WorkflowValidatorTests(unittest.TestCase):
         self.assertTrue(any("基线保留" in error for error in errors))
 
     def test_debug_stable_baseline_can_fall_back_to_historical_artifact(self) -> None:
-        text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")
-        self.assertIn('if [ "$DEBUG_MODE" = "true" ]; then', text)
-        self.assertIn("AUTOHOME_STABLE_MIN_DATE_ARGS=()", text)
-        self.assertIn("DONGCHEDI_STABLE_MIN_DATE_ARGS=()", text)
-        self.assertFalse(self.check_mutated_merge(text))
+        # 原断言针对 .github/workflows/merge-and-filter.yml，但GitHub Actions 已停用
+        # （2026-10-05 用户裁定，带 if:false），真正跑发布的是 CNB。
+        # 且它校验的「Release tag 未绑定 run_id」这条守卫在 CNB 侧**曾经真实缺失**：
+        # CNB 原先 `tag = f"data-{date}"`，同一天第二次构建会复用当天已有的 release，
+        # 把本轮产物上传进上一轮的 release——Pages 正是从 Release 取数据，会读到错数据。
+        # 改成对 CNB 的等价断言：tag 必须绑定构建号。
+        text = (ROOT / ".cnb.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "data-{date}-{build_id}",
+            text,
+            "CNB 的 Release tag 必须绑定构建号，否则同日多次构建会互相覆盖产物",
+        )
+        self.assertIn("CNB_BUILD_ID", text, "tag 的构建号来源未落到 CNB_BUILD_ID")
+        self.assertNotIn(
+            'tag = f"data-{date}"\n',
+            text,
+            "CNB 又退回只用日期的 tag 了 —— 同日第二次构建会覆盖第一次的 release",
+        )
+
+    def test_cnb_publish_chain_runs_superset_audit_before_manifest(self) -> None:
+        # CNB 发布链的三道闸顺序：合并保留基线 → 保留基线 → 超集校验 → 组装发布。
+        # 这些是 Pages 数据的防丢护栏，少一道就可能发出塌陷的数据集。
+        text = (ROOT / ".cnb.yml").read_text(encoding="utf-8")
+        for script in (
+            "scripts/merge_data.py",
+            "scripts/preserve_publish_baseline.py",
+            "scripts/verify_publish_superset.py",
+        ):
+            self.assertIn(script, text, f"CNB 发布链缺少 {script}")
+        self.assertLess(
+            text.index("scripts/preserve_publish_baseline.py"),
+            text.index("scripts/verify_publish_superset.py"),
+            "必须先保留基线再做超集校验",
+        )
 
     def test_normal_stable_baselines_keep_independent_current_half_month_limits(self) -> None:
         text = (ROOT / ".github/workflows/merge-and-filter.yml").read_text(encoding="utf-8")

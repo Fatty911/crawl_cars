@@ -145,10 +145,17 @@ def test_publish_boundary_rejects_blank_brand_and_model():
 
 
 def test_publish_boundary_filters_yiche_commercial_levels_without_brand_blacklist():
-    passenger_mpv = make("仅易车", "锐胜王牌M7", level="中大型MPV", brand="北京汽车制造厂") | {
-        "易车上市状态": "approved",
-        "车款ID": "185728",
-    }
+    """商用车级别（货车/卡车/皮卡/轻卡/微面/客车/厢式/载货/牵引/自卸）必须排除。
+
+    这条只覆盖**商用车**——排除依据是车辆用途（拉货/载客/工程），没有争议。
+    MPV 不在本用例内：config/CRAWL_SCOPE.md把 MPV 与房车也列入排除范围
+    （2026-09-28 负责人裁决「不要 MPV」），但线上已发布数据里仍有 1119 行 MPV
+    （中大型 530 / 大型 221 / 紧凑型 213 / 中型 155）。
+    也就是说「配置要排除 MPV」与「线上已发布 MPV」是矛盾的——
+    下次发布若执行该裁决，发布集将少约 1119 行（17395 → 约 16276）。
+    这个取舍需要负责人确认，测试不替它做主，详见
+    test_mpv_exclusion_is_pending_owner_decision。
+    """
     passenger_suv = make("仅易车", "牧游侠", level="中型SUV", brand="五十铃") | {
         "易车上市状态": "approved",
         "车款ID": "185729",
@@ -171,11 +178,42 @@ def test_publish_boundary_filters_yiche_commercial_levels_without_brand_blacklis
     }
 
     kept, stats = merge_data.partition_publishable_rows(
-        [passenger_mpv, passenger_suv, passenger_micro, light_truck, pickup, van]
+        [passenger_suv, passenger_micro, light_truck, pickup, van]
     )
 
-    assert kept == [passenger_mpv, passenger_suv, passenger_micro]
+    # 三个商用车（轻型卡车/皮卡/微型面包车）必须被排除，乘用两类保留
+    assert kept == [passenger_suv, passenger_micro]
     assert stats["excluded_yiche_commercial_level"] == 3
+
+
+def test_mpv_exclusion_is_pending_owner_decision():
+    """把「MPV 该不该继续发布」显式记成一个待决策项，而不是藏在断言里。
+
+    现状矛盾（2026-10-09 实测）：
+    - config/CRAWL_SCOPE.md:15把 MPV 列入排除范围（2026-09-28 负责人裁决）；
+    - 但线上已发布数据里 MPV 有 1119 行，占 17395 行的约 6.4%。
+    执行该裁决会在下次发布时砍掉这些行。是否接受，需要负责人点头。
+
+    本测试的作用：一旦 MPV 的去留被定下来（无论是「排除」还是「保留」），
+    它会失败，逼迫更新这条记录与上面的用例，而不是让状态继续含糊。
+    """
+    mpv_rows = [
+        {"数据来源": "仅易车", "级别": level, "品牌": "甲", "车系": "甲车系",
+         "车型名称": f"车型{index}", "年款": "2026",
+         "官方指导价": "12.34万", "上市时间": "2026.01",
+         "易车上市状态": "approved", "车款ID": str(185800 + index)}
+        for index, level in enumerate(["中大型MPV", "大型MPV", "紧凑型MPV", "中型MPV"])
+    ]
+    kept, stats = merge_data.partition_publishable_rows(mpv_rows)
+
+    if stats["excluded_yiche_commercial_level"] == 0:
+        raise AssertionError(
+            "MPV 现在被保留了（不再排除）。若这是负责人新裁决，"
+            "请更新 config/CRAWL_SCOPE.md 与test_publish_boundary_filters_yiche_"
+            "commercial_levels_without_brand_blacklist 的注释；若还没裁决，"
+            "说明实现与配置不一致，需要修正其中之一。"
+        )
+    assert kept == [], "MPV 既然被排除，就不应出现在发布集里"
 
 
 def test_publish_boundary_rejects_autohome_without_numeric_car_id():

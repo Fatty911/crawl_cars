@@ -80,8 +80,9 @@ class AllocatorGuardTests(unittest.TestCase):
         )
 
     def test_every_crawl_source_gets_a_budget_slot(self) -> None:
-        # 四个源都必须有预算槽位；漏一个就意味着那个源退回无界（=超时元凶）。
-        for step in ("autohome_step1", "dongchedi_step1", "dongchedi_step2", "yiche", "dealer"):
+        # 基础属性的四个吃预算的步都必须有槽位；漏一个就意味着那个源退回无界
+        # （= 超时元凶）。经销商报价不在此列：它已拆成独立链路，自带 time-limit。
+        for step in ("autohome_step1", "dongchedi_step1", "dongchedi_step2", "yiche"):
             self.assertIn(step, self.mod.STEP_WEIGHTS, f"{step} 没有预算槽位")
             budgets = self.mod.allocate(None, 0, debug=False)
             self.assertGreater(budgets[step], 0, f"{step} 预算为 0")
@@ -163,14 +164,15 @@ class EmittedEnvTests(unittest.TestCase):
             # 必须转成 POSIX 路径：Windows 的反斜杠会被 sh 当转义符吃掉。
             posix = out.as_posix()
             result = subprocess.run(
-                ["sh", "-c", f". {posix} && echo $AUTOHOME_STEP1_TIME_LIMIT $DEALER_TIME_LIMIT"],
+                ["sh", "-c",
+                 f". {posix} && echo $AUTOHOME_STEP1_TIME_LIMIT $DONGCHEDI_STEP2_TIME_LIMIT"],
                 capture_output=True,
                 text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout.strip(),
-                f"{budgets['autohome_step1']} {budgets['dealer']}",
+                f"{budgets['autohome_step1']} {budgets['dongchedi_step2']}",
             )
 
     def test_emitted_env_contains_debug_marker(self) -> None:
@@ -248,11 +250,38 @@ class WorkflowWiringTests(unittest.TestCase):
         self.assertIn("scripts/allocate_crawl_budget.py", self.text)
 
     def test_every_crawl_stage_sources_budget_env(self) -> None:
-        # 三个爬取 stage（汽车之家/懂车帝/易车）+ 经销商报价都必须 source env，
-        # 否则该源仍按脚本默认值跑。
+        # 基础属性链的三个爬取 stage（汽车之家/懂车帝/易车）
+        # 在 api_trigger 与半月 crontab 两个 job 里各出现一次 → 2× 3 = 6 次 source。
+        # 经销商报价已拆成独立链路（失败域隔离），它有自己的 --time-limit 1500，
+        # 不再从分配器取预算，所以不计入这里。
         self.assertEqual(
             self.text.count(". /tmp/cnb-crawl-budget.env"),
-            8,  # api_trigger 与 failStages 各 4 个爬取 stage
+            6,
+            "基础属性链的三源各自在 api_trigger 与半月 crontab 里 source 一次",
+        )
+
+    def test_every_env_var_read_by_crawlers_is_produced_somewhere(self) -> None:
+        # 反向守卫：分配器 env 里的每个键都必须在 .cnb.yml 里被真正消费，
+        # 防止「分配器发了预算但stage 没读」这种静默失效。
+        for key in (
+            "AUTOHOME_STEP1_TIME_LIMIT",
+            "DONGCHEDI_STEP1_TIME_LIMIT",
+            "DONGCHEDI_STEP2_TIME_LIMIT",
+            "YICHE_TIME_LIMIT",
+        ):
+            self.assertIn(key, self.text, f"{key} 在 .cnb.yml 里没有任何消费方")
+
+    def test_dealer_budget_not_in_shared_allocator(self) -> None:
+        # 报价已拆成独立链路（用户裁定：报价失败不许拖住基础属性），
+        # 它不再与三源共享 120min 总预算，自带 --time-limit 1500。
+        # 因此主链里不该再出现 DEALER_TIME_LIMIT——出现即说明有人把报价并回了主链。
+        dealer_job_marker = '"crontab: 37 8,16 * * *"'
+        self.assertIn(dealer_job_marker, self.text, "报价独立链路 job 不见了")
+        main_chain_text = self.text.split(dealer_job_marker, 1)[0]
+        self.assertNotIn(
+            "DEALER_TIME_LIMIT",
+            main_chain_text,
+            "DEALER_TIME_LIMIT 出现在报价独立链路之外 —— 报价可能被并回主链了",
         )
 
     def test_dead_debug_variables_are_gone(self) -> None:
@@ -265,18 +294,6 @@ class WorkflowWiringTests(unittest.TestCase):
         assigned = set(assignments)
         for dead in ("MR", "BN_MR", "MO_MR", "TE_MR", "UN_MR", "UN_SL", "TB", "TB_B", "TB_Z"):
             self.assertNotIn(dead, assigned, f"死变量 {dead} 仍在 .cnb.yml 里被赋值")
-
-    def test_every_env_var_read_by_crawlers_is_produced_somewhere(self) -> None:
-        # 反向守卫：分配器env 里的每个键都必须在 .cnb.yml 里被真正 source/使用，
-        # 防止「分配器发了预算但stage 没读」这种静默失效。
-        for key in (
-            "AUTOHOME_STEP1_TIME_LIMIT",
-            "DONGCHEDI_STEP1_TIME_LIMIT",
-            "DONGCHEDI_STEP2_TIME_LIMIT",
-            "YICHE_TIME_LIMIT",
-            "DEALER_TIME_LIMIT",
-        ):
-            self.assertIn(key, self.text, f"{key} 在 .cnb.yml 里没有任何消费方")
 
     def test_debug_mode_passes_real_limit_flags(self) -> None:
         # 真正生效的 debug 开关是 --debug-limit / --max-cars / --max-series。

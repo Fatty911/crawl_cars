@@ -328,29 +328,6 @@ main:
                 --output "yiche_$(date +%Y%m%d).json" \
                 || echo "易车 重爬仍失败，继续"
             fi
-        - name: 爬取-经销商报价
-          timeout: 1h
-          script: |
-            . /tmp/proxy.sh
-            . /tmp/cnb-crawl-budget.env
-            # 这一源原先既无--time-limit 也无 --max-series，是四个源里唯一完全无界的
-            # （串行遍历全部车系 + 每系sleep delay）。现给它显式上限，
-            # 与前三源共享同一总预算，避免它把合并/发布阶段的时间吃光。
-            DEALER_EXTRA_ARGS=""
-            if [ "${DEBUG_MODE:-false}" = "true" ]; then
-              # debug 下min-rows 必须同步下调，否则限量后必然触发「抓得太少」而 rc=1
-              DEALER_EXTRA_ARGS="--min-rows 20 --max-series 30"
-            fi
-            echo "经销商报价预算: time-limit=${DEALER_TIME_LIMIT}s extra='${DEALER_EXTRA_ARGS}'"
-            rc=0
-            # shellcheck disable=SC2086  # DEALER_EXTRA_ARGS 需按多个词拆开
-            python scripts/crawl_dealer_prices.py --series-input /tmp/cnb-baseline/latest.json \
-              --min-rows 300 --delay 0.3 --time-limit "$DEALER_TIME_LIMIT" $DEALER_EXTRA_ARGS \
-              > /tmp/dealer.log 2>&1 || rc=$?
-            tail -n 20 /tmp/dealer.log
-            if [ $rc -eq 0 ]; then echo "经销商报价 完成"
-            elif [ $rc -eq 10 ]; then echo "经销商报价 预算到点收尾（设计内，进度已保存）"
-            else echo "经销商报价 失败 rc=$rc，继续"; fi
         - name: 清理代理进程
           script: pkill -x mihomo || true
         - name: 合并-增量保留基线
@@ -405,7 +382,9 @@ main:
             cp config/filter_conditions.json site/config/filter_conditions.json
             cp "merged_${DATE}.json" site/data/latest.json
             cp "filtered_cars_${DATE}.json" site/data/filtered.json
-            python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022
+            # 报价已由独立链路（crontab: 37 8,16 * * *）刷新，
+            # 这里必须开 --refresh-dealer-prices，否则陈旧报价不会被更新
+            python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022 --refresh-dealer-prices
             python scripts/prepare_pages_payload.py --input site/data/filtered.json --output site/data/filtered.json --min-year 2022
             python scripts/audit_pages_payload.py \
               --baseline "$BASELINE" \
@@ -539,7 +518,14 @@ main:
                 "X-GitHub-Api-Version": "2022-11-28",
             }
             date = time.strftime("%Y%m%d")
-            tag = f"data-{date}"
+            # tag 必须绑定**本轮构建**，不能只用日期。
+            # 原先 `tag = f"data-{date}"` 有个真实缺陷：同一天第二次构建时
+            # 下方「ensure release exists」会命中当天已有的 release 并**复用**它，
+            # 于是第二轮的产物被上传进上午那一轮的 release，Pages 读到的是错数据——
+            # 而 Pages 部署正是从 GitHub Release 取数据（deploy 阶段读 release）。
+            # 绑定构建号后每轮都有独立 release，互不覆盖。
+            build_id = os.environ.get("CNB_BUILD_ID") or os.environ.get("CNB_PIPELINE_ID") or str(int(time.time()))
+            tag = f"data-{date}-{build_id}"
             assets = []
             for src, dst in (("dist/latest.json", "sim-latest.json"), ("dist/filtered.json", "sim-filtered.json")):
                 if os.path.isfile(src):
@@ -1030,29 +1016,6 @@ main:
                 --output "yiche_$(date +%Y%m%d).json" \
                 || echo "易车 重爬仍失败，继续"
             fi
-        - name: 爬取-经销商报价
-          timeout: 1h
-          script: |
-            . /tmp/proxy.sh
-            . /tmp/cnb-crawl-budget.env
-            # 这一源原先既无--time-limit 也无 --max-series，是四个源里唯一完全无界的
-            # （串行遍历全部车系 + 每系sleep delay）。现给它显式上限，
-            # 与前三源共享同一总预算，避免它把合并/发布阶段的时间吃光。
-            DEALER_EXTRA_ARGS=""
-            if [ "${DEBUG_MODE:-false}" = "true" ]; then
-              # debug 下min-rows 必须同步下调，否则限量后必然触发「抓得太少」而 rc=1
-              DEALER_EXTRA_ARGS="--min-rows 20 --max-series 30"
-            fi
-            echo "经销商报价预算: time-limit=${DEALER_TIME_LIMIT}s extra='${DEALER_EXTRA_ARGS}'"
-            rc=0
-            # shellcheck disable=SC2086  # DEALER_EXTRA_ARGS 需按多个词拆开
-            python scripts/crawl_dealer_prices.py --series-input /tmp/cnb-baseline/latest.json \
-              --min-rows 300 --delay 0.3 --time-limit "$DEALER_TIME_LIMIT" $DEALER_EXTRA_ARGS \
-              > /tmp/dealer.log 2>&1 || rc=$?
-            tail -n 20 /tmp/dealer.log
-            if [ $rc -eq 0 ]; then echo "经销商报价 完成"
-            elif [ $rc -eq 10 ]; then echo "经销商报价 预算到点收尾（设计内，进度已保存）"
-            else echo "经销商报价 失败 rc=$rc，继续"; fi
         - name: 清理代理进程
           script: pkill -x mihomo || true
         - name: 合并-增量保留基线
@@ -1107,7 +1070,9 @@ main:
             cp config/filter_conditions.json site/config/filter_conditions.json
             cp "merged_${DATE}.json" site/data/latest.json
             cp "filtered_cars_${DATE}.json" site/data/filtered.json
-            python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022
+            # 报价已由独立链路（crontab: 37 8,16 * * *）刷新，
+            # 这里必须开 --refresh-dealer-prices，否则陈旧报价不会被更新
+            python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022 --refresh-dealer-prices
             python scripts/prepare_pages_payload.py --input site/data/filtered.json --output site/data/filtered.json --min-year 2022
             python scripts/audit_pages_payload.py \
               --baseline "$BASELINE" \
@@ -1299,6 +1264,150 @@ main:
         # 原稿在此挂 CF/Codeberg 部署（且部署无数据的 docs/）——GitHub 的 deploy-frontend.yml 不由 PR 触发，
         # PR 部署会用空数据覆盖生产站点，故移除；发布统一走 crontab 数据链（site/ 含数据）。
 
+  # ══ 经销商报价独立链路 ══
+  # 失败域隔离：报价失败不许拖住基础属性链。详见 dealer_chain.yml 头部注释。
+  "crontab: 37 8,16 * * *":
+  "crontab: 37 8,16 * * *":
+      - runner:
+          cpus: 2
+        docker:
+          image: python:3.12
+        imports:
+          - https://cnb.cool/xuerui911-mirror/crawl-secrets/-/blob/main/env.yml
+        # 独立预算 60min：实测全量约 13-17 分钟，够用。
+        # 它再也不会拖累基础属性链的 120min。
+        timeout: 1h
+        stages:
+          - name: 检查代理配置
+            script: |
+              if [ -z "$PROXY_SUBSCRIPTIONS" ]; then
+                echo "❌ 未注入 PROXY_SUBSCRIPTIONS：报价爬取经 imports 引用 crawl-secrets env.yml，请检查该私仓。"
+                exit 1
+              fi
+          - name: install-deps
+            script: python -m pip install -r requirements.txt
+          - name: 启动Mihomo代理
+            script: |
+              set -e
+              : > /tmp/proxy.env
+              OK=0
+              for ATTEMPT in 1 2 3; do
+                echo "[proxy] attempt $ATTEMPT/3 $(date -u +%H:%M:%S)"
+                : > /tmp/proxy.env
+                if python scripts/setup_proxy_runtime.py --github-env /tmp/proxy.env --test-url https://www.autohome.com.cn; then
+                  OK=1; break
+                fi
+                echo "[proxy] attempt $ATTEMPT failed, retry in 15s"
+                sleep 15
+              done
+              if [ "$OK" != "1" ]; then
+                echo "FAIL_STAGE=启动Mihomo代理 reason=3-attempts-exhausted"; exit 1
+              fi
+              sed 's/^\([A-Za-z_][A-Za-z0-9_]*\)=/export \1=/' /tmp/proxy.env > /tmp/proxy.sh
+              . /tmp/proxy.sh
+              if [ "${PROXY_ENABLED:-false}" != "true" ]; then
+                echo "❌ 代理未启用（PROXY_ENABLED!=true），防反爬要求禁止直连裸爬，终止本轮"
+                exit 1
+              fi
+              echo "代理就绪：$HTTP_PROXY"
+          - name: 下载线上发布数据（车系ID 来源）
+            timeout: 25m
+            script: |
+              set -e
+              # 用**线上** latest.json：报价要覆盖的是用户当前看到的发布集，
+              # 否则仓库里过期的 docs/data 会让报价覆盖到一批已下线的车系上。
+              mkdir -p /tmp/dealer-baseline
+              for URL in "https://cars.jiucai.eu.org/data/latest.json"; do
+                if curl --fail --show-error --silent --location --retry 2 --retry-all-errors \
+                     --retry-delay 10 --connect-timeout 20 --max-time 1200 \
+                     -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
+                     "$URL" -o /tmp/dealer-baseline/latest.json; then
+                  ROWS=$(python -c "import json;d=json.load(open('/tmp/dealer-baseline/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
+                  if [ "${ROWS:-0}" -ge 1000 ]; then
+                    echo "线上基线可用 rows=$ROWS（$URL）"
+                    exit 0
+                  fi
+                  echo "⚠️ $URL 行数异常（$ROWS），尝试下一个来源"
+                fi
+              done
+              echo "❌ 线上基线全部不可用，本轮放弃（宁可不更新报价，也不拖站点）"
+              exit 1
+          - name: 增量爬取经销商报价
+            timeout: 35m
+            script: |
+              . /tmp/proxy.sh
+              # --time-limit 是硬边界：到点即收尾，已抓到的部分照常落盘并过闸
+              # （脚本内 timed_out 分支），不会因「没跑完」丢弃整轮成果。
+              rc=0
+              python scripts/crawl_dealer_prices.py \
+                --series-input /tmp/dealer-baseline/latest.json \
+                --min-rows 300 --delay 0.3 --time-limit 1500 \
+                > /tmp/dealer.log 2>&1 || rc=$?
+              tail -n 25 /tmp/dealer.log
+              if [ $rc -ne 0 ]; then
+                # rc=1 = 未达 min-rows（可能限流/大面失败/超时且抓得不够）。
+                # 此时**绝不覆盖** data/dealer_prices.json：
+                # 用残缺数据覆盖等于把好数据换成坏数据，比不更新糟糕得多。
+                echo "⚠️ 本轮报价未达 min-rows，保留现有 data/dealer_prices.json 不变（宁可不更新，不用残缺覆盖）"
+                exit 1
+              fi
+              python - <<'PY'
+              import json
+              d = json.load(open("data/dealer_prices.json", encoding="utf-8"))
+              series = d.get("series") or {}
+              cars = sum(len(v) for v in series.values())
+              print(f"报价已刷新：车系数={len(series)} 车型数={cars} updated_at={d.get('updated_at')}")
+              PY
+          - name: 清理代理进程
+            script: pkill -x mihomo || true
+          - name: 回推报价数据
+            timeout: 20m
+            script: |
+              set -e
+              git config user.email "xuerui911@gmail.com"
+              git config user.name "Fatty911"
+              # 只回推报价文件（3.5MB 级）；发布数据走 CF/Codeberg，不进仓
+              git add data/dealer_prices.json
+              if git diff --cached --quiet; then
+                echo "报价无变化"
+              else
+                git commit -m "chore: refresh dealer prices [dealer-chain]"
+                git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:main
+                echo "✅ 报价已回推；下一轮基础属性链会用它覆盖 Pages 上的陈旧经销商参考价"
+              fi
+          - name: 触发基础属性链部署（让报价立刻生效）
+            timeout: 10m
+            script: |
+              # 报价提交后触发主链，让新报价立刻进 Pages——对齐 GitHub
+              # 「提交报价 → gh workflow run merge-and-filter.yml」的二段式语义。
+              # 失败不阻断：报价已入库，下一次主链自然会带上。
+              rc=0
+              curl --fail --silent --show-error --max-time 60 \
+                -X POST "https://api.cnb.cool/xuerui911-mirror/crawl_cars/-/builds" \
+                -H "Authorization: Bearer ${CNB_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -H "Accept: application/vnd.cnb.api+json" \
+                -d "{\"branch\":\"main\",\"event\":\"api_trigger\"}" \
+                || rc=$?
+              if [ $rc -eq 0 ]; then
+                echo "已触发基础属性链，报价将随本轮发布生效"
+              else
+                echo "⚠️ 触发主链失败 rc=$rc（不影响报价入库，下轮自动生效）"
+              fi
+              exit 0
+          - name: 失败诊断归档
+            if: failure()
+            script: |
+              # 失败现场推 diag 分支；**绝不自动重跑**——
+              # 报价是「锦上添花」，反复重跑只占带宽并可能与基础属性链抢带宽。
+              mkdir -p diag
+              [ -f /tmp/dealer.log ] && cp -pf /tmp/dealer.log diag/ || true
+              git config user.email "xuerui911@gmail.com"
+              git config user.name "cnb-diag"
+              git add diag
+              git commit -m "chore: 报价链失败诊断 [skip ci]" || echo "diag 无新增"
+              git push -f "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
+                || echo "diag 推送失败（不阻断）"
 $:
   issue.open:
     - stages:

@@ -94,6 +94,7 @@ try:
 
 
         autohome_publish_identity_valid,
+        publish_year,
 
 
 
@@ -178,6 +179,7 @@ except ModuleNotFoundError:
 
 
         autohome_publish_identity_valid,
+        publish_year,
 
 
 
@@ -16027,6 +16029,20 @@ def partition_publishable_rows(rows):
 
 
 
+
+        # 年款为空时**允许从车型名回退**：各源并不都填年款
+        # （懂车帝/易车常留空，年份写在车型名如「A 2026款 Pro」里）。
+        # publish_identity.publish_year() 正是为此存在。
+        # 原先这里只看 normalized["年款"] 原始值，于是「年款空但车型名含年份」
+        # 的正常行被整行判为 invalid_publish_boundary，候选被清空，
+        # superset 校验只会报一句误导的「must both be non-empty」。
+        #
+        # **只在原年款为空时回退**，绝不能覆盖已有值：
+        # 上面那个 `noncanonical_year` 用例（年款="2025|25"，车型名含"1966"）
+        # 就是反例——无条件回退会从车型名取出 1966，把一条**非法年份**的行
+        # 放行，直接削弱发布边界护栏。原值非空就按原值判，非法即拒。
+        if not str(normalized.get("年款") or "").strip():
+            normalized["年款"] = publish_year(row)
 
         if not re.fullmatch(r"(?:19|20)\d{2}", str(normalized.get("年款") or "").strip()):
 

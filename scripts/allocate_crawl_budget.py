@@ -40,13 +40,16 @@ PUBLISH_PHASE_RESERVE_SECONDS = 20 * 60
 # 各爬取步的权重（千分比，合计必须为 1000）。
 # 汽车之家 6 步但只有 step1 吃 --time-limit（step2-6 是本地解析，不过预算闸），
 # 因此按「吃预算的步数」给权重：汽车之家 1 份、懂车帝 2 份（step1+step2）、
-# 易车 1 份、经销商报价 1 份。懂车帝单步最重（每步都要起 Chrome），故 2 份。
+# 易车 1 份。懂车帝单步最重（每步都要起 Chrome），故 2 份。
+#
+# 经销商报价**不在这里**：它已拆成独立链路（crontab: 37 8,16 * * *），
+# 失败域隔离——报价失败不许拖住基础属性（用户裁定 2026-10-09）。
+# 它自带 --time-limit 1500，与 120min 总预算无关。
 STEP_WEIGHTS = {
-    "autohome_step1": 200,
-    "dongchedi_step1": 200,
-    "dongchedi_step2": 200,
-    "yiche": 200,
-    "dealer": 200,
+    "autohome_step1": 250,
+    "dongchedi_step1": 250,
+    "dongchedi_step2": 250,
+    "yiche": 250,
 }
 WEIGHT_TOTAL = 1000
 

@@ -39,18 +39,38 @@ def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> di
     baseline_keys = {identity_key(row) for row in baseline_rows}
     candidate_keys = {identity_key(row) for row in candidate_rows}
     missing = baseline_keys - candidate_keys
-    missing_tolerance = max(50, int(len(baseline_keys) * 0.02))
+
+    # 守卫一：**候选行数下降**必须 fail closed。
+    # 这是最直接的「数据丢了」信号，且与身份数学无关——旧实现完全没有这道闸，
+    # 只有下面那条基于身份集合的比较，于是「基线 N 行、候选只剩 1 行」
+    # 只要身份集合没有严格减少就可能被放过。
+    if len(candidate_rows) < len(baseline_rows):
+        raise ValueError(
+            f"candidate row count decreased: baseline={len(baseline_rows)} "
+            f"candidate={len(candidate_rows)}"
+        )
+
+    # 守卫二：「缺一些基线身份」有两种成因，必须分开判：
+    #   A. **数据演化**：车型下线/改名，候选用新身份补上，行数不减。
+    #   B. **数据丢失**：爬取没跑全/被反爬拦截。
+    # 旧实现是 `len(missing) <= max(50, 2%)` 放行，问题出在那个**绝对下限 50**：
+    # 对 2 行的基线它允许丢 50 个身份（也就是全丢光）也算「正常演化」，
+    # 这道闸等于形同虚设（实测 2 行基线缺 1 行即被静默容忍）。
+    # 现在下限去掉——容忍度只按基线规模的比例给，2 行基线的容忍度就是 0。
+    missing_tolerance = int(len(baseline_keys) * 0.02)
     if missing and len(missing) <= missing_tolerance:
-        print(f"WARNING: candidate missing {len(missing)} baseline identities (<=2% data evolution): {sorted(missing)[:5]}")
-    else:
+        print(
+            f"WARNING: candidate missing {len(missing)} baseline identities "
+            f"(<=2% data evolution): {sorted(missing)[:5]}"
+        )
+    elif missing:
         if len(candidate_keys) < len(baseline_keys):
             sample = sorted(missing)[:10]
             raise ValueError(
                 f"candidate unique identity count decreased: baseline={len(baseline_keys)} candidate={len(candidate_keys)} missing={len(missing)} sample={sample}"
             )
-        if missing:
-            sample = sorted(missing)[:5]
-            raise ValueError(f"candidate is missing {len(missing)} baseline identities: {sample}")
+        sample = sorted(missing)[:5]
+        raise ValueError(f"candidate is missing {len(missing)} baseline identities: {sample}")
     return {
         "baseline_rows": len(baseline_rows),
         "candidate_rows": len(candidate_rows),

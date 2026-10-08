@@ -1823,15 +1823,20 @@ def discover_single_source_candidates(
 
 from dealer_price_overlay import overlay_dealer_prices
 
+
 def prepare_rows_with_stats(
     rows: Any,
     min_year: int,
     *,
     absorption_scope: set[tuple[str, str, str, str]] | None = None,
+    refresh_dealer_prices: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if not isinstance(rows, list):
         raise ValueError("Pages payload input must be a JSON array")
-    rows = overlay_dealer_prices(rows)
+    # refresh_dealer_prices=True：以 dealer 索引为准刷新已有单值报价。
+    # 只在「本轮确实刷新过报价」时打开（工作流用环境变量告知），
+    # 否则每次发布都用同一份旧索引覆盖，没有意义还制造 diff噪音。
+    rows = overlay_dealer_prices(rows, refresh_existing=refresh_dealer_prices)
     prepared = []
     stats = {
         "droppedMissingOfficialPrice": 0,
@@ -1898,11 +1903,13 @@ def prepare_rows(
     min_year: int,
     *,
     absorption_scope: set[tuple[str, str, str, str]] | None = None,
+    refresh_dealer_prices: bool = False,
 ) -> list[dict[str, Any]]:
     prepared, _stats = prepare_rows_with_stats(
         rows,
         min_year,
         absorption_scope=absorption_scope,
+        refresh_dealer_prices=refresh_dealer_prices,
     )
     return prepared
 
@@ -1927,12 +1934,22 @@ def main() -> int:
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--min-year", type=int, default=2022)
+    parser.add_argument(
+        "--refresh-dealer-prices",
+        action="store_true",
+        help="以 data/dealer_prices.json 为准刷新已有单值报价"
+             "（报价源本轮刷新过时使用；区间/多值形态不会被覆盖）",
+    )
     args = parser.parse_args()
 
     before_bytes = args.input.stat().st_size
     with args.input.open(encoding="utf-8") as handle:
         rows = json.load(handle)
-    prepared, stats = prepare_rows_with_stats(rows, args.min_year)
+    prepared, stats = prepare_rows_with_stats(
+        rows,
+        args.min_year,
+        refresh_dealer_prices=args.refresh_dealer_prices,
+    )
     write_atomic(args.output, prepared)
     print(
         json.dumps(
