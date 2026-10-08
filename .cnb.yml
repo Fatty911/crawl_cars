@@ -1267,17 +1267,16 @@ main:
   # ══ 经销商报价独立链路 ══
   # 失败域隔离：报价失败不许拖住基础属性链。详见 dealer_chain.yml 头部注释。
   "crontab: 37 8,16 * * *":
-  "crontab: 37 8,16 * * *":
-      - runner:
-          cpus: 2
-        docker:
-          image: python:3.12
-        imports:
-          - https://cnb.cool/xuerui911-mirror/crawl-secrets/-/blob/main/env.yml
-        # 独立预算 60min：实测全量约 13-17 分钟，够用。
-        # 它再也不会拖累基础属性链的 120min。
-        timeout: 1h
-        stages:
+    - runner:
+        cpus: 2
+      docker:
+        image: python:3.12
+      imports:
+        - https://cnb.cool/xuerui911-mirror/crawl-secrets/-/blob/main/env.yml
+      # 独立预算 60min：实测全量约 13-17 分钟，够用。
+      # 它再也不会拖累基础属性链的 120min。
+      timeout: 1h
+      stages:
           - name: 检查代理配置
             script: |
               if [ -z "$PROXY_SUBSCRIPTIONS" ]; then
@@ -1408,21 +1407,21 @@ main:
               git commit -m "chore: 报价链失败诊断 [skip ci]" || echo "diag 无新增"
               git push -f "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
                 || echo "diag 推送失败（不阻断）"
-$:
-  issue.open:
-    - stages:
-        - name: 检查fix标签
-          script: echo "$CNB_ISSUE_LABELS" | grep -q 'fix' || exit 0
-        - name: AI-Issue驱动修复
-          type: npc:go
-          options:
-            model: deepseek-v4-flash
-            thinkingLevel: max
-            maxTurns: 50
-            contextWindow: 256k
-            systemPrompt: |
-              你是自动化修复 Agent。读取 Issue，理解需求，读代码定位，修改，运行 pytest，创建 PR。
-              规则：不伪造数据、不折叠真冲突、不删校验、不降防护
-            userPrompt: |
-              Issue 标题: $CNB_ISSUE_TITLE
-              Issue 描述: $CNB_ISSUE_DESCRIPTION
+  $:
+    issue.open:
+      - stages:
+          - name: 检查fix标签
+            script: echo "$CNB_ISSUE_LABELS" | grep -q 'fix' || exit 0
+          - name: AI-Issue驱动修复
+            type: npc:go
+            options:
+              model: deepseek-v4-flash
+              thinkingLevel: max
+              maxTurns: 50
+              contextWindow: 256k
+              systemPrompt: |
+                你是自动化修复 Agent。读取 Issue，理解需求，读代码定位，修改，运行 pytest，创建 PR。
+                规则：不伪造数据、不折叠真冲突、不删校验、不降防护
+              userPrompt: |
+                Issue 标题: $CNB_ISSUE_TITLE
+                Issue 描述: $CNB_ISSUE_DESCRIPTION

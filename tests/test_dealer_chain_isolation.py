@@ -177,5 +177,80 @@ class DealerScriptCapabilityTests(unittest.TestCase):
         self.assertIn("keeping partial result", text)
 
 
+class CnbStrictYamlTests(unittest.TestCase):
+    """CNB 的 YAML 解析比 PyYAML 严格，本地能过的配置在 CNB 会被拒。
+
+    实测踩过的坑：插入报价 job 时重复写入了同名 job 键，
+    PyYAML `safe_load` 静默接受（后者覆盖前者），而 CNB 直接返回
+    `422 [CONFIG_ERROR] ... duplicated mapping key`，整个仓库无法触发构建。
+    这类问题必须在本地拦住，否则只能靠线上报错发现。
+    """
+
+    def _load_strict(self, text: str):
+        class StrictLoader(yaml.SafeLoader):
+            pass
+
+        duplicates: list[str] = []
+
+        def _mapping(loader, node, deep=False):
+            loader.flatten_mapping(node)
+            seen: dict = {}
+            for key_node, _value_node in node.value:
+                key = loader.construct_object(key_node, deep=deep)
+                if key in seen:
+                    duplicates.append(f"{key!r} @ line {key_node.start_mark.line + 1}")
+                seen[key] = True
+            return yaml.SafeLoader.construct_mapping(loader, node, deep)
+
+        StrictLoader.construct_mapping = _mapping
+        try:
+            yaml.load(text, Loader=StrictLoader)
+        finally:
+            pass
+        return duplicates
+
+    def test_no_duplicate_keys(self) -> None:
+        text = Cnb.read_text(encoding="utf-8")
+        duplicates = self._load_strict(text)
+        self.assertEqual(duplicates, [], f".cnb.yml 存在重复 key（CNB 会拒）: {duplicates}")
+
+    def test_dealer_job_appears_exactly_once(self) -> None:
+        text = Cnb.read_text(encoding="utf-8")
+        count = sum(
+            1 for line in text.splitlines()
+            if line.strip() == '"crontab: 37 8,16 * * *":'
+        )
+        self.assertEqual(count, 1, f"报价 job 键出现了 {count} 次")
+
+    def test_dealer_job_indentation_is_valid(self) -> None:
+        # job 键是 2 空格缩进，其列表项 `- runner:` 必须是 4 空格。
+        # 后续层级不用硬编码偏移（太脆，行一多就错位），交给 YAML 解析验证——
+        # 缩进错位的典型表现正是「能解析出结构，但结构是错的块序列」。
+        text = Cnb.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        start = next(
+            i for i, l in enumerate(lines)
+            if l.strip() == '"crontab: 37 8,16 * * *":'
+        )
+        self.assertEqual(
+            len(lines[start]) - len(lines[start].lstrip()), 2,
+            "报价 job 键缩进应为 2（与 main 下其他 job 同级）",
+        )
+        runner = lines[start + 1]
+        self.assertEqual(
+            len(runner) - len(runner.lstrip()), 4,
+            f"报价 job 的首行列表项缩进应为 4：{runner!r}",
+        )
+        # 完整结构由 YAML 解析背书：9 个 stage、1h timeout、正确的时间字段类型。
+        main = yaml.safe_load(text)["main"]
+        dealer = next(v for k, v in main.items() if "37 8,16" in str(k))
+        self.assertIsInstance(dealer, list)
+        self.assertEqual(dealer[0]["timeout"], "1h")
+        self.assertEqual(len(dealer[0]["stages"]), 9)
+        for stage in dealer[0]["stages"]:
+            self.assertIn("name", stage)
+            self.assertIn("script", stage)
+
+
 if __name__ == "__main__":
     unittest.main()
