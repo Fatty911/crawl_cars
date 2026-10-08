@@ -216,14 +216,13 @@ main:
             else echo "懂车帝 step2 失败 rc=$rc，继续"; fi
         - name: 归一化懂车帝产物路径
           script: |
-            shopt -s nullglob
-            files=(scripts/dongchedi_*.json scripts/dongchedi_*.csv)
-            if [ ${#files[@]} -eq 0 ]; then
-              echo "未发现 scripts/dongchedi_* 输出"
-            else
-              cp -pf "${files[@]}" .
-              ls -l dongchedi_*.json dongchedi_*.csv
-            fi
+            # crawl_dongchedi.py 写 scripts/，merge_data.py 只在仓根 glob；对齐 GitHub crawl-dongchedi.yml
+            # POSIX 版（对齐「归一化汽车之家产物路径」09-30 修复）：shopt/bash 数组在 sh(dash) 下
+            # 直接语法错误或 127，改 find+cp，任何 shell、任何产物状态都不阻断
+            find scripts -maxdepth 1 -name 'dongchedi_*.json' -exec cp -pf {} . \; || true
+            find scripts -maxdepth 1 -name 'dongchedi_*.csv' -exec cp -pf {} . \; || true
+            ls -l dongchedi_*.json dongchedi_*.csv 2>/dev/null || echo "仓根无 dongchedi_* 产物（零产出或增量无新增，继续）"
+            exit 0
         - name: 爬取-易车
           timeout: 6h
           script: |
@@ -245,17 +244,17 @@ main:
             # 又不匹配 merge 的 yiche_*.json glob（不污染合并）。
             mkdir -p crawl_state
             export YICHE_CHECKPOINT_PATH=crawl_state/yiche_frontier.json
-            resume_args=()
+            # POSIX 版：bash 数组在 sh(dash) 下语法错误，改用 set --/"$@" 收集续跑参数
+            set --
             if [ -s "$YICHE_CHECKPOINT_PATH" ]; then
-              resume_args=(
-                --resume-checkpoint "$YICHE_CHECKPOINT_PATH"
-                --resume-source-run-id ""
-                --resume-source-artifact-id ""
-                --resume-source-artifact-sha256 ""
-                --resume-source-checkpoint-sha256 "$(sha256sum "$YICHE_CHECKPOINT_PATH" | cut -d' ' -f1)"
-                --resume-source-head-sha ""
+              set -- "$@" \
+                --resume-checkpoint "$YICHE_CHECKPOINT_PATH" \
+                --resume-source-run-id "" \
+                --resume-source-artifact-id "" \
+                --resume-source-artifact-sha256 "" \
+                --resume-source-checkpoint-sha256 "$(sha256sum "$YICHE_CHECKPOINT_PATH" | cut -d' ' -f1)" \
+                --resume-source-head-sha "" \
                 --resume-source-crawler-sha256 "$(sha256sum scripts/crawl_yiche.py | cut -d' ' -f1)"
-              )
               brands_remaining=$(python -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8')).get('remaining_brands', '?'))" "$YICHE_CHECKPOINT_PATH" 2>/dev/null || echo '?')
               echo "易车续跑：基于上一轮断点 $YICHE_CHECKPOINT_PATH (brands_remaining=$brands_remaining)"
             else
@@ -263,7 +262,7 @@ main:
             fi
             rc=0
             python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series 0 \
-              "${resume_args[@]}" --output "yiche_$(date +%Y%m%d).json" \
+              "$@" --output "yiche_$(date +%Y%m%d).json" \
               > /tmp/yiche-main.log 2>&1 || rc=$?
             tail -n 20 /tmp/yiche-main.log
             if [ $rc -eq 0 ]; then echo "易车 单源失败 rc=$rc，继续 完成"
@@ -306,8 +305,12 @@ main:
             for f in yiche_checkpoint.json yiche_progress.json; do
               [ -f "$f" ] && mv -f "$f" /tmp/cnb-checkpoints/ || true
             done
-            shopt -s nullglob
-            set -- autoHome_*.json dongchedi_*.json yiche_*.json
+            # POSIX 版：shopt 是 bash 内建，CNB runner 用 sh(dash) 执行会 127 挂掉（phones 实证）
+            # 用循环收集存在的文件模拟 nullglob，零产出时 $# 仍为 0
+            set --
+            for f in autoHome_*.json dongchedi_*.json yiche_*.json; do
+              [ -f "$f" ] && set -- "$@" "$f"
+            done
             [ $# -gt 0 ] || { echo "❌ 三个源均无数据文件，无法合并"; exit 1; }
             python scripts/merge_data.py
             [ -s "merged_${DATE}.json" ] || { echo "❌ merge_data.py 未产出 merged_${DATE}.json"; exit 1; }
@@ -852,14 +855,13 @@ main:
             else echo "懂车帝 step2 失败 rc=$rc，继续"; fi
         - name: 归一化懂车帝产物路径
           script: |
-            shopt -s nullglob
-            files=(scripts/dongchedi_*.json scripts/dongchedi_*.csv)
-            if [ ${#files[@]} -eq 0 ]; then
-              echo "未发现 scripts/dongchedi_* 输出"
-            else
-              cp -pf "${files[@]}" .
-              ls -l dongchedi_*.json dongchedi_*.csv
-            fi
+            # crawl_dongchedi.py 写 scripts/，merge_data.py 只在仓根 glob；对齐 GitHub crawl-dongchedi.yml
+            # POSIX 版（对齐「归一化汽车之家产物路径」09-30 修复）：shopt/bash 数组在 sh(dash) 下
+            # 直接语法错误或 127，改 find+cp，任何 shell、任何产物状态都不阻断
+            find scripts -maxdepth 1 -name 'dongchedi_*.json' -exec cp -pf {} . \; || true
+            find scripts -maxdepth 1 -name 'dongchedi_*.csv' -exec cp -pf {} . \; || true
+            ls -l dongchedi_*.json dongchedi_*.csv 2>/dev/null || echo "仓根无 dongchedi_* 产物（零产出或增量无新增，继续）"
+            exit 0
         - name: 爬取-易车
           timeout: 6h
           script: |
@@ -881,17 +883,17 @@ main:
             # 又不匹配 merge 的 yiche_*.json glob（不污染合并）。
             mkdir -p crawl_state
             export YICHE_CHECKPOINT_PATH=crawl_state/yiche_frontier.json
-            resume_args=()
+            # POSIX 版：bash 数组在 sh(dash) 下语法错误，改用 set --/"$@" 收集续跑参数
+            set --
             if [ -s "$YICHE_CHECKPOINT_PATH" ]; then
-              resume_args=(
-                --resume-checkpoint "$YICHE_CHECKPOINT_PATH"
-                --resume-source-run-id ""
-                --resume-source-artifact-id ""
-                --resume-source-artifact-sha256 ""
-                --resume-source-checkpoint-sha256 "$(sha256sum "$YICHE_CHECKPOINT_PATH" | cut -d' ' -f1)"
-                --resume-source-head-sha ""
+              set -- "$@" \
+                --resume-checkpoint "$YICHE_CHECKPOINT_PATH" \
+                --resume-source-run-id "" \
+                --resume-source-artifact-id "" \
+                --resume-source-artifact-sha256 "" \
+                --resume-source-checkpoint-sha256 "$(sha256sum "$YICHE_CHECKPOINT_PATH" | cut -d' ' -f1)" \
+                --resume-source-head-sha "" \
                 --resume-source-crawler-sha256 "$(sha256sum scripts/crawl_yiche.py | cut -d' ' -f1)"
-              )
               brands_remaining=$(python -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8')).get('remaining_brands', '?'))" "$YICHE_CHECKPOINT_PATH" 2>/dev/null || echo '?')
               echo "易车续跑：基于上一轮断点 $YICHE_CHECKPOINT_PATH (brands_remaining=$brands_remaining)"
             else
@@ -899,7 +901,7 @@ main:
             fi
             rc=0
             python scripts/crawl_yiche.py --time-limit "$RUN_TIME" --max-series 0 \
-              "${resume_args[@]}" --output "yiche_$(date +%Y%m%d).json" \
+              "$@" --output "yiche_$(date +%Y%m%d).json" \
               > /tmp/yiche-main.log 2>&1 || rc=$?
             tail -n 20 /tmp/yiche-main.log
             if [ $rc -eq 0 ]; then echo "易车 单源失败 rc=$rc，继续 完成"
@@ -942,8 +944,12 @@ main:
             for f in yiche_checkpoint.json yiche_progress.json; do
               [ -f "$f" ] && mv -f "$f" /tmp/cnb-checkpoints/ || true
             done
-            shopt -s nullglob
-            set -- autoHome_*.json dongchedi_*.json yiche_*.json
+            # POSIX 版：shopt 是 bash 内建，CNB runner 用 sh(dash) 执行会 127 挂掉（phones 实证）
+            # 用循环收集存在的文件模拟 nullglob，零产出时 $# 仍为 0
+            set --
+            for f in autoHome_*.json dongchedi_*.json yiche_*.json; do
+              [ -f "$f" ] && set -- "$@" "$f"
+            done
             [ $# -gt 0 ] || { echo "❌ 三个源均无数据文件，无法合并"; exit 1; }
             python scripts/merge_data.py
             [ -s "merged_${DATE}.json" ] || { echo "❌ merge_data.py 未产出 merged_${DATE}.json"; exit 1; }
