@@ -796,10 +796,8 @@ class SingleSourceRepairTests(unittest.TestCase):
     def test_car_brand_path_points_at_brand_aliases(self) -> None:
         from scripts.single_source_repair import _car_brand_path
 
-        self.assertTrue(
-            str(_car_brand_path()).endswith("config/brand_aliases.json"),
-            _car_brand_path(),
-        )
+        # 用 Path 比较而不是字符串后缀：Windows 上分隔符是 "\"，endswith("config/...") 会假失败
+        self.assertEqual(Path(_car_brand_path()), ROOT / "config" / "brand_aliases.json")
         self.assertEqual(
             _car_brand_path(),
             ROOT / ALLOWED_FILES["cars"][3],

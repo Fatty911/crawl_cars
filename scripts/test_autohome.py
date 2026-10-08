@@ -802,6 +802,11 @@ def discover_history_targets_until_deadline(series_queue, manifest, start_time):
         targets, completed = discover_history_targets(series_id, item.get("brand", ""), item.get("series", ""), manifest)
         for target in targets:
             manifest[target["cache_key"]] = target
+        if targets:
+            # 本轮已拿到历史目标（上轮可能是 pending），必须清掉旧标记：
+            # 否则 pending_history_indices 会因该标记把游标永久回拨到同一下标，
+            # 每一轮都从它重来，扫描永远推进不下去（实测 retries_pending_after_sweep）。
+            manifest.pop(f"{series_id}_history_pending", None)
         if not completed:
             mark_history_discovery_pending(series_id, item.get("brand", ""), item.get("series", ""), manifest)
         cursor += 1

@@ -49,6 +49,11 @@ class AutohomeCompletionTests(unittest.TestCase):
             f"var option = {json.dumps(option, ensure_ascii=False)};var bag = {{}};</script>"
         )
 
+    def history_probes_per_series(self) -> int:
+        """每个车系的历史发现请求数：按年探测 getParamConf（CURRENT_YEAR..2022）
+        全部失败后才回退 sale.html，所以不要写死数字。"""
+        return (self.autohome.CURRENT_YEAR - 2021) + 1
+
     def test_tracked_done_progress_cannot_complete_without_cached_series(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -340,6 +345,7 @@ class AutohomeCompletionTests(unittest.TestCase):
         progress = {}
         response = mock.Mock(
             status_code=200,
+            headers={"content-type": "text/html"},
             text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
             apparent_encoding="utf-8",
         )
@@ -407,6 +413,7 @@ class AutohomeCompletionTests(unittest.TestCase):
         manifest = {}
         response = mock.Mock(
             status_code=200,
+            headers={"content-type": "text/html"},
             text='<div class="spec-cont"><a href="//www.autohome.com.cn/spec/10001/">2021款 标准版</a></div>',
             apparent_encoding="utf-8",
         )
@@ -423,7 +430,7 @@ class AutohomeCompletionTests(unittest.TestCase):
 
     def test_antibot_sale_page_does_not_record_terminal_target(self) -> None:
         manifest = {}
-        response = mock.Mock(status_code=200, text="<html>安全验证</html>", apparent_encoding="utf-8")
+        response = mock.Mock(status_code=200, headers={"content-type": "text/html"}, text="<html>安全验证</html>", apparent_encoding="utf-8")
         with mock.patch.object(self.autohome.session, "get", return_value=response):
             targets, completed = self.autohome.discover_history_targets(
                 "1",
@@ -472,6 +479,7 @@ class AutohomeCompletionTests(unittest.TestCase):
             progress = {"history_discovery_idx": 1}
             response = mock.Mock(
                 status_code=200,
+                headers={"content-type": "text/html"},
                 text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
                 apparent_encoding="utf-8",
             )
@@ -504,6 +512,7 @@ class AutohomeCompletionTests(unittest.TestCase):
             progress = {}
             response = mock.Mock(
                 status_code=200,
+                headers={"content-type": "text/html"},
                 text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
                 apparent_encoding="utf-8",
             )
@@ -527,7 +536,7 @@ class AutohomeCompletionTests(unittest.TestCase):
                 )
             self.assertFalse(completed)
             self.assertEqual(1, progress["history_discovery_idx"])
-            self.assertEqual(1, get_mock.call_count)
+            self.assertEqual(self.history_probes_per_series(), get_mock.call_count)
 
     def test_history_discovery_default_has_no_200_batch_stop(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -536,6 +545,7 @@ class AutohomeCompletionTests(unittest.TestCase):
             progress = {}
             response = mock.Mock(
                 status_code=200,
+                headers={"content-type": "text/html"},
                 text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
                 apparent_encoding="utf-8",
             )
@@ -557,20 +567,25 @@ class AutohomeCompletionTests(unittest.TestCase):
                     0,
                 )
             self.assertEqual(120, progress["history_discovery_idx"])
-            self.assertEqual(120, get_mock.call_count)
+            self.assertEqual(120 * self.history_probes_per_series(), get_mock.call_count)
 
     def test_history_discovery_pending_advances_to_next_series(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             manifest = {}
             progress = {}
-            bad = mock.Mock(status_code=200, text="<html>安全验证</html>", apparent_encoding="utf-8")
+            bad = mock.Mock(status_code=200, headers={"content-type": "text/html"}, text="<html>安全验证</html>", apparent_encoding="utf-8")
             good = mock.Mock(
                 status_code=200,
+                headers={"content-type": "text/html"},
                 text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
                 apparent_encoding="utf-8",
             )
-            get_mock = mock.Mock(side_effect=[bad, good])
+            # 每个车系要先按年探测完所有年份才回退 sale.html，响应序列需覆盖全部探测
+            get_mock = mock.Mock(
+                side_effect=[bad] * self.history_probes_per_series()
+                + [good] * self.history_probes_per_series()
+            )
             with (
                 mock.patch.object(self.autohome, "progress", progress),
                 mock.patch.object(self.autohome, "progress_file", str(root / "progress.json")),
@@ -588,7 +603,7 @@ class AutohomeCompletionTests(unittest.TestCase):
                     0,
                 )
             self.assertFalse(completed)
-            self.assertEqual(2, get_mock.call_count)
+            self.assertEqual(2 * self.history_probes_per_series(), get_mock.call_count)
             self.assertIn("bad_history_pending", manifest)
             self.assertIn("good_spec_2022_54529", manifest)
             self.assertEqual(0, progress["history_discovery_idx"])
@@ -607,6 +622,7 @@ class AutohomeCompletionTests(unittest.TestCase):
             progress = {"history_discovery_idx": 0}
             good = mock.Mock(
                 status_code=200,
+                headers={"content-type": "text/html"},
                 text='<a href="//www.autohome.com.cn/spec/54529/">2022款 后轮驱动版</a>',
                 apparent_encoding="utf-8",
             )

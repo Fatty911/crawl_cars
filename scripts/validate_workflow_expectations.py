@@ -590,7 +590,11 @@ def main() -> int:
     check_budget_script(ROOT / "scripts/crawl_budget.py", errors)
     check_merge_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
     check_deploy_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
-    check_single_source_repair_workflow(ROOT / ".github/workflows/single-source-repair.yml", errors)
+    # Actions 停用期（2026-10-05 用户裁定）把该工作流改名为 .yml.disabled，
+    # 守卫必须继续校验它，否则改名即等于护栏失效。
+    check_single_source_repair_workflow(
+        resolve_workflow_file(ROOT / ".github/workflows/single-source-repair.yml"), errors
+    )
     assert_condition(
         "/scripts/dongchedi/json/" in (ROOT / ".gitignore").read_text(encoding="utf-8"),
         "实际 Dongchedi HTML cache 路径未被 gitignore 排除",

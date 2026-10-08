@@ -31,10 +31,6 @@ EXPECTED_AGENT_STEPS = {
         "key": "VOLCENGINE_AGENTPLAN_API_KEY",
         "model": "volcengine-agentplan/glm-5.2",
     },
-    ".github/workflows/merge-and-filter.yml": {
-        "key": "KIMI_CODINGPLAN_API_KEY",
-        "model": "kimi-coding-plan/kimi-k2.6",
-    },
 }
 AGENT_VERSION = "opencode-ai@latest"
 READ_ONLY_PERMISSIONS = {
@@ -214,7 +210,7 @@ def _check_workflow(path: Path, errors: list[str], root: Path = ROOT) -> None:
                 if not step_plan:
                     continue
                 plan_step_count += 1
-                relative = path.relative_to(root).as_posix()
+                relative = _workflow_relative(path, root)
                 expected = EXPECTED_AGENT_STEPS.get(relative)
                 _validate_agent_step(
                     path,
@@ -245,7 +241,7 @@ def _check_workflow(path: Path, errors: list[str], root: Path = ROOT) -> None:
             errors.append(f"{path.name}: {match.group('name')} occurs outside the OpenCode Agent step")
 
     relative = path.relative_to(root).as_posix()
-    expected = EXPECTED_AGENT_STEPS.get(relative)
+    expected = EXPECTED_AGENT_STEPS.get(_workflow_relative(path, root))
     if expected:
         matching = [
             block
@@ -260,15 +256,37 @@ def _check_workflow(path: Path, errors: list[str], root: Path = ROOT) -> None:
         errors.append(f"{path.name}: Plan Agent workflow must install {AGENT_VERSION} (auto-upgrade, never a pinned version)")
 
 
+def _resolve_workflow(root: Path, relative: str) -> Path | None:
+    """解析工作流路径，兼容 GitHub Actions 停用期的 `<name>.yml.disabled`。
+
+    2026-10-05 用户裁定停跑 GitHub Actions 后，爬虫/AI 自修复类工作流被改名为
+    `.yml.disabled`。守卫必须继续校验它们——否则一改名，Plan 凭据边界护栏就静默失效。
+    """
+    candidate = root / relative
+    if candidate.is_file():
+        return candidate
+    disabled = candidate.with_name(candidate.name + ".disabled")
+    return disabled if disabled.is_file() else None
+
+
+def _workflow_relative(path: Path, root: Path) -> str:
+    """把 `.yml.disabled` 归一化成 `.yml`，以便命中 EXPECTED_AGENT_STEPS。"""
+    relative = path.relative_to(root).as_posix()
+    if relative.endswith(".disabled"):
+        return relative[: -len(".disabled")]
+    return relative
+
+
 def validate_repository(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     for relative in EXPECTED_AGENT_STEPS:
-        path = root / relative
-        if not path.is_file():
+        if _resolve_workflow(root, relative) is None:
             errors.append(f"{relative}: expected workflow is missing")
     workflow_dir = root / ".github" / "workflows"
     if workflow_dir.is_dir():
         for path in sorted(workflow_dir.glob("*.y*ml")):
+            _check_workflow(path, errors, root)
+        for path in sorted(workflow_dir.glob("*.y*ml.disabled")):
             _check_workflow(path, errors, root)
 
     scripts_dir = root / "scripts"

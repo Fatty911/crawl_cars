@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from scripts.validate_workflow_expectations import PAGES_PUSH_DEPENDENCIES, pages_push_paths_cover
+from scripts.validate_workflow_expectations import (
+    PAGES_PUSH_DEPENDENCIES,
+    pages_push_paths_cover,
+    resolve_workflow_file,
+)
 
 
 def test_pages_push_paths_cover_the_traced_build_and_schema_dependencies():
@@ -10,7 +14,8 @@ def test_pages_push_paths_cover_the_traced_build_and_schema_dependencies():
 
 
 def test_single_source_repair_continues_only_after_bound_pages_success():
-    workflow = (
+    # Actions 停用期该工作流被改名为 .yml.disabled，复用守卫里的解析函数取件
+    workflow = resolve_workflow_file(
         Path(__file__).resolve().parents[1]
         / ".github/workflows/single-source-repair.yml"
     ).read_text(encoding="utf-8")
