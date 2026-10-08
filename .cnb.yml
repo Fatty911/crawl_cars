@@ -290,7 +290,7 @@ main:
             elif [ $rc -eq 10 ]; then echo "经销商报价 单源失败 rc=$rc，继续 预算到点收尾（设计内，进度已保存）"
             else echo "经销商报价 单源失败 rc=$rc，继续"; fi
         - name: 清理代理进程
-          script: pkill -f mihomo || true
+          script: pkill -x mihomo || true
         - name: 合并-增量保留基线
           timeout: 30m
           script: |
@@ -587,7 +587,7 @@ main:
                 || echo "diag 推送失败（不阻断）"
             fi
         - name: 清理代理
-          script: pkill -f mihomo || true
+          script: pkill -x mihomo || true
 
 
         - name: 诊断-收集失败上下文
@@ -926,7 +926,7 @@ main:
             elif [ $rc -eq 10 ]; then echo "经销商报价 单源失败 rc=$rc，继续 预算到点收尾（设计内，进度已保存）"
             else echo "经销商报价 单源失败 rc=$rc，继续"; fi
         - name: 清理代理进程
-          script: pkill -f mihomo || true
+          script: pkill -x mihomo || true
         - name: 合并-增量保留基线
           timeout: 30m
           script: |
@@ -1150,7 +1150,7 @@ main:
                 || echo "diag 推送失败（不阻断）"
             fi
         - name: 清理代理
-          script: pkill -f mihomo || true
+          script: pkill -x mihomo || true
 
   pull_request:
     - stages:
