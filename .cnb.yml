@@ -608,9 +608,37 @@ main:
             set -e
             git config user.email "xuerui911@gmail.com"
             git config user.name "Fatty911"
-            # 只回回断点与轻量报告；发布数据走 CF/Codeberg，不进仓（113MB 级文件入仓会使仓指数膨胀）
-            for d in crawl_state docs/analysis data; do [ -d "$d" ] && git add "$d" || true; done
-            git add pages-audit-report.json 2>/dev/null || true
+            # **显式白名单**，不是 `git add data`。
+            # 原因（实测）：data/ 里已跟踪了 8.4MB 的 dongchedi_20260302.json、
+            # 8.1MB 的 merged_20260622.json 等历史产物；.gitignore 里虽然写了
+            # data/merged_*.json 等规则，但**对已跟踪文件无效**（Git 基本行为）。
+            # 于是每轮回推都会把这类 MB 级文件重新提交，仓库体积不可逆地膨胀。
+            # 白名单只放真正需要跨轮续跑 / 跨链路共享的：
+            #   - data/dealer_prices.json：报价独立链路唯一的跨链产物
+            #   - data/progress.json / dongchedi_series_list.json：断点与车系列表
+            #   - crawl_state/**：汽车之家/懂车帝/易车的续跑断点
+            #   - docs/analysis/**：轻量分析报告
+            #发布数据（latest.json 116MB 等）走 CF/Codeberg Pages，绝不入仓。
+            git add -f data/dealer_prices.json 2>/dev/null || true
+            git add -f data/progress.json 2>/dev/null || true
+            git add -f data/dongchedi_series_list.json 2>/dev/null || true
+            git add -f data/proxies.json 2>/dev/null || true
+            [ -d crawl_state ] && git add -f crawl_state || true
+            [ -d docs/analysis ] && git add -f docs/analysis || true
+            git add -f pages-audit-report.json 2>/dev/null || true
+            #体积闸：任何超过 5MB 的暂存文件一律撤出。
+            # 白名单也可能被误改（例如某个 json 被塞进 dealer_prices 旁边），
+            # 宁可这一轮不回推，也不把仓库撑坏——仓库膨胀不可逆。
+            BIG=$(git diff --cached --name-only | while read -r f; do
+                    [ -f "$f" ] || continue
+                    sz=$(wc -c < "$f")
+                    [ "$sz" -gt 5242880 ] && printf '%s\n' "$f"
+                  done || true)
+            if [ -n "$BIG" ]; then
+              echo "❌ 以下文件超过 5MB，撤出本次回推（防仓库膨胀）："
+              echo "$BIG"
+              echo "$BIG" | while read -r f; do git reset -q HEAD -- "$f" 2>/dev/null || true; done
+            fi
             if git diff --cached --quiet; then
               echo "无增量变更"
             else
@@ -1216,9 +1244,37 @@ main:
             set -e
             git config user.email "xuerui911@gmail.com"
             git config user.name "Fatty911"
-            # 只回回断点与轻量报告；发布数据走 CF/Codeberg，不进仓（113MB 级文件入仓会使仓指数膨胀）
-            for d in crawl_state docs/analysis data; do [ -d "$d" ] && git add "$d" || true; done
-            git add pages-audit-report.json 2>/dev/null || true
+            # **显式白名单**，不是 `git add data`。
+            # 原因（实测）：data/ 里已跟踪了 8.4MB 的 dongchedi_20260302.json、
+            # 8.1MB 的 merged_20260622.json 等历史产物；.gitignore 里虽然写了
+            # data/merged_*.json 等规则，但**对已跟踪文件无效**（Git 基本行为）。
+            # 于是每轮回推都会把这类 MB 级文件重新提交，仓库体积不可逆地膨胀。
+            # 白名单只放真正需要跨轮续跑 / 跨链路共享的：
+            #   - data/dealer_prices.json：报价独立链路唯一的跨链产物
+            #   - data/progress.json / dongchedi_series_list.json：断点与车系列表
+            #   - crawl_state/**：汽车之家/懂车帝/易车的续跑断点
+            #   - docs/analysis/**：轻量分析报告
+            #发布数据（latest.json 116MB 等）走 CF/Codeberg Pages，绝不入仓。
+            git add -f data/dealer_prices.json 2>/dev/null || true
+            git add -f data/progress.json 2>/dev/null || true
+            git add -f data/dongchedi_series_list.json 2>/dev/null || true
+            git add -f data/proxies.json 2>/dev/null || true
+            [ -d crawl_state ] && git add -f crawl_state || true
+            [ -d docs/analysis ] && git add -f docs/analysis || true
+            git add -f pages-audit-report.json 2>/dev/null || true
+            #体积闸：任何超过 5MB 的暂存文件一律撤出。
+            # 白名单也可能被误改（例如某个 json 被塞进 dealer_prices 旁边），
+            # 宁可这一轮不回推，也不把仓库撑坏——仓库膨胀不可逆。
+            BIG=$(git diff --cached --name-only | while read -r f; do
+                    [ -f "$f" ] || continue
+                    sz=$(wc -c < "$f")
+                    [ "$sz" -gt 5242880 ] && printf '%s\n' "$f"
+                  done || true)
+            if [ -n "$BIG" ]; then
+              echo "❌ 以下文件超过 5MB，撤出本次回推（防仓库膨胀）："
+              echo "$BIG"
+              echo "$BIG" | while read -r f; do git reset -q HEAD -- "$f" 2>/dev/null || true; done
+            fi
             if git diff --cached --quiet; then
               echo "无增量变更"
             else

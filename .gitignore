@@ -37,10 +37,23 @@ dcd_step2_done
 /filtered_cars_*.csv
 /filtered_cars_*.json
 /zero_to_whole_ratios*.json
+# data/ 下的爬取产物。注意：这些规则对**已跟踪**文件无效，
+# 2026-10-09 已用 `git rm --cached` 让存量 8.4MB/8.1MB 产物脱管。
 data/merged_*.json
 data/merged_*.csv
 data/filtered_cars_*.json
 data/filtered_cars_*.csv
+data/dongchedi_*.json
+data/autoHome_*.json
+data/*.log
+# data/ 里**只允许**这些进仓（回推 stage 的白名单与此对应）：
+#   dealer_prices.json / progress.json / dongchedi_series_list.json / proxies.json
+# 兜底：任何未显式放行的 data/ 文件都不入仓
+data/*
+!data/dealer_prices.json
+!data/progress.json
+!data/dongchedi_series_list.json
+!data/proxies.json
 
 # 日志
 *.log
