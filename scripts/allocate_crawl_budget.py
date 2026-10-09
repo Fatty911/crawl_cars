@@ -35,7 +35,7 @@ PIPELINE_SAFETY_MARGIN_SECONDS = 180
 
 # 合并 / 组装 / 发布 / 线上验收 / 回推的固定开销。
 # 115MB 全量基线 + 代理带宽是主因，实测这一段本身就是十几分钟量级。
-PUBLISH_PHASE_RESERVE_SECONDS = 20 * 60
+PUBLISH_PHASE_RESERVE_SECONDS = 30 * 60
 
 # 各爬取步的权重（千分比，合计必须为 1000）。
 # 汽车之家 6 步但只有 step1 吃 --time-limit（step2-6 是本地解析，不过预算闸），
@@ -98,10 +98,13 @@ def allocate(total_seconds: int | None, elapsed_seconds: int, *, debug: bool) ->
     并保证各步之和不超过可用预算（向下取整后必然成立，此处再做一次钳制，
     避免未来有人改权重时把总和改超）。
     """
-    if debug:
-        return {step: DEBUG_STEP_SECONDS for step in STEP_WEIGHTS}
-
     available = _resolve_total_seconds(total_seconds, elapsed_seconds)
+    if available < MIN_STEP_SECONDS * len(STEP_WEIGHTS):
+        # Zero means skip the crawler stage, never pass time-limit=0 (unlimited).
+        return {step: 0 for step in STEP_WEIGHTS}
+    if debug:
+        seconds = min(DEBUG_STEP_SECONDS, available // len(STEP_WEIGHTS))
+        return {step: seconds for step in STEP_WEIGHTS}
     weight_sum = sum(STEP_WEIGHTS.values())
     allocated = {
         step: available * weight // weight_sum
@@ -116,8 +119,6 @@ def allocate(total_seconds: int | None, elapsed_seconds: int, *, debug: bool) ->
         heaviest = max(allocated, key=lambda step: allocated[step])
         allocated[heaviest] = max(MIN_STEP_SECONDS, allocated[heaviest] - overspend)
 
-    for step in list(allocated):
-        allocated[step] = max(MIN_STEP_SECONDS, allocated[step])
     return allocated
 
 
@@ -168,6 +169,10 @@ def main() -> int:
     debug = _is_debug(args.debug_mode)
     budgets = allocate(args.total_seconds, args.elapsed_seconds, debug=debug)
     available = _resolve_total_seconds(args.total_seconds, args.elapsed_seconds)
+
+    if not any(budgets.values()):
+        print('Insufficient crawl budget after reserving publication time; retry a fresh build.', file=sys.stderr)
+        return 2
 
     emit_env(args.output, budgets, debug=debug, available=available)
 

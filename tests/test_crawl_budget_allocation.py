@@ -99,12 +99,16 @@ class AllocatorGuardTests(unittest.TestCase):
         finally:
             self.mod.STEP_WEIGHTS = original
 
-    def test_budget_never_drops_to_zero(self) -> None:
-        # 已经超时耗尽预算时，各步仍保底：给 0 会让爬虫「秒退」并零产出，
-        # 合并阶段直接失败；保底 120s 至少留一个车系的机会。
+    def test_exhausted_budget_skips_crawlers(self) -> None:
+        # Exhausted steps must be skipped, not receive an unlimited time-limit=0.
         budgets = self.mod.allocate(None, 99999, debug=False)
         for step, seconds in budgets.items():
-            self.assertGreaterEqual(seconds, self.mod.MIN_STEP_SECONDS, f"{step} 跌破下限")
+            self.assertEqual(seconds, 0, step)
+
+    def test_late_debug_cannot_exceed_available_budget(self) -> None:
+        for elapsed in (5000, 6000, 7000, 99999):
+            budgets = self.mod.allocate(None, elapsed, debug=True)
+            self.assertLessEqual(sum(budgets.values()), self.mod._resolve_total_seconds(None, elapsed))
 
 
 class DebugModeTests(unittest.TestCase):
@@ -275,7 +279,7 @@ class WorkflowWiringTests(unittest.TestCase):
         # 报价已拆成独立链路（用户裁定：报价失败不许拖住基础属性），
         # 它不再与三源共享 120min 总预算，自带 --time-limit 1500。
         # 因此主链里不该再出现 DEALER_TIME_LIMIT——出现即说明有人把报价并回了主链。
-        dealer_job_marker = '"crontab: 37 8,16 * * *"'
+        dealer_job_marker = '"crontab: 37 8 * * 0"'
         self.assertIn(dealer_job_marker, self.text, "报价独立链路 job 不见了")
         main_chain_text = self.text.split(dealer_job_marker, 1)[0]
         self.assertNotIn(

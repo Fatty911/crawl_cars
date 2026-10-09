@@ -361,8 +361,10 @@ def check_series_limit(crawled_count):
     return False
 
 
-def human_delay(label):
+def human_delay(label, deadline=None):
     delay = random.uniform(CRAWL_MIN_DELAY_SECONDS, CRAWL_MAX_DELAY_SECONDS)
+    if deadline is not None:
+        delay = min(delay, max(0, deadline - time.monotonic()))
     print(f"{label}后等待 {delay:.1f} 秒，模拟人工浏览节奏")
     time.sleep(delay)
 
@@ -576,7 +578,7 @@ def sort_series_by_brand_heat(series_list):
     return result
 
 
-def _scan_all_series():
+def _scan_all_series(deadline=None):
     """全量扫描所有车系列表（仅收集基础信息，不爬详情）"""
     print("=" * 70)
     print("增量扫描模式：全量扫描所有车系...")
@@ -601,9 +603,14 @@ def _scan_all_series():
     page = 1
 
     while True:
+        remaining = deadline - time.monotonic() if deadline is not None else None
+        if remaining is not None and remaining <= 0:
+            print("车系扫描预算到点，保留已发现车系")
+            break
         try:
             body = {"limit": 30, "page": page, "city_name": ""}
-            r = session.post(api, headers=headers, data=body, timeout=20)
+            r = session.post(api, headers=headers, data=body,
+                             timeout=min(20, remaining) if remaining is not None else 20)
             try:
                 d = r.json()
             except ValueError:
@@ -655,6 +662,8 @@ def _scan_all_series():
 def get_series_list(browser=None):
     """通过懂车帝分页API获取全部车系（无需浏览器），增量模式下只返回新增车系"""
     print("第一步：获取所有车系列表")
+    deadline = time.monotonic() + MAX_TIME_PER_STEP if MAX_TIME_PER_STEP > 0 else None
+    cached_series_list = progress.get("series_list", [])
 
     # 增量模式：先全量扫描所有车系，与本地已有HTML对比，仅返回新增车系
     if INCREMENTAL_MODE:
@@ -662,9 +671,11 @@ def get_series_list(browser=None):
         print("增量模式：先全量扫描所有车系列表，然后仅爬取新增车系...")
         print("=" * 70)
 
-        all_series = _scan_all_series()
+        all_series = _scan_all_series(deadline)
         existing_ids = _get_existing_series_ids()
         new_series = [s for s in all_series if str(s.get("id")) not in existing_ids]
+        if deadline is not None and time.monotonic() >= deadline:
+            new_series = _preserve_series_cache(new_series, cached_series_list)
 
         print(f"全量扫描完成：共 {len(all_series)} 个车系，新增 {len(new_series)} 个，已有 {len(all_series) - len(new_series)} 个")
 
@@ -681,7 +692,6 @@ def get_series_list(browser=None):
 
     # 非增量模式：原有逻辑
 
-    cached_series_list = progress.get("series_list", [])
     if cached_series_list:
         print(
             f"已有缓存车系列表 {len(cached_series_list)} 个，本次会优先刷新；刷新失败则回退使用缓存"
@@ -710,9 +720,14 @@ def get_series_list(browser=None):
     excluded_series = []
 
     while True:
+        remaining = deadline - time.monotonic() if deadline is not None else None
+        if remaining is not None and remaining <= 0:
+            print("车系扫描预算到点，保留已发现车系和原有缓存")
+            break
         try:
             body = {"limit": 30, "page": page, "city_name": ""}
-            r = session.post(api, headers=headers, data=body, timeout=20)
+            r = session.post(api, headers=headers, data=body,
+                             timeout=min(20, remaining) if remaining is not None else 20)
             try:
                 d = r.json()
             except ValueError as exc:
@@ -739,7 +754,7 @@ def get_series_list(browser=None):
                 if consecutive_empty >= 3:
                     print(f"连续{consecutive_empty}页为空，停止")
                     break
-                human_delay(f"page {page} 空结果")
+                human_delay(f"page {page} 空结果", deadline)
                 page += 1
                 continue
 
@@ -777,11 +792,11 @@ def get_series_list(browser=None):
                 break
 
             page += 1
-            human_delay(f"page {page - 1} API访问")
+            human_delay(f"page {page - 1} API访问", deadline)
 
         except Exception as e:
             print(f"page {page} 异常: {e}，重试...")
-            human_delay(f"page {page} API异常")
+            human_delay(f"page {page} API异常", deadline)
             consecutive_empty += 1
             if consecutive_empty >= 5:
                 break
@@ -791,6 +806,8 @@ def get_series_list(browser=None):
     if excluded_series:
         print(f"已按明确级别跳过 {len(excluded_series)} 个非目标车系")
 
+    if deadline is not None and time.monotonic() >= deadline:
+        series_list = _preserve_series_cache(series_list, cached_series_list)
     if series_list:
         progress["series_list"] = series_list
         if excluded_series:
@@ -803,6 +820,12 @@ def get_series_list(browser=None):
         return cached_series_list
 
     return series_list
+
+
+def _preserve_series_cache(discovered, cached):
+    combined = {str(series["id"]): series for series in cached}
+    combined.update({str(series["id"]): series for series in discovered})
+    return list(combined.values())
 
 
 def _extract_car_ids(value):

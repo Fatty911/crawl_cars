@@ -1583,19 +1583,13 @@ class WorkflowValidatorTests(unittest.TestCase):
         # 且它校验的「Release tag 未绑定 run_id」这条守卫在 CNB 侧**曾经真实缺失**：
         # CNB 原先 `tag = f"data-{date}"`，同一天第二次构建会复用当天已有的 release，
         # 把本轮产物上传进上一轮的 release——Pages 正是从 Release 取数据，会读到错数据。
-        # 改成对 CNB 的等价断言：tag 必须绑定构建号。
+        # The standalone publisher now owns unique per-build tags and rejects reuse.
         text = (ROOT / ".cnb.yml").read_text(encoding="utf-8")
-        self.assertIn(
-            "data-{date}-{build_id}",
-            text,
-            "CNB 的 Release tag 必须绑定构建号，否则同日多次构建会互相覆盖产物",
-        )
-        self.assertIn("CNB_BUILD_ID", text, "tag 的构建号来源未落到 CNB_BUILD_ID")
-        self.assertNotIn(
-            'tag = f"data-{date}"\n',
-            text,
-            "CNB 又退回只用日期的 tag 了 —— 同日第二次构建会覆盖第一次的 release",
-        )
+        self.assertIn('scripts/publish_github_release.py', text)
+        publisher = (ROOT / 'scripts/publish_github_release.py').read_text(encoding='utf-8')
+        self.assertIn('CNB_BUILD_ID', publisher)
+        self.assertIn('version tag already exists', publisher)
+        self.assertIn('cnb-data-', publisher)
 
     def test_cnb_publish_chain_runs_superset_audit_before_manifest(self) -> None:
         # CNB 发布链的三道闸顺序：合并保留基线 → 保留基线 → 超集校验 → 组装发布。

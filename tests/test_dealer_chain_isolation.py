@@ -218,7 +218,7 @@ class CnbStrictYamlTests(unittest.TestCase):
         text = Cnb.read_text(encoding="utf-8")
         count = sum(
             1 for line in text.splitlines()
-            if line.strip() == '"crontab: 37 8,16 * * *":'
+            if line.strip() == '"crontab: 37 8 * * 0":'
         )
         self.assertEqual(count, 1, f"报价 job 键出现了 {count} 次")
 
@@ -230,7 +230,7 @@ class CnbStrictYamlTests(unittest.TestCase):
         lines = text.splitlines()
         start = next(
             i for i, l in enumerate(lines)
-            if l.strip() == '"crontab: 37 8,16 * * *":'
+            if l.strip() == '"crontab: 37 8 * * 0":'
         )
         self.assertEqual(
             len(lines[start]) - len(lines[start].lstrip()), 2,
@@ -243,7 +243,7 @@ class CnbStrictYamlTests(unittest.TestCase):
         )
         # 完整结构由 YAML 解析背书：9 个 stage、1h timeout、正确的时间字段类型。
         main = yaml.safe_load(text)["main"]
-        dealer = next(v for k, v in main.items() if "37 8,16" in str(k))
+        dealer = next(v for k, v in main.items() if "37 8 * * 0" in str(k))
         self.assertIsInstance(dealer, list)
         self.assertEqual(dealer[0]["timeout"], "1h")
         self.assertEqual(len(dealer[0]["stages"]), 9)

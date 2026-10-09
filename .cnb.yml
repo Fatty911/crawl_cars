@@ -16,6 +16,11 @@ main:
             # pytest 是 push CI 测试闸的执行器，多数仓 requirements.txt 未声明它；
             # 缺失时 `python -m pytest` 直接 127，push 流水线从未真正跑过测试。
             python -m pytest --version >/dev/null 2>&1 || python -m pip install --disable-pip-version-check pytest
+            if ! command -v node >/dev/null 2>&1; then
+              apt-get update -qq
+              apt-get install -y -qq --no-install-recommends nodejs npm
+            fi
+            node --version
         - name: 推送代码到GitLab
           script: |
             # 令牌缺失时显式跳过（该仓 CNB 环境变量未配 GITLAB_TOKEN 时不得把整条 push CI 打红）
@@ -49,7 +54,7 @@ main:
             # POSIX 取法：子 shell 内把真实退出码落盘，`| tee` 保持 stdout 实时回显——
             # 直接重定向会让 stdout 静默，触发 CNB「10 分钟无输出强杀」（vps 仓已实证）。
             rm -f _pytest_rc_.txt
-            ( python -m pytest tests/ -x --tb=short 2>&1; echo $? > _pytest_rc_.txt ) | tee _test_result_.txt
+            ( set +e; python -m pytest tests/ -x --tb=short 2>&1; echo $? > _pytest_rc_.txt ) | tee _test_result_.txt
             rc=$(cat _pytest_rc_.txt)
             echo "PYTEST_EXIT=$rc" >> _stage_context_.env
             # 此前退出码取 tee 的 0，测试失败从不使流水线变红（结构性假绿），现诚实穿透
@@ -129,18 +134,6 @@ main:
             printf 'export CHROME_PROXY_SERVER=http://127.0.0.1:7890\n' >> /tmp/proxy.sh
             . /tmp/proxy.sh
             echo "代理就绪：$HTTP_PROXY"
-        - name: 分配爬取时间预算
-          script: |
-            # CNB 有 120min 流水线硬上限（日志明示 maximum pipeline duration is exceeded: 120min），
-            # 超时整条构建被杀 —— 本轮无论爬到哪一步都拿不到产物，Pages 只能停在上一轮日期。
-            # GitHub Actions 时代各源 --time-limit 各自独立（汽车之家/懂车帝各 2700s、
-            # 易车最长 21000s），相加远超 CNB 上限，等于「每源留足预算 = 每源都被腰斩」。
-            # 这里按权重把总预算切给各爬取步，env 落盘供后续 stage source。
-            # 旧的 MR/BN_MR/TB 等死变量已删除：代码里没有任何 os.getenv 读它们（已全仓核查）。
-            python scripts/allocate_crawl_budget.py \
-              --output /tmp/cnb-crawl-budget.env \
-              --elapsed-seconds "${CNB_PIPELINE_ELAPSED_SECONDS:-0}"
-            cat /tmp/cnb-crawl-budget.env
         - name: 获取线上发布基线
           timeout: 1h
           script: |
@@ -180,11 +173,25 @@ main:
             done
             echo "❌ 所有基线来源均不可用，禁止本轮发布（绝不退化为空基线）"
             exit 1
+        - name: 分配爬取时间预算
+          script: |
+            set -e
+            # CNB 有 120min 流水线硬上限（日志明示 maximum pipeline duration is exceeded: 120min），
+            # 超时整条构建被杀 —— 本轮无论爬到哪一步都拿不到产物，Pages 只能停在上一轮日期。
+            # GitHub Actions 时代各源 --time-limit 各自独立（汽车之家/懂车帝各 2700s、
+            # 易车最长 21000s），相加远超 CNB 上限，等于「每源留足预算 = 每源都被腰斩」。
+            # 这里按权重把总预算切给各爬取步，env 落盘供后续 stage source。
+            # 旧的 MR/BN_MR/TB 等死变量已删除：代码里没有任何 os.getenv 读它们（已全仓核查）。
+            python scripts/allocate_crawl_budget.py \
+              --output /tmp/cnb-crawl-budget.env \
+              --elapsed-seconds "$(python scripts/pipeline_elapsed_seconds.py)"
+            cat /tmp/cnb-crawl-budget.env
         - name: 爬取-汽车之家
           timeout: 1h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
+            [ "$AUTOHOME_STEP1_TIME_LIMIT" -gt 0 ] || { echo "爬取预算已耗尽，保留完整基线进入发布"; exit 0; }
             # step1 的 --time-limit 从「硬编码 2700」改为读预算分配器：
             # DEBUG_MODE 时为 480s（能跑通全链并刷新 Pages 日期），
             # 生产时按权重从 120min 上限里切，且与懂车帝/易车共享同一总预算。
@@ -218,6 +225,7 @@ main:
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
+            [ "$DONGCHEDI_STEP1_TIME_LIMIT" -gt 0 ] || { echo "爬取预算已耗尽，保留完整基线进入发布"; exit 0; }
             # crawl_dongchedi.py:17 依赖仓根在 sys.path（GitHub crawl-dongchedi.yml:41 的 PYTHONPATH）
             export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
             # debug_mode（对齐 GitHub workflow_dispatch inputs.debug_mode）：
@@ -232,7 +240,7 @@ main:
             # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
             rc=0
             # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
-            python scripts/crawl_dongchedi.py --step 1 --auto \
+            timeout --signal=TERM --kill-after=15s "$((DONGCHEDI_STEP1_TIME_LIMIT + 30))s" python scripts/crawl_dongchedi.py --step 1 --auto \
               --time-limit "$DONGCHEDI_STEP1_TIME_LIMIT" $DCD_DEBUG_ARGS \
               > /tmp/dongchedi-step1.log 2>&1 || rc=$?
             tail -n 20 /tmp/dongchedi-step1.log
@@ -241,13 +249,16 @@ main:
             else echo "懂车帝 step1 失败 rc=$rc，继续后续步骤"; fi
             rc=0
             # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
-            python scripts/crawl_dongchedi.py --step 2 --auto \
+            timeout --signal=TERM --kill-after=15s "$((DONGCHEDI_STEP2_TIME_LIMIT + 30))s" python scripts/crawl_dongchedi.py --step 2 --auto \
               --time-limit "$DONGCHEDI_STEP2_TIME_LIMIT" --max-series 0 --incremental $DCD_DEBUG_ARGS \
               > /tmp/dongchedi-step2.log 2>&1 || rc=$?
             tail -n 20 /tmp/dongchedi-step2.log
             if [ $rc -eq 0 ]; then echo "懂车帝 step2 完成"
             elif [ $rc -eq 10 ]; then echo "懂车帝 step2 预算到点收尾（设计内，进度已保存）"
             else echo "懂车帝 step2 失败 rc=$rc，继续"; fi
+            # 到点保存的配置也要解析成源产物，才能进入本轮增量合并。
+            python scripts/crawl_dongchedi.py --step 3 || echo "懂车帝本轮无可解析配置，保留基线"
+            python scripts/crawl_dongchedi.py --step 4 || echo "懂车帝本轮无新产物，保留基线"
         - name: 归一化懂车帝产物路径
           script: |
             # crawl_dongchedi.py 写 scripts/，merge_data.py 只在仓根 glob；对齐 GitHub crawl-dongchedi.yml
@@ -262,6 +273,8 @@ main:
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
+            [ "$YICHE_TIME_LIMIT" -gt 0 ] || { echo "爬取预算已耗尽，保留完整基线进入发布"; exit 0; }
+            YICHE_STARTED=$(date +%s)
             # 预算必须同时受两个上限约束，取更严的那个：
             #   ① 作息窗口（GitHub 原设计 morning 10800 / afternoon 21000，北京时间
             #      08:00-12:30 与 13:00-22:00，窗口末留 900s安全缓冲）——
@@ -321,10 +334,11 @@ main:
             # 续跑被判定不兼容时会一行不产；退回首轮，保证本轮仍有易车数据可合并。
             # 重爬预算必须再砍半：它是在主爬已经花掉 RUN_TIME 之后追加的，
             # 不砍半就会把「分配器算好的总额」直接吃掉，合并阶段被腰斩。
-            if [ ! -s "yiche_$(date +%Y%m%d).json" ]; then
+            YICHE_REMAINING=$((RUN_TIME - $(date +%s) + YICHE_STARTED))
+            if [ ! -s "yiche_$(date +%Y%m%d).json" ] && [ "$YICHE_REMAINING" -gt 0 ]; then
               echo "⚠️ 易车本轮无产出，退回首轮重爬"
               rm -f "$YICHE_CHECKPOINT_PATH"
-              python scripts/crawl_yiche.py --time-limit "$((RUN_TIME / 2))" --max-series 0 \
+              python scripts/crawl_yiche.py --time-limit "$YICHE_REMAINING" --max-series 0 \
                 --output "yiche_$(date +%Y%m%d).json" \
                 || echo "易车 重爬仍失败，继续"
             fi
@@ -382,7 +396,7 @@ main:
             cp config/filter_conditions.json site/config/filter_conditions.json
             cp "merged_${DATE}.json" site/data/latest.json
             cp "filtered_cars_${DATE}.json" site/data/filtered.json
-            # 报价已由独立链路（crontab: 37 8,16 * * *）刷新，
+            # 报价已由独立链路（crontab: 37 8 * * 0）刷新，
             # 这里必须开 --refresh-dealer-prices，否则陈旧报价不会被更新
             python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022 --refresh-dealer-prices
             python scripts/prepare_pages_payload.py --input site/data/filtered.json --output site/data/filtered.json --min-year 2022
@@ -431,6 +445,11 @@ main:
           timeout: 30m
           image: node:22
           script: node scripts/verify_pages_rendered_data.js site/data/latest.json
+        - name: 推送数据到GitHub Release
+          timeout: 25m
+          script: |
+            set -e
+            python scripts/publish_github_release.py --site-dir site --repo Fatty911/crawl_cars --workflow cnb-pages.yml
         - name: 发布到Cloudflare Pages
           timeout: 30m
           image: node:22
@@ -444,26 +463,20 @@ main:
             rm -rf cf-site
             cp -R site cf-site
             find cf-site -type f -size +20M -print -delete
-            python - <<'PY'
-            import json, os
-            with open("cf-site/data/manifest.json", encoding="utf-8") as f:
-                m = json.load(f)
-            kept = {}
-            for key, path in m["files"].items():
-                if os.path.exists(os.path.join("cf-site", path)):
-                    kept[key] = path
-            if "latestJson" not in kept and "filteredJson" in kept:
-                kept["latestJson"] = kept["filteredJson"]
-            missing = set(m["files"]) - set(kept)
-            if missing and "latestJson" in kept:
-                print(f"CF 侧降级视图，剔除超限文件: {sorted(missing)}")
-            elif missing:
-                raise SystemExit(f"❌ 发布视图缺关键数据文件: {sorted(missing)}")
-            m["files"] = kept
-            m["note"] = "CF Pages 25MiB 单文件限制：全量 latest 由 Codeberg (cars3) 提供，此处默认视图指向 filtered 子集"
-            with open("cf-site/data/manifest.json", "w", encoding="utf-8") as f:
-                json.dump(m, f, ensure_ascii=False, indent=2)
-            PY
+            node - <<'JS'
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const file = 'cf-site/data/manifest.json';
+            const m = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const kept = Object.fromEntries(Object.entries(m.files).filter(([, p]) => fs.existsSync(path.join('cf-site', p))));
+            if (!kept.latestJson && kept.filteredJson) kept.latestJson = kept.filteredJson;
+            const missing = Object.keys(m.files).filter(k => !(k in kept));
+            if (!kept.latestJson) throw new Error('CF payload lacks latestJson');
+            m.files = kept;
+            m.note = 'CF Pages file limit: default view is filtered; full dataset is on GitHub and Codeberg Pages';
+            fs.writeFileSync(file, JSON.stringify(m, null, 2));
+            console.log('CF omitted oversized files:', missing);
+            JS
             npx -y wrangler@latest pages deploy cf-site --project-name crawl-cars --commit-dirty=true
         - name: 发布到Codeberg Pages
           timeout: 1h
@@ -494,85 +507,6 @@ main:
             git commit -qm "pages: crawl publish $(date +%Y%m%d%H%M%S)"
             GIT_ASKPASS=/tmp/cb-askpass.sh git push --force https://codeberg.org/xuerui911/crawl-cars.git pages:pages
             rm -rf "$W" /tmp/cb-askpass.sh
-
-        - name: 推送数据到GitHub Release
-          script: |
-            # Pages 工作流从 GitHub Release 读数据（deploy-pages.yml: gh release download data-latest）
-            # CNB 负责爬取/合并，把产物推成 Release，Pages 只做部署
-            if [ -z "$GITHUB_TOKEN" ]; then
-              echo "WARN no GITHUB_TOKEN，跳过 Release 推送（Pages 将继续读旧数据）"
-              exit 0
-            fi
-            if [ ! -s dist/latest.json ] && [ ! -s dist/filtered.json ]; then
-              echo "WARN dist/ 无数据产物，跳过 Release 推送"
-              exit 0
-            fi
-            python - <<'PY'
-            import json, os, sys, time, urllib.request, base64
-            token = os.environ["GITHUB_TOKEN"]
-            repo = os.environ.get("GITHUB_REPO_SLUG", "Fatty911/crawl_cars")
-            api = f"https://api.github.com/repos/{repo}"
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            }
-            date = time.strftime("%Y%m%d")
-            # tag 必须绑定**本轮构建**，不能只用日期。
-            # 原先 `tag = f"data-{date}"` 有个真实缺陷：同一天第二次构建时
-            # 下方「ensure release exists」会命中当天已有的 release 并**复用**它，
-            # 于是第二轮的产物被上传进上午那一轮的 release，Pages 读到的是错数据——
-            # 而 Pages 部署正是从 GitHub Release 取数据（deploy 阶段读 release）。
-            # 绑定构建号后每轮都有独立 release，互不覆盖。
-            build_id = os.environ.get("CNB_BUILD_ID") or os.environ.get("CNB_PIPELINE_ID") or str(int(time.time()))
-            tag = f"data-{date}-{build_id}"
-            assets = []
-            for src, dst in (("dist/latest.json", "sim-latest.json"), ("dist/filtered.json", "sim-filtered.json")):
-                if os.path.isfile(src):
-                    assets.append((src, dst))
-            if not assets:
-                print("no assets"); sys.exit(0)
-            # ensure release exists
-            req = urllib.request.Request(f"{api}/releases/tags/{tag}", headers=headers)
-            try:
-                with urllib.request.urlopen(req, timeout=30) as r:
-                    rel = json.loads(r.read())
-            except Exception:
-                body = json.dumps({"tag_name": tag, "name": f"data {date}", "body": "CNB pipeline auto-publish"}).encode()
-                req = urllib.request.Request(f"{api}/releases", data=body, headers={**headers, "Content-Type": "application/json"})
-                with urllib.request.urlopen(req, timeout=30) as r:
-                    rel = json.loads(r.read())
-            upload_url = rel["upload_url"].split("{")[0]
-            # upload each asset (replace if exists)
-            for src, dst in assets:
-                data = open(src, "rb").read()
-                req = urllib.request.Request(f"{upload_url}?name={dst}", data=data, headers={**headers, "Content-Type": "application/octet-stream"})
-                try:
-                    with urllib.request.urlopen(req, timeout=60) as r:
-                        print(f"uploaded {dst} {len(data)} bytes")
-                except Exception as e:
-                    print(f"upload {dst} failed: {e}")
-            # also maintain data-latest tag
-            body = json.dumps({"tag_name": "data-latest", "name": "latest", "body": "latest", "target_commitish": os.environ.get("CNB_COMMIT", "main")}).encode()
-            req = urllib.request.Request(f"{api}/releases", data=body, headers={**headers, "Content-Type": "application/json"})
-            try:
-                with urllib.request.urlopen(req, timeout=30) as r:
-                    latest = json.loads(r.read())
-            except Exception:
-                req = urllib.request.Request(f"{api}/releases/tags/data-latest", headers=headers)
-                with urllib.request.urlopen(req, timeout=30) as r:
-                    latest = json.loads(r.read())
-            lu = latest["upload_url"].split("{")[0]
-            for src, dst in assets:
-                data = open(src, "rb").read()
-                req = urllib.request.Request(f"{lu}?name={dst}", data=data, headers={**headers, "Content-Type": "application/octet-stream"})
-                try:
-                    with urllib.request.urlopen(req, timeout=60) as r:
-                        print(f"data-latest uploaded {dst}")
-                except Exception as e:
-                    print(f"data-latest {dst} failed: {e}")
-            print("OK_STAGE=推送数据到GitHub Release")
-            PY
 
         - name: 线上验收
           timeout: 30m
@@ -705,7 +639,7 @@ main:
                 -H "Authorization: Bearer $CNB_TOKEN" \
                 -H "Content-Type: application/json" \
                 "https://api.cnb.cool/xuerui911-mirror/crawl_cars/-/build/start" \
-                -d "{\"branch\":\"$CNB_BRANCH\",\"event\":\"api_trigger\",\"DEBUG_MODE\":\"${DEBUG_MODE:-false}\",\"RETRY_COUNT\":\"$NEXT\"}" \
+                -d "{\"branch\":\"$CNB_BRANCH\",\"event\":\"api_trigger\",\"env\":{\"DEBUG_MODE\":\"${DEBUG_MODE:-false}\",\"RETRY_COUNT\":\"$NEXT\"}}" \
                 || echo "WARN 重触发失败，请手动触发"
             else
               echo "WARN 无 CNB_TOKEN，无法自动重触发"
@@ -766,7 +700,7 @@ main:
         - name: 验证-pytest
           script: |
             rm -f _pytest_rc_after_.txt
-            ( python -m pytest tests/ -x --tb=short 2>&1; echo $? > _pytest_rc_after_.txt ) | tee _test_after_fix_.txt
+            ( set +e; python -m pytest tests/ -x --tb=short 2>&1; echo $? > _pytest_rc_after_.txt ) | tee _test_after_fix_.txt
             rc=$(cat _pytest_rc_after_.txt)
             if [ "$rc" -eq 0 ]; then echo "PYTEST_VALIDATE=PASS" >> _fix_report_.md; else echo "PYTEST_VALIDATE=FAIL" >> _fix_report_.md; fi
             echo "PYTEST_EXIT_AFTER=$rc" >> _stage_context_.env
@@ -847,18 +781,6 @@ main:
             printf 'export CHROME_PROXY_SERVER=http://127.0.0.1:7890\n' >> /tmp/proxy.sh
             . /tmp/proxy.sh
             echo "代理就绪：$HTTP_PROXY"
-        - name: 分配爬取时间预算
-          script: |
-            # CNB 有 120min 流水线硬上限（日志明示 maximum pipeline duration is exceeded: 120min），
-            # 超时整条构建被杀 —— 本轮无论爬到哪一步都拿不到产物，Pages 只能停在上一轮日期。
-            # GitHub Actions 时代各源 --time-limit 各自独立（汽车之家/懂车帝各 2700s、
-            # 易车最长 21000s），相加远超 CNB 上限，等于「每源留足预算 = 每源都被腰斩」。
-            # 这里按权重把总预算切给各爬取步，env 落盘供后续 stage source。
-            # 旧的 MR/BN_MR/TB 等死变量已删除：代码里没有任何 os.getenv 读它们（已全仓核查）。
-            python scripts/allocate_crawl_budget.py \
-              --output /tmp/cnb-crawl-budget.env \
-              --elapsed-seconds "${CNB_PIPELINE_ELAPSED_SECONDS:-0}"
-            cat /tmp/cnb-crawl-budget.env
         - name: 获取线上发布基线
           timeout: 1h
           script: |
@@ -898,11 +820,25 @@ main:
             done
             echo "❌ 所有基线来源均不可用，禁止本轮发布（绝不退化为空基线）"
             exit 1
+        - name: 分配爬取时间预算
+          script: |
+            set -e
+            # CNB 有 120min 流水线硬上限（日志明示 maximum pipeline duration is exceeded: 120min），
+            # 超时整条构建被杀 —— 本轮无论爬到哪一步都拿不到产物，Pages 只能停在上一轮日期。
+            # GitHub Actions 时代各源 --time-limit 各自独立（汽车之家/懂车帝各 2700s、
+            # 易车最长 21000s），相加远超 CNB 上限，等于「每源留足预算 = 每源都被腰斩」。
+            # 这里按权重把总预算切给各爬取步，env 落盘供后续 stage source。
+            # 旧的 MR/BN_MR/TB 等死变量已删除：代码里没有任何 os.getenv 读它们（已全仓核查）。
+            python scripts/allocate_crawl_budget.py \
+              --output /tmp/cnb-crawl-budget.env \
+              --elapsed-seconds "$(python scripts/pipeline_elapsed_seconds.py)"
+            cat /tmp/cnb-crawl-budget.env
         - name: 爬取-汽车之家
           timeout: 1h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
+            [ "$AUTOHOME_STEP1_TIME_LIMIT" -gt 0 ] || { echo "爬取预算已耗尽，保留完整基线进入发布"; exit 0; }
             # step1 的 --time-limit 从「硬编码 2700」改为读预算分配器：
             # DEBUG_MODE 时为 480s（能跑通全链并刷新 Pages 日期），
             # 生产时按权重从 120min 上限里切，且与懂车帝/易车共享同一总预算。
@@ -936,6 +872,7 @@ main:
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
+            [ "$DONGCHEDI_STEP1_TIME_LIMIT" -gt 0 ] || { echo "爬取预算已耗尽，保留完整基线进入发布"; exit 0; }
             # crawl_dongchedi.py:17 依赖仓根在 sys.path（GitHub crawl-dongchedi.yml:41 的 PYTHONPATH）
             export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
             # 与 api_trigger 同语义：debug 开关是 --debug-limit，预算来自分配器。
@@ -948,7 +885,7 @@ main:
             # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
             rc=0
             # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
-            python scripts/crawl_dongchedi.py --step 1 --auto \
+            timeout --signal=TERM --kill-after=15s "$((DONGCHEDI_STEP1_TIME_LIMIT + 30))s" python scripts/crawl_dongchedi.py --step 1 --auto \
               --time-limit "$DONGCHEDI_STEP1_TIME_LIMIT" $DCD_DEBUG_ARGS \
               > /tmp/dongchedi-step1.log 2>&1 || rc=$?
             tail -n 20 /tmp/dongchedi-step1.log
@@ -957,13 +894,16 @@ main:
             else echo "懂车帝 step1 失败 rc=$rc，继续后续步骤"; fi
             rc=0
             # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
-            python scripts/crawl_dongchedi.py --step 2 --auto \
+            timeout --signal=TERM --kill-after=15s "$((DONGCHEDI_STEP2_TIME_LIMIT + 30))s" python scripts/crawl_dongchedi.py --step 2 --auto \
               --time-limit "$DONGCHEDI_STEP2_TIME_LIMIT" --max-series 0 --incremental $DCD_DEBUG_ARGS \
               > /tmp/dongchedi-step2.log 2>&1 || rc=$?
             tail -n 20 /tmp/dongchedi-step2.log
             if [ $rc -eq 0 ]; then echo "懂车帝 step2 完成"
             elif [ $rc -eq 10 ]; then echo "懂车帝 step2 预算到点收尾（设计内，进度已保存）"
             else echo "懂车帝 step2 失败 rc=$rc，继续"; fi
+            # 到点保存的配置也要解析成源产物，才能进入本轮增量合并。
+            python scripts/crawl_dongchedi.py --step 3 || echo "懂车帝本轮无可解析配置，保留基线"
+            python scripts/crawl_dongchedi.py --step 4 || echo "懂车帝本轮无新产物，保留基线"
         - name: 归一化懂车帝产物路径
           script: |
             # crawl_dongchedi.py 写 scripts/，merge_data.py 只在仓根 glob；对齐 GitHub crawl-dongchedi.yml
@@ -978,6 +918,8 @@ main:
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
+            [ "$YICHE_TIME_LIMIT" -gt 0 ] || { echo "爬取预算已耗尽，保留完整基线进入发布"; exit 0; }
+            YICHE_STARTED=$(date +%s)
             # 预算必须同时受两个上限约束，取更严的那个：
             #   ① 作息窗口（GitHub 原设计 morning 10800 / afternoon 21000，北京时间
             #      08:00-12:30 与 13:00-22:00，窗口末留 900s安全缓冲）——
@@ -1037,10 +979,11 @@ main:
             # 续跑被判定不兼容时会一行不产；退回首轮，保证本轮仍有易车数据可合并。
             # 重爬预算必须再砍半：它是在主爬已经花掉 RUN_TIME 之后追加的，
             # 不砍半就会把「分配器算好的总额」直接吃掉，合并阶段被腰斩。
-            if [ ! -s "yiche_$(date +%Y%m%d).json" ]; then
+            YICHE_REMAINING=$((RUN_TIME - $(date +%s) + YICHE_STARTED))
+            if [ ! -s "yiche_$(date +%Y%m%d).json" ] && [ "$YICHE_REMAINING" -gt 0 ]; then
               echo "⚠️ 易车本轮无产出，退回首轮重爬"
               rm -f "$YICHE_CHECKPOINT_PATH"
-              python scripts/crawl_yiche.py --time-limit "$((RUN_TIME / 2))" --max-series 0 \
+              python scripts/crawl_yiche.py --time-limit "$YICHE_REMAINING" --max-series 0 \
                 --output "yiche_$(date +%Y%m%d).json" \
                 || echo "易车 重爬仍失败，继续"
             fi
@@ -1098,7 +1041,7 @@ main:
             cp config/filter_conditions.json site/config/filter_conditions.json
             cp "merged_${DATE}.json" site/data/latest.json
             cp "filtered_cars_${DATE}.json" site/data/filtered.json
-            # 报价已由独立链路（crontab: 37 8,16 * * *）刷新，
+            # 报价已由独立链路（crontab: 37 8 * * 0）刷新，
             # 这里必须开 --refresh-dealer-prices，否则陈旧报价不会被更新
             python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022 --refresh-dealer-prices
             python scripts/prepare_pages_payload.py --input site/data/filtered.json --output site/data/filtered.json --min-year 2022
@@ -1147,6 +1090,11 @@ main:
           timeout: 30m
           image: node:22
           script: node scripts/verify_pages_rendered_data.js site/data/latest.json
+        - name: 推送数据到GitHub Release
+          timeout: 25m
+          script: |
+            set -e
+            python scripts/publish_github_release.py --site-dir site --repo Fatty911/crawl_cars --workflow cnb-pages.yml
         - name: 发布到Cloudflare Pages
           timeout: 30m
           image: node:22
@@ -1160,26 +1108,20 @@ main:
             rm -rf cf-site
             cp -R site cf-site
             find cf-site -type f -size +20M -print -delete
-            python - <<'PY'
-            import json, os
-            with open("cf-site/data/manifest.json", encoding="utf-8") as f:
-                m = json.load(f)
-            kept = {}
-            for key, path in m["files"].items():
-                if os.path.exists(os.path.join("cf-site", path)):
-                    kept[key] = path
-            if "latestJson" not in kept and "filteredJson" in kept:
-                kept["latestJson"] = kept["filteredJson"]
-            missing = set(m["files"]) - set(kept)
-            if missing and "latestJson" in kept:
-                print(f"CF 侧降级视图，剔除超限文件: {sorted(missing)}")
-            elif missing:
-                raise SystemExit(f"❌ 发布视图缺关键数据文件: {sorted(missing)}")
-            m["files"] = kept
-            m["note"] = "CF Pages 25MiB 单文件限制：全量 latest 由 Codeberg (cars3) 提供，此处默认视图指向 filtered 子集"
-            with open("cf-site/data/manifest.json", "w", encoding="utf-8") as f:
-                json.dump(m, f, ensure_ascii=False, indent=2)
-            PY
+            node - <<'JS'
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const file = 'cf-site/data/manifest.json';
+            const m = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const kept = Object.fromEntries(Object.entries(m.files).filter(([, p]) => fs.existsSync(path.join('cf-site', p))));
+            if (!kept.latestJson && kept.filteredJson) kept.latestJson = kept.filteredJson;
+            const missing = Object.keys(m.files).filter(k => !(k in kept));
+            if (!kept.latestJson) throw new Error('CF payload lacks latestJson');
+            m.files = kept;
+            m.note = 'CF Pages file limit: default view is filtered; full dataset is on GitHub and Codeberg Pages';
+            fs.writeFileSync(file, JSON.stringify(m, null, 2));
+            console.log('CF omitted oversized files:', missing);
+            JS
             npx -y wrangler@latest pages deploy cf-site --project-name crawl-cars --commit-dirty=true
         - name: 发布到Codeberg Pages
           timeout: 1h
@@ -1322,7 +1264,7 @@ main:
 
   # ══ 经销商报价独立链路 ══
   # 失败域隔离：报价失败不许拖住基础属性链。详见 dealer_chain.yml 头部注释。
-  "crontab: 37 8,16 * * *":
+  "crontab: 37 8 * * 0":
     - runner:
         cpus: 2
       docker:
@@ -1374,7 +1316,7 @@ main:
               mkdir -p /tmp/dealer-baseline
               for URL in "https://cars.jiucai.eu.org/data/latest.json"; do
                 if curl --fail --show-error --silent --location --retry 2 --retry-all-errors \
-                     --retry-delay 10 --connect-timeout 20 --max-time 1200 \
+                     --retry-delay 5 --connect-timeout 20 --max-time 300 --retry-max-time 650 \
                      -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
                      "$URL" -o /tmp/dealer-baseline/latest.json; then
                   ROWS=$(python -c "import json;d=json.load(open('/tmp/dealer-baseline/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
@@ -1438,7 +1380,7 @@ main:
               # 失败不阻断：报价已入库，下一次主链自然会带上。
               rc=0
               curl --fail --silent --show-error --max-time 60 \
-                -X POST "https://api.cnb.cool/xuerui911-mirror/crawl_cars/-/builds" \
+                -X POST "https://api.cnb.cool/xuerui911-mirror/crawl_cars/-/build/start" \
                 -H "Authorization: Bearer ${CNB_TOKEN}" \
                 -H "Content-Type: application/json" \
                 -H "Accept: application/vnd.cnb.api+json" \
