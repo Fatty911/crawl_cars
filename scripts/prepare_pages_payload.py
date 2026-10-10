@@ -836,28 +836,96 @@ def visible_component_conflict_reason(left: dict[str, Any], right: dict[str, Any
     return ""
 
 
+_SKU_ID_SOURCES = ("汽车之家", "懂车帝", "易车")
+_SKU_ID_BASE_FIELDS = ("车款id", "车型id", "spec_id", "specid")
+# 明确提供方主车型/车款 ID 字段名（去空格、小写）：
+# 泛型名，或"来源前缀 + 主 SKU 名"（易车车型ID / 汽车之家车款ID …）。
+# 车系ID、跨源归并ID、关联/相关 ID、hash 派生列都不在此集合，不得当主 SKU 身份。
+_MODEL_ID_FIELD_NAMES = frozenset(
+    {base for base in _SKU_ID_BASE_FIELDS}
+    | {source + base for source in _SKU_ID_SOURCES for base in _SKU_ID_BASE_FIELDS}
+)
+_MODEL_ID_QUALIFIED_VALUE = re.compile(
+    r"^(?P<source>" + "|".join(_SKU_ID_SOURCES) + r")\s*[:：|]\s*(?P<id>\d+)$"
+)
+_MODEL_ID_PURE_VALUE = re.compile(r"^\d+$")
+
+
+def _model_id_field_source(field: str) -> str:
+    """字段名自带来源前缀时返回该来源，否则返回空串。"""
+    compact = re.sub(r"\s+", "", str(field))
+    for source in _SKU_ID_SOURCES:
+        if compact.startswith(source) and compact[len(source):].lower() in _SKU_ID_BASE_FIELDS:
+            return source
+    return ""
+
+
 def _model_id_fields(row: dict[str, Any]) -> dict[str, str]:
+    """收集明确的提供方主车型/车款 ID 原文（保留原始证据，不做取值解析）。"""
     values = {}
     for field, value in row.items():
         compact = re.sub(r"\s+", "", str(field))
-        lower = compact.lower()
-        if compact == "车系ID":
+        if compact.lower() not in _MODEL_ID_FIELD_NAMES:
             continue
-        if (
-            lower in {"车款id", "车型id", "spec_id", "specid"}
-            or (("车款" in compact or "车型" in compact or "关联" in compact or "相关" in compact) and "id" in lower)
-        ):
-            text = str(value or "").strip()
-            if text and text != "-":
-                values[str(field)] = text
+        text = str(value or "").strip()
+        if text and text != "-":
+            values[str(field)] = text
     return values
+
+
+def _model_id_evidence(row: dict[str, Any]) -> set[tuple[str, str]]:
+    """(来源命名空间, 主 SKU ID) 证据对。
+
+    只接受完整纯数字值或严格带来源前缀的值；不从任意字符串抠数字片段。
+    单来源行的泛型 ID 绑定其真实原子来源；多来源且无来源标记的泛型 ID 无法归属
+    提供方，保持未知、不产出证据（不按数字位数猜提供方）。
+    """
+    row_sources = atomic_source_names(row.get("数据来源"))
+    evidence: set[tuple[str, str]] = set()
+    for field, text in _model_id_fields(row).items():
+        field_source = _model_id_field_source(field)
+        qualified = _MODEL_ID_QUALIFIED_VALUE.fullmatch(text)
+        if qualified:
+            if field_source and field_source != qualified.group("source"):
+                continue
+            if int(qualified.group("id")) == 0:
+                continue
+            evidence.add((qualified.group("source"), qualified.group("id")))
+            continue
+        if not _MODEL_ID_PURE_VALUE.fullmatch(text):
+            continue
+        if int(text) == 0:
+            continue
+        if field_source:
+            evidence.add((field_source, text))
+        elif len(row_sources) == 1:
+            evidence.add((row_sources[0], text))
+    return evidence
 
 
 def _model_ids(row: dict[str, Any]) -> set[str]:
-    values = set()
-    for text in _model_id_fields(row).values():
-        values.update(re.findall(r"(?<!\d)\d{3,}(?!\d)", text))
-    return values
+    """带来源命名空间的主 SKU ID 集合；不同来源的同数字 ID 不相等。"""
+    return {
+        f"{source}|{model_id}"
+        for source, model_id in _model_id_evidence(row)
+    }
+
+
+def _strong_existing_multi_variant(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    left_battery = _field_measure_values(left, _BATTERY_FIELDS)
+    right_battery = _field_measure_values(right, _BATTERY_FIELDS)
+    if len(left_battery) != 1 or left_battery != right_battery:
+        return False
+    left_energy, right_energy = _energy_signature(left), _energy_signature(right)
+    if len(left_energy) != 1 or left_energy != right_energy:
+        return False
+    # A model name must not override a contradicting explicit energy field.
+    left_field_energy = _energy_signature({"能源类型": left.get("能源类型")})
+    right_field_energy = _energy_signature({"能源类型": right.get("能源类型")})
+    if left_field_energy != left_energy or right_field_energy != right_energy:
+        return False
+    a, b = model_variant_signature(left), model_variant_signature(right)
+    return all(len(a[field]) == 1 and a[field] == b[field] for field in ("tier", "seat", "drive"))
 
 
 def _component_pair_score(left: dict[str, Any], right: dict[str, Any]) -> tuple[float, list[str]]:
@@ -1071,6 +1139,24 @@ def _annotate_v1_components(rows: list[dict[str, Any]]) -> tuple[list[dict[str, 
             for multi in multi_nodes
         ):
             rejection_counts["visibleFRejectedExistingMultiId"] += 1
+            continue
+        # Unknown-owner IDs on existing multisource rows must not become
+        # provider IDs. Defer an otherwise valid single-source component to
+        # the existing-multi absorption pass only when its complete member
+        # set has one strongly matching, conflict-free existing target.
+        existing_targets = [
+            multi
+            for multi in multi_nodes
+            if set().union(*(set(node["sources"]) for node in component_nodes)).issubset(set(multi["sources"]))
+            and all(
+                not visible_component_conflict_reason(node["row"], multi["row"])
+                and _strong_existing_multi_variant(node["row"], multi["row"])
+                and _component_pair_score(node, multi)[0] >= 0.80
+                for node in component_nodes
+            )
+        ]
+        if len(existing_targets) == 1:
+            rejection_counts["visibleFRejectedExistingMultiFeatures"] += 1
             continue
         accepted.append(component)
 
