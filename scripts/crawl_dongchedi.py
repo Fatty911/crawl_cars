@@ -212,9 +212,21 @@ def fill_pure_gas_defaults(row, all_headers):
             row[h] = "是"
 
 
+def _normalize_level_field_name(value):
+    return re.sub(r"\s+", "", str(value or "")).upper()
+
+
 def get_vehicle_level(row, all_headers):
-    for h in all_headers:
-        if any(kw in h for kw in LEVEL_FIELD_KEYWORDS):
+    """按级别字段关键词的既有优先级取车型级别。
+
+    只认规范化后（去空白、大小写归一）与关键词完全相等的字段名，不按 all_headers
+    顺序做子串匹配，因此"辅助驾驶级别"的 L2 不会被当成车型级别。
+    """
+    for keyword in LEVEL_FIELD_KEYWORDS:
+        target = _normalize_level_field_name(keyword)
+        for h in all_headers:
+            if _normalize_level_field_name(h) != target:
+                continue
             val = row.get(h, "")
             if val and val != "-":
                 return str(val)
@@ -1027,6 +1039,25 @@ def crawl_series_config(browser, series_list):
 
 
 # 第三步：解析配置页面，提取数据
+DCD_CAR_ID_FIELD = "懂车帝车型ID"
+
+
+def _extract_dcd_car_id(value):
+    """严格提取懂车帝来源主键 car_id：只认正整数（int 或纯数字字符串）。
+
+    0、空值、列表、复合文本（如 "100,200"）一律不认，避免伪造身份。
+    """
+    if isinstance(value, bool):
+        return ""
+    if isinstance(value, int):
+        return str(value) if value > 0 else ""
+    if isinstance(value, str):
+        text = value.strip()
+        if re.fullmatch(r"[0-9]+", text) and int(text) > 0:
+            return text
+    return ""
+
+
 def parse_config_pages(series_list):
     """解析保存的配置页面HTML，提取配置数据"""
     print("第三步：解析配置页面")
@@ -1137,6 +1168,17 @@ def parse_config_pages(series_list):
 
                         # 首先添加基本信息
                         car_data["车型名称"] = car_names
+
+                        # 来源主键：每个车款自己顶层的 car_id（严格正整数）。
+                        # 不用 payload.car_ids 按位置补，也不从车系ID/车型名推断。
+                        car_id_values = []
+                        for info in car_info:
+                            car_id_value = _extract_dcd_car_id(info.get("car_id"))
+                            car_id_values.append(car_id_value or "-")
+                        if any(value != "-" for value in car_id_values):
+                            car_data[DCD_CAR_ID_FIELD] = car_id_values
+                            if DCD_CAR_ID_FIELD not in all_headers:
+                                all_headers.append(DCD_CAR_ID_FIELD)
 
                         # 年款信息
                         year_values = []

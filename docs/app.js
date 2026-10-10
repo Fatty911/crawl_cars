@@ -495,6 +495,10 @@
       // 内部审计字段（如 __header_normalization_evidence）永不作为列展示。
       return true;
     }
+    if (column === "懂车帝车型ID") {
+      // 懂车帝来源主键只作身份证据，精确隐藏此列，不影响其它 ID/陌生列。
+      return true;
+    }
     if (defaultVisible.indexOf(column) !== -1) {
       return false;
     }

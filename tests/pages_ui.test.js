@@ -12,6 +12,16 @@ test("header evidence stays internal without hiding unrelated double-underscore 
   assert.equal(hooks.shouldHideColumn("__custom_equipment", []), false);
 });
 
+test("Pages hides only the provider-scoped dongchedi car id metadata column", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = { hiddenByDefault: [], dropIfUniformPositive: [], defaultVisibleColumns: [] };
+  assert.equal(hooks.shouldHideColumn("懂车帝车型ID", []), true);
+  ["车型ID", "车系ID", "懂车帝车系ID", "汽车之家车型ID", "易车车型ID", "某陌生配置列", "__custom_equipment"]
+    .forEach((column) => {
+      assert.equal(hooks.shouldHideColumn(column, []), false, column);
+    });
+});
+
 function chunkFixture(parts) {
   const files = new Map();
   const chunks = parts.map((rows, index) => {
