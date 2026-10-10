@@ -59,6 +59,7 @@
     manifest: null,
     config: fallbackConfig,
     rows: [],
+    publishedRawRows: null,
     columns: [],
     visibleColumns: new Set(),
     columnFilters: {},
@@ -157,6 +158,77 @@
       }
       return response.json();
     });
+  }
+
+  function loadPublishedChunks(chunks, expectedCount) {
+    if (!Array.isArray(chunks) || !chunks.length || !Number.isInteger(expectedCount) || expectedCount < 0) {
+      return Promise.reject(new Error("分片清单或总行数无效"));
+    }
+    if (!window.crypto || !window.crypto.subtle) {
+      return Promise.reject(new Error("完整数据校验需要支持 WebCrypto 的 HTTPS 浏览器"));
+    }
+    var seen = new Set();
+    var declaredCount = 0;
+    for (var i = 0; i < chunks.length; i += 1) {
+      var chunk = chunks[i];
+      if (!chunk || typeof chunk.path !== "string" || !/^data\/[A-Za-z0-9._/-]+\.json$/.test(chunk.path)
+          || chunk.path.split("/").indexOf("..") !== -1 || seen.has(chunk.path)
+          || !/^[a-f0-9]{64}$/.test(chunk.sha256 || "") || !Number.isInteger(chunk.rowCount)
+          || chunk.rowCount < 0 || !Number.isInteger(chunk.size) || chunk.size < 0) {
+        return Promise.reject(new Error("数据分片描述无效"));
+      }
+      seen.add(chunk.path);
+      declaredCount += chunk.rowCount;
+    }
+    if (declaredCount !== expectedCount) {
+      return Promise.reject(new Error("分片清单行数与完整数据不一致"));
+    }
+    var parts = new Array(chunks.length);
+    var nextIndex = 0;
+    var failed = false;
+    function worker() {
+      if (failed || nextIndex >= chunks.length) { return Promise.resolve(); }
+      var index = nextIndex++;
+      var descriptor = chunks[index];
+      return fetch(descriptor.path, { cache: "no-store" }).then(function (response) {
+        if (!response.ok) { throw new Error("HTTP " + response.status + " " + descriptor.path); }
+        return response.arrayBuffer();
+      }).then(function (bytes) {
+        if (bytes.byteLength !== descriptor.size) { throw new Error("分片文件大小不符: " + descriptor.path); }
+        return window.crypto.subtle.digest("SHA-256", bytes).then(function (hash) {
+          var actual = Array.from(new Uint8Array(hash)).map(function (value) {
+            return value.toString(16).padStart(2, "0");
+          }).join("");
+          if (actual !== descriptor.sha256) { throw new Error("分片校验失败: " + descriptor.path); }
+          var rows = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+          if (!Array.isArray(rows) || rows.length !== descriptor.rowCount) {
+            throw new Error("分片行数不符: " + descriptor.path);
+          }
+          parts[index] = rows;
+        });
+      }).then(worker).catch(function (error) {
+        failed = true;
+        throw error;
+      });
+    }
+    var workers = [];
+    for (var j = 0; j < Math.min(4, chunks.length); j += 1) { workers.push(worker()); }
+    return Promise.all(workers).then(function () {
+      var rows = [];
+      parts.forEach(function (part) {
+        part.forEach(function (row) { rows.push(row); });
+      });
+      if (rows.length !== expectedCount) { throw new Error("完整数据行数校验失败"); }
+      return rows;
+    });
+  }
+
+  function loadPublishedRows(manifest) {
+    var files = manifest.files || {};
+    if (Object.prototype.hasOwnProperty.call(files, "latestJsonChunks")) {
+      return loadPublishedChunks(files.latestJsonChunks, manifest.rowCount);
+    }
+    return fetchJson(files.latestJson || "data/latest.json");
   }
 
   function normalizeText(value) {
@@ -1087,6 +1159,34 @@
       anchor.download = "";
       els.downloadList.appendChild(anchor);
     });
+    if (files.latestJsonChunks && state.publishedRawRows) {
+      var fullJson = document.createElement("a");
+      fullJson.href = "#";
+      fullJson.textContent = "完整 JSON";
+      fullJson.addEventListener("click", function (event) {
+        event.preventDefault();
+        downloadBlob("car-config-full.json", "application/json;charset=utf-8", JSON.stringify(state.publishedRawRows));
+      });
+      els.downloadList.appendChild(fullJson);
+    }
+    if (files.filteredJsonChunks) {
+      var filteredJson = document.createElement("a");
+      filteredJson.href = "#";
+      filteredJson.textContent = "默认筛选 JSON";
+      filteredJson.addEventListener("click", function (event) {
+        event.preventDefault();
+        var count = files.filteredJsonChunks.reduce(function (sum, chunk) { return sum + chunk.rowCount; }, 0);
+        loadPublishedChunks(files.filteredJsonChunks, count).then(function (rows) {
+          downloadBlob("car-config-default-filtered.json", "application/json;charset=utf-8", JSON.stringify(rows));
+        }).catch(function (error) { els.dataMeta.textContent = "下载校验失败：" + error.message; });
+      });
+      els.downloadList.appendChild(filteredJson);
+    }
+    if (state.manifest && state.manifest.omittedDownloads && state.manifest.omittedDownloads.length) {
+      var note = document.createElement("span");
+      note.textContent = "完整车型数据已全部加载；超出托管文件大小限制的 CSV 不提供直链，可导出当前筛选结果。";
+      els.downloadList.appendChild(note);
+    }
     if (!els.downloadList.children.length) {
       els.downloadList.textContent = "发布后会显示 Release 同款下载文件。";
     }
@@ -2379,7 +2479,9 @@
         els.dataMeta.textContent = "本地预览示例 · GitHub Pages 部署后自动加载最新 Release 数据";
         return;
       }
-      return fetchJson(state.manifest.files.latestJson || "data/latest.json").then(function (latest) {
+      els.dataMeta.textContent = "正在加载并校验完整车型数据…";
+      return loadPublishedRows(state.manifest).then(function (latest) {
+        state.publishedRawRows = latest;
         initializeRows(latest);
         var updatedText = formatDataTimestamp(state.manifest.updatedAt);
         var dateText = updatedText ? "数据生成时间 " + updatedText
@@ -2411,5 +2513,7 @@
   loadData().then(function () {
     renderEverything();
     initSync();
+  }).catch(function (error) {
+    els.dataMeta.textContent = "数据加载失败，未展示不完整数据：" + error.message;
   });
 }());

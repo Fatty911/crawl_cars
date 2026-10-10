@@ -6,6 +6,122 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
+function chunkFixture(parts) {
+  const files = new Map();
+  const chunks = parts.map((rows, index) => {
+    const bytes = Buffer.from(JSON.stringify(rows), "utf8");
+    const path = "data/latest." + index + ".json";
+    files.set(path, bytes);
+    return { path, rowCount: rows.length, size: bytes.length,
+      sha256: require("node:crypto").createHash("sha256").update(bytes).digest("hex") };
+  });
+  return { files, manifest: { rowCount: parts.reduce((sum, rows) => sum + rows.length, 0),
+    files: { latestJsonChunks: chunks } } };
+}
+
+function chunkResponse(bytes) {
+  return { ok: true, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
+}
+
+test("published chunks retain raw sequence despite out-of-order completion and use at most four fetches", async () => {
+  const app = loadAppForTest();
+  const rows = Array.from({ length: 13 }, (_, index) => ({ id: index, "原始字段": "车型" + index }));
+  const fixture = chunkFixture(rows.map((row) => [row]));
+  let active = 0;
+  let maximum = 0;
+  const completion = [];
+  app.setFetch(async (path) => {
+    active += 1;
+    maximum = Math.max(maximum, active);
+    const index = Number(path.match(/\.(\d+)\.json$/)[1]);
+    await new Promise((resolve) => setTimeout(resolve, index === 0 ? 30 : 1));
+    active -= 1;
+    completion.push(index);
+    return chunkResponse(fixture.files.get(path));
+  });
+  const loaded = await app.hooks.loadPublishedRows(fixture.manifest);
+  assert.deepEqual(JSON.parse(JSON.stringify(loaded)), rows);
+  assert.equal(maximum, 4);
+  assert.notEqual(completion[0], 0);
+  assert.equal(app.hooks.state.rows.length, 0, "loader does not initialize partial UI rows");
+});
+
+test("chunked and single-file datasets produce identical display rows and source counts", async () => {
+  const raw = [
+    row("汽车之家", 2025, "甲车 2025款"),
+    row("懂车帝", 2025, "甲车 2025款"),
+    row("易车", "", "易车无年款"),
+    row("懂车帝", 2020, "过旧车型")
+  ];
+  const normal = loadAppForTest();
+  normal.hooks.initializeRows(raw);
+  const chunked = loadAppForTest();
+  const fixture = chunkFixture([raw.slice(0, 1), raw.slice(1, 3), raw.slice(3)]);
+  chunked.setFetch(async (path) => chunkResponse(fixture.files.get(path)));
+  chunked.hooks.initializeRows(await chunked.hooks.loadPublishedRows(fixture.manifest));
+  assert.deepEqual(JSON.parse(JSON.stringify(chunked.hooks.state.rows)), JSON.parse(JSON.stringify(normal.hooks.state.rows)));
+  normal.hooks.renderResultsOnly();
+  chunked.hooks.renderResultsOnly();
+  for (const id of ["totalCount", "dongchediCount", "autohomeCount", "yicheCount"]) {
+    assert.equal(chunked.elements.get(id).textContent, normal.elements.get(id).textContent);
+  }
+});
+
+test("published loader keeps normal single-file hosting behavior", async () => {
+  const app = loadAppForTest();
+  const expected = [{ id: 1 }];
+  let requested;
+  app.setFetch(async (path) => { requested = path; return { ok: true, json: async () => expected }; });
+  assert.equal(await app.hooks.loadPublishedRows({ files: { latestJson: "data/full.json" } }), expected);
+  assert.equal(requested, "data/full.json");
+});
+
+test("published loader rejects missing, corrupted, truncated, and count-mismatched chunks", async (t) => {
+  for (const kind of ["missing", "hash", "size", "partCount", "totalCount", "duplicate", "noCrypto", "nonArray"]) {
+    await t.test(kind, async () => {
+      const app = loadAppForTest();
+      const fixture = chunkFixture([[{ id: 0 }], [{ id: 1 }]]);
+      let bytes = fixture.files.get("data/latest.0.json");
+      if (kind === "hash") { fixture.manifest.files.latestJsonChunks[0].sha256 = "0".repeat(64); }
+      if (kind === "size") { fixture.manifest.files.latestJsonChunks[0].size += 1; }
+      if (kind === "partCount") {
+        fixture.manifest.files.latestJsonChunks[0].rowCount = 2;
+        fixture.manifest.rowCount = 3;
+      }
+      if (kind === "totalCount") { fixture.manifest.rowCount = 99; }
+      if (kind === "duplicate") { fixture.manifest.files.latestJsonChunks[1].path = "data/latest.0.json"; }
+      if (kind === "noCrypto") { app.setCrypto({}); }
+      if (kind === "nonArray") {
+        bytes = Buffer.from("{}");
+        const descriptor = fixture.manifest.files.latestJsonChunks[0];
+        descriptor.size = bytes.length;
+        descriptor.sha256 = require("node:crypto").createHash("sha256").update(bytes).digest("hex");
+      }
+      app.setFetch(async (path) => {
+        if (kind === "missing" && path === "data/latest.1.json") { return { ok: false, status: 404 }; }
+        return chunkResponse(path === "data/latest.0.json" ? bytes : fixture.files.get(path));
+      });
+      await assert.rejects(app.hooks.loadPublishedRows(fixture.manifest));
+      assert.equal(app.hooks.state.rows.length, 0);
+    });
+  }
+});
+
+test("chunked full JSON download uses unmodified published rows instead of normalized UI rows", async () => {
+  const app = loadAppForTest();
+  const raw = [{ "车型名称": "甲", "原始字段": "证据" }, { "车型名称": "乙", "年款": 2020 }];
+  app.hooks.state.manifest = { files: { latestJsonChunks: [{ path: "data/latest.0.json" }] } };
+  app.hooks.state.publishedRawRows = raw;
+  app.hooks.state.rows = [{ "车型名称": "normalized subset" }];
+  app.hooks.renderDownloads();
+  const link = app.elements.get("downloadList").children.find((child) => child.textContent === "完整 JSON");
+  assert.ok(link);
+  link.dispatch("click");
+  assert.equal(app.downloads.length, 1);
+  assert.deepEqual(JSON.parse(await app.downloads[0].text()), raw);
+});
+
+
 class FakeElement {
   constructor(tagName = "div") {
     this.children = [];
@@ -57,6 +173,7 @@ class FakeElement {
 
 function loadAppForTest() {
   const elements = new Map();
+  const downloads = [];
   const document = {
     body: new FakeElement(),
     createDocumentFragment: () => new FakeElement(),
@@ -74,7 +191,7 @@ function loadAppForTest() {
     TextDecoder,
     TextEncoder,
     Uint8Array,
-    URL: { createObjectURL: () => "blob:test", revokeObjectURL() {} },
+    URL: { createObjectURL: (blob) => { downloads.push(blob); return "blob:test"; }, revokeObjectURL() {} },
     atob,
     btoa,
     crypto,
@@ -97,6 +214,8 @@ function loadAppForTest() {
       sortSeriesGroups: sortSeriesGroups,
       renderCards: renderCards,
       initializeRows: initializeRows,
+      loadPublishedRows: loadPublishedRows,
+      renderDownloads: renderDownloads,
       renderEverything: renderEverything,
       renderResultsOnly: renderResultsOnly,
       renderSelectedTags: renderSelectedTags,
@@ -117,7 +236,10 @@ function loadAppForTest() {
   }());`
   );
   vm.runInNewContext(source, context, { filename: appPath });
-  return { elements, hooks: context.window.CARS_TEST_HOOKS };
+  return { elements, hooks: context.window.CARS_TEST_HOOKS, downloads,
+    setFetch(fn) { context.fetch = fn; },
+    setCrypto(value) { context.window.crypto = value; }
+  };
 }
 
 

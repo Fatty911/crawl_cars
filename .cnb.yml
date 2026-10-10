@@ -450,6 +450,12 @@ main:
           script: |
             set -e
             python scripts/publish_github_release.py --site-dir site --repo Fatty911/crawl_cars --workflow cnb-pages.yml
+        - name: 组装Cloudflare完整分片
+          timeout: 20m
+          script: |
+            set -e
+            rm -rf cf-site
+            python scripts/prepare_cloudflare_payload.py --input site --output cf-site
         - name: 发布到Cloudflare Pages
           timeout: 30m
           image: node:22
@@ -459,24 +465,6 @@ main:
               echo "❌ 未注入 CLOUDFLARE_API_TOKEN：本流水线经 imports 引用 xuerui911-mirror/crawl-secrets env.yml，请检查该私仓。"
               exit 1
             fi
-            # CF Pages 单文件 25MiB 硬限：剔除超限文件，并把 manifest 默认视图指向 filtered 子集（全量由 Codeberg x3 提供）
-            rm -rf cf-site
-            cp -R site cf-site
-            find cf-site -type f -size +20M -print -delete
-            node - <<'JS'
-            const fs = require('node:fs');
-            const path = require('node:path');
-            const file = 'cf-site/data/manifest.json';
-            const m = JSON.parse(fs.readFileSync(file, 'utf8'));
-            const kept = Object.fromEntries(Object.entries(m.files).filter(([, p]) => fs.existsSync(path.join('cf-site', p))));
-            if (!kept.latestJson && kept.filteredJson) kept.latestJson = kept.filteredJson;
-            const missing = Object.keys(m.files).filter(k => !(k in kept));
-            if (!kept.latestJson) throw new Error('CF payload lacks latestJson');
-            m.files = kept;
-            m.note = 'CF Pages file limit: default view is filtered; full dataset is on GitHub and Codeberg Pages';
-            fs.writeFileSync(file, JSON.stringify(m, null, 2));
-            console.log('CF omitted oversized files:', missing);
-            JS
             npx -y wrangler@latest pages deploy cf-site --project-name crawl-cars --commit-dirty=true
         - name: 发布到Codeberg Pages
           timeout: 1h
@@ -1107,6 +1095,12 @@ main:
           script: |
             set -e
             python scripts/publish_github_release.py --site-dir site --repo Fatty911/crawl_cars --workflow cnb-pages.yml
+        - name: 组装Cloudflare完整分片
+          timeout: 20m
+          script: |
+            set -e
+            rm -rf cf-site
+            python scripts/prepare_cloudflare_payload.py --input site --output cf-site
         - name: 发布到Cloudflare Pages
           timeout: 30m
           image: node:22
@@ -1116,24 +1110,6 @@ main:
               echo "❌ 未注入 CLOUDFLARE_API_TOKEN：本流水线经 imports 引用 xuerui911-mirror/crawl-secrets env.yml，请检查该私仓。"
               exit 1
             fi
-            # CF Pages 单文件 25MiB 硬限：剔除超限文件，并把 manifest 默认视图指向 filtered 子集（全量由 Codeberg x3 提供）
-            rm -rf cf-site
-            cp -R site cf-site
-            find cf-site -type f -size +20M -print -delete
-            node - <<'JS'
-            const fs = require('node:fs');
-            const path = require('node:path');
-            const file = 'cf-site/data/manifest.json';
-            const m = JSON.parse(fs.readFileSync(file, 'utf8'));
-            const kept = Object.fromEntries(Object.entries(m.files).filter(([, p]) => fs.existsSync(path.join('cf-site', p))));
-            if (!kept.latestJson && kept.filteredJson) kept.latestJson = kept.filteredJson;
-            const missing = Object.keys(m.files).filter(k => !(k in kept));
-            if (!kept.latestJson) throw new Error('CF payload lacks latestJson');
-            m.files = kept;
-            m.note = 'CF Pages file limit: default view is filtered; full dataset is on GitHub and Codeberg Pages';
-            fs.writeFileSync(file, JSON.stringify(m, null, 2));
-            console.log('CF omitted oversized files:', missing);
-            JS
             npx -y wrangler@latest pages deploy cf-site --project-name crawl-cars --commit-dirty=true
         - name: 发布到Codeberg Pages
           timeout: 1h
