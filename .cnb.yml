@@ -1,7 +1,7 @@
 # crawl_cars — CNB 流水线：push CI+AI 自修复 / 半月增量爬取
 # 增量闭环：爬取→合并→保留基线→产物与断点提交回本仓，下轮 checkout 基于上轮基线续爬合并
 # 代理：PROXY_SUBSCRIPTIONS 走 CNB 仓库环境变量（设置→环境变量），缺失即失败，禁止直连裸爬
-# 模型: deepseek-v4-flash (免费 CodeBuddy V4.1 Flash)
+# 模型: deepseek-v4.1-flash（修复）+ glm-5.3-flash（只读交叉审查）
 
 main:
   push:
@@ -138,41 +138,29 @@ main:
           timeout: 1h
           script: |
             set -e
-            . /tmp/proxy.sh
-            mkdir -p /tmp/cnb-baseline
-            # 基线=当前已发布数据，不用空基线（空基线会让 superset 校验假绿、发布行数塌陷）
-            # 来源优先级：① 上一轮回推的 docs/data/latest.json（=已发布数据本体，零网络依赖）
-            #            ② 在线全量（原站 / Codeberg）。
-            # 不设陈旧子集兜底：拿不到完整基线就中止本轮（绝不拿 910 行旧快照当基线，
-            # 那会让发布集塌陷到 910∪增量且 superset 校验因基线同步变小而假绿）
-            if [ -f docs/data/latest.json ]; then
-              ROWS=$(python -c "import json;d=json.load(open('docs/data/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
-              if [ "${ROWS:-0}" -ge 1000 ]; then
-                cp docs/data/latest.json /tmp/cnb-baseline/latest.json
-                echo "BASELINE=repo-docs rows=$ROWS"
-                exit 0
-              fi
-              echo "⚠️ repo docs 基线行数异常（$ROWS），转在线来源"
-            fi
-            # 全量基线 ~115MB：代理带宽下 300s 必超时（09-30 12:07 实测三源全挂的根因），放宽到 1800s
-            # codeberg 源暂移除：xuerui911.codeberg.page 404 + cars3 证书未签出（000），等 x3 HTTPS 恢复再加回
-            for URL in \
-              "https://cars.jiucai.eu.org/data/latest.json"; do
-              if curl --fail --show-error --silent --location --retry 2 --retry-all-errors \
-                   --retry-delay 10 --connect-timeout 20 --max-time 1800 \
-                   -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
-                   "$URL" \
-                   -o /tmp/cnb-baseline/latest.json; then
-                ROWS=$(python -c "import json;d=json.load(open('/tmp/cnb-baseline/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
-                if [ "${ROWS:-0}" -ge 1000 ]; then
-                  echo "BASELINE=$URL rows=$ROWS"
-                  exit 0
-                fi
-                echo "⚠️ $URL 基线不可用或行数异常（$ROWS），尝试下一个来源"
-              fi
-            done
-            echo "❌ 所有基线来源均不可用，禁止本轮发布（绝不退化为空基线）"
-            exit 1
+            # 只使用最新完整 immutable CNB Release；下载或校验失败即中止，不退回仓内旧 docs/旧 Pages/空数据。
+            rm -rf /tmp/cnb-verified-baseline-assets /tmp/cnb-verified-baseline-site
+            python scripts/download_verified_release.py --repo Fatty911/crawl_cars --no-legacy --dir /tmp/cnb-verified-baseline-assets
+            python scripts/prepare_cnb_pages.py --archive /tmp/cnb-verified-baseline-assets/verified-site.zip --manifest /tmp/cnb-verified-baseline-assets/manifest.json --site /tmp/cnb-verified-baseline-site
+            python - <<'PY'
+            import json, shutil
+            from pathlib import Path
+            site = Path("/tmp/cnb-verified-baseline-site")
+            manifest = json.loads((site / "data/manifest.json").read_text(encoding="utf-8"))
+            source = site / manifest["files"]["latestJson"]
+            if not source.resolve().is_relative_to(site.resolve()):
+                raise ValueError("baseline path escapes verified site")
+            payload = json.loads(source.read_text(encoding="utf-8"))
+            if not isinstance(payload, list):
+                raise ValueError("verified baseline must be an array")
+            rows = payload
+            if len(rows) < 10000:
+                raise ValueError(f"verified baseline incomplete: {len(rows)} rows < 10000")
+            target = Path("/tmp/cnb-baseline/latest.json")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+            print(f"verified immutable baseline: {len(rows)} rows -> {target}")
+            PY
         - name: 分配爬取时间预算
           script: |
             set -e
@@ -199,7 +187,7 @@ main:
             AH_MAX_CARS=0
             if [ "${DEBUG_MODE:-false}" = "true" ]; then AH_MAX_CARS=20; fi
             echo "汽车之家预算: step1 time-limit=${AUTOHOME_STEP1_TIME_LIMIT}s max-cars=${AH_MAX_CARS} debug=${CRAWL_BUDGET_DEBUG}"
-            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
+            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages 收集尾部日志供诊断
             rc=0
             python scripts/test_autohome.py --step 1 --auto \
               --time-limit "$AUTOHOME_STEP1_TIME_LIMIT" --max-cars "$AH_MAX_CARS" --incremental \
@@ -237,7 +225,7 @@ main:
               DCD_DEBUG_ARGS="--debug-limit 20"
             fi
             echo "懂车帝预算: step1=${DONGCHEDI_STEP1_TIME_LIMIT}s step2=${DONGCHEDI_STEP2_TIME_LIMIT}s debug=${CRAWL_BUDGET_DEBUG} args='${DCD_DEBUG_ARGS}'"
-            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
+            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages 收集尾部日志供诊断
             rc=0
             # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
             timeout --signal=TERM --kill-after=15s "$((DONGCHEDI_STEP1_TIME_LIMIT + 30))s" python scripts/crawl_dongchedi.py --step 1 --auto \
@@ -579,160 +567,118 @@ main:
               git commit -m "chore: 半月增量爬取+发布 [skip ci]"
               git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:main
             fi
-      failStages:
-        - name: 失败日志归档到diag分支
-          script: |
-            # 失败现场日志推 diag 分支（force），构建日志平台侧不可 API 读取时的唯一诊断通道
-            mkdir -p diag
-            for f in /tmp/autohome-step1.log /tmp/dongchedi-step1.log /tmp/dongchedi-step2.log \
-                     /tmp/yiche-main.log /tmp/yiche-resume.log /tmp/dealer.log; do
-              [ -f "$f" ] && cp -pf "$f" diag/ || true
-            done
-            tail -n 100 /tmp/yiche-main.log > diag/yiche-tail100.txt 2>/dev/null || true
-            ls -la /tmp/*.log > diag/MANIFEST.txt 2>&1 || true
-            git config user.email "xuerui911@gmail.com"
-            git config user.name "cnb-diag"
-            git add diag
-            if git diff --cached --quiet; then
-              echo "diag 无新增日志"
-            else
-              git commit -m "chore: 失败日志归档 [skip ci]"
-              git push -f "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
-                || echo "diag 推送失败（不阻断）"
-            fi
-        - name: 清理代理
-          script: pkill -x mihomo || true
-
-
+      failStages: &cars_npc_repair_chain
         - name: 诊断-收集失败上下文
           script: |
-            {
-              echo "## 流水线失败诊断"
-              echo "| 项目 | 内容 |"
-              echo "| --- | --- |"
-              echo "| 失败阶段 | $CNB_BUILD_FAILED_STAGE_NAME |"
-              echo "| 失败原因 | `$CNB_BUILD_FAILED_MSG` |"
-              echo "| 触发分支 | $CNB_BRANCH |"
-              echo "| 提交 | $CNB_COMMIT_SHORT |"
-              echo "| 构建日志 | $CNB_BUILD_WEB_URL |"
-              echo "| DEBUG_MODE | ${DEBUG_MODE:-unset} |"
-              echo ""
-              echo "## 阶段上下文"
-              cat _stage_context_.env 2>/dev/null || echo "(无)"
-              echo ""
-              echo "## 最近文件"
-              ls -la data/ dist/ site/ 2>/dev/null || echo "(无产物)"
-            } > _fail_context_.md
-            echo "诊断已写入 _fail_context_.md"
-        - name: 重触发-自动重跑
-          script: |
-            # 自动重触发：调优后重新跑一轮（最多重试 2 次，由 RETRY_COUNT 控制）
-            RETRY_COUNT="${RETRY_COUNT:-0}"
-            if [ "$RETRY_COUNT" -ge 2 ]; then
-              echo "已达最大重试次数 2，停止自动重试"
+            python - <<'PY'
+            import json, os
+            from pathlib import Path
+            fields = ("CNB_BUILD_FAILED_STAGE_NAME", "CNB_BUILD_FAILED_MSG", "CNB_BRANCH", "CNB_COMMIT_SHORT", "CNB_BUILD_WEB_URL", "DEBUG_MODE", "RETRY_COUNT")
+            context = "# 流水线失败诊断\n" + json.dumps({key: os.environ.get(key) for key in fields}, ensure_ascii=False, indent=2)
+            for name in ("/tmp/autohome-step1.log", "/tmp/dongchedi-step1.log", "/tmp/dongchedi-step2.log", "/tmp/yiche-main.log", "/tmp/yiche-resume.log", "/tmp/dealer.log"):
+                path = Path(name)
+                if path.is_file():
+                    context += "\n\n## " + name + "\n" + "\n".join(path.read_text(errors="replace").splitlines()[-100:])
+            Path("_fail_context_.md").write_text(context, encoding="utf-8")
+            print("失败诊断已写入 _fail_context_.md；修复前不重跑，不提交诊断到源码分支")
+            PY
+        - name: 清理代理
+          script: pkill -x mihomo || true
+        - name: NPC免费额度前置门禁
+          script: &cars_npc_quota_script |
+            echo "##[set-output budget_state=BLOCKED]"
+            rm -f _review_result_.md
+            case "${RETRY_COUNT:-0}" in
+              *[!0-9]*|"") echo "INVALID_RETRY_COUNT"; exit 1 ;;
+            esac
+            if [ "${RETRY_COUNT:-0}" -ge 2 ]; then
+              echo "##[set-output budget_state=RETRY_CAP_REACHED]"
+              echo "已达两次重试上限，跳过 NPC，不声明修复成功"
               exit 0
             fi
-            NEXT=$((RETRY_COUNT + 1))
-            echo "自动重触发第 $NEXT 次"
-            if [ -n "$CNB_TOKEN" ]; then
-              curl -sS -X POST \
-                -H "Authorization: Bearer $CNB_TOKEN" \
-                -H "Content-Type: application/json" \
-                "https://api.cnb.cool/xuerui911-mirror/crawl_cars/-/build/start" \
-                -d "{\"branch\":\"$CNB_BRANCH\",\"event\":\"api_trigger\",\"env\":{\"DEBUG_MODE\":\"${DEBUG_MODE:-false}\",\"RETRY_COUNT\":\"$NEXT\"}}" \
-                || echo "WARN 重触发失败，请手动触发"
+            rc=0
+            CNB_TOKEN="${CNB_AUTOFIX_TOKEN:-${CNB_TOKEN:-}}" python scripts/check_npc_free_quota.py --root-org xuerui911-mirror --unpaid-budget-confirmed --reserve-milli 50000 --report-json /tmp/cars-npc-quota.json || rc=$?
+            if [ "$rc" -eq 0 ]; then
+              echo "##[set-output budget_state=RUN]"
+            elif [ "$rc" -eq 20 ]; then
+              echo "##[set-output budget_state=FREE_QUOTA_EXHAUSTED]"
+              echo "免费额度已用完，跳过 NPC，不写 PASS，不提交修改"
+              exit 0
             else
-              echo "WARN 无 CNB_TOKEN，无法自动重触发"
+              python -c 'import json;from pathlib import Path;path=Path("/tmp/cars-npc-quota.json");print("NPC 门禁拒绝：" + (str(json.loads(path.read_text()).get("reason")) if path.is_file() else "preflight execution failed"))'
+              echo "NPC 门禁失败 rc=$rc；余额不足或未知权限不等同免费额度用完"
+              exit "$rc"
             fi
-
-        - name: NPC-自动调优
-          type: npc:go
-          options:
-            model: deepseek-v4-flash
-            thinkingLevel: max
-            maxTurns: 30
-            contextWindow: 256k
-            systemPrompt: |
-              你是 CNB 流水线调优专家。阅读 _fail_context_.md 中的失败上下文。
-              目标：让流水线下次跑通并刷新 Pages 数据日期。
-              调优原则：
-              1. 网络抖动/超时 → 加重试、放宽 timeout、换测试 URL
-              2. 代理失败 → 检查 PROXY_SUBSCRIPTIONS、重试次数、降级策略
-              3. 爬取 0 行 → 检查 min-records、选择器、反爬
-              4. 发布失败 → 检查 token、网络、产物路径
-              5. 不伪造数据、不删校验、不降防护
-              修改后写报告到 _tune_report_.md。
-            userPrompt: |
-              读取 _fail_context_.md，分析失败根因，调优 .cnb.yml 或相关脚本让下次跑通。
-              修改后写报告到 _tune_report_.md。
-        - name: 验证-语法校验
+          exports: &cars_npc_quota_exports
+            budget_state: NPC_BUDGET_STATE
+        - name: 备份受保护文件及固定安全检查器
+          if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
           script: |
-            python -m py_compile scripts/*.py 2>/dev/null && echo "SYNTAX_OK" >> _tune_report_.md || { echo "SYNTAX_FAIL" >> _tune_report_.md; exit 1; }
-        - name: 备份受保护文件
-          script: |
-            for f in AGENTS.md ai_tools/opencode/opencode.json ai_tools/opencode/oh-my-openagent.json; do
-              [ -f "$f" ] && cp "$f" "${f}.protected_backup"
-            done
+            set -e
+            cp scripts/finalize_npc_repair.py /tmp/cars-npc-guard.py
+            python /tmp/cars-npc-guard.py snapshot
         - name: AI-修复-第1轮
+          if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
           type: npc:go
           options:
-            model: deepseek-v4-flash
+            model: deepseek-v4.1-flash
             thinkingLevel: max
-            maxTurns: 40
+            maxTurns: 120
             contextWindow: 256k
             systemPrompt: |
-              你是汽车报价爬虫修复专家。阅读 _fail_context_.md 中的失败上下文。
-              这是第1轮修复（最多2轮）。分析根因后修改代码。
-              规则：不伪造数据、不折叠真冲突、不删校验、不降防护。
-              车系/车型身份字段必须完整，指导价与经销商报价分离。
-              修复后写报告到 _fix_report_.md。
-            userPrompt: |
-              读取 _fail_context_.md，分析失败并修复。修复后写报告到 _fix_report_.md。
-        - name: 恢复受保护文件
+              你是汽车爬虫修复专家。读取 _fail_context_.md，定位实际根因并做最小修复。
+              允许修复 scripts/、dongchedi/、docs/ 静态前端、config/ 的正常代码，或 .cnb.yml 正常 stages 的真实工作流 bug。
+              禁止修改 tests/、任何 .test.* 或 test_* 文件、AGENTS.md、ai_tools/、provider 配置。
+              禁止修改 scripts/check_npc_free_quota.py、scripts/finalize_npc_repair.py、.cnb.yml 中 failStages 安全链或 /tmp 安全检查器/快照。
+              不伪造数据、不刷新无新数据时间、不折叠真冲突、不删测试和校验、不降原质量门禁。
+              车系/车型身份必须完整，指导价与经销商报价分离。不得 git commit、push 或重触发。
+              完成后只另写 _fix_report_.md，说明根因、实际改动和验收依据；没有改动必须说明无法修复，不冒充成功。
+            userPrompt: 读取真实失败上下文并执行范围内最小修复，写 _fix_report_.md。保留所有受保护文件。
+        - name: 验证-实际pytest及Node和语法
+          if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
           script: |
-            for f in AGENTS.md ai_tools/opencode/opencode.json ai_tools/opencode/oh-my-openagent.json; do
-              if [ -f "${f}.protected_backup" ] && ! cmp -s "$f" "${f}.protected_backup" 2>/dev/null; then
-                echo "⚠️ 恢复受保护文件 $f"
-                cp "${f}.protected_backup" "$f"
-              fi
-            done
-            find . -name '*.protected_backup' -delete
-        - name: 验证-pytest
-          script: |
-            rm -f _pytest_rc_after_.txt
-            ( set +e; python -m pytest tests/ -x --tb=short 2>&1; echo $? > _pytest_rc_after_.txt ) | tee _test_after_fix_.txt
-            rc=$(cat _pytest_rc_after_.txt)
-            if [ "$rc" -eq 0 ]; then echo "PYTEST_VALIDATE=PASS" >> _fix_report_.md; else echo "PYTEST_VALIDATE=FAIL" >> _fix_report_.md; fi
-            echo "PYTEST_EXIT_AFTER=$rc" >> _stage_context_.env
-        - name: 审查-NPC代码审查
+            set -e
+            python -m pytest --version >/dev/null 2>&1 || python -m pip install --disable-pip-version-check pytest
+            if ! command -v node >/dev/null 2>&1 || ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)'; then
+              case "$(uname -m)" in
+                x86_64) NODE_ARCH=x64 ;;
+                aarch64) NODE_ARCH=arm64 ;;
+                *) echo "unsupported Node architecture"; exit 1 ;;
+              esac
+              mkdir -p /tmp/cars-node-download /tmp/cars-node22
+              curl --fail --silent --show-error --location --retry 2 https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt -o /tmp/cars-node-download/SHASUMS256.txt
+              NODE_ARCHIVE=$(awk -v arch="$NODE_ARCH" '$2 ~ ("-linux-" arch ".tar.xz$") {print $2}' /tmp/cars-node-download/SHASUMS256.txt)
+              test -n "$NODE_ARCHIVE"
+              curl --fail --silent --show-error --location --retry 2 "https://nodejs.org/dist/latest-v22.x/$NODE_ARCHIVE" -o "/tmp/cars-node-download/$NODE_ARCHIVE"
+              (cd /tmp/cars-node-download && sha256sum --check --ignore-missing SHASUMS256.txt)
+              tar -xJf "/tmp/cars-node-download/$NODE_ARCHIVE" --strip-components=1 -C /tmp/cars-node22
+              export PATH="/tmp/cars-node22/bin:$PATH"
+            fi
+            node --version
+            python /tmp/cars-npc-guard.py validate
+        - name: NPC审核前免费额度复查
+          if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
+          script: *cars_npc_quota_script
+          exports: *cars_npc_quota_exports
+        - name: 审查-GLM只读交叉评审
+          if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
           type: npc:go
           options:
-            model: deepseek-v4-flash
+            model: glm-5.3-flash
             thinkingLevel: high
-            maxTurns: 15
+            maxTurns: 20
             contextWindow: 128k
             systemPrompt: |
-              你是代码审查员。读取 _fail_context_.md、_fix_report_.md、_test_after_fix_.txt。
-              检查：车系身份完整、报价字段分离、merge门禁、测试断言同步。
-              写审查结果到 _review_result_.md，第一行 VERDICT: PASS 或 VERDICT: FAIL。
-            userPrompt: |
-              审查修复结果，输出到 _review_result_.md。
-        - name: 最终判定
-          script: |
-            # 反篡改闸：自修复不得改动断言或流水线配置（为变绿改测试属禁止项，改为机器强制）
-            if ! git diff --quiet -- tests .cnb.yml 2>/dev/null; then
-              echo "X 自修复改动了 tests/ 或 .cnb.yml，判定为篡改门禁，硬失败"
-              git diff --stat -- tests .cnb.yml || true
-              exit 1
-            fi
-            AFTERRC=$(grep -o 'PYTEST_EXIT_AFTER=[0-9]*' _stage_context_.env 2>/dev/null | tail -1)
-            if [ "${AFTERRC#PYTEST_EXIT_AFTER=}" != "0" ]; then
-              echo "X 修复后 pytest 仍非零退出（$AFTERRC），修复未真正通过"
-              exit 1
-            fi
-            VERDICT=$(head -1 _review_result_.md 2>/dev/null | grep -o 'PASS\|FAIL' || echo "UNKNOWN")
-            echo "审查结果: $VERDICT"
-            [ "$VERDICT" = "PASS" ] && echo "✅ 修复通过" || { echo "❌ 修复未通过"; exit 1; }
+              你是独立只读审查员。读取 _fail_context_.md、_fix_report_.md、_repair_diff_.patch、_test_after_fix_.txt 和 /tmp/cars-npc-repair/validated.json。
+              只读检查 git diff 及报告：根因是否解决、车型身份、报价分离、数据真实性、完整覆盖与所有原质量门禁是否保持。
+              tests/、AGENTS.md、ai_tools/、安全脚本和 failStages 链不能改变。测试必须真实退出0，不能以改断言掩盖问题。
+              不得修改源码、测试、配置、修复报告或安全快照，不得 commit、push、重跑。
+              唯一允许写的文件是 _review_result_.md。第一行必须精确为 VERDICT: PASS 或 VERDICT: FAIL，随后给出逐项证据。
+              缺少 validated.json、测试非0、无实际修复、无法确认正确或安全门禁变弱时必须 FAIL。
+            userPrompt: '只读审核修复diff及实际测试报告，唯一写入 _review_result_.md，首行严格 VERDICT: PASS 或 VERDICT: FAIL。'
+        - name: 最终门禁-仅提交已验证已审核修复并固定SHA重跑
+          if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
+          script: python /tmp/cars-npc-guard.py finalize
 
   "crontab: 5 8 1,16 * *":
     # 半月增量爬取（每月 1/16 日 08:05 Asia/Shanghai，落在人类作息窗口 08:00-12:30 内；对齐负责人半月增量本意，撤销 09-20 移植期错峰 5/20）
@@ -785,41 +731,29 @@ main:
           timeout: 1h
           script: |
             set -e
-            . /tmp/proxy.sh
-            mkdir -p /tmp/cnb-baseline
-            # 基线=当前已发布数据，不用空基线（空基线会让 superset 校验假绿、发布行数塌陷）
-            # 来源优先级：① 上一轮回推的 docs/data/latest.json（=已发布数据本体，零网络依赖）
-            #            ② 在线全量（原站 / Codeberg）。
-            # 不设陈旧子集兜底：拿不到完整基线就中止本轮（绝不拿 910 行旧快照当基线，
-            # 那会让发布集塌陷到 910∪增量且 superset 校验因基线同步变小而假绿）
-            if [ -f docs/data/latest.json ]; then
-              ROWS=$(python -c "import json;d=json.load(open('docs/data/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
-              if [ "${ROWS:-0}" -ge 1000 ]; then
-                cp docs/data/latest.json /tmp/cnb-baseline/latest.json
-                echo "BASELINE=repo-docs rows=$ROWS"
-                exit 0
-              fi
-              echo "⚠️ repo docs 基线行数异常（$ROWS），转在线来源"
-            fi
-            # 全量基线 ~115MB：代理带宽下 300s 必超时（09-30 12:07 实测三源全挂的根因），放宽到 1800s
-            # codeberg 源暂移除：xuerui911.codeberg.page 404 + cars3 证书未签出（000），等 x3 HTTPS 恢复再加回
-            for URL in \
-              "https://cars.jiucai.eu.org/data/latest.json"; do
-              if curl --fail --show-error --silent --location --retry 2 --retry-all-errors \
-                   --retry-delay 10 --connect-timeout 20 --max-time 1800 \
-                   -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
-                   "$URL" \
-                   -o /tmp/cnb-baseline/latest.json; then
-                ROWS=$(python -c "import json;d=json.load(open('/tmp/cnb-baseline/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
-                if [ "${ROWS:-0}" -ge 1000 ]; then
-                  echo "BASELINE=$URL rows=$ROWS"
-                  exit 0
-                fi
-                echo "⚠️ $URL 基线不可用或行数异常（$ROWS），尝试下一个来源"
-              fi
-            done
-            echo "❌ 所有基线来源均不可用，禁止本轮发布（绝不退化为空基线）"
-            exit 1
+            # 只使用最新完整 immutable CNB Release；下载或校验失败即中止，不退回仓内旧 docs/旧 Pages/空数据。
+            rm -rf /tmp/cnb-verified-baseline-assets /tmp/cnb-verified-baseline-site
+            python scripts/download_verified_release.py --repo Fatty911/crawl_cars --no-legacy --dir /tmp/cnb-verified-baseline-assets
+            python scripts/prepare_cnb_pages.py --archive /tmp/cnb-verified-baseline-assets/verified-site.zip --manifest /tmp/cnb-verified-baseline-assets/manifest.json --site /tmp/cnb-verified-baseline-site
+            python - <<'PY'
+            import json, shutil
+            from pathlib import Path
+            site = Path("/tmp/cnb-verified-baseline-site")
+            manifest = json.loads((site / "data/manifest.json").read_text(encoding="utf-8"))
+            source = site / manifest["files"]["latestJson"]
+            if not source.resolve().is_relative_to(site.resolve()):
+                raise ValueError("baseline path escapes verified site")
+            payload = json.loads(source.read_text(encoding="utf-8"))
+            if not isinstance(payload, list):
+                raise ValueError("verified baseline must be an array")
+            rows = payload
+            if len(rows) < 10000:
+                raise ValueError(f"verified baseline incomplete: {len(rows)} rows < 10000")
+            target = Path("/tmp/cnb-baseline/latest.json")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+            print(f"verified immutable baseline: {len(rows)} rows -> {target}")
+            PY
         - name: 分配爬取时间预算
           script: |
             set -e
@@ -846,7 +780,7 @@ main:
             AH_MAX_CARS=0
             if [ "${DEBUG_MODE:-false}" = "true" ]; then AH_MAX_CARS=20; fi
             echo "汽车之家预算: step1 time-limit=${AUTOHOME_STEP1_TIME_LIMIT}s max-cars=${AH_MAX_CARS} debug=${CRAWL_BUDGET_DEBUG}"
-            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
+            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages 收集尾部日志供诊断
             rc=0
             python scripts/test_autohome.py --step 1 --auto \
               --time-limit "$AUTOHOME_STEP1_TIME_LIMIT" --max-cars "$AH_MAX_CARS" --incremental \
@@ -882,7 +816,7 @@ main:
               DCD_DEBUG_ARGS="--debug-limit 20"
             fi
             echo "懂车帝预算: step1=${DONGCHEDI_STEP1_TIME_LIMIT}s step2=${DONGCHEDI_STEP2_TIME_LIMIT}s debug=${CRAWL_BUDGET_DEBUG} args='${DCD_DEBUG_ARGS}'"
-            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages「失败日志归档」推 diag 分支供诊断
+            # 输出落盘 + 尾部回显 + 保留退出码：失败时由 failStages 收集尾部日志供诊断
             rc=0
             # shellcheck disable=SC2086  # DCD_DEBUG_ARGS 需按两个词拆开
             timeout --signal=TERM --kill-after=15s "$((DONGCHEDI_STEP1_TIME_LIMIT + 30))s" python scripts/crawl_dongchedi.py --step 1 --auto \
@@ -1223,36 +1157,14 @@ main:
               git commit -m "chore: 半月增量爬取+发布 [skip ci]"
               git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:main
             fi
-      failStages:
-        - name: 失败日志归档到diag分支
-          script: |
-            # 失败现场日志推 diag 分支（force），构建日志平台侧不可 API 读取时的唯一诊断通道
-            mkdir -p diag
-            for f in /tmp/autohome-step1.log /tmp/dongchedi-step1.log /tmp/dongchedi-step2.log \
-                     /tmp/yiche-main.log /tmp/yiche-resume.log /tmp/dealer.log; do
-              [ -f "$f" ] && cp -pf "$f" diag/ || true
-            done
-            tail -n 100 /tmp/yiche-main.log > diag/yiche-tail100.txt 2>/dev/null || true
-            ls -la /tmp/*.log > diag/MANIFEST.txt 2>&1 || true
-            git config user.email "xuerui911@gmail.com"
-            git config user.name "cnb-diag"
-            git add diag
-            if git diff --cached --quiet; then
-              echo "diag 无新增日志"
-            else
-              git commit -m "chore: 失败日志归档 [skip ci]"
-              git push -f "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
-                || echo "diag 推送失败（不阻断）"
-            fi
-        - name: 清理代理
-          script: pkill -x mihomo || true
+      failStages: *cars_npc_repair_chain
 
   pull_request:
     - stages:
         - name: NPC-PR审查
           type: npc:go
           options:
-            model: deepseek-v4-flash
+            model: deepseek-v4.1-flash
             thinkingLevel: high
             maxTurns: 20
             systemPrompt: |
@@ -1311,24 +1223,29 @@ main:
             timeout: 25m
             script: |
               set -e
-              # 用**线上** latest.json：报价要覆盖的是用户当前看到的发布集，
-              # 否则仓库里过期的 docs/data 会让报价覆盖到一批已下线的车系上。
-              mkdir -p /tmp/dealer-baseline
-              for URL in "https://cars.jiucai.eu.org/data/latest.json"; do
-                if curl --fail --show-error --silent --location --retry 2 --retry-all-errors \
-                     --retry-delay 5 --connect-timeout 20 --max-time 300 --retry-max-time 650 \
-                     -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
-                     "$URL" -o /tmp/dealer-baseline/latest.json; then
-                  ROWS=$(python -c "import json;d=json.load(open('/tmp/dealer-baseline/latest.json',encoding='utf-8'));print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo 0)
-                  if [ "${ROWS:-0}" -ge 1000 ]; then
-                    echo "线上基线可用 rows=$ROWS（$URL）"
-                    exit 0
-                  fi
-                  echo "⚠️ $URL 行数异常（$ROWS），尝试下一个来源"
-                fi
-              done
-              echo "❌ 线上基线全部不可用，本轮放弃（宁可不更新报价，也不拖站点）"
-              exit 1
+              # 只使用最新完整 immutable CNB Release；下载或校验失败即中止，不退回仓内旧 docs/旧 Pages/空数据。
+              rm -rf /tmp/cnb-verified-baseline-assets /tmp/cnb-verified-baseline-site
+              python scripts/download_verified_release.py --repo Fatty911/crawl_cars --no-legacy --dir /tmp/cnb-verified-baseline-assets
+              python scripts/prepare_cnb_pages.py --archive /tmp/cnb-verified-baseline-assets/verified-site.zip --manifest /tmp/cnb-verified-baseline-assets/manifest.json --site /tmp/cnb-verified-baseline-site
+              python - <<'PY'
+              import json, shutil
+              from pathlib import Path
+              site = Path("/tmp/cnb-verified-baseline-site")
+              manifest = json.loads((site / "data/manifest.json").read_text(encoding="utf-8"))
+              source = site / manifest["files"]["latestJson"]
+              if not source.resolve().is_relative_to(site.resolve()):
+                  raise ValueError("baseline path escapes verified site")
+              payload = json.loads(source.read_text(encoding="utf-8"))
+              if not isinstance(payload, list):
+                  raise ValueError("verified baseline must be an array")
+              rows = payload
+              if len(rows) < 10000:
+                  raise ValueError(f"verified baseline incomplete: {len(rows)} rows < 10000")
+              target = Path("/tmp/dealer-baseline/latest.json")
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copyfile(source, target)
+              print(f"verified immutable baseline: {len(rows)} rows -> {target}")
+              PY
           - name: 增量爬取经销商报价
             timeout: 35m
             script: |
@@ -1413,7 +1330,7 @@ main:
           - name: AI-Issue驱动修复
             type: npc:go
             options:
-              model: deepseek-v4-flash
+              model: deepseek-v4.1-flash
               thinkingLevel: max
               maxTurns: 50
               contextWindow: 256k

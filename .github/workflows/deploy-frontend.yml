@@ -4,7 +4,7 @@ name: 部署前端展示
 # 变更时触发。与 merge-and-filter.yml（爬虫+merge 数据部署链）完全解耦：
 #   - 与 cnb-pages 共用 pages concurrency，串行发布避免相互覆盖
 #   - 不跑 merge-data / create-release / 数据审计，不被爬取或 merge 状态阻塞
-#   - 数据取 data-latest 的已验证完整站点；数据缺失时拒绝发布。
+#   - 数据取最新完整 cnb-data-* 的已验证站点；数据缺失时拒绝发布。
 # 适用于纯前端展示改动；涉及数据/爬虫/merge 逻辑的改动仍走 merge-and-filter.yml。
 
 on:
@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf site release-files
-          gh release download data-latest --repo "$GITHUB_REPOSITORY" --pattern verified-site.zip --pattern manifest.json --dir release-files
+          python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" --dir release-files
           python scripts/prepare_cnb_pages.py --archive release-files/verified-site.zip --manifest release-files/manifest.json --site site
           python - <<'PY'
           from pathlib import Path

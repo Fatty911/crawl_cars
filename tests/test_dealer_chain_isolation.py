@@ -121,14 +121,16 @@ class DealerIsolationTests(unittest.TestCase):
         self.assertIn(str(timeout), ("30m", "45m", "1h", "1h30m", "2h"))
 
     def test_dealer_reads_live_baseline_not_repo_docs(self) -> None:
-        # 输入必须是线上 latest.json：用仓库里过期的 docs/data 会让报价
-        # 覆盖到一批已下线的车系上。
+        # 输入必须是最新完整已验证的 immutable Release：旧 Pages 缓存或
+        # 仓库 docs/data 都可能遗漏新车系。
         _, job = find_dealer_job(self.main)
         script = "\n".join(
             stage_script(job, n) for n in stage_names(job)
         )
-        self.assertIn("cars.jiucai.eu.org/data/latest.json", script)
-        # 基础属性链的基线 stage 允许用 docs/data，但报价链路不应依赖它
+        self.assertIn("download_verified_release.py --repo Fatty911/crawl_cars --no-legacy", script)
+        self.assertIn("python scripts/prepare_cnb_pages.py", script)
+        self.assertIn('if len(rows) < 10000:', script)
+        self.assertIn('--series-input /tmp/dealer-baseline/latest.json', script)
         self.assertNotIn("docs/data/latest.json", script)
 
     def test_dealer_aborts_when_min_rows_not_met(self) -> None:

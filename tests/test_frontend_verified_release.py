@@ -23,8 +23,8 @@ def test_frontend_and_verified_cnb_deployments_share_serial_pages_group():
 def test_frontend_requires_verified_release_before_overlay_and_deploy():
     steps = workflow_steps()
     prepare = next(step for step in steps if step["name"] == "准备静态站点")["run"]
-    assert "gh release download data-latest" in prepare
-    assert "--pattern verified-site.zip --pattern manifest.json" in prepare
+    assert 'python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" --dir release-files' in prepare
+    assert "data-latest" not in prepare
     assert "python scripts/prepare_cnb_pages.py --archive release-files/verified-site.zip --manifest release-files/manifest.json --site site" in prepare
     assert prepare.index("prepare_cnb_pages.py") < prepare.index('Path("docs")')
     assert "set -euo pipefail" in prepare
@@ -37,6 +37,25 @@ def test_frontend_requires_verified_release_before_overlay_and_deploy():
     deployment_index = next(i for i, step in enumerate(steps) if step.get("id") == "deployment")
     verify_index = next(i for i, step in enumerate(steps) if "--verify-url" in step.get("run", ""))
     assert deployment_index < verify_index
+
+
+def test_failed_verified_download_stops_before_extraction_or_overlay(tmp_path):
+    prepare = next(step for step in workflow_steps() if step["name"] == "准备静态站点")["run"]
+    commands = tmp_path / "commands.txt"
+    mock = '''
+    GITHUB_REPOSITORY=Fatty911/crawl_cars
+    python() {
+      case "$*" in
+        *download_verified_release.py*) echo download >> commands.txt; return 7 ;;
+        *prepare_cnb_pages.py*) echo extract >> commands.txt; return 0 ;;
+        *) echo overlay >> commands.txt; return 0 ;;
+      esac
+    }
+    '''
+    result = subprocess.run(["sh", "-c", mock + prepare], cwd=tmp_path,
+                            capture_output=True, text=True, encoding="utf-8")
+    assert result.returncode == 7, result.stderr
+    assert commands.read_text().splitlines() == ["download"]
 
 
 def test_frontend_overlay_keeps_verified_data_and_manifest_byte_identical(tmp_path):
