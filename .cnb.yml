@@ -307,7 +307,11 @@ main:
             # DEBUG 模式限量车系数，与懂车帝 --debug-limit 同一语义（限的是工作量，不是时间）
             YICHE_EXTRA_ARGS=""
             if [ "${DEBUG_MODE:-false}" = "true" ]; then
-              YICHE_EXTRA_ARGS="--max-series 20"
+              if [ "$#" -gt 0 ]; then
+                YICHE_EXTRA_ARGS="--resume-smoke-targets 20"
+              else
+                YICHE_EXTRA_ARGS="--max-series 20"
+              fi
             fi
             rc=0
             # shellcheck disable=SC2086  # YICHE_EXTRA_ARGS 需按两个词拆开
@@ -326,8 +330,13 @@ main:
             if [ ! -s "yiche_$(date +%Y%m%d).json" ] && [ "$YICHE_REMAINING" -gt 0 ]; then
               echo "⚠️ 易车本轮无产出，退回首轮重爬"
               rm -f "$YICHE_CHECKPOINT_PATH"
+              YICHE_FALLBACK_ARGS=""
+              if [ "${DEBUG_MODE:-false}" = "true" ]; then
+                YICHE_FALLBACK_ARGS="--max-series 20"
+              fi
+              # shellcheck disable=SC2086
               python scripts/crawl_yiche.py --time-limit "$YICHE_REMAINING" --max-series 0 \
-                --output "yiche_$(date +%Y%m%d).json" \
+                $YICHE_FALLBACK_ARGS --output "yiche_$(date +%Y%m%d).json" \
                 || echo "易车 重爬仍失败，继续"
             fi
         - name: 清理代理进程
@@ -898,7 +907,11 @@ main:
             # DEBUG 模式限量车系数，与懂车帝 --debug-limit 同一语义（限的是工作量，不是时间）
             YICHE_EXTRA_ARGS=""
             if [ "${DEBUG_MODE:-false}" = "true" ]; then
-              YICHE_EXTRA_ARGS="--max-series 20"
+              if [ "$#" -gt 0 ]; then
+                YICHE_EXTRA_ARGS="--resume-smoke-targets 20"
+              else
+                YICHE_EXTRA_ARGS="--max-series 20"
+              fi
             fi
             rc=0
             # shellcheck disable=SC2086  # YICHE_EXTRA_ARGS 需按两个词拆开
@@ -917,8 +930,13 @@ main:
             if [ ! -s "yiche_$(date +%Y%m%d).json" ] && [ "$YICHE_REMAINING" -gt 0 ]; then
               echo "⚠️ 易车本轮无产出，退回首轮重爬"
               rm -f "$YICHE_CHECKPOINT_PATH"
+              YICHE_FALLBACK_ARGS=""
+              if [ "${DEBUG_MODE:-false}" = "true" ]; then
+                YICHE_FALLBACK_ARGS="--max-series 20"
+              fi
+              # shellcheck disable=SC2086
               python scripts/crawl_yiche.py --time-limit "$YICHE_REMAINING" --max-series 0 \
-                --output "yiche_$(date +%Y%m%d).json" \
+                $YICHE_FALLBACK_ARGS --output "yiche_$(date +%Y%m%d).json" \
                 || echo "易车 重爬仍失败，继续"
             fi
         - name: 清理代理进程
