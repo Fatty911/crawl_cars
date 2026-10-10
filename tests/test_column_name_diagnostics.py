@@ -67,8 +67,8 @@ def test_diagnoses_v2v3_value_headers_without_base_column() -> None:
     ]
     diag = diagnose_columns(rows)
     entry = next(item for item in diag["suspects"] if item["column"] == "interior_light_v2_64色")
-    assert entry["kind"] == "v2v3_value_header"
-    assert entry["suggested_attribute"] == "interior_light_v2"
+    assert entry["kind"] == "attribute_value_header"
+    assert entry["suggested_attribute"] == "车内氛围灯"
     assert entry["value_suffix"] == "64色"
     # 基列 interior_light_v2 不在数据中，因此也不能作为映射目标
     assert "interior_light_v2" not in diag["candidate_attributes"]

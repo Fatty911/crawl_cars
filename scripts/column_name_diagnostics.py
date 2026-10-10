@@ -11,6 +11,8 @@ Diagnosis kinds (confidence):
   one-hot headers; the parent attribute is known.
 * ``v2v3_value_header`` (0.80): ``X_v2_<V>`` / ``X_v3_<V>`` one-hot where the
   ``X_v2`` / ``X_v3`` base column exists in the same payload.
+  The three confirmed v2 bases (CONFIRMED_V2_ATTRIBUTE_MAP) are reported as
+  ``attribute_value_header`` instead, with the real canonical attribute.
 * ``package_value_header`` (0.90): a proven non-empty ``<value>_1`` /
   ``<value>_2`` pair whose base itself looks like a value (contains spaces or
   mixed-case words), e.g. ``NOMI Mate 3.0_1``.
@@ -32,6 +34,7 @@ invent new attribute names.
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -57,6 +60,24 @@ V4_ATTRIBUTE_MAP = {
     "mobile_remote_control_v4": "手机远程控制",
     "high_precision_map_v4": "高精度地图",
 }
+
+# Confirmed v2 one-hot bases.  Each one has real payload evidence (2026-10
+# review) and its target attribute already carries real data:
+#   interior_light_v2_64色=●          -> 车内氛围灯   (凌云 400T 两驱/四驱星尊版)
+#   lcd_dashboard_size_v2_4.2=●       -> 液晶仪表尺寸(in) (2.0L CVT 精英/领先版)
+#   light_special_function_v2_矩阵式=● -> 灯光特色功能 (3.0 L6 360PS 传世版)
+# Only these three v2 bases may be converged.  Every other ``X_v2_<V>`` header
+# stays a raw diagnostic suspect and keeps its original column name.
+CONFIRMED_V2_ATTRIBUTE_MAP = {
+    "interior_light_v2": "车内氛围灯",
+    "lcd_dashboard_size_v2": "液晶仪表尺寸(in)",
+    "light_special_function_v2": "灯光特色功能",
+}
+
+# The complete publish-time convergence whitelist: the 14 documented v4 bases
+# plus the three confirmed v2 bases above.  Nothing else may be folded into an
+# attribute; unknown bases, car ids, brands and model names are never matched.
+VALUE_SUFFIX_ATTRIBUTE_MAP = {**V4_ATTRIBUTE_MAP, **CONFIRMED_V2_ATTRIBUTE_MAP}
 
 # English snake_case headers that are legitimate attribute fields on the
 # live Pages payload (front-end filter groups, metric fields, crawler IDs).
@@ -139,6 +160,27 @@ _NEGATIVE_VALUES = {"", "-", "--", "none", "null", "未知", "无"}
 
 def _positive(value: Any) -> bool:
     return str(value if value is not None else "").strip().casefold() not in _NEGATIVE_VALUES
+
+
+@functools.lru_cache(maxsize=65536)
+def confirmed_value_suffix(column: str) -> tuple[str, str, str] | None:
+    """Return ``(base, canonical_attribute, value_suffix)`` for a whitelisted
+    value-in-header column, else ``None``.
+
+    Only the documented v4 bases and the three confirmed v2 bases qualify.
+    Unknown bases (``foo_v4_bar``, ``drive_mode_v2_1``), identity columns and
+    bare product names never match, so callers cannot fold them by accident.
+    """
+    key = str(column if column is not None else "").strip()
+    if not key:
+        return None
+    match = _V4_VALUE.match(key)
+    if match and match.group(1) in V4_ATTRIBUTE_MAP:
+        return match.group(1), V4_ATTRIBUTE_MAP[match.group(1)], match.group(2).strip()
+    match = _V2V3_VALUE.match(key)
+    if match and match.group(1) in CONFIRMED_V2_ATTRIBUTE_MAP:
+        return match.group(1), CONFIRMED_V2_ATTRIBUTE_MAP[match.group(1)], match.group(2).strip()
+    return None
 
 
 def _column_counts(rows: list[dict[str, Any]]) -> Counter[str]:
@@ -315,6 +357,22 @@ def diagnose_columns(rows: list[dict[str, Any]], *, limit: int = 120) -> dict[st
                     occurrences=occurrences,
                     confidence=0.9,
                     suggested_attribute=V4_ATTRIBUTE_MAP[column],
+                    sample_values=samples,
+                )
+            )
+            suspect_columns.add(column)
+            continue
+
+        confirmed = confirmed_value_suffix(column)
+        if confirmed and confirmed[0] in CONFIRMED_V2_ATTRIBUTE_MAP:
+            suspects.append(
+                _record(
+                    kind="attribute_value_header",
+                    column=column,
+                    occurrences=occurrences,
+                    confidence=0.99,
+                    suggested_attribute=confirmed[1],
+                    value_suffix=confirmed[2],
                     sample_values=samples,
                 )
             )

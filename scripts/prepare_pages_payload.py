@@ -8,6 +8,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import copy
 import hashlib
 import json
 import re
@@ -178,6 +179,158 @@ def _load_hidden_columns() -> set[str]:
     return hidden
 
 
+try:
+    from column_name_diagnostics import confirmed_value_suffix, VALUE_SUFFIX_ATTRIBUTE_MAP
+except ModuleNotFoundError:
+    from scripts.column_name_diagnostics import confirmed_value_suffix, VALUE_SUFFIX_ATTRIBUTE_MAP
+
+HEADER_NORMALIZATION_EVIDENCE = "__header_normalization_evidence"
+
+# 状态判定：只做"是否"的规范化，不做任何数值推断。
+# * 肯定（标配）→ 后缀即具体值，如 interior_light_v2_64色=● -> 车内氛围灯="64色"
+# * 选装 → 后缀 + "(选装)"，如 lcd_dashboard_size_v2_4.2=○ -> "4.2(选装)"
+# * 未知 / 否定 / 自由文本 / 空 → 保留原列名与原文，不填后缀值
+#   （禁止把 "4.2(待查)" 这类文本写进数值列，避免被前端数值筛选当成 4.2）
+_AFFIRMATIVE_STATUS = {
+    "●", "● ●", "支持", "标配", "标准配置", "有", "是", "true", "yes", "y", "1", "1.0", "包含",
+}
+_OPTIONAL_STATUS = {
+    "○", "○ ●", "选配", "选装", "可选", "可选装", "optional", "o", "√?", "加装", "选装包",
+}
+# 懂车帝状态列常带附加词（如 "○ 暂无价格" = 选装但无报价），
+# 去空格后按状态符号前缀判定，避免这类真实状态落入 unknown 而丢失后缀值。
+_OPTIONAL_PREFIXES = ("○", "◯", "〇")
+_AFFIRMATIVE_PREFIXES = ("●", "◉")
+
+
+def _value_suffix_status(value: Any) -> str:
+    text = re.sub(r"\s+", "", str(value if value is not None else "")).casefold()
+    if not text:
+        return "unknown"
+    if text in _OPTIONAL_STATUS or text.startswith(_OPTIONAL_PREFIXES):
+        return "optional"
+    if text in _AFFIRMATIVE_STATUS or text.startswith(_AFFIRMATIVE_PREFIXES):
+        return "affirmative"
+    return "unknown"
+
+
+def _absorb_header_normalization_evidence(normalized: dict[str, Any], incoming: Any) -> None:
+    """Merge an upstream evidence blob into ``normalized`` without losing items.
+
+    证据字段可能被二次归一透传（prepare 重跑）。按 column 去重合并，
+    以行内已有（本轮写入）的条目为准，避免行内证据被旧条目覆盖。
+    """
+    if not isinstance(incoming, dict):
+        return
+    items = incoming.get("items")
+    if not isinstance(items, list):
+        return
+    current = normalized.get(HEADER_NORMALIZATION_EVIDENCE)
+    if not isinstance(current, dict):
+        current = {}
+    current.setdefault("schema", incoming.get("schema") or "header-normalization-v1")
+    merged = list(current.get("items") or [])
+    known = {item.get("column") for item in merged if isinstance(item, dict)}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("column") in known:
+            continue
+        merged.append(copy.deepcopy(item))
+        known.add(item.get("column"))
+    current["items"] = merged
+    normalized[HEADER_NORMALIZATION_EVIDENCE] = current
+
+
+def _note_header_normalization_evidence(
+    normalized: dict[str, Any],
+    column: str,
+    attribute: str,
+    value_suffix: str,
+    original: Any,
+    written: str,
+    status: str,
+) -> None:
+    """Record the raw column/value as audit evidence on the row.
+
+    证据字段随行透传，这里深拷贝后再累加，避免与上游行共享同一个 dict；
+    同一列重复归一（幂等重跑）时不重复追加，防止证据无限膨胀。
+    """
+    source = normalized.get(HEADER_NORMALIZATION_EVIDENCE)
+    if isinstance(source, dict):
+        evidence = copy.deepcopy(source)
+    else:
+        evidence = {}
+    evidence.setdefault("schema", "header-normalization-v1")
+    items = evidence.get("items")
+    if not isinstance(items, list):
+        items = []
+    items = [
+        item
+        for item in items
+        if not (isinstance(item, dict) and item.get("column") == column)
+    ]
+    items.append(
+        {
+            "column": column,
+            "attribute": attribute,
+            "value_suffix": value_suffix,
+            "raw_value": original,
+            "normalized_value": written,
+            "status": status,
+        }
+    )
+    evidence["items"] = items
+    normalized[HEADER_NORMALIZATION_EVIDENCE] = evidence
+
+
+def _fold_value_suffix_header(
+    normalized: dict[str, Any],
+    column: str,
+    value: Any,
+    _canonical: str,
+) -> bool:
+    """Fold a confirmed one-hot value column into its canonical attribute.
+
+    Returns ``True`` when the original column was consumed (renamed) and must
+    not also be kept under its own header name.
+    """
+    # 必须用原始列名识别后缀：normalize_audited_publish_header 会把
+    # ``high_precision_map_v4_●`` 直接映射成 canonical，canonical 里已无后缀。
+    confirmed = confirmed_value_suffix(column)
+    if not confirmed:
+        return False
+    _base, attribute, suffix = confirmed
+    if not attribute or not suffix:
+        return False
+    # v4 的 one-hot 列是「列表槽号」（camera_count_v4_1="前视"、
+    # ultrasonic_radar_v4_12="12"），不能折叠成 摄像头数量="1"，
+    # 那会把槽序号伪装成真实数量。已确认的 v2 基列（lcd_dashboard_size_v2_7）
+    # 的数字后缀是真实尺寸，必须保留。
+    if _base.endswith("_v4") and re.fullmatch(r"\d+", suffix):
+        return False
+    # 后缀本身是状态符号（high_precision_map_v4_●）时代表的是"是否配备"，
+    # 不是属性取值：保持原列并入 canonical 的既有行为，不写入 "●" 值。
+    if _value_suffix_status(suffix) != "unknown":
+        return False
+    status = _value_suffix_status(value)
+    if status == "affirmative":
+        written = suffix
+    elif status == "optional":
+        written = f"{suffix}(选装)"
+    else:
+        # Preserve uncertainty/absence as text, never infer the header's value.
+        written = copy.deepcopy(value)
+    if attribute in normalized:
+        normalized[attribute] = _merge_distinct_values(normalized[attribute], written)
+    else:
+        normalized[attribute] = written
+    _note_header_normalization_evidence(
+        normalized, column, attribute, suffix, value, written, status
+    )
+    return True
+
+
 def normalize_publish_row_headers(row: dict[str, Any]) -> dict[str, Any]:
     normalized = {}
     hidden_columns = _load_hidden_columns()
@@ -187,9 +340,15 @@ def normalize_publish_row_headers(row: dict[str, Any]) -> dict[str, Any]:
     # 防止 _merge_distinct_values("605", "0") 因 0 非正值把 0 丢弃。
     ev_zero_lock = str(row.get("纯电续航(km)") or "").strip() in ("0", "0.0")
     for key, value in row.items():
-        if key in hidden_columns:
+        if key == HEADER_NORMALIZATION_EVIDENCE:
+            # 内部审计字段：只做证据合并，不参与属性归一。
+            _absorb_header_normalization_evidence(normalized, value)
             continue
         canonical = normalize_audited_publish_header(key)
+        if _fold_value_suffix_header(normalized, key, value, canonical):
+            continue
+        if key in hidden_columns:
+            continue
         if canonical == "纯电续航(km)" and ev_zero_lock:
             normalized[canonical] = "0"
             continue

@@ -491,6 +491,10 @@
     var defaultVisible = state.config.defaultVisibleColumns || [];
     var hidden = state.config.hiddenByDefault || [];
     var dropUniform = state.config.dropIfUniformPositive || [];
+    if (column === "__header_normalization_evidence") {
+      // 内部审计字段（如 __header_normalization_evidence）永不作为列展示。
+      return true;
+    }
     if (defaultVisible.indexOf(column) !== -1) {
       return false;
     }

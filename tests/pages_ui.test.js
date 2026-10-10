@@ -6,6 +6,12 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
+test("header evidence stays internal without hiding unrelated double-underscore fields", () => {
+  const hooks = loadAppForTest().hooks;
+  assert.equal(hooks.shouldHideColumn("__header_normalization_evidence", []), true);
+  assert.equal(hooks.shouldHideColumn("__custom_equipment", []), false);
+});
+
 function chunkFixture(parts) {
   const files = new Map();
   const chunks = parts.map((rows, index) => {
