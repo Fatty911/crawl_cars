@@ -242,6 +242,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/112.html"
   },
+  "112_spec_2024_66431": {
+    "brand": "雷克萨斯",
+    "cache_key": "112_spec_2024_66431",
+    "car_id": "112",
+    "discovery": "year-api",
+    "series": "雷克萨斯GX",
+    "spec_id": "66431",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66431.html",
+    "year": "2024"
+  },
   "117": {
     "brand": "福特",
     "cache_key": "117",
@@ -527,6 +538,61 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/162.html"
   },
+  "162_spec_2022_51557": {
+    "brand": "保时捷",
+    "cache_key": "162_spec_2022_51557",
+    "car_id": "162",
+    "discovery": "year-api",
+    "series": "保时捷911",
+    "spec_id": "51557",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51557.html",
+    "year": "2022"
+  },
+  "162_spec_2023_57792": {
+    "brand": "保时捷",
+    "cache_key": "162_spec_2023_57792",
+    "car_id": "162",
+    "discovery": "year-api",
+    "series": "保时捷911",
+    "spec_id": "57792",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57792.html",
+    "year": "2023"
+  },
+  "162_spec_2024_69490": {
+    "brand": "保时捷",
+    "cache_key": "162_spec_2024_69490",
+    "car_id": "162",
+    "discovery": "year-api",
+    "series": "保时捷911",
+    "spec_id": "69490",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69490.html",
+    "year": "2024"
+  },
+  "162_spec_2025_68523": {
+    "brand": "保时捷",
+    "cache_key": "162_spec_2025_68523",
+    "car_id": "162",
+    "discovery": "year-api",
+    "series": "保时捷911",
+    "spec_id": "68523",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68523.html",
+    "year": "2025"
+  },
+  "162_spec_2026_75250": {
+    "brand": "保时捷",
+    "cache_key": "162_spec_2026_75250",
+    "car_id": "162",
+    "discovery": "year-api",
+    "series": "保时捷911",
+    "spec_id": "75250",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/75250.html",
+    "year": "2026"
+  },
   "163": {
     "brand": "雪佛兰",
     "cache_key": "163",
@@ -607,6 +673,50 @@
     "series": "沃尔沃XC90",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/177.html"
+  },
+  "177_spec_2022_53794": {
+    "brand": "沃尔沃",
+    "cache_key": "177_spec_2022_53794",
+    "car_id": "177",
+    "discovery": "year-api",
+    "series": "沃尔沃XC90",
+    "spec_id": "53794",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53794.html",
+    "year": "2022"
+  },
+  "177_spec_2023_59134": {
+    "brand": "沃尔沃",
+    "cache_key": "177_spec_2023_59134",
+    "car_id": "177",
+    "discovery": "year-api",
+    "series": "沃尔沃XC90",
+    "spec_id": "59134",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59134.html",
+    "year": "2023"
+  },
+  "177_spec_2024_63644": {
+    "brand": "沃尔沃",
+    "cache_key": "177_spec_2024_63644",
+    "car_id": "177",
+    "discovery": "year-api",
+    "series": "沃尔沃XC90",
+    "spec_id": "63644",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63644.html",
+    "year": "2024"
+  },
+  "177_spec_2025_70100": {
+    "brand": "沃尔沃",
+    "cache_key": "177_spec_2025_70100",
+    "car_id": "177",
+    "discovery": "year-api",
+    "series": "沃尔沃XC90",
+    "spec_id": "70100",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70100.html",
+    "year": "2025"
   },
   "178": {
     "brand": "捷豹",
@@ -1697,6 +1807,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2123.html"
   },
+  "2123_spec_2022_59966": {
+    "brand": "哈弗",
+    "cache_key": "2123_spec_2022_59966",
+    "car_id": "2123",
+    "discovery": "year-api",
+    "series": "哈弗H6",
+    "spec_id": "59966",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59966.html",
+    "year": "2022"
+  },
+  "2123_spec_2023_62819": {
+    "brand": "哈弗",
+    "cache_key": "2123_spec_2023_62819",
+    "car_id": "2123",
+    "discovery": "year-api",
+    "series": "哈弗H6",
+    "spec_id": "62819",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62819.html",
+    "year": "2023"
+  },
   "2124": {
     "brand": "哈弗",
     "cache_key": "2124",
@@ -2146,6 +2278,39 @@
     "series": "沃尔沃V60",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2190.html"
+  },
+  "2190_spec_2022_52875": {
+    "brand": "沃尔沃",
+    "cache_key": "2190_spec_2022_52875",
+    "car_id": "2190",
+    "discovery": "year-api",
+    "series": "沃尔沃V60",
+    "spec_id": "52875",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/52875.html",
+    "year": "2022"
+  },
+  "2190_spec_2023_59496": {
+    "brand": "沃尔沃",
+    "cache_key": "2190_spec_2023_59496",
+    "car_id": "2190",
+    "discovery": "year-api",
+    "series": "沃尔沃V60",
+    "spec_id": "59496",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59496.html",
+    "year": "2023"
+  },
+  "2190_spec_2024_64500": {
+    "brand": "沃尔沃",
+    "cache_key": "2190_spec_2024_64500",
+    "car_id": "2190",
+    "discovery": "year-api",
+    "series": "沃尔沃V60",
+    "spec_id": "64500",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64500.html",
+    "year": "2024"
   },
   "2191": {
     "brand": "标致",
@@ -5881,6 +6046,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2623.html"
   },
+  "2623_spec_2023_66161": {
+    "brand": "雷克萨斯",
+    "cache_key": "2623_spec_2023_66161",
+    "car_id": "2623",
+    "discovery": "year-api",
+    "series": "雷克萨斯LC",
+    "spec_id": "66161",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66161.html",
+    "year": "2023"
+  },
   "2624": {
     "brand": "现代",
     "cache_key": "2624",
@@ -6752,6 +6928,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2723.html"
   },
+  "2723_spec_2022_54944": {
+    "brand": "奔驰",
+    "cache_key": "2723_spec_2022_54944",
+    "car_id": "2723",
+    "discovery": "year-api",
+    "series": "奔驰G级AMG",
+    "spec_id": "54944",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54944.html",
+    "year": "2022"
+  },
+  "2723_spec_2023_63735": {
+    "brand": "奔驰",
+    "cache_key": "2723_spec_2023_63735",
+    "car_id": "2723",
+    "discovery": "year-api",
+    "series": "奔驰G级AMG",
+    "spec_id": "63735",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63735.html",
+    "year": "2023"
+  },
+  "2723_spec_2024_67436": {
+    "brand": "奔驰",
+    "cache_key": "2723_spec_2024_67436",
+    "car_id": "2723",
+    "discovery": "year-api",
+    "series": "奔驰G级AMG",
+    "spec_id": "67436",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67436.html",
+    "year": "2024"
+  },
+  "2723_spec_2025_68065": {
+    "brand": "奔驰",
+    "cache_key": "2723_spec_2025_68065",
+    "car_id": "2723",
+    "discovery": "year-api",
+    "series": "奔驰G级AMG",
+    "spec_id": "68065",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68065.html",
+    "year": "2025"
+  },
   "2724": {
     "brand": "奔驰",
     "cache_key": "2724",
@@ -6873,6 +7093,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2734.html"
   },
+  "2734_spec_2022_52362": {
+    "brand": "奥迪",
+    "cache_key": "2734_spec_2022_52362",
+    "car_id": "2734",
+    "discovery": "year-api",
+    "series": "奥迪S5",
+    "spec_id": "52362",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/52362.html",
+    "year": "2022"
+  },
+  "2734_spec_2023_59541": {
+    "brand": "奥迪",
+    "cache_key": "2734_spec_2023_59541",
+    "car_id": "2734",
+    "discovery": "year-api",
+    "series": "奥迪S5",
+    "spec_id": "59541",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59541.html",
+    "year": "2023"
+  },
   "2735": {
     "brand": "奥迪",
     "cache_key": "2735",
@@ -6881,6 +7123,28 @@
     "series": "奥迪RS 5",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2735.html"
+  },
+  "2735_spec_2022_55120": {
+    "brand": "奥迪",
+    "cache_key": "2735_spec_2022_55120",
+    "car_id": "2735",
+    "discovery": "year-api",
+    "series": "奥迪RS 5",
+    "spec_id": "55120",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55120.html",
+    "year": "2022"
+  },
+  "2735_spec_2023_61658": {
+    "brand": "奥迪",
+    "cache_key": "2735_spec_2023_61658",
+    "car_id": "2735",
+    "discovery": "year-api",
+    "series": "奥迪RS 5",
+    "spec_id": "61658",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61658.html",
+    "year": "2023"
   },
   "2736": {
     "brand": "奥迪",
@@ -7772,6 +8036,17 @@
     "series": "奥迪SQ5",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2841.html"
+  },
+  "2841_spec_2023_63435": {
+    "brand": "奥迪",
+    "cache_key": "2841_spec_2023_63435",
+    "car_id": "2841",
+    "discovery": "year-api",
+    "series": "奥迪SQ5",
+    "spec_id": "63435",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63435.html",
+    "year": "2023"
   },
   "2842": {
     "brand": "奔驰",
@@ -8726,6 +9001,50 @@
     "series": "奥迪Q3",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2951.html"
+  },
+  "2951_spec_2022_53586": {
+    "brand": "奥迪",
+    "cache_key": "2951_spec_2022_53586",
+    "car_id": "2951",
+    "discovery": "year-api",
+    "series": "奥迪Q3",
+    "spec_id": "53586",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53586.html",
+    "year": "2022"
+  },
+  "2951_spec_2023_60343": {
+    "brand": "奥迪",
+    "cache_key": "2951_spec_2023_60343",
+    "car_id": "2951",
+    "discovery": "year-api",
+    "series": "奥迪Q3",
+    "spec_id": "60343",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60343.html",
+    "year": "2023"
+  },
+  "2951_spec_2024_63983": {
+    "brand": "奥迪",
+    "cache_key": "2951_spec_2024_63983",
+    "car_id": "2951",
+    "discovery": "year-api",
+    "series": "奥迪Q3",
+    "spec_id": "63983",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63983.html",
+    "year": "2024"
+  },
+  "2951_spec_2025_72916": {
+    "brand": "奥迪",
+    "cache_key": "2951_spec_2025_72916",
+    "car_id": "2951",
+    "discovery": "year-api",
+    "series": "奥迪Q3",
+    "spec_id": "72916",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72916.html",
+    "year": "2025"
   },
   "2952": {
     "brand": "DS",
@@ -12001,6 +12320,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3298.html"
   },
+  "3298_spec_2022_53116": {
+    "brand": "哈弗",
+    "cache_key": "3298_spec_2022_53116",
+    "car_id": "3298",
+    "discovery": "year-api",
+    "series": "哈弗H9",
+    "spec_id": "53116",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53116.html",
+    "year": "2022"
+  },
   "3299": {
     "brand": "开利",
     "cache_key": "3299",
@@ -12378,6 +12708,61 @@
     "series": "奔驰GLC轿跑",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3339.html"
+  },
+  "3339_spec_2022_54723": {
+    "brand": "奔驰",
+    "cache_key": "3339_spec_2022_54723",
+    "car_id": "3339",
+    "discovery": "year-api",
+    "series": "奔驰GLC轿跑",
+    "spec_id": "54723",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54723.html",
+    "year": "2022"
+  },
+  "3339_spec_2023_60246": {
+    "brand": "奔驰",
+    "cache_key": "3339_spec_2023_60246",
+    "car_id": "3339",
+    "discovery": "year-api",
+    "series": "奔驰GLC轿跑",
+    "spec_id": "60246",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60246.html",
+    "year": "2023"
+  },
+  "3339_spec_2024_66971": {
+    "brand": "奔驰",
+    "cache_key": "3339_spec_2024_66971",
+    "car_id": "3339",
+    "discovery": "year-api",
+    "series": "奔驰GLC轿跑",
+    "spec_id": "66971",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66971.html",
+    "year": "2024"
+  },
+  "3339_spec_2025_70213": {
+    "brand": "奔驰",
+    "cache_key": "3339_spec_2025_70213",
+    "car_id": "3339",
+    "discovery": "year-api",
+    "series": "奔驰GLC轿跑",
+    "spec_id": "70213",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70213.html",
+    "year": "2025"
+  },
+  "3339_spec_2026_74929": {
+    "brand": "奔驰",
+    "cache_key": "3339_spec_2026_74929",
+    "car_id": "3339",
+    "discovery": "year-api",
+    "series": "奔驰GLC轿跑",
+    "spec_id": "74929",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/74929.html",
+    "year": "2026"
   },
   "334": {
     "brand": "丰田",
@@ -13019,6 +13404,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3411.html"
   },
+  "3411_spec_2022_51598": {
+    "brand": "沃尔沃",
+    "cache_key": "3411_spec_2022_51598",
+    "car_id": "3411",
+    "discovery": "year-api",
+    "series": "沃尔沃XC60",
+    "spec_id": "51598",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51598.html",
+    "year": "2022"
+  },
+  "3411_spec_2023_58133": {
+    "brand": "沃尔沃",
+    "cache_key": "3411_spec_2023_58133",
+    "car_id": "3411",
+    "discovery": "year-api",
+    "series": "沃尔沃XC60",
+    "spec_id": "58133",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/58133.html",
+    "year": "2023"
+  },
+  "3411_spec_2024_63245": {
+    "brand": "沃尔沃",
+    "cache_key": "3411_spec_2024_63245",
+    "car_id": "3411",
+    "discovery": "year-api",
+    "series": "沃尔沃XC60",
+    "spec_id": "63245",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63245.html",
+    "year": "2024"
+  },
+  "3411_spec_2025_68769": {
+    "brand": "沃尔沃",
+    "cache_key": "3411_spec_2025_68769",
+    "car_id": "3411",
+    "discovery": "year-api",
+    "series": "沃尔沃XC60",
+    "spec_id": "68769",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68769.html",
+    "year": "2025"
+  },
   "3412": {
     "brand": "宝骏",
     "cache_key": "3412",
@@ -13288,6 +13717,50 @@
     "series": "雷克萨斯NX",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3442.html"
+  },
+  "3442_spec_2022_54185": {
+    "brand": "雷克萨斯",
+    "cache_key": "3442_spec_2022_54185",
+    "car_id": "3442",
+    "discovery": "year-api",
+    "series": "雷克萨斯NX",
+    "spec_id": "54185",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54185.html",
+    "year": "2022"
+  },
+  "3442_spec_2023_64667": {
+    "brand": "雷克萨斯",
+    "cache_key": "3442_spec_2023_64667",
+    "car_id": "3442",
+    "discovery": "year-api",
+    "series": "雷克萨斯NX",
+    "spec_id": "64667",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64667.html",
+    "year": "2023"
+  },
+  "3442_spec_2024_67473": {
+    "brand": "雷克萨斯",
+    "cache_key": "3442_spec_2024_67473",
+    "car_id": "3442",
+    "discovery": "year-api",
+    "series": "雷克萨斯NX",
+    "spec_id": "67473",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67473.html",
+    "year": "2024"
+  },
+  "3442_spec_2025_70640": {
+    "brand": "雷克萨斯",
+    "cache_key": "3442_spec_2025_70640",
+    "car_id": "3442",
+    "discovery": "year-api",
+    "series": "雷克萨斯NX",
+    "spec_id": "70640",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70640.html",
+    "year": "2025"
   },
   "3443": {
     "brand": "江汽集团",
@@ -13810,6 +14283,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3495.html"
   },
+  "3495_spec_2022_56457": {
+    "brand": "广汽传祺",
+    "cache_key": "3495_spec_2022_56457",
+    "car_id": "3495",
+    "discovery": "year-api",
+    "series": "传祺GS3",
+    "spec_id": "56457",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56457.html",
+    "year": "2022"
+  },
+  "3495_spec_2023_61678": {
+    "brand": "广汽传祺",
+    "cache_key": "3495_spec_2023_61678",
+    "car_id": "3495",
+    "discovery": "year-api",
+    "series": "传祺GS3",
+    "spec_id": "61678",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61678.html",
+    "year": "2023"
+  },
+  "3495_spec_2024_69439": {
+    "brand": "广汽传祺",
+    "cache_key": "3495_spec_2024_69439",
+    "car_id": "3495",
+    "discovery": "year-api",
+    "series": "传祺GS3",
+    "spec_id": "69439",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69439.html",
+    "year": "2024"
+  },
+  "3495_spec_2025_72896": {
+    "brand": "广汽传祺",
+    "cache_key": "3495_spec_2025_72896",
+    "car_id": "3495",
+    "discovery": "year-api",
+    "series": "传祺GS3",
+    "spec_id": "72896",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72896.html",
+    "year": "2025"
+  },
   "3496": {
     "brand": "宝马",
     "cache_key": "3496",
@@ -14043,6 +14560,39 @@
     "series": "揽胜极光",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3521.html"
+  },
+  "3521_spec_2022_58509": {
+    "brand": "路虎",
+    "cache_key": "3521_spec_2022_58509",
+    "car_id": "3521",
+    "discovery": "year-api",
+    "series": "揽胜极光",
+    "spec_id": "58509",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/58509.html",
+    "year": "2022"
+  },
+  "3521_spec_2023_61834": {
+    "brand": "路虎",
+    "cache_key": "3521_spec_2023_61834",
+    "car_id": "3521",
+    "discovery": "year-api",
+    "series": "揽胜极光",
+    "spec_id": "61834",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61834.html",
+    "year": "2023"
+  },
+  "3521_spec_2024_67352": {
+    "brand": "路虎",
+    "cache_key": "3521_spec_2024_67352",
+    "car_id": "3521",
+    "discovery": "year-api",
+    "series": "揽胜极光",
+    "spec_id": "67352",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67352.html",
+    "year": "2024"
   },
   "3522": {
     "brand": "现代",
@@ -15318,6 +15868,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3665.html"
   },
+  "3665_spec_2022_56423": {
+    "brand": "奔驰",
+    "cache_key": "3665_spec_2022_56423",
+    "car_id": "3665",
+    "discovery": "year-api",
+    "series": "迈巴赫S级",
+    "spec_id": "56423",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56423.html",
+    "year": "2022"
+  },
+  "3665_spec_2023_59661": {
+    "brand": "奔驰",
+    "cache_key": "3665_spec_2023_59661",
+    "car_id": "3665",
+    "discovery": "year-api",
+    "series": "迈巴赫S级",
+    "spec_id": "59661",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59661.html",
+    "year": "2023"
+  },
+  "3665_spec_2024_65210": {
+    "brand": "奔驰",
+    "cache_key": "3665_spec_2024_65210",
+    "car_id": "3665",
+    "discovery": "year-api",
+    "series": "迈巴赫S级",
+    "spec_id": "65210",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65210.html",
+    "year": "2024"
+  },
+  "3665_spec_2025_70555": {
+    "brand": "奔驰",
+    "cache_key": "3665_spec_2025_70555",
+    "car_id": "3665",
+    "discovery": "year-api",
+    "series": "迈巴赫S级",
+    "spec_id": "70555",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70555.html",
+    "year": "2025"
+  },
   "3666": {
     "brand": "领志",
     "cache_key": "3666",
@@ -15480,6 +16074,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3683.html"
   },
+  "3683_spec_2022_54694": {
+    "brand": "奔驰",
+    "cache_key": "3683_spec_2022_54694",
+    "car_id": "3683",
+    "discovery": "year-api",
+    "series": "奔驰GLE(进口)",
+    "spec_id": "54694",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54694.html",
+    "year": "2022"
+  },
+  "3683_spec_2023_60661": {
+    "brand": "奔驰",
+    "cache_key": "3683_spec_2023_60661",
+    "car_id": "3683",
+    "discovery": "year-api",
+    "series": "奔驰GLE(进口)",
+    "spec_id": "60661",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60661.html",
+    "year": "2023"
+  },
+  "3683_spec_2024_63706": {
+    "brand": "奔驰",
+    "cache_key": "3683_spec_2024_63706",
+    "car_id": "3683",
+    "discovery": "year-api",
+    "series": "奔驰GLE(进口)",
+    "spec_id": "63706",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63706.html",
+    "year": "2024"
+  },
+  "3683_spec_2025_70262": {
+    "brand": "奔驰",
+    "cache_key": "3683_spec_2025_70262",
+    "car_id": "3683",
+    "discovery": "year-api",
+    "series": "奔驰GLE(进口)",
+    "spec_id": "70262",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70262.html",
+    "year": "2025"
+  },
   "3684": {
     "brand": "Rinspeed",
     "cache_key": "3684",
@@ -15525,6 +16163,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3688.html"
   },
+  "3688_spec_2022_55506": {
+    "brand": "奔驰",
+    "cache_key": "3688_spec_2022_55506",
+    "car_id": "3688",
+    "discovery": "year-api",
+    "series": "奔驰GLS",
+    "spec_id": "55506",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55506.html",
+    "year": "2022"
+  },
+  "3688_spec_2023_60733": {
+    "brand": "奔驰",
+    "cache_key": "3688_spec_2023_60733",
+    "car_id": "3688",
+    "discovery": "year-api",
+    "series": "奔驰GLS",
+    "spec_id": "60733",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60733.html",
+    "year": "2023"
+  },
+  "3688_spec_2024_70560": {
+    "brand": "奔驰",
+    "cache_key": "3688_spec_2024_70560",
+    "car_id": "3688",
+    "discovery": "year-api",
+    "series": "奔驰GLS",
+    "spec_id": "70560",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70560.html",
+    "year": "2024"
+  },
+  "3688_spec_2025_72841": {
+    "brand": "奔驰",
+    "cache_key": "3688_spec_2025_72841",
+    "car_id": "3688",
+    "discovery": "year-api",
+    "series": "奔驰GLS",
+    "spec_id": "72841",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72841.html",
+    "year": "2025"
+  },
   "3689": {
     "brand": "沃尔沃",
     "cache_key": "3689",
@@ -15560,6 +16242,28 @@
     "series": "传祺GS4",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3691.html"
+  },
+  "3691_spec_2022_52311": {
+    "brand": "广汽传祺",
+    "cache_key": "3691_spec_2022_52311",
+    "car_id": "3691",
+    "discovery": "year-api",
+    "series": "传祺GS4",
+    "spec_id": "52311",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/52311.html",
+    "year": "2022"
+  },
+  "3691_spec_2023_62341": {
+    "brand": "广汽传祺",
+    "cache_key": "3691_spec_2023_62341",
+    "car_id": "3691",
+    "discovery": "year-api",
+    "series": "传祺GS4",
+    "spec_id": "62341",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62341.html",
+    "year": "2023"
   },
   "3692": {
     "brand": "本田",
@@ -15686,6 +16390,50 @@
     "series": "奔驰GLE AMG",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3704.html"
+  },
+  "3704_spec_2022_54946": {
+    "brand": "奔驰",
+    "cache_key": "3704_spec_2022_54946",
+    "car_id": "3704",
+    "discovery": "year-api",
+    "series": "奔驰GLE AMG",
+    "spec_id": "54946",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54946.html",
+    "year": "2022"
+  },
+  "3704_spec_2023_61335": {
+    "brand": "奔驰",
+    "cache_key": "3704_spec_2023_61335",
+    "car_id": "3704",
+    "discovery": "year-api",
+    "series": "奔驰GLE AMG",
+    "spec_id": "61335",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61335.html",
+    "year": "2023"
+  },
+  "3704_spec_2024_61394": {
+    "brand": "奔驰",
+    "cache_key": "3704_spec_2024_61394",
+    "car_id": "3704",
+    "discovery": "year-api",
+    "series": "奔驰GLE AMG",
+    "spec_id": "61394",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61394.html",
+    "year": "2024"
+  },
+  "3704_spec_2025_73362": {
+    "brand": "奔驰",
+    "cache_key": "3704_spec_2025_73362",
+    "car_id": "3704",
+    "discovery": "year-api",
+    "series": "奔驰GLE AMG",
+    "spec_id": "73362",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73362.html",
+    "year": "2025"
   },
   "3705": {
     "brand": "本田",
@@ -17727,6 +18475,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3901.html"
   },
+  "3901_history_no_data": {
+    "brand": "奔驰",
+    "car_id": "3901",
+    "series": "奔驰GLS AMG",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3901/sale.html"
+  },
   "3902": {
     "brand": "广汽传祺",
     "cache_key": "3902",
@@ -18050,6 +18806,28 @@
     "series": "雷克萨斯RX",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3934.html"
+  },
+  "3934_spec_2023_61195": {
+    "brand": "雷克萨斯",
+    "cache_key": "3934_spec_2023_61195",
+    "car_id": "3934",
+    "discovery": "year-api",
+    "series": "雷克萨斯RX",
+    "spec_id": "61195",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61195.html",
+    "year": "2023"
+  },
+  "3934_spec_2025_70146": {
+    "brand": "雷克萨斯",
+    "cache_key": "3934_spec_2025_70146",
+    "car_id": "3934",
+    "discovery": "year-api",
+    "series": "雷克萨斯RX",
+    "spec_id": "70146",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70146.html",
+    "year": "2025"
   },
   "3935": {
     "brand": "五十铃",
@@ -18581,6 +19359,50 @@
     "series": "凯迪拉克XT5",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3989.html"
+  },
+  "3989_spec_2022_53108": {
+    "brand": "凯迪拉克",
+    "cache_key": "3989_spec_2022_53108",
+    "car_id": "3989",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT5",
+    "spec_id": "53108",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53108.html",
+    "year": "2022"
+  },
+  "3989_spec_2023_60585": {
+    "brand": "凯迪拉克",
+    "cache_key": "3989_spec_2023_60585",
+    "car_id": "3989",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT5",
+    "spec_id": "60585",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60585.html",
+    "year": "2023"
+  },
+  "3989_spec_2024_64958": {
+    "brand": "凯迪拉克",
+    "cache_key": "3989_spec_2024_64958",
+    "car_id": "3989",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT5",
+    "spec_id": "64958",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64958.html",
+    "year": "2024"
+  },
+  "3989_spec_2025_73587": {
+    "brand": "凯迪拉克",
+    "cache_key": "3989_spec_2025_73587",
+    "car_id": "3989",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT5",
+    "spec_id": "73587",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73587.html",
+    "year": "2025"
   },
   "399": {
     "brand": "阿尔法·罗密欧",
@@ -19239,6 +20061,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4059.html"
   },
+  "405_history_no_data": {
+    "brand": "沃尔沃",
+    "car_id": "405",
+    "series": "沃尔沃XC70",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/405/sale.html"
+  },
   "406": {
     "brand": "沃尔沃",
     "cache_key": "406",
@@ -19624,6 +20454,39 @@
     "series": "传祺GS8",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4094.html"
+  },
+  "4094_spec_2022_51668": {
+    "brand": "广汽传祺",
+    "cache_key": "4094_spec_2022_51668",
+    "car_id": "4094",
+    "discovery": "year-api",
+    "series": "传祺GS8",
+    "spec_id": "51668",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51668.html",
+    "year": "2022"
+  },
+  "4094_spec_2023_62374": {
+    "brand": "广汽传祺",
+    "cache_key": "4094_spec_2023_62374",
+    "car_id": "4094",
+    "discovery": "year-api",
+    "series": "传祺GS8",
+    "spec_id": "62374",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62374.html",
+    "year": "2023"
+  },
+  "4094_spec_2024_63561": {
+    "brand": "广汽传祺",
+    "cache_key": "4094_spec_2024_63561",
+    "car_id": "4094",
+    "discovery": "year-api",
+    "series": "传祺GS8",
+    "spec_id": "63561",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63561.html",
+    "year": "2024"
   },
   "4095": {
     "brand": "凯翼",
@@ -20024,6 +20887,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4129.html"
   },
+  "412_spec_2022_51945": {
+    "brand": "奥迪",
+    "cache_key": "412_spec_2022_51945",
+    "car_id": "412",
+    "discovery": "year-api",
+    "series": "奥迪Q7",
+    "spec_id": "51945",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51945.html",
+    "year": "2022"
+  },
+  "412_spec_2023_60601": {
+    "brand": "奥迪",
+    "cache_key": "412_spec_2023_60601",
+    "car_id": "412",
+    "discovery": "year-api",
+    "series": "奥迪Q7",
+    "spec_id": "60601",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60601.html",
+    "year": "2023"
+  },
+  "412_spec_2024_68679": {
+    "brand": "奥迪",
+    "cache_key": "412_spec_2024_68679",
+    "car_id": "412",
+    "discovery": "year-api",
+    "series": "奥迪Q7",
+    "spec_id": "68679",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68679.html",
+    "year": "2024"
+  },
+  "412_spec_2025_70931": {
+    "brand": "奥迪",
+    "cache_key": "412_spec_2025_70931",
+    "car_id": "412",
+    "discovery": "year-api",
+    "series": "奥迪Q7",
+    "spec_id": "70931",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70931.html",
+    "year": "2025"
+  },
   "413": {
     "brand": "起亚",
     "cache_key": "413",
@@ -20239,6 +21146,50 @@
     "series": "红旗HS7",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4150.html"
+  },
+  "4150_spec_2022_53382": {
+    "brand": "红旗",
+    "cache_key": "4150_spec_2022_53382",
+    "car_id": "4150",
+    "discovery": "year-api",
+    "series": "红旗HS7",
+    "spec_id": "53382",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53382.html",
+    "year": "2022"
+  },
+  "4150_spec_2023_63959": {
+    "brand": "红旗",
+    "cache_key": "4150_spec_2023_63959",
+    "car_id": "4150",
+    "discovery": "year-api",
+    "series": "红旗HS7",
+    "spec_id": "63959",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63959.html",
+    "year": "2023"
+  },
+  "4150_spec_2024_69697": {
+    "brand": "红旗",
+    "cache_key": "4150_spec_2024_69697",
+    "car_id": "4150",
+    "discovery": "year-api",
+    "series": "红旗HS7",
+    "spec_id": "69697",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69697.html",
+    "year": "2024"
+  },
+  "4150_spec_2025_74393": {
+    "brand": "红旗",
+    "cache_key": "4150_spec_2025_74393",
+    "car_id": "4150",
+    "discovery": "year-api",
+    "series": "红旗HS7",
+    "spec_id": "74393",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/74393.html",
+    "year": "2025"
   },
   "4151": {
     "brand": "SWM斯威汽车",
@@ -20473,6 +21424,14 @@
     "series": "保时捷718",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4175.html"
+  },
+  "4175_history_no_data": {
+    "brand": "保时捷",
+    "car_id": "4175",
+    "series": "保时捷718",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4175/sale.html"
   },
   "4176": {
     "brand": "捷尼赛思",
@@ -20887,6 +21846,28 @@
     "series": "领克01",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4221.html"
+  },
+  "4221_spec_2023_61738": {
+    "brand": "领克",
+    "cache_key": "4221_spec_2023_61738",
+    "car_id": "4221",
+    "discovery": "year-api",
+    "series": "领克01",
+    "spec_id": "61738",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61738.html",
+    "year": "2023"
+  },
+  "4221_spec_2024_67587": {
+    "brand": "领克",
+    "cache_key": "4221_spec_2024_67587",
+    "car_id": "4221",
+    "discovery": "year-api",
+    "series": "领克01",
+    "spec_id": "67587",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67587.html",
+    "year": "2024"
   },
   "4222": {
     "brand": "现代",
@@ -21601,6 +22582,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4288.html"
   },
+  "4288_spec_2022_51952": {
+    "brand": "奥迪",
+    "cache_key": "4288_spec_2022_51952",
+    "car_id": "4288",
+    "discovery": "year-api",
+    "series": "奥迪Q8",
+    "spec_id": "51952",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51952.html",
+    "year": "2022"
+  },
+  "4288_spec_2023_62527": {
+    "brand": "奥迪",
+    "cache_key": "4288_spec_2023_62527",
+    "car_id": "4288",
+    "discovery": "year-api",
+    "series": "奥迪Q8",
+    "spec_id": "62527",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62527.html",
+    "year": "2023"
+  },
   "4289": {
     "brand": "日产",
     "cache_key": "4289",
@@ -21881,6 +22884,50 @@
     "series": "揽胜星脉",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4316.html"
+  },
+  "4316_spec_2022_54849": {
+    "brand": "路虎",
+    "cache_key": "4316_spec_2022_54849",
+    "car_id": "4316",
+    "discovery": "year-api",
+    "series": "揽胜星脉",
+    "spec_id": "54849",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54849.html",
+    "year": "2022"
+  },
+  "4316_spec_2023_59323": {
+    "brand": "路虎",
+    "cache_key": "4316_spec_2023_59323",
+    "car_id": "4316",
+    "discovery": "year-api",
+    "series": "揽胜星脉",
+    "spec_id": "59323",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59323.html",
+    "year": "2023"
+  },
+  "4316_spec_2024_61422": {
+    "brand": "路虎",
+    "cache_key": "4316_spec_2024_61422",
+    "car_id": "4316",
+    "discovery": "year-api",
+    "series": "揽胜星脉",
+    "spec_id": "61422",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61422.html",
+    "year": "2024"
+  },
+  "4316_spec_2025_68367": {
+    "brand": "路虎",
+    "cache_key": "4316_spec_2025_68367",
+    "car_id": "4316",
+    "discovery": "year-api",
+    "series": "揽胜星脉",
+    "spec_id": "68367",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68367.html",
+    "year": "2025"
   },
   "4317": {
     "brand": "众泰",
@@ -22943,6 +23990,50 @@
     "series": "蔚来ES8",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4427.html"
+  },
+  "4427_spec_2022_57715": {
+    "brand": "蔚来",
+    "cache_key": "4427_spec_2022_57715",
+    "car_id": "4427",
+    "discovery": "year-api",
+    "series": "蔚来ES8",
+    "spec_id": "57715",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57715.html",
+    "year": "2022"
+  },
+  "4427_spec_2023_60966": {
+    "brand": "蔚来",
+    "cache_key": "4427_spec_2023_60966",
+    "car_id": "4427",
+    "discovery": "year-api",
+    "series": "蔚来ES8",
+    "spec_id": "60966",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60966.html",
+    "year": "2023"
+  },
+  "4427_spec_2024_66798": {
+    "brand": "蔚来",
+    "cache_key": "4427_spec_2024_66798",
+    "car_id": "4427",
+    "discovery": "year-api",
+    "series": "蔚来ES8",
+    "spec_id": "66798",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66798.html",
+    "year": "2024"
+  },
+  "4427_spec_2026_77291": {
+    "brand": "蔚来",
+    "cache_key": "4427_spec_2026_77291",
+    "car_id": "4427",
+    "discovery": "year-api",
+    "series": "蔚来ES8",
+    "spec_id": "77291",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/77291.html",
+    "year": "2026"
   },
   "4428": {
     "brand": "猎豹汽车",
@@ -25554,6 +26645,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4683.html"
   },
+  "4683_spec_2022_56411": {
+    "brand": "捷途",
+    "cache_key": "4683_spec_2022_56411",
+    "car_id": "4683",
+    "discovery": "year-api",
+    "series": "捷途X70",
+    "spec_id": "56411",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56411.html",
+    "year": "2022"
+  },
+  "4683_spec_2023_63319": {
+    "brand": "捷途",
+    "cache_key": "4683_spec_2023_63319",
+    "car_id": "4683",
+    "discovery": "year-api",
+    "series": "捷途X70",
+    "spec_id": "63319",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63319.html",
+    "year": "2023"
+  },
+  "4683_spec_2024_65734": {
+    "brand": "捷途",
+    "cache_key": "4683_spec_2024_65734",
+    "car_id": "4683",
+    "discovery": "year-api",
+    "series": "捷途X70",
+    "spec_id": "65734",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65734.html",
+    "year": "2024"
+  },
   "4684": {
     "brand": "SWM斯威汽车",
     "cache_key": "4684",
@@ -27394,6 +28518,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4851.html"
   },
+  "4851_spec_2022_53882": {
+    "brand": "奥迪",
+    "cache_key": "4851_spec_2022_53882",
+    "car_id": "4851",
+    "discovery": "year-api",
+    "series": "奥迪Q5L",
+    "spec_id": "53882",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53882.html",
+    "year": "2022"
+  },
+  "4851_spec_2023_61345": {
+    "brand": "奥迪",
+    "cache_key": "4851_spec_2023_61345",
+    "car_id": "4851",
+    "discovery": "year-api",
+    "series": "奥迪Q5L",
+    "spec_id": "61345",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61345.html",
+    "year": "2023"
+  },
+  "4851_spec_2024_65347": {
+    "brand": "奥迪",
+    "cache_key": "4851_spec_2024_65347",
+    "car_id": "4851",
+    "discovery": "year-api",
+    "series": "奥迪Q5L",
+    "spec_id": "65347",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65347.html",
+    "year": "2024"
+  },
+  "4851_spec_2025_71979": {
+    "brand": "奥迪",
+    "cache_key": "4851_spec_2025_71979",
+    "car_id": "4851",
+    "discovery": "year-api",
+    "series": "奥迪Q5L",
+    "spec_id": "71979",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71979.html",
+    "year": "2025"
+  },
   "4852": {
     "brand": "吉利汽车",
     "cache_key": "4852",
@@ -27438,6 +28606,39 @@
     "series": "凯迪拉克XT4",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4856.html"
+  },
+  "4856_spec_2022_54974": {
+    "brand": "凯迪拉克",
+    "cache_key": "4856_spec_2022_54974",
+    "car_id": "4856",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT4",
+    "spec_id": "54974",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54974.html",
+    "year": "2022"
+  },
+  "4856_spec_2023_60914": {
+    "brand": "凯迪拉克",
+    "cache_key": "4856_spec_2023_60914",
+    "car_id": "4856",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT4",
+    "spec_id": "60914",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60914.html",
+    "year": "2023"
+  },
+  "4856_spec_2024_63276": {
+    "brand": "凯迪拉克",
+    "cache_key": "4856_spec_2024_63276",
+    "car_id": "4856",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT4",
+    "spec_id": "63276",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63276.html",
+    "year": "2024"
   },
   "4857": {
     "brand": "宝沃",
@@ -27592,6 +28793,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4871.html"
   },
+  "4871_spec_2022_52977": {
+    "brand": "奥迪",
+    "cache_key": "4871_spec_2022_52977",
+    "car_id": "4871",
+    "discovery": "year-api",
+    "series": "奥迪Q2L",
+    "spec_id": "52977",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/52977.html",
+    "year": "2022"
+  },
+  "4871_spec_2023_64125": {
+    "brand": "奥迪",
+    "cache_key": "4871_spec_2023_64125",
+    "car_id": "4871",
+    "discovery": "year-api",
+    "series": "奥迪Q2L",
+    "spec_id": "64125",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64125.html",
+    "year": "2023"
+  },
+  "4871_spec_2024_65021": {
+    "brand": "奥迪",
+    "cache_key": "4871_spec_2024_65021",
+    "car_id": "4871",
+    "discovery": "year-api",
+    "series": "奥迪Q2L",
+    "spec_id": "65021",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65021.html",
+    "year": "2024"
+  },
   "4872": {
     "brand": "力帆汽车",
     "cache_key": "4872",
@@ -27690,6 +28924,50 @@
     "series": "蔚来ES6",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4881.html"
+  },
+  "4881_spec_2022_57729": {
+    "brand": "蔚来",
+    "cache_key": "4881_spec_2022_57729",
+    "car_id": "4881",
+    "discovery": "year-api",
+    "series": "蔚来ES6",
+    "spec_id": "57729",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57729.html",
+    "year": "2022"
+  },
+  "4881_spec_2023_63090": {
+    "brand": "蔚来",
+    "cache_key": "4881_spec_2023_63090",
+    "car_id": "4881",
+    "discovery": "year-api",
+    "series": "蔚来ES6",
+    "spec_id": "63090",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63090.html",
+    "year": "2023"
+  },
+  "4881_spec_2024_66802": {
+    "brand": "蔚来",
+    "cache_key": "4881_spec_2024_66802",
+    "car_id": "4881",
+    "discovery": "year-api",
+    "series": "蔚来ES6",
+    "spec_id": "66802",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66802.html",
+    "year": "2024"
+  },
+  "4881_spec_2025_73006": {
+    "brand": "蔚来",
+    "cache_key": "4881_spec_2025_73006",
+    "car_id": "4881",
+    "discovery": "year-api",
+    "series": "蔚来ES6",
+    "spec_id": "73006",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73006.html",
+    "year": "2025"
   },
   "4882": {
     "brand": "雪佛兰",
@@ -29381,6 +30659,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5048.html"
   },
+  "5048_spec_2022_53197": {
+    "brand": "红旗",
+    "cache_key": "5048_spec_2022_53197",
+    "car_id": "5048",
+    "discovery": "year-api",
+    "series": "红旗HS5",
+    "spec_id": "53197",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53197.html",
+    "year": "2022"
+  },
+  "5048_spec_2023_63024": {
+    "brand": "红旗",
+    "cache_key": "5048_spec_2023_63024",
+    "car_id": "5048",
+    "discovery": "year-api",
+    "series": "红旗HS5",
+    "spec_id": "63024",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63024.html",
+    "year": "2023"
+  },
+  "5048_spec_2025_68097": {
+    "brand": "红旗",
+    "cache_key": "5048_spec_2025_68097",
+    "car_id": "5048",
+    "discovery": "year-api",
+    "series": "红旗HS5",
+    "spec_id": "68097",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68097.html",
+    "year": "2025"
+  },
   "5049": {
     "brand": "法拉利",
     "cache_key": "5049",
@@ -29931,6 +31242,28 @@
     "series": "凯迪拉克XT6",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5102.html"
+  },
+  "5102_spec_2022_52483": {
+    "brand": "凯迪拉克",
+    "cache_key": "5102_spec_2022_52483",
+    "car_id": "5102",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT6",
+    "spec_id": "52483",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/52483.html",
+    "year": "2022"
+  },
+  "5102_spec_2023_61161": {
+    "brand": "凯迪拉克",
+    "cache_key": "5102_spec_2023_61161",
+    "car_id": "5102",
+    "discovery": "year-api",
+    "series": "凯迪拉克XT6",
+    "spec_id": "61161",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61161.html",
+    "year": "2023"
   },
   "5103": {
     "brand": "东风风神",
@@ -30849,6 +32182,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5194.html"
   },
+  "5194_spec_2022_53597": {
+    "brand": "领克",
+    "cache_key": "5194_spec_2022_53597",
+    "car_id": "5194",
+    "discovery": "year-api",
+    "series": "领克05",
+    "spec_id": "53597",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53597.html",
+    "year": "2022"
+  },
+  "5194_spec_2023_62072": {
+    "brand": "领克",
+    "cache_key": "5194_spec_2023_62072",
+    "car_id": "5194",
+    "discovery": "year-api",
+    "series": "领克05",
+    "spec_id": "62072",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62072.html",
+    "year": "2023"
+  },
   "5195": {
     "brand": "一汽",
     "cache_key": "5195",
@@ -30884,6 +32239,50 @@
     "series": "沃尔沃XC40",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5198.html"
+  },
+  "5198_spec_2022_51855": {
+    "brand": "沃尔沃",
+    "cache_key": "5198_spec_2022_51855",
+    "car_id": "5198",
+    "discovery": "year-api",
+    "series": "沃尔沃XC40",
+    "spec_id": "51855",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51855.html",
+    "year": "2022"
+  },
+  "5198_spec_2023_58356": {
+    "brand": "沃尔沃",
+    "cache_key": "5198_spec_2023_58356",
+    "car_id": "5198",
+    "discovery": "year-api",
+    "series": "沃尔沃XC40",
+    "spec_id": "58356",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/58356.html",
+    "year": "2023"
+  },
+  "5198_spec_2024_63870": {
+    "brand": "沃尔沃",
+    "cache_key": "5198_spec_2024_63870",
+    "car_id": "5198",
+    "discovery": "year-api",
+    "series": "沃尔沃XC40",
+    "spec_id": "63870",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63870.html",
+    "year": "2024"
+  },
+  "5198_spec_2026_73357": {
+    "brand": "沃尔沃",
+    "cache_key": "5198_spec_2026_73357",
+    "car_id": "5198",
+    "discovery": "year-api",
+    "series": "沃尔沃XC40",
+    "spec_id": "73357",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73357.html",
+    "year": "2026"
   },
   "5199": {
     "brand": "雪佛兰",
@@ -30965,6 +32364,28 @@
     "series": "零跑C11",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5205.html"
+  },
+  "5205_spec_2023_61515": {
+    "brand": "零跑汽车",
+    "cache_key": "5205_spec_2023_61515",
+    "car_id": "5205",
+    "discovery": "year-api",
+    "series": "零跑C11",
+    "spec_id": "61515",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61515.html",
+    "year": "2023"
+  },
+  "5205_spec_2024_66882": {
+    "brand": "零跑汽车",
+    "cache_key": "5205_spec_2024_66882",
+    "car_id": "5205",
+    "discovery": "year-api",
+    "series": "零跑C11",
+    "spec_id": "66882",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66882.html",
+    "year": "2024"
   },
   "5206": {
     "brand": "华人运通",
@@ -33186,6 +34607,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5425.html"
   },
+  "5425_spec_2022_54511": {
+    "brand": "红旗",
+    "cache_key": "5425_spec_2022_54511",
+    "car_id": "5425",
+    "discovery": "year-api",
+    "series": "红旗E-HS9",
+    "spec_id": "54511",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54511.html",
+    "year": "2022"
+  },
   "5426": {
     "brand": "魏牌",
     "cache_key": "5426",
@@ -33545,6 +34977,39 @@
     "series": "迈巴赫GLS",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5462.html"
+  },
+  "5462_spec_2022_58989": {
+    "brand": "奔驰",
+    "cache_key": "5462_spec_2022_58989",
+    "car_id": "5462",
+    "discovery": "year-api",
+    "series": "迈巴赫GLS",
+    "spec_id": "58989",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/58989.html",
+    "year": "2022"
+  },
+  "5462_spec_2024_66811": {
+    "brand": "奔驰",
+    "cache_key": "5462_spec_2024_66811",
+    "car_id": "5462",
+    "discovery": "year-api",
+    "series": "迈巴赫GLS",
+    "spec_id": "66811",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66811.html",
+    "year": "2024"
+  },
+  "5462_spec_2025_70925": {
+    "brand": "奔驰",
+    "cache_key": "5462_spec_2025_70925",
+    "car_id": "5462",
+    "discovery": "year-api",
+    "series": "迈巴赫GLS",
+    "spec_id": "70925",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70925.html",
+    "year": "2025"
   },
   "5463": {
     "brand": "大发",
@@ -34015,6 +35480,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5508.html"
   },
+  "5508_spec_2022_55117": {
+    "brand": "奥迪",
+    "cache_key": "5508_spec_2022_55117",
+    "car_id": "5508",
+    "discovery": "year-api",
+    "series": "奥迪RS Q8",
+    "spec_id": "55117",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55117.html",
+    "year": "2022"
+  },
   "5509": {
     "brand": "Neuron EV",
     "cache_key": "5509",
@@ -34456,6 +35932,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5555.html"
   },
+  "5555_spec_2023_59347": {
+    "brand": "领克",
+    "cache_key": "5555_spec_2023_59347",
+    "car_id": "5555",
+    "discovery": "year-api",
+    "series": "领克06",
+    "spec_id": "59347",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59347.html",
+    "year": "2023"
+  },
+  "5555_spec_2025_79076": {
+    "brand": "领克",
+    "cache_key": "5555_spec_2025_79076",
+    "car_id": "5555",
+    "discovery": "year-api",
+    "series": "领克06",
+    "spec_id": "79076",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/79076.html",
+    "year": "2025"
+  },
   "5556": {
     "brand": "福特",
     "cache_key": "5556",
@@ -34473,6 +35971,39 @@
     "series": "领克06 EM-P",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5557.html"
+  },
+  "5557_spec_2022_53399": {
+    "brand": "领克",
+    "cache_key": "5557_spec_2022_53399",
+    "car_id": "5557",
+    "discovery": "year-api",
+    "series": "领克06 EM-P",
+    "spec_id": "53399",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53399.html",
+    "year": "2022"
+  },
+  "5557_spec_2023_65576": {
+    "brand": "领克",
+    "cache_key": "5557_spec_2023_65576",
+    "car_id": "5557",
+    "discovery": "year-api",
+    "series": "领克06 EM-P",
+    "spec_id": "65576",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65576.html",
+    "year": "2023"
+  },
+  "5557_spec_2024_68224": {
+    "brand": "领克",
+    "cache_key": "5557_spec_2024_68224",
+    "car_id": "5557",
+    "discovery": "year-api",
+    "series": "领克06 EM-P",
+    "spec_id": "68224",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68224.html",
+    "year": "2024"
   },
   "5558": {
     "brand": "大众",
@@ -34603,6 +36134,50 @@
     "series": "蔚来EC6",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5569.html"
+  },
+  "5569_spec_2022_57706": {
+    "brand": "蔚来",
+    "cache_key": "5569_spec_2022_57706",
+    "car_id": "5569",
+    "discovery": "year-api",
+    "series": "蔚来EC6",
+    "spec_id": "57706",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57706.html",
+    "year": "2022"
+  },
+  "5569_spec_2023_61552": {
+    "brand": "蔚来",
+    "cache_key": "5569_spec_2023_61552",
+    "car_id": "5569",
+    "discovery": "year-api",
+    "series": "蔚来EC6",
+    "spec_id": "61552",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61552.html",
+    "year": "2023"
+  },
+  "5569_spec_2024_66806": {
+    "brand": "蔚来",
+    "cache_key": "5569_spec_2024_66806",
+    "car_id": "5569",
+    "discovery": "year-api",
+    "series": "蔚来EC6",
+    "spec_id": "66806",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66806.html",
+    "year": "2024"
+  },
+  "5569_spec_2025_73007": {
+    "brand": "蔚来",
+    "cache_key": "5569_spec_2025_73007",
+    "car_id": "5569",
+    "discovery": "year-api",
+    "series": "蔚来EC6",
+    "spec_id": "73007",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73007.html",
+    "year": "2025"
   },
   "557": {
     "brand": "大众",
@@ -36605,6 +38180,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5770.html"
   },
+  "5770_spec_2022_57698": {
+    "brand": "哈弗",
+    "cache_key": "5770_spec_2022_57698",
+    "car_id": "5770",
+    "discovery": "year-api",
+    "series": "哈弗大狗",
+    "spec_id": "57698",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57698.html",
+    "year": "2022"
+  },
+  "5770_spec_2024_63803": {
+    "brand": "哈弗",
+    "cache_key": "5770_spec_2024_63803",
+    "car_id": "5770",
+    "discovery": "year-api",
+    "series": "哈弗大狗",
+    "spec_id": "63803",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63803.html",
+    "year": "2024"
+  },
   "5771": {
     "brand": "北京越野",
     "cache_key": "5771",
@@ -36991,6 +38588,61 @@
     "series": "坦克300",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5810.html"
+  },
+  "5810_spec_2022_58377": {
+    "brand": "坦克",
+    "cache_key": "5810_spec_2022_58377",
+    "car_id": "5810",
+    "discovery": "year-api",
+    "series": "坦克300",
+    "spec_id": "58377",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/58377.html",
+    "year": "2022"
+  },
+  "5810_spec_2023_59195": {
+    "brand": "坦克",
+    "cache_key": "5810_spec_2023_59195",
+    "car_id": "5810",
+    "discovery": "year-api",
+    "series": "坦克300",
+    "spec_id": "59195",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59195.html",
+    "year": "2023"
+  },
+  "5810_spec_2024_64147": {
+    "brand": "坦克",
+    "cache_key": "5810_spec_2024_64147",
+    "car_id": "5810",
+    "discovery": "year-api",
+    "series": "坦克300",
+    "spec_id": "64147",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64147.html",
+    "year": "2024"
+  },
+  "5810_spec_2025_75804": {
+    "brand": "坦克",
+    "cache_key": "5810_spec_2025_75804",
+    "car_id": "5810",
+    "discovery": "year-api",
+    "series": "坦克300",
+    "spec_id": "75804",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/75804.html",
+    "year": "2025"
+  },
+  "5810_spec_2026_79196": {
+    "brand": "坦克",
+    "cache_key": "5810_spec_2026_79196",
+    "car_id": "5810",
+    "discovery": "year-api",
+    "series": "坦克300",
+    "spec_id": "79196",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/79196.html",
+    "year": "2026"
   },
   "5812": {
     "brand": "广汽传祺",
@@ -38039,6 +39691,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5912.html"
   },
+  "5912_spec_2022_54819": {
+    "brand": "奥迪",
+    "cache_key": "5912_spec_2022_54819",
+    "car_id": "5912",
+    "discovery": "year-api",
+    "series": "奥迪Q5L Sportback",
+    "spec_id": "54819",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54819.html",
+    "year": "2022"
+  },
+  "5912_spec_2023_61966": {
+    "brand": "奥迪",
+    "cache_key": "5912_spec_2023_61966",
+    "car_id": "5912",
+    "discovery": "year-api",
+    "series": "奥迪Q5L Sportback",
+    "spec_id": "61966",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61966.html",
+    "year": "2023"
+  },
+  "5912_spec_2024_65465": {
+    "brand": "奥迪",
+    "cache_key": "5912_spec_2024_65465",
+    "car_id": "5912",
+    "discovery": "year-api",
+    "series": "奥迪Q5L Sportback",
+    "spec_id": "65465",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65465.html",
+    "year": "2024"
+  },
   "5913": {
     "brand": "大通",
     "cache_key": "5913",
@@ -38254,6 +39939,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5933.html"
   },
+  "5933_spec_2022_53582": {
+    "brand": "奥迪",
+    "cache_key": "5933_spec_2022_53582",
+    "car_id": "5933",
+    "discovery": "year-api",
+    "series": "奥迪Q3 Sportback",
+    "spec_id": "53582",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53582.html",
+    "year": "2022"
+  },
+  "5933_spec_2023_60349": {
+    "brand": "奥迪",
+    "cache_key": "5933_spec_2023_60349",
+    "car_id": "5933",
+    "discovery": "year-api",
+    "series": "奥迪Q3 Sportback",
+    "spec_id": "60349",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60349.html",
+    "year": "2023"
+  },
+  "5933_spec_2024_63979": {
+    "brand": "奥迪",
+    "cache_key": "5933_spec_2024_63979",
+    "car_id": "5933",
+    "discovery": "year-api",
+    "series": "奥迪Q3 Sportback",
+    "spec_id": "63979",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63979.html",
+    "year": "2024"
+  },
+  "5933_spec_2025_72924": {
+    "brand": "奥迪",
+    "cache_key": "5933_spec_2025_72924",
+    "car_id": "5933",
+    "discovery": "year-api",
+    "series": "奥迪Q3 Sportback",
+    "spec_id": "72924",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72924.html",
+    "year": "2025"
+  },
   "5934": {
     "brand": "新龙马汽车",
     "cache_key": "5934",
@@ -38334,6 +40063,50 @@
     "series": "捷途X70 PLUS",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5941.html"
+  },
+  "5941_spec_2022_57344": {
+    "brand": "捷途",
+    "cache_key": "5941_spec_2022_57344",
+    "car_id": "5941",
+    "discovery": "year-api",
+    "series": "捷途X70 PLUS",
+    "spec_id": "57344",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57344.html",
+    "year": "2022"
+  },
+  "5941_spec_2023_59604": {
+    "brand": "捷途",
+    "cache_key": "5941_spec_2023_59604",
+    "car_id": "5941",
+    "discovery": "year-api",
+    "series": "捷途X70 PLUS",
+    "spec_id": "59604",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59604.html",
+    "year": "2023"
+  },
+  "5941_spec_2024_67343": {
+    "brand": "捷途",
+    "cache_key": "5941_spec_2024_67343",
+    "car_id": "5941",
+    "discovery": "year-api",
+    "series": "捷途X70 PLUS",
+    "spec_id": "67343",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67343.html",
+    "year": "2024"
+  },
+  "5941_spec_2025_71505": {
+    "brand": "捷途",
+    "cache_key": "5941_spec_2025_71505",
+    "car_id": "5941",
+    "discovery": "year-api",
+    "series": "捷途X70 PLUS",
+    "spec_id": "71505",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71505.html",
+    "year": "2025"
   },
   "5942": {
     "brand": "星途",
@@ -39913,6 +41686,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6099.html"
   },
+  "60_spec_2022_54726": {
+    "brand": "奔驰",
+    "cache_key": "60_spec_2022_54726",
+    "car_id": "60",
+    "discovery": "year-api",
+    "series": "奔驰G级",
+    "spec_id": "54726",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54726.html",
+    "year": "2022"
+  },
+  "60_spec_2023_63384": {
+    "brand": "奔驰",
+    "cache_key": "60_spec_2023_63384",
+    "car_id": "60",
+    "discovery": "year-api",
+    "series": "奔驰G级",
+    "spec_id": "63384",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63384.html",
+    "year": "2023"
+  },
+  "60_spec_2024_65977": {
+    "brand": "奔驰",
+    "cache_key": "60_spec_2024_65977",
+    "car_id": "60",
+    "discovery": "year-api",
+    "series": "奔驰G级",
+    "spec_id": "65977",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65977.html",
+    "year": "2024"
+  },
+  "60_spec_2025_67435": {
+    "brand": "奔驰",
+    "cache_key": "60_spec_2025_67435",
+    "car_id": "60",
+    "discovery": "year-api",
+    "series": "奔驰G级",
+    "spec_id": "67435",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67435.html",
+    "year": "2025"
+  },
   "6100": {
     "brand": "dÄHLer",
     "cache_key": "6100",
@@ -40344,6 +42161,17 @@
     "series": "领克09",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6144.html"
+  },
+  "6144_spec_2024_69871": {
+    "brand": "领克",
+    "cache_key": "6144_spec_2024_69871",
+    "car_id": "6144",
+    "discovery": "year-api",
+    "series": "领克09",
+    "spec_id": "69871",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69871.html",
+    "year": "2024"
   },
   "6145": {
     "brand": "丰田",
@@ -41012,6 +42840,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6207.html"
   },
+  "6207_spec_2022_55375": {
+    "brand": "奔驰",
+    "cache_key": "6207_spec_2022_55375",
+    "car_id": "6207",
+    "discovery": "year-api",
+    "series": "奔驰GLE轿跑",
+    "spec_id": "55375",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55375.html",
+    "year": "2022"
+  },
+  "6207_spec_2023_60664": {
+    "brand": "奔驰",
+    "cache_key": "6207_spec_2023_60664",
+    "car_id": "6207",
+    "discovery": "year-api",
+    "series": "奔驰GLE轿跑",
+    "spec_id": "60664",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60664.html",
+    "year": "2023"
+  },
+  "6207_spec_2024_64471": {
+    "brand": "奔驰",
+    "cache_key": "6207_spec_2024_64471",
+    "car_id": "6207",
+    "discovery": "year-api",
+    "series": "奔驰GLE轿跑",
+    "spec_id": "64471",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64471.html",
+    "year": "2024"
+  },
+  "6207_spec_2025_70835": {
+    "brand": "奔驰",
+    "cache_key": "6207_spec_2025_70835",
+    "car_id": "6207",
+    "discovery": "year-api",
+    "series": "奔驰GLE轿跑",
+    "spec_id": "70835",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70835.html",
+    "year": "2025"
+  },
   "6208": {
     "brand": "奔驰",
     "cache_key": "6208",
@@ -41030,6 +42902,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6209.html"
   },
+  "6209_spec_2022_54948": {
+    "brand": "奔驰",
+    "cache_key": "6209_spec_2022_54948",
+    "car_id": "6209",
+    "discovery": "year-api",
+    "series": "奔驰GLE轿跑 AMG",
+    "spec_id": "54948",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54948.html",
+    "year": "2022"
+  },
+  "6209_spec_2023_62320": {
+    "brand": "奔驰",
+    "cache_key": "6209_spec_2023_62320",
+    "car_id": "6209",
+    "discovery": "year-api",
+    "series": "奔驰GLE轿跑 AMG",
+    "spec_id": "62320",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62320.html",
+    "year": "2023"
+  },
+  "6209_spec_2024_61396": {
+    "brand": "奔驰",
+    "cache_key": "6209_spec_2024_61396",
+    "car_id": "6209",
+    "discovery": "year-api",
+    "series": "奔驰GLE轿跑 AMG",
+    "spec_id": "61396",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61396.html",
+    "year": "2024"
+  },
   "621": {
     "brand": "奇瑞",
     "cache_key": "621",
@@ -41047,6 +42952,39 @@
     "series": "奔驰GLC轿跑 AMG",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6210.html"
+  },
+  "6210_spec_2022_51589": {
+    "brand": "奔驰",
+    "cache_key": "6210_spec_2022_51589",
+    "car_id": "6210",
+    "discovery": "year-api",
+    "series": "奔驰GLC轿跑 AMG",
+    "spec_id": "51589",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51589.html",
+    "year": "2022"
+  },
+  "6210_spec_2023_60493": {
+    "brand": "奔驰",
+    "cache_key": "6210_spec_2023_60493",
+    "car_id": "6210",
+    "discovery": "year-api",
+    "series": "奔驰GLC轿跑 AMG",
+    "spec_id": "60493",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60493.html",
+    "year": "2023"
+  },
+  "6210_spec_2024_68027": {
+    "brand": "奔驰",
+    "cache_key": "6210_spec_2024_68027",
+    "car_id": "6210",
+    "discovery": "year-api",
+    "series": "奔驰GLC轿跑 AMG",
+    "spec_id": "68027",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68027.html",
+    "year": "2024"
   },
   "6211": {
     "brand": "奔驰",
@@ -41800,6 +43738,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6284.html"
   },
+  "6284_spec_2022_54478": {
+    "brand": "坦克",
+    "cache_key": "6284_spec_2022_54478",
+    "car_id": "6284",
+    "discovery": "year-api",
+    "series": "坦克500",
+    "spec_id": "54478",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54478.html",
+    "year": "2022"
+  },
+  "6284_spec_2023_62029": {
+    "brand": "坦克",
+    "cache_key": "6284_spec_2023_62029",
+    "car_id": "6284",
+    "discovery": "year-api",
+    "series": "坦克500",
+    "spec_id": "62029",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62029.html",
+    "year": "2023"
+  },
   "6285": {
     "brand": "沃克斯豪尔",
     "cache_key": "6285",
@@ -42336,6 +44296,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6334.html"
   },
+  "6334_spec_2023_63330": {
+    "brand": "领克",
+    "cache_key": "6334_spec_2023_63330",
+    "car_id": "6334",
+    "discovery": "year-api",
+    "series": "领克09 EM-P",
+    "spec_id": "63330",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63330.html",
+    "year": "2023"
+  },
+  "6334_spec_2024_66224": {
+    "brand": "领克",
+    "cache_key": "6334_spec_2024_66224",
+    "car_id": "6334",
+    "discovery": "year-api",
+    "series": "领克09 EM-P",
+    "spec_id": "66224",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66224.html",
+    "year": "2024"
+  },
   "6335": {
     "brand": "长安",
     "cache_key": "6335",
@@ -42353,6 +44335,17 @@
     "series": "奥迪Q5 e-tron",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6336.html"
+  },
+  "6336_spec_2022_54423": {
+    "brand": "奥迪",
+    "cache_key": "6336_spec_2022_54423",
+    "car_id": "6336",
+    "discovery": "year-api",
+    "series": "奥迪Q5 e-tron",
+    "spec_id": "54423",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/54423.html",
+    "year": "2022"
   },
   "6337": {
     "brand": "比亚迪",
@@ -42579,6 +44572,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6359.html"
   },
+  "6359_spec_2025_62444": {
+    "brand": "坦克",
+    "cache_key": "6359_spec_2025_62444",
+    "car_id": "6359",
+    "discovery": "year-api",
+    "series": "坦克400",
+    "spec_id": "62444",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62444.html",
+    "year": "2025"
+  },
+  "6359_spec_2026_75895": {
+    "brand": "坦克",
+    "cache_key": "6359_spec_2026_75895",
+    "car_id": "6359",
+    "discovery": "year-api",
+    "series": "坦克400",
+    "spec_id": "75895",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/75895.html",
+    "year": "2026"
+  },
   "6360": {
     "brand": "力帆汽车",
     "cache_key": "6360",
@@ -42732,6 +44747,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6376.html"
   },
+  "6376_spec_2024_68012": {
+    "brand": "奔驰",
+    "cache_key": "6376_spec_2024_68012",
+    "car_id": "6376",
+    "discovery": "year-api",
+    "series": "迈巴赫EQS SUV",
+    "spec_id": "68012",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68012.html",
+    "year": "2024"
+  },
   "6377": {
     "brand": "保时捷",
     "cache_key": "6377",
@@ -42850,6 +44876,39 @@
     "series": "问界M5",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6388.html"
+  },
+  "6388_spec_2022_55142": {
+    "brand": "AITO 问界",
+    "cache_key": "6388_spec_2022_55142",
+    "car_id": "6388",
+    "discovery": "year-api",
+    "series": "问界M5",
+    "spec_id": "55142",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55142.html",
+    "year": "2022"
+  },
+  "6388_spec_2023_62503": {
+    "brand": "AITO 问界",
+    "cache_key": "6388_spec_2023_62503",
+    "car_id": "6388",
+    "discovery": "year-api",
+    "series": "问界M5",
+    "spec_id": "62503",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62503.html",
+    "year": "2023"
+  },
+  "6388_spec_2024_67783": {
+    "brand": "AITO 问界",
+    "cache_key": "6388_spec_2024_67783",
+    "car_id": "6388",
+    "discovery": "year-api",
+    "series": "问界M5",
+    "spec_id": "67783",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67783.html",
+    "year": "2024"
   },
   "6389": {
     "brand": "思皓",
@@ -43012,6 +45071,28 @@
     "series": "IQ锐歌",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6404.html"
+  },
+  "6404_spec_2022_53345": {
+    "brand": "凯迪拉克",
+    "cache_key": "6404_spec_2022_53345",
+    "car_id": "6404",
+    "discovery": "year-api",
+    "series": "IQ锐歌",
+    "spec_id": "53345",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53345.html",
+    "year": "2022"
+  },
+  "6404_spec_2024_65853": {
+    "brand": "凯迪拉克",
+    "cache_key": "6404_spec_2024_65853",
+    "car_id": "6404",
+    "discovery": "year-api",
+    "series": "IQ锐歌",
+    "spec_id": "65853",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65853.html",
+    "year": "2024"
   },
   "6405": {
     "brand": "雪佛兰",
@@ -43520,6 +45601,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6453.html"
   },
+  "6453_spec_2022_53838": {
+    "brand": "蔚来",
+    "cache_key": "6453_spec_2022_53838",
+    "car_id": "6453",
+    "discovery": "year-api",
+    "series": "蔚来ET5",
+    "spec_id": "53838",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53838.html",
+    "year": "2022"
+  },
+  "6453_spec_2024_66794": {
+    "brand": "蔚来",
+    "cache_key": "6453_spec_2024_66794",
+    "car_id": "6453",
+    "discovery": "year-api",
+    "series": "蔚来ET5",
+    "spec_id": "66794",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66794.html",
+    "year": "2024"
+  },
+  "6453_spec_2025_73013": {
+    "brand": "蔚来",
+    "cache_key": "6453_spec_2025_73013",
+    "car_id": "6453",
+    "discovery": "year-api",
+    "series": "蔚来ET5",
+    "spec_id": "73013",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73013.html",
+    "year": "2025"
+  },
   "6454": {
     "brand": "标致",
     "cache_key": "6454",
@@ -43582,6 +45696,17 @@
     "series": "红旗金葵花国耀",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6461.html"
+  },
+  "6461_spec_2022_56746": {
+    "brand": "红旗",
+    "cache_key": "6461_spec_2022_56746",
+    "car_id": "6461",
+    "discovery": "year-api",
+    "series": "红旗金葵花国耀",
+    "spec_id": "56746",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56746.html",
+    "year": "2022"
   },
   "6462": {
     "brand": "奔驰",
@@ -43717,6 +45842,28 @@
     "series": "长安欧尚Z6",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6476.html"
+  },
+  "6476_spec_2022_56825": {
+    "brand": "长安欧尚",
+    "cache_key": "6476_spec_2022_56825",
+    "car_id": "6476",
+    "discovery": "year-api",
+    "series": "长安欧尚Z6",
+    "spec_id": "56825",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56825.html",
+    "year": "2022"
+  },
+  "6476_spec_2023_63332": {
+    "brand": "长安欧尚",
+    "cache_key": "6476_spec_2023_63332",
+    "car_id": "6476",
+    "discovery": "year-api",
+    "series": "长安欧尚Z6",
+    "spec_id": "63332",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63332.html",
+    "year": "2023"
   },
   "6477": {
     "brand": "林肯",
@@ -43862,6 +46009,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6492.html"
   },
+  "6492_spec_2022_59629": {
+    "brand": "小鹏",
+    "cache_key": "6492_spec_2022_59629",
+    "car_id": "6492",
+    "discovery": "year-api",
+    "series": "小鹏G9",
+    "spec_id": "59629",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59629.html",
+    "year": "2022"
+  },
+  "6492_spec_2024_64877": {
+    "brand": "小鹏",
+    "cache_key": "6492_spec_2024_64877",
+    "car_id": "6492",
+    "discovery": "year-api",
+    "series": "小鹏G9",
+    "spec_id": "64877",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64877.html",
+    "year": "2024"
+  },
+  "6492_spec_2025_71060": {
+    "brand": "小鹏",
+    "cache_key": "6492_spec_2025_71060",
+    "car_id": "6492",
+    "discovery": "year-api",
+    "series": "小鹏G9",
+    "spec_id": "71060",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71060.html",
+    "year": "2025"
+  },
   "6493": {
     "brand": "现代",
     "cache_key": "6493",
@@ -43888,6 +46068,17 @@
     "series": "影酷",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6495.html"
+  },
+  "6495_spec_2022_59733": {
+    "brand": "广汽传祺",
+    "cache_key": "6495_spec_2022_59733",
+    "car_id": "6495",
+    "discovery": "year-api",
+    "series": "影酷",
+    "spec_id": "59733",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59733.html",
+    "year": "2022"
   },
   "6496": {
     "brand": "福特",
@@ -43987,6 +46178,39 @@
     "series": "奥迪Q4 e-tron",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6504.html"
+  },
+  "6504_spec_2022_57253": {
+    "brand": "奥迪",
+    "cache_key": "6504_spec_2022_57253",
+    "car_id": "6504",
+    "discovery": "year-api",
+    "series": "奥迪Q4 e-tron",
+    "spec_id": "57253",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57253.html",
+    "year": "2022"
+  },
+  "6504_spec_2023_61945": {
+    "brand": "奥迪",
+    "cache_key": "6504_spec_2023_61945",
+    "car_id": "6504",
+    "discovery": "year-api",
+    "series": "奥迪Q4 e-tron",
+    "spec_id": "61945",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61945.html",
+    "year": "2023"
+  },
+  "6504_spec_2024_65048": {
+    "brand": "奥迪",
+    "cache_key": "6504_spec_2024_65048",
+    "car_id": "6504",
+    "discovery": "year-api",
+    "series": "奥迪Q4 e-tron",
+    "spec_id": "65048",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65048.html",
+    "year": "2024"
   },
   "6505": {
     "brand": "丰田",
@@ -44186,6 +46410,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6525.html"
   },
+  "6525_spec_2023_61234": {
+    "brand": "雷克萨斯",
+    "cache_key": "6525_spec_2023_61234",
+    "car_id": "6525",
+    "discovery": "year-api",
+    "series": "雷克萨斯RZ",
+    "spec_id": "61234",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61234.html",
+    "year": "2023"
+  },
   "6526": {
     "brand": "奥迪",
     "cache_key": "6526",
@@ -44194,6 +46429,50 @@
     "series": "奥迪Q6",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6526.html"
+  },
+  "6526_spec_2023_58452": {
+    "brand": "奥迪",
+    "cache_key": "6526_spec_2023_58452",
+    "car_id": "6526",
+    "discovery": "year-api",
+    "series": "奥迪Q6",
+    "spec_id": "58452",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/58452.html",
+    "year": "2023"
+  },
+  "6526_spec_2024_64913": {
+    "brand": "奥迪",
+    "cache_key": "6526_spec_2024_64913",
+    "car_id": "6526",
+    "discovery": "year-api",
+    "series": "奥迪Q6",
+    "spec_id": "64913",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64913.html",
+    "year": "2024"
+  },
+  "6526_spec_2025_73016": {
+    "brand": "奥迪",
+    "cache_key": "6526_spec_2025_73016",
+    "car_id": "6526",
+    "discovery": "year-api",
+    "series": "奥迪Q6",
+    "spec_id": "73016",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73016.html",
+    "year": "2025"
+  },
+  "6526_spec_2026_76311": {
+    "brand": "奥迪",
+    "cache_key": "6526_spec_2026_76311",
+    "car_id": "6526",
+    "discovery": "year-api",
+    "series": "奥迪Q6",
+    "spec_id": "76311",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/76311.html",
+    "year": "2026"
   },
   "6527": {
     "brand": "保时捷",
@@ -44788,6 +47067,50 @@
     "series": "理想L9",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6576.html"
+  },
+  "6576_spec_2022_55106": {
+    "brand": "理想汽车",
+    "cache_key": "6576_spec_2022_55106",
+    "car_id": "6576",
+    "discovery": "year-api",
+    "series": "理想L9",
+    "spec_id": "55106",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55106.html",
+    "year": "2022"
+  },
+  "6576_spec_2023_64012": {
+    "brand": "理想汽车",
+    "cache_key": "6576_spec_2023_64012",
+    "car_id": "6576",
+    "discovery": "year-api",
+    "series": "理想L9",
+    "spec_id": "64012",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64012.html",
+    "year": "2023"
+  },
+  "6576_spec_2024_66844": {
+    "brand": "理想汽车",
+    "cache_key": "6576_spec_2024_66844",
+    "car_id": "6576",
+    "discovery": "year-api",
+    "series": "理想L9",
+    "spec_id": "66844",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66844.html",
+    "year": "2024"
+  },
+  "6576_spec_2025_72993": {
+    "brand": "理想汽车",
+    "cache_key": "6576_spec_2025_72993",
+    "car_id": "6576",
+    "discovery": "year-api",
+    "series": "理想L9",
+    "spec_id": "72993",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72993.html",
+    "year": "2025"
   },
   "6577": {
     "brand": "福田",
@@ -45474,6 +47797,28 @@
     "series": "问界M7",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6643.html"
+  },
+  "6643_spec_2022_57099": {
+    "brand": "AITO 问界",
+    "cache_key": "6643_spec_2022_57099",
+    "car_id": "6643",
+    "discovery": "year-api",
+    "series": "问界M7",
+    "spec_id": "57099",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57099.html",
+    "year": "2022"
+  },
+  "6643_spec_2024_64496": {
+    "brand": "AITO 问界",
+    "cache_key": "6643_spec_2024_64496",
+    "car_id": "6643",
+    "discovery": "year-api",
+    "series": "问界M7",
+    "spec_id": "64496",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64496.html",
+    "year": "2024"
   },
   "6644": {
     "brand": "WALD",
@@ -46850,6 +49195,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6774.html"
   },
+  "6774_history_pending": {
+    "brand": "凯迪拉克",
+    "car_id": "6774",
+    "retry_count": 1,
+    "series": "凯迪拉克GT4",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/6774/sale.html"
+  },
   "6775": {
     "brand": "菲亚特",
     "cache_key": "6775",
@@ -48153,6 +50507,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6899.html"
   },
+  "6899_spec_2023_59025": {
+    "brand": "奥迪",
+    "cache_key": "6899_spec_2023_59025",
+    "car_id": "6899",
+    "discovery": "year-api",
+    "series": "奥迪SQ5 Sportback",
+    "spec_id": "59025",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59025.html",
+    "year": "2023"
+  },
   "69": {
     "brand": "路虎",
     "cache_key": "69",
@@ -48279,6 +50644,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6910.html"
   },
+  "6910_spec_2023_61496": {
+    "brand": "理想汽车",
+    "cache_key": "6910_spec_2023_61496",
+    "car_id": "6910",
+    "discovery": "year-api",
+    "series": "理想L8",
+    "spec_id": "61496",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61496.html",
+    "year": "2023"
+  },
+  "6910_spec_2024_66845": {
+    "brand": "理想汽车",
+    "cache_key": "6910_spec_2024_66845",
+    "car_id": "6910",
+    "discovery": "year-api",
+    "series": "理想L8",
+    "spec_id": "66845",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66845.html",
+    "year": "2024"
+  },
+  "6910_spec_2025_72991": {
+    "brand": "理想汽车",
+    "cache_key": "6910_spec_2025_72991",
+    "car_id": "6910",
+    "discovery": "year-api",
+    "series": "理想L8",
+    "spec_id": "72991",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72991.html",
+    "year": "2025"
+  },
   "6911": {
     "brand": "纳智捷",
     "cache_key": "6911",
@@ -48305,6 +50703,17 @@
     "series": "红旗天工08",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6913.html"
+  },
+  "6913_spec_2025_72443": {
+    "brand": "红旗",
+    "cache_key": "6913_spec_2025_72443",
+    "car_id": "6913",
+    "discovery": "year-api",
+    "series": "红旗天工08",
+    "spec_id": "72443",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72443.html",
+    "year": "2025"
   },
   "6914": {
     "brand": "红旗",
@@ -48422,6 +50831,17 @@
     "series": "哈弗大狗 PLUS",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6926.html"
+  },
+  "6926_spec_2023_61331": {
+    "brand": "哈弗",
+    "cache_key": "6926_spec_2023_61331",
+    "car_id": "6926",
+    "discovery": "year-api",
+    "series": "哈弗大狗 PLUS",
+    "spec_id": "61331",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61331.html",
+    "year": "2023"
   },
   "6927": {
     "brand": "江南汽车",
@@ -48656,6 +51076,28 @@
     "series": "理想L6",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6950.html"
+  },
+  "6950_spec_2024_66437": {
+    "brand": "理想汽车",
+    "cache_key": "6950_spec_2024_66437",
+    "car_id": "6950",
+    "discovery": "year-api",
+    "series": "理想L6",
+    "spec_id": "66437",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66437.html",
+    "year": "2024"
+  },
+  "6950_spec_2025_72753": {
+    "brand": "理想汽车",
+    "cache_key": "6950_spec_2025_72753",
+    "car_id": "6950",
+    "discovery": "year-api",
+    "series": "理想L6",
+    "spec_id": "72753",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72753.html",
+    "year": "2025"
   },
   "6951": {
     "brand": "睿蓝汽车",
@@ -49106,6 +51548,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6994.html"
   },
+  "6994_spec_2023_60182": {
+    "brand": "蔚来",
+    "cache_key": "6994_spec_2023_60182",
+    "car_id": "6994",
+    "discovery": "year-api",
+    "series": "蔚来EC7",
+    "spec_id": "60182",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60182.html",
+    "year": "2023"
+  },
+  "6994_spec_2024_66804": {
+    "brand": "蔚来",
+    "cache_key": "6994_spec_2024_66804",
+    "car_id": "6994",
+    "discovery": "year-api",
+    "series": "蔚来EC7",
+    "spec_id": "66804",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66804.html",
+    "year": "2024"
+  },
   "6995": {
     "brand": "奇瑞",
     "cache_key": "6995",
@@ -49150,6 +51614,61 @@
     "series": "探索06",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6999.html"
+  },
+  "69_spec_2022_53734": {
+    "brand": "路虎",
+    "cache_key": "69_spec_2022_53734",
+    "car_id": "69",
+    "discovery": "year-api",
+    "series": "揽胜",
+    "spec_id": "53734",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53734.html",
+    "year": "2022"
+  },
+  "69_spec_2023_57781": {
+    "brand": "路虎",
+    "cache_key": "69_spec_2023_57781",
+    "car_id": "69",
+    "discovery": "year-api",
+    "series": "揽胜",
+    "spec_id": "57781",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57781.html",
+    "year": "2023"
+  },
+  "69_spec_2024_65473": {
+    "brand": "路虎",
+    "cache_key": "69_spec_2024_65473",
+    "car_id": "69",
+    "discovery": "year-api",
+    "series": "揽胜",
+    "spec_id": "65473",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65473.html",
+    "year": "2024"
+  },
+  "69_spec_2025_69877": {
+    "brand": "路虎",
+    "cache_key": "69_spec_2025_69877",
+    "car_id": "69",
+    "discovery": "year-api",
+    "series": "揽胜",
+    "spec_id": "69877",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69877.html",
+    "year": "2025"
+  },
+  "69_spec_2026_77321": {
+    "brand": "路虎",
+    "cache_key": "69_spec_2026_77321",
+    "car_id": "69",
+    "discovery": "year-api",
+    "series": "揽胜",
+    "spec_id": "77321",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/77321.html",
+    "year": "2026"
   },
   "700": {
     "brand": "大众",
@@ -49998,6 +52517,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7092.html"
   },
+  "7092_spec_2023_64339": {
+    "brand": "哈弗",
+    "cache_key": "7092_spec_2023_64339",
+    "car_id": "7092",
+    "discovery": "year-api",
+    "series": "哈弗H5",
+    "spec_id": "64339",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64339.html",
+    "year": "2023"
+  },
+  "7092_spec_2024_66997": {
+    "brand": "哈弗",
+    "cache_key": "7092_spec_2024_66997",
+    "car_id": "7092",
+    "discovery": "year-api",
+    "series": "哈弗H5",
+    "spec_id": "66997",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66997.html",
+    "year": "2024"
+  },
+  "7092_spec_2025_72581": {
+    "brand": "哈弗",
+    "cache_key": "7092_spec_2025_72581",
+    "car_id": "7092",
+    "discovery": "year-api",
+    "series": "哈弗H5",
+    "spec_id": "72581",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72581.html",
+    "year": "2025"
+  },
   "7093": {
     "brand": "Radical",
     "cache_key": "7093",
@@ -50358,6 +52910,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7130.html"
   },
+  "7130_spec_2023_63841": {
+    "brand": "红旗",
+    "cache_key": "7130_spec_2023_63841",
+    "car_id": "7130",
+    "discovery": "year-api",
+    "series": "红旗HS3",
+    "spec_id": "63841",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63841.html",
+    "year": "2023"
+  },
+  "7130_spec_2024_69590": {
+    "brand": "红旗",
+    "cache_key": "7130_spec_2024_69590",
+    "car_id": "7130",
+    "discovery": "year-api",
+    "series": "红旗HS3",
+    "spec_id": "69590",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69590.html",
+    "year": "2024"
+  },
   "7131": {
     "brand": "丰田",
     "cache_key": "7131",
@@ -50538,6 +53112,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7150.html"
   },
+  "7150_spec_2023_63073": {
+    "brand": "哈弗",
+    "cache_key": "7150_spec_2023_63073",
+    "car_id": "7150",
+    "discovery": "year-api",
+    "series": "哈弗枭龙MAX",
+    "spec_id": "63073",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63073.html",
+    "year": "2023"
+  },
   "7151": {
     "brand": "凯马",
     "cache_key": "7151",
@@ -50645,6 +53230,39 @@
     "series": "小鹏G6",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7162.html"
+  },
+  "7162_spec_2023_63602": {
+    "brand": "小鹏",
+    "cache_key": "7162_spec_2023_63602",
+    "car_id": "7162",
+    "discovery": "year-api",
+    "series": "小鹏G6",
+    "spec_id": "63602",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63602.html",
+    "year": "2023"
+  },
+  "7162_spec_2024_67665": {
+    "brand": "小鹏",
+    "cache_key": "7162_spec_2024_67665",
+    "car_id": "7162",
+    "discovery": "year-api",
+    "series": "小鹏G6",
+    "spec_id": "67665",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67665.html",
+    "year": "2024"
+  },
+  "7162_spec_2025_71058": {
+    "brand": "小鹏",
+    "cache_key": "7162_spec_2025_71058",
+    "car_id": "7162",
+    "discovery": "year-api",
+    "series": "小鹏G6",
+    "spec_id": "71058",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71058.html",
+    "year": "2025"
   },
   "7163": {
     "brand": "江铃晶马汽车",
@@ -51069,6 +53687,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7207.html"
   },
+  "7207_spec_2024_62434": {
+    "brand": "AITO 问界",
+    "cache_key": "7207_spec_2024_62434",
+    "car_id": "7207",
+    "discovery": "year-api",
+    "series": "问界M9",
+    "spec_id": "62434",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62434.html",
+    "year": "2024"
+  },
+  "7207_spec_2025_71840": {
+    "brand": "AITO 问界",
+    "cache_key": "7207_spec_2025_71840",
+    "car_id": "7207",
+    "discovery": "year-api",
+    "series": "问界M9",
+    "spec_id": "71840",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71840.html",
+    "year": "2025"
+  },
   "7208": {
     "brand": "大众",
     "cache_key": "7208",
@@ -51367,6 +54007,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7230.html"
   },
+  "7230_history_pending": {
+    "brand": "沃尔沃",
+    "car_id": "7230",
+    "retry_count": 1,
+    "series": "沃尔沃EX90",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7230/sale.html"
+  },
   "7231": {
     "brand": "奔腾",
     "cache_key": "7231",
@@ -51492,6 +54141,50 @@
     "series": "领克08 EM-P",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7243.html"
+  },
+  "7243_spec_2023_64099": {
+    "brand": "领克",
+    "cache_key": "7243_spec_2023_64099",
+    "car_id": "7243",
+    "discovery": "year-api",
+    "series": "领克08 EM-P",
+    "spec_id": "64099",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64099.html",
+    "year": "2023"
+  },
+  "7243_spec_2024_67774": {
+    "brand": "领克",
+    "cache_key": "7243_spec_2024_67774",
+    "car_id": "7243",
+    "discovery": "year-api",
+    "series": "领克08 EM-P",
+    "spec_id": "67774",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67774.html",
+    "year": "2024"
+  },
+  "7243_spec_2025_69400": {
+    "brand": "领克",
+    "cache_key": "7243_spec_2025_69400",
+    "car_id": "7243",
+    "discovery": "year-api",
+    "series": "领克08 EM-P",
+    "spec_id": "69400",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69400.html",
+    "year": "2025"
+  },
+  "7243_spec_2026_73823": {
+    "brand": "领克",
+    "cache_key": "7243_spec_2026_73823",
+    "car_id": "7243",
+    "discovery": "year-api",
+    "series": "领克08 EM-P",
+    "spec_id": "73823",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73823.html",
+    "year": "2026"
   },
   "7244": {
     "brand": "本田",
@@ -51817,6 +54510,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7275.html"
   },
+  "7275_history_pending": {
+    "brand": "沃尔沃",
+    "car_id": "7275",
+    "retry_count": 1,
+    "series": "沃尔沃EX30",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7275/sale.html"
+  },
   "7276": {
     "brand": "大通",
     "cache_key": "7276",
@@ -52105,6 +54807,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7306.html"
   },
+  "7306_spec_2023_63469": {
+    "brand": "蔚来",
+    "cache_key": "7306_spec_2023_63469",
+    "car_id": "7306",
+    "discovery": "year-api",
+    "series": "蔚来ET5T",
+    "spec_id": "63469",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63469.html",
+    "year": "2023"
+  },
+  "7306_spec_2024_66792": {
+    "brand": "蔚来",
+    "cache_key": "7306_spec_2024_66792",
+    "car_id": "7306",
+    "discovery": "year-api",
+    "series": "蔚来ET5T",
+    "spec_id": "66792",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66792.html",
+    "year": "2024"
+  },
+  "7306_spec_2025_73014": {
+    "brand": "蔚来",
+    "cache_key": "7306_spec_2025_73014",
+    "car_id": "7306",
+    "discovery": "year-api",
+    "series": "蔚来ET5T",
+    "spec_id": "73014",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73014.html",
+    "year": "2025"
+  },
   "7307": {
     "brand": "金龙",
     "cache_key": "7307",
@@ -52338,6 +55073,15 @@
     "series": "IQ傲歌",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7332.html"
+  },
+  "7332_history_pending": {
+    "brand": "凯迪拉克",
+    "car_id": "7332",
+    "retry_count": 1,
+    "series": "IQ傲歌",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7332/sale.html"
   },
   "7333": {
     "brand": "大通",
@@ -52807,6 +55551,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7382.html"
   },
+  "7382_spec_2024_66918": {
+    "brand": "零跑汽车",
+    "cache_key": "7382_spec_2024_66918",
+    "car_id": "7382",
+    "discovery": "year-api",
+    "series": "零跑C10",
+    "spec_id": "66918",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66918.html",
+    "year": "2024"
+  },
   "7383": {
     "brand": "雷诺",
     "cache_key": "7383",
@@ -53121,6 +55876,15 @@
     "series": "奥迪Q6L e-tron",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7413.html"
+  },
+  "7413_history_pending": {
+    "brand": "奥迪",
+    "car_id": "7413",
+    "retry_count": 1,
+    "series": "奥迪Q6L e-tron",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7413/sale.html"
   },
   "7414": {
     "brand": "奔驰",
@@ -54901,6 +57665,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7590.html"
   },
+  "7590_spec_2024_72394": {
+    "brand": "红旗",
+    "cache_key": "7590_spec_2024_72394",
+    "car_id": "7590",
+    "discovery": "year-api",
+    "series": "红旗HS7 PHEV",
+    "spec_id": "72394",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72394.html",
+    "year": "2024"
+  },
+  "7590_spec_2025_74098": {
+    "brand": "红旗",
+    "cache_key": "7590_spec_2025_74098",
+    "car_id": "7590",
+    "discovery": "year-api",
+    "series": "红旗HS7 PHEV",
+    "spec_id": "74098",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/74098.html",
+    "year": "2025"
+  },
   "7591": {
     "brand": "名爵",
     "cache_key": "7591",
@@ -55724,6 +58510,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7673.html"
   },
+  "7673_spec_2024_67738": {
+    "brand": "红旗",
+    "cache_key": "7673_spec_2024_67738",
+    "car_id": "7673",
+    "discovery": "year-api",
+    "series": "红旗HS3 PHEV",
+    "spec_id": "67738",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/67738.html",
+    "year": "2024"
+  },
   "7674": {
     "brand": "零跑汽车",
     "cache_key": "7674",
@@ -55732,6 +58529,17 @@
     "series": "零跑C16",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7674.html"
+  },
+  "7674_spec_2024_68596": {
+    "brand": "零跑汽车",
+    "cache_key": "7674_spec_2024_68596",
+    "car_id": "7674",
+    "discovery": "year-api",
+    "series": "零跑C16",
+    "spec_id": "68596",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68596.html",
+    "year": "2024"
   },
   "7675": {
     "brand": "玛莎拉蒂",
@@ -56043,6 +58851,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7704.html"
   },
+  "7704_spec_2025_71047": {
+    "brand": "红旗",
+    "cache_key": "7704_spec_2025_71047",
+    "car_id": "7704",
+    "discovery": "year-api",
+    "series": "红旗天工06",
+    "spec_id": "71047",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71047.html",
+    "year": "2025"
+  },
   "7705": {
     "brand": "红旗",
     "cache_key": "7705",
@@ -56351,6 +59170,17 @@
     "series": "理想i8",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7727.html"
+  },
+  "7727_spec_2025_74102": {
+    "brand": "理想汽车",
+    "cache_key": "7727_spec_2025_74102",
+    "car_id": "7727",
+    "discovery": "year-api",
+    "series": "理想i8",
+    "spec_id": "74102",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/74102.html",
+    "year": "2025"
   },
   "7728": {
     "brand": "岚图汽车",
@@ -57189,6 +60019,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7812.html"
   },
+  "7812_spec_2025_70771": {
+    "brand": "领克",
+    "cache_key": "7812_spec_2025_70771",
+    "car_id": "7812",
+    "discovery": "year-api",
+    "series": "领克Z20",
+    "spec_id": "70771",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70771.html",
+    "year": "2025"
+  },
+  "7812_spec_2026_73953": {
+    "brand": "领克",
+    "cache_key": "7812_spec_2026_73953",
+    "car_id": "7812",
+    "discovery": "year-api",
+    "series": "领克Z20",
+    "spec_id": "73953",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73953.html",
+    "year": "2026"
+  },
   "7813": {
     "brand": "法拉利",
     "cache_key": "7813",
@@ -57859,6 +60711,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7877.html"
   },
+  "7877_history_pending": {
+    "brand": "零跑汽车",
+    "car_id": "7877",
+    "retry_count": 1,
+    "series": "零跑B10",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7877/sale.html"
+  },
   "7878": {
     "brand": "LUMMA",
     "cache_key": "7878",
@@ -58327,6 +61188,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7928.html"
   },
+  "7928_spec_2025_72377": {
+    "brand": "广汽传祺",
+    "cache_key": "7928_spec_2025_72377",
+    "car_id": "7928",
+    "discovery": "year-api",
+    "series": "传祺向往S7",
+    "spec_id": "72377",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/72377.html",
+    "year": "2025"
+  },
   "7929": {
     "brand": "广汽昊铂",
     "cache_key": "7929",
@@ -58407,6 +61279,15 @@
     "series": "奥迪Q6L Sportback e-tron",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7936.html"
+  },
+  "7936_history_pending": {
+    "brand": "奥迪",
+    "car_id": "7936",
+    "retry_count": 1,
+    "series": "奥迪Q6L Sportback e-tron",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7936/sale.html"
   },
   "7937": {
     "brand": "极越",
@@ -59038,6 +61919,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8002.html"
   },
+  "8002_history_pending": {
+    "brand": "领克",
+    "car_id": "8002",
+    "retry_count": 1,
+    "series": "领克900",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8002/sale.html"
+  },
   "8003": {
     "brand": "AITO 问界",
     "cache_key": "8003",
@@ -59046,6 +61936,15 @@
     "series": "问界M8",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8003.html"
+  },
+  "8003_history_pending": {
+    "brand": "AITO 问界",
+    "car_id": "8003",
+    "retry_count": 1,
+    "series": "问界M8",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8003/sale.html"
   },
   "8004": {
     "brand": "现代",
@@ -59154,6 +62053,17 @@
     "series": "小鹏G7",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8014.html"
+  },
+  "8014_spec_2025_73712": {
+    "brand": "小鹏",
+    "cache_key": "8014_spec_2025_73712",
+    "car_id": "8014",
+    "discovery": "year-api",
+    "series": "小鹏G7",
+    "spec_id": "73712",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73712.html",
+    "year": "2025"
   },
   "8015": {
     "brand": "比亚迪",
@@ -59298,6 +62208,39 @@
     "series": "跨越者D1",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8029.html"
+  },
+  "802_spec_2023_56048": {
+    "brand": "路虎",
+    "cache_key": "802_spec_2023_56048",
+    "car_id": "802",
+    "discovery": "year-api",
+    "series": "发现",
+    "spec_id": "56048",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56048.html",
+    "year": "2023"
+  },
+  "802_spec_2024_65239": {
+    "brand": "路虎",
+    "cache_key": "802_spec_2024_65239",
+    "car_id": "802",
+    "discovery": "year-api",
+    "series": "发现",
+    "spec_id": "65239",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65239.html",
+    "year": "2024"
+  },
+  "802_spec_2025_69164": {
+    "brand": "路虎",
+    "cache_key": "802_spec_2025_69164",
+    "car_id": "802",
+    "discovery": "year-api",
+    "series": "发现",
+    "spec_id": "69164",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69164.html",
+    "year": "2025"
   },
   "8030": {
     "brand": "长安跨越",
@@ -59844,6 +62787,17 @@
     "series": "传祺向往S9",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8083.html"
+  },
+  "8083_spec_2025_76873": {
+    "brand": "广汽传祺",
+    "cache_key": "8083_spec_2025_76873",
+    "car_id": "8083",
+    "discovery": "year-api",
+    "series": "传祺向往S9",
+    "spec_id": "76873",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/76873.html",
+    "year": "2025"
   },
   "8084": {
     "brand": "奔驰",
@@ -60763,6 +63717,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8176.html"
   },
+  "8176_spec_2025_74611": {
+    "brand": "领克",
+    "cache_key": "8176_spec_2025_74611",
+    "car_id": "8176",
+    "discovery": "year-api",
+    "series": "领克10",
+    "spec_id": "74611",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/74611.html",
+    "year": "2025"
+  },
   "8177": {
     "brand": "广汽传祺",
     "cache_key": "8177",
@@ -60835,6 +63800,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8183.html"
   },
+  "8183_history_pending": {
+    "brand": "理想汽车",
+    "car_id": "8183",
+    "retry_count": 1,
+    "series": "理想i6",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8183/sale.html"
+  },
   "8184": {
     "brand": "比亚迪",
     "cache_key": "8184",
@@ -60861,6 +63835,15 @@
     "series": "捷途X70L",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8186.html"
+  },
+  "8186_history_pending": {
+    "brand": "捷途",
+    "car_id": "8186",
+    "retry_count": 1,
+    "series": "捷途X70L",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8186/sale.html"
   },
   "8187": {
     "brand": "五菱汽车",
@@ -61248,6 +64231,15 @@
     "series": "小鹏GX",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8224.html"
+  },
+  "8224_history_pending": {
+    "brand": "小鹏",
+    "car_id": "8224",
+    "retry_count": 1,
+    "series": "小鹏GX",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8224/sale.html"
   },
   "8225": {
     "brand": "荣威",
@@ -61745,6 +64737,15 @@
     "series": "零跑D19",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8273.html"
+  },
+  "8273_history_pending": {
+    "brand": "零跑汽车",
+    "car_id": "8273",
+    "retry_count": 1,
+    "series": "零跑D19",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8273/sale.html"
   },
   "8274": {
     "brand": "凯翼",
@@ -63091,6 +66092,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8433.html"
   },
+  "8433_history_pending": {
+    "brand": "零跑汽车",
+    "car_id": "8433",
+    "retry_count": 1,
+    "series": "零跑A10",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8433/sale.html"
+  },
   "8439": {
     "brand": "星途",
     "cache_key": "8439",
@@ -63271,6 +66281,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8471.html"
   },
+  "8471_history_pending": {
+    "brand": "凯迪拉克",
+    "car_id": "8471",
+    "retry_count": 1,
+    "series": "凯威德",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8471/sale.html"
+  },
   "8472": {
     "brand": "岚图汽车",
     "cache_key": "8472",
@@ -63414,6 +66433,50 @@
     "series": "Nebula NEXT 01",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8507.html"
+  },
+  "850_spec_2022_51704": {
+    "brand": "路虎",
+    "cache_key": "850_spec_2022_51704",
+    "car_id": "850",
+    "discovery": "year-api",
+    "series": "揽胜运动",
+    "spec_id": "51704",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51704.html",
+    "year": "2022"
+  },
+  "850_spec_2023_59100": {
+    "brand": "路虎",
+    "cache_key": "850_spec_2023_59100",
+    "car_id": "850",
+    "discovery": "year-api",
+    "series": "揽胜运动",
+    "spec_id": "59100",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59100.html",
+    "year": "2023"
+  },
+  "850_spec_2024_65665": {
+    "brand": "路虎",
+    "cache_key": "850_spec_2024_65665",
+    "car_id": "850",
+    "discovery": "year-api",
+    "series": "揽胜运动",
+    "spec_id": "65665",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65665.html",
+    "year": "2024"
+  },
+  "850_spec_2025_69132": {
+    "brand": "路虎",
+    "cache_key": "850_spec_2025_69132",
+    "car_id": "850",
+    "discovery": "year-api",
+    "series": "揽胜运动",
+    "spec_id": "69132",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69132.html",
+    "year": "2025"
   },
   "8510": {
     "brand": "别克",
@@ -63621,6 +66684,15 @@
     "series": "长城猛龙 PLUS",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8545.html"
+  },
+  "8545_history_pending": {
+    "brand": "哈弗",
+    "car_id": "8545",
+    "retry_count": 1,
+    "series": "长城猛龙 PLUS",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8545/sale.html"
   },
   "8547": {
     "brand": "法拉利",

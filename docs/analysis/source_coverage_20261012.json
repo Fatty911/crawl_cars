@@ -2,37 +2,40 @@
   "date": "20261012",
   "sources": {
     "懂车帝": {
-      "rows": 1744,
+      "rows": 1652,
       "kept": 3,
-      "share_before": 0.845,
-      "share_after": 0.3,
+      "share_before": 0.7081,
+      "share_after": 0.25,
       "first_blocked_by_condition": {
-        "zero_to_hundred": 1739,
+        "zero_to_hundred": 1645,
         "PASS": 3,
-        "ev_range": 2
+        "ev_range": 2,
+        "remote_start": 2
       }
     },
     "汽车之家": {
-      "rows": 190,
-      "kept": 7,
-      "share_before": 0.0921,
-      "share_after": 0.7,
+      "rows": 363,
+      "kept": 9,
+      "share_before": 0.1556,
+      "share_after": 0.75,
       "first_blocked_by_condition": {
-        "zero_to_hundred": 180,
-        "auto_headlight": 7,
+        "zero_to_hundred": 337,
+        "ev_range": 14,
+        "auto_headlight": 9,
         "city_navigation": 3
       }
     },
     "易车": {
-      "rows": 162,
+      "rows": 367,
       "kept": 3,
-      "share_before": 0.0785,
-      "share_after": 0.3,
+      "share_before": 0.1573,
+      "share_after": 0.25,
       "first_blocked_by_condition": {
-        "zero_to_hundred": 76,
-        "ev_range": 59,
-        "seat_memory": 12,
-        "city_navigation": 12,
+        "zero_to_hundred": 168,
+        "seat_memory": 89,
+        "ev_range": 76,
+        "remote_start": 16,
+        "city_navigation": 15,
         "PASS": 3
       }
     }
