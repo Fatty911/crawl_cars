@@ -1356,7 +1356,7 @@ $:
           options:
             model: deepseek-v4.1-flash
             thinkingLevel: max
-            maxTurns: 50
+            maxTurns: 150
             contextWindow: 256k
             systemPrompt: |
               你是自动化修复 Agent。读取 Issue，理解需求，读代码定位，修改，运行 pytest，创建 PR。
