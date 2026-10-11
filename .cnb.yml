@@ -1346,21 +1346,21 @@ main:
               git commit -m "chore: 报价链失败诊断 [skip ci]" || echo "diag 无新增"
               git push -f "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
                 || echo "diag 推送失败（不阻断）"
-  $:
-    issue.open:
-      - stages:
-          - name: 检查fix标签
-            script: echo "$CNB_ISSUE_LABELS" | grep -q 'fix' || exit 0
-          - name: AI-Issue驱动修复
-            type: npc:go
-            options:
-              model: deepseek-v4.1-flash
-              thinkingLevel: max
-              maxTurns: 50
-              contextWindow: 256k
-              systemPrompt: |
-                你是自动化修复 Agent。读取 Issue，理解需求，读代码定位，修改，运行 pytest，创建 PR。
-                规则：不伪造数据、不折叠真冲突、不删校验、不降防护
-              userPrompt: |
-                Issue 标题: $CNB_ISSUE_TITLE
-                Issue 描述: $CNB_ISSUE_DESCRIPTION
+$:
+  issue.open:
+    - stages:
+        - name: 检查fix标签
+          script: echo "$CNB_ISSUE_LABELS" | grep -q 'fix' || exit 0
+        - name: AI-Issue驱动修复
+          type: npc:go
+          options:
+            model: deepseek-v4.1-flash
+            thinkingLevel: max
+            maxTurns: 50
+            contextWindow: 256k
+            systemPrompt: |
+              你是自动化修复 Agent。读取 Issue，理解需求，读代码定位，修改，运行 pytest，创建 PR。
+              规则：不伪造数据、不折叠真冲突、不删校验、不降防护
+            userPrompt: |
+              Issue 标题: $CNB_ISSUE_TITLE
+              Issue 描述: $CNB_ISSUE_DESCRIPTION
