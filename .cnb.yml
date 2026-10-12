@@ -1254,9 +1254,10 @@ main:
               你是代码审查员。审查PR：车系身份完整、报价字段分离、merge门禁、测试断言同步。
               给出 PASS 或 FAIL 及理由。
             userPrompt: 审查本次 PR 的代码变更。
-      failStages: *cars_failstages_npc_repair
         # 原稿在此挂 CF/Codeberg 部署（且部署无数据的 docs/）——GitHub 的 deploy-frontend.yml 不由 PR 触发，
         # PR 部署会用空数据覆盖生产站点，故移除；发布统一走 crontab 数据链（site/ 含数据）。
+      # 自愈入口：PR 审查链报错时也触发 NPC 修复（只加 failStages，不动 stages 与顺序）。
+      failStages: *cars_failstages_npc_repair
 
   # ══ 经销商报价独立链路 ══
   # 失败域隔离：报价失败不许拖住基础属性链。详见 dealer_chain.yml 头部注释。
