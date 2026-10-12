@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 # CNB 流水线硬上限（日志明示 120min）。留 3 分钟余量给 runner 收尾与心跳尾巴。
-PIPELINE_LIMIT_SECONDS = 120 * 60
+PIPELINE_LIMIT_SECONDS = 10 * 60 * 60  # 与爬虫 job 声明的 timeout: 10h 同尺度
 PIPELINE_SAFETY_MARGIN_SECONDS = 180
 
 # 合并 / 组装 / 发布 / 线上验收 / 回推的固定开销。
