@@ -1,7 +1,7 @@
 # 交付报告 — Issue #16 issue/PR 链 Python 环境缺位
 
 **状态**：已交付。分支 `npc/16-20261012110749`，PR 见本节末状态码。
-**首行状态**：`PUSHED npc/16-20261012110749 -> bc02b45`；PR 创建结果见下方「PR 状态」。
+**首行状态**：`PUSHED npc/16-20261012110749 -> 3d5f0e1`；PR #17（HTTP 201，state=open，mergeable）。
 
 ## 一、根因（环境级，14 次 issue 运行零交付）
 
@@ -20,11 +20,12 @@
 本仓 `AGENTS.md` 又硬要求「推送代码前必须确保所有单元测试通过」。
 守规矩的 agent 唯一正确选择就是不推 —— 这就是 14 次运行 `已交付=0 假交付=5 零交付=7` 的机制。
 
-## 二、实际改动（仅 `.cnb.yml`，14 insertions / 2 deletions）
+## 二、实际改动（仅 `.cnb.yml`）
 
 1. **`main.pull_request`**（line 1186 → 1188）：job 层加 `docker.image: python:3.12`。
 2. **`$: issue.open`**（顶层，line 1352 → 1354）：job 层加 `docker.image: python:3.12`。
-3. **`$: issue.open` 在 agent 阶段前插入非 agent 阶段 `install-deps`**（排在 `检查fix标签` 之后、`AI-Issue驱动修复` 之前）：
+3. **`$: issue.open` 在 agent 阶段前插入非 agent 阶段 `install-deps`**（排在 `检查fix标签` 之后、`AI-Issue驱动修复` 之前），
+   脚本用锚点 `&cars_python_env_install_deps` 定义（见上节）：
 
 ```yaml
 - name: install-deps
@@ -50,6 +51,27 @@ Issue 取证日志里 `node` 同样缺，装法与 `main.push` 的 install-deps 
 
 **未动**：`type: npc:go` 阶段、`maxTurns: 150`、`检查fix标签` 的 `|| exit 0`（属 Issue #7 范围）、
 以及任何业务代码。`git status` 交付时只剩 `.cnb.yml` 一个改动文件。
+
+## 三、监控发现并修掉的第二个缺口（PR 审查链只有解释器）
+
+PR #17 打开后 pull_request 链立即触发（构建 `cnb-nnc-1k4n28lbo`），阶段日志原文：
+
+```
+Runner $ python3 -V
+Python 3.12.15                       <-- 新镜像已生效，不再是 "python3: command not found"
+Runner $ python3 -m pytest tests/test_issue_chain_python_env.py -q
+/usr/local/bin/python3: No module named pytest
+Runner $ python3 -c "import yaml; ..."
+ModuleNotFoundError: No module named 'yaml'
+```
+
+即：镜像对了，但 PR 审查阶段拿不到 pytest/PyYAML，仍无法真跑 pytest 验证 NPC 交付——
+判据要求 2 的括号（"它要跑 pytest 才能验证 NPC 交付"）没有兑现。
+因此在 `pull_request` 链 agent 阶段前同样插入 `install-deps`，并把脚本抽成 YAML 锚点
+`&cars_python_env_install_deps`，`issue.open` 链改引用同一锚点，两链不再各写一份。
+
+锚点解析后两链脚本**逐字节相同**（`yaml.safe_load` 后比对 True）。
+`dash`（CNB 用 `sh` 执行）下复核：成功路径 `rc=0`；`requirements.txt` 缺失时 `rc=1`（失败不被吃掉）。
 
 ## 三、验收判据运行结果（原文）
 
@@ -115,8 +137,12 @@ rc=1
 be3d7a63fb8f91a33830b2ebebb4cfe892812dae	refs/heads/diag
 00065fbcde1f43da8a1a39294415e6754d32529a	refs/heads/main
 628161daa60bae1773c6317495aa58649ed85d08	refs/heads/npc/15-draft
-bc02b45fc11d6d7432076ac21f20ac06fb9df620	refs/heads/npc/16-20261012110749
+3d5f0e1279dccb56cfcb8eaa6c3997287a5430a3	refs/heads/npc/16-20261012110749
 ```
+
+PR #17 回读（`GET /-/pulls/17`）：`state=open`、`mergeable_state=mergeable`、`blocked_on=unblocked`、
+`head=refs/heads/npc/16-20261012110749`；`GET /-/pulls/17/files` 列出 `.cnb.yml` 与
+`test_issue_chain_python_env.py` 两个文件。
 
 对 `origin/npc/16-20261012110749:.cnb.yml` 重新回读核对：`issue.open` docker 为
 `python:3.12`，阶段序 `['检查fix标签', 'install-deps', 'AI-Issue驱动修复']`，
