@@ -16142,22 +16142,51 @@ def partition_publishable_rows(rows):
 
 
 def _price_norm(value):
-    """'19.99万' -> '19.99'; '' -> ''"""
-    s = str(value or '').replace('万', '').strip()
-    return s
+    """'19.99万' -> '19.99'; '130.0万|130.00万' -> '130.00'; '' -> ''"""
+    text = str(value or '').replace('万', '').strip()
+    if not text:
+        return ''
+    parts = [part.strip() for part in text.split('|') if part.strip()]
+    if not parts:
+        return ''
+    if len(parts) > 1:
+        # 合并串是同一 SKU 的两源写法（'130.0万|130.00万'）；代表值取最长者，
+        # 使 '130.0' 与 '130.00' 收敛到同一个键，不给重复行留缺口。
+        return max(parts, key=len)
+    return parts[0]
 
+
+
+_SOURCE_LABEL_ORDER = ("汽车之家", "懂车帝", "易车")
+
+
+def _source_label_atoms(label):
+    """'汽车之家+懂车帝(车系级)、懂车帝+汽车之家' -> ['汽车之家', '懂车帝']"""
+    atoms = []
+    for part in re.split(r"[、+,＋]", str(label or "")):
+        part = re.sub(r"[(（][^)）]*[)）]", "", part).strip()
+        part = part[1:].strip() if part.startswith("仅") else part
+        if not part:
+            continue
+        for name in _SOURCE_LABEL_ORDER:
+            if name in part and name not in atoms:
+                atoms.append(name)
+                break
+    return [name for name in _SOURCE_LABEL_ORDER if name in atoms]
 
 
 def _dedupe_source_labels(row):
+    """同一来源集合只留一个规范标签：原子去重 + 固定顺序；单原子回到 '仅X' 写法。"""
     label = str(row.get("数据来源", "") or "")
     if not label:
         return row
-    seen = []
-    for part in label.split("、"):
-        part = part.strip()
-        if part and part not in seen:
-            seen.append(part)
-    row["数据来源"] = "、".join(seen)
+    atoms = _source_label_atoms(label)
+    if not atoms:
+        row["数据来源"] = label
+    elif len(atoms) == 1:
+        row["数据来源"] = "仅" + atoms[0]
+    else:
+        row["数据来源"] = "+".join(atoms)
     return row
 
 def _sku_core_name(name, series):
