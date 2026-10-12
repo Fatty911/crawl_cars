@@ -4,11 +4,11 @@
 
 Issue #41 的 NPC 实现（本地分支 `npc/41-pages-columns-narrow`，实装提交 `6192c47`，
 判据 4 passed）在 `scripts/merge_data.py` 里加了 `resolve_pages_columns` / `narrow_pages_rows`，
-并把 `filtered_rows` 收窄后才写 `filtered_cars_.json` —— 方向是对的，
+并把 `filtered_rows` 收窄后才写 `filtered_cars_${DATE}.json` —— 方向是对的，
 **但它只窄到了 merge_data 自己那个出口**：
 
 1. `.cnb.yml:396-403`（合并与发布数据阶段）紧接着跑
-   `python scripts/preserve_publish_baseline.py --filtered-json filtered_cars_.json ...`；
+   `python scripts/preserve_publish_baseline.py --filtered-json filtered_cars_${DATE}.json ...`；
 2. 该脚本 `write_publish_assets`（`scripts/preserve_publish_baseline.py:322-327`）里是：
    ```python
    filtered_rows = [row for row in rows if filter_car(row)]   # rows = merged 宽行
@@ -17,7 +17,7 @@ Issue #41 的 NPC 实现（本地分支 `npc/41-pages-columns-narrow`，实装�
    ```
    ⇒ merge_data 写出的窄 filtered 文件被**宽行覆盖**；
 3. 之后 `:427-428` `prepare_pages_payload.py` 与 `:484` `prepare_cloudflare_payload.py`
-   才把 `filtered_cars_.json` → `site/data/filtered.json` → 前端分片。
+   才把 `filtered_cars_${DATE}.json` → `site/data/filtered.json` → 前端分片。
 
 ⇒ **只在 merge_data 里窄化 = 被下游 preserve 覆盖 = 线上每行仍是 11574 B（实测值）**。
 本判据抓的就是这个"两份写出拷贝只改一份"的半修形状（同 [[feedback-root-cause-then-verify]]
