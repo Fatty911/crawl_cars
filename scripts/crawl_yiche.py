@@ -6,6 +6,7 @@ import json
 import os
 import re
 import signal
+import sys
 import threading
 import time
 from datetime import date, datetime, timezone
@@ -1306,14 +1307,28 @@ def load_resume_checkpoint(
     ):
         raise ValueError("checkpoint schema/state compatibility mismatch")
     producer = payload.get("producer") or {}
+    # crawler_sha256 只在调用方给出认证来源（run/artifact/head）时才是"该来源版本里的
+    # 脚本哈希"（GitHub 流程用 git show <source_head>:scripts/crawl_yiche.py 计算）；
+    # CNB 仓内断点续跑不提供这些字段，它只是"当前检出脚本"的哈希——改一行代码就飘，
+    # 拿它判死会让跨轮累积永远归零（Issue #42），只提示不拦。
+    authenticated_source = bool(source_run_id or source_artifact_id or source_head_sha)
     if (
         producer.get("repository") != producer_repository_identity()
         or str(producer.get("run_id")) != str(source_run_id)
         or producer.get("head_sha") != source_head_sha
         or producer.get("workflow") != ".github/workflows/crawl-yiche.yml"
-        or producer.get("crawler_sha256") != source_crawler_sha256
+        or (
+            authenticated_source
+            and producer.get("crawler_sha256") != source_crawler_sha256
+        )
     ):
         raise ValueError("checkpoint producer identity mismatch")
+    if not authenticated_source and producer.get("crawler_sha256") != source_crawler_sha256:
+        print(
+            "提示: 断点 producer.crawler_sha256=%s 与本轮脚本 %s 不一致（无认证来源，按仓内断点续跑）"
+            % (producer.get("crawler_sha256"), source_crawler_sha256),
+            file=sys.stderr,
+        )
     resume = payload.get("resume_state")
     rows = payload.get("rows")
     # 瘦身断点允许 rows 缺失或为空（逐行明细由发布侧承载）；带 rows 的旧形状仍照读并过原质量门。
