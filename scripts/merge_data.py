@@ -16142,16 +16142,10 @@ def partition_publishable_rows(rows):
 
 
 def _price_token_norm(part):
-    """单个价格写法归一：'130.0' / '130.00' / '130' 都收敛到 '130'；无法转数则原样返回。"""
-    from decimal import Decimal, InvalidOperation
+    """单个价格写法归一：'130.0' / '130.00' / '130' 都收敛到 '130'；非纯数值原样返回。"""
     text = str(part or '').strip()
-    try:
-        number = Decimal(text)
-    except (InvalidOperation, ValueError):
+    if not re.fullmatch(r"\d+(?:\.\d+)?", text):
         return text
-    if not number.is_finite():
-        return text
-    text = format(number, 'f')
     if '.' in text:
         text = text.rstrip('0').rstrip('.')
     return text or '0'
@@ -16159,7 +16153,7 @@ def _price_token_norm(part):
 
 def _price_norm(value):
     """'19.99万' -> '19.99'; '130.0万|130.00万' -> '130'; '' -> ''"""
-    text = str(value or '').replace('万', '').replace('＋', '+').strip()
+    text = str(value or '').replace('万', '').strip()
     if not text:
         return ''
     tokens = []
