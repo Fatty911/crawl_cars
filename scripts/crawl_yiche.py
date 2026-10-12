@@ -39,6 +39,8 @@ YICHE_ITEM_TIMEOUT = float(os.getenv("YICHE_ITEM_TIMEOUT_SECONDS", "120"))
 YICHE_HEARTBEAT_INTERVAL = float(os.getenv("YICHE_HEARTBEAT_INTERVAL_SECONDS", "60"))
 YICHE_CHECKPOINT_SCHEMA_VERSION = 2
 YICHE_CHECKPOINT_STATE_COMPAT_VERSION = 1
+# 断点体积预算：超预算的行明细不落断点（详见 persist()），512KB 对 5MB 回推闸留足余量
+YICHE_CHECKPOINT_SIZE_BUDGET = 512 * 1024
 IDENTITY_FIELDS = {"车系", "车型名称", "品牌", "年款", "数据来源", "易车车型ID", "易车上市状态", "车款ID"}
 NON_SERIES_SLUGS = {
     "api", "article", "assets", "authenservice", "citybase", "current",
@@ -423,9 +425,16 @@ class CrawlObserver:
         if not self.checkpoint_path:
             return
         payload = self.snapshot()
+        blob = json.dumps(payload, ensure_ascii=False, indent=2)
+        if len(blob.encode("utf-8")) > YICHE_CHECKPOINT_SIZE_BUDGET:
+            # 断点只承载续跑进度：逐行明细超预算时移出，改由每轮 yiche_<日期>.json
+            # 输出 +「合并-增量保留基线」的累积基线接住，避免被 5MB 回推体积闸撤出。
+            rows = payload.pop("rows", None) or []
+            payload["rows_omitted"] = len(rows)
+            blob = json.dumps(payload, ensure_ascii=False, indent=2)
         temp_path = f"{self.checkpoint_path}.tmp"
         with open(temp_path, "w", encoding="utf-8") as checkpoint_file:
-            json.dump(payload, checkpoint_file, ensure_ascii=False, indent=2)
+            checkpoint_file.write(blob)
             checkpoint_file.flush()
             os.fsync(checkpoint_file.fileno())
         os.replace(temp_path, self.checkpoint_path)
@@ -1307,8 +1316,10 @@ def load_resume_checkpoint(
         raise ValueError("checkpoint producer identity mismatch")
     resume = payload.get("resume_state")
     rows = payload.get("rows")
-    if not isinstance(resume, dict) or not isinstance(rows, list) or not rows:
+    # 瘦身断点允许 rows 缺失或为空（逐行明细由发布侧承载）；带 rows 的旧形状仍照读并过原质量门。
+    if not isinstance(resume, dict) or (rows is not None and not isinstance(rows, list)):
         raise ValueError("checkpoint resume state missing")
+    rows = [dict(row) for row in rows] if isinstance(rows, list) else []
     if len(validate_real_rows(rows)) != len(rows):
         raise ValueError("checkpoint rows failed the original quality gate")
     known_targets = resume.get("known_targets")

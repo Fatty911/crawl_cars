@@ -579,6 +579,12 @@ main:
               git commit -m "chore: 半月增量爬取+发布 [skip ci]"
               git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:main
             fi
+            # 续跑状态（crawl_state/**）被体积闸撤出时必须变红点名：静默撤出等于把每轮进度归零。
+            RESUME_DROPPED=$(printf '%s\n' "$BIG" | grep '^crawl_state/' || true)
+            if [ -n "$RESUME_DROPPED" ]; then
+              printf '%s\n' "$RESUME_DROPPED" | while read -r f; do echo "RESUME_STATE_DROPPED=$f"; done
+              exit 1
+            fi
       failStages: &cars_npc_repair_chain
         - name: 诊断-收集失败上下文
           script: |
@@ -1180,6 +1186,12 @@ main:
             else
               git commit -m "chore: 半月增量爬取+发布 [skip ci]"
               git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:main
+            fi
+            # 续跑状态（crawl_state/**）被体积闸撤出时必须变红点名：静默撤出等于把每轮进度归零。
+            RESUME_DROPPED=$(printf '%s\n' "$BIG" | grep '^crawl_state/' || true)
+            if [ -n "$RESUME_DROPPED" ]; then
+              printf '%s\n' "$RESUME_DROPPED" | while read -r f; do echo "RESUME_STATE_DROPPED=$f"; done
+              exit 1
             fi
       failStages: *cars_npc_repair_chain
 
