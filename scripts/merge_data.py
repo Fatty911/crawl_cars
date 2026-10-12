@@ -16141,19 +16141,39 @@ def partition_publishable_rows(rows):
 
 
 
+def _price_token_norm(part):
+    """单个价格写法归一：'130.0' / '130.00' / '130' 都收敛到 '130'；无法转数则原样返回。"""
+    from decimal import Decimal, InvalidOperation
+    text = str(part or '').strip()
+    try:
+        number = Decimal(text)
+    except (InvalidOperation, ValueError):
+        return text
+    if not number.is_finite():
+        return text
+    text = format(number, 'f')
+    if '.' in text:
+        text = text.rstrip('0').rstrip('.')
+    return text or '0'
+
+
 def _price_norm(value):
-    """'19.99万' -> '19.99'; '130.0万|130.00万' -> '130.00'; '' -> ''"""
-    text = str(value or '').replace('万', '').strip()
+    """'19.99万' -> '19.99'; '130.0万|130.00万' -> '130'; '' -> ''"""
+    text = str(value or '').replace('万', '').replace('＋', '+').strip()
     if not text:
         return ''
-    parts = [part.strip() for part in text.split('|') if part.strip()]
-    if not parts:
+    tokens = []
+    for part in text.split('|'):
+        token = _price_token_norm(part)
+        if token and token not in tokens:
+            tokens.append(token)
+    if not tokens:
         return ''
-    if len(parts) > 1:
-        # 合并串是同一 SKU 的两源写法（'130.0万|130.00万'）；代表值取最长者，
-        # 使 '130.0' 与 '130.00' 收敛到同一个键，不给重复行留缺口。
-        return max(parts, key=len)
-    return parts[0]
+    if len(tokens) == 1:
+        # 同一 SKU 的两源写法（'130.0|130.00'）归一到同一标量，去重键不再分叉；
+        # 真正不同的价格（'20|21'）仍保留多值，不折叠真冲突。
+        return tokens[0]
+    return '|'.join(sorted(tokens))
 
 
 
@@ -16270,6 +16290,10 @@ def dedupe_merged_rows(rows):
             else:
                 labels = [l for l in labels if '易车' not in l]
         base['数据来源'] = '、'.join(labels) if labels else base.get('数据来源', '')
+        # D2：合并出口做一次规范化，同一来源集合只留一个标签（原子去重 + 固定顺序 +
+        # 单原子回到 '仅X'）。否则 '汽车之家+懂车帝(车系级)' 与 '懂车帝+汽车之家'
+        # 会按到达顺序并存，覆盖与双源核验计数随写法漂移。
+        _dedupe_source_labels(base)
         out.append(base)
     return out
 # 山寨/改装/杂牌品牌黑名单：极冷门非主流车厂，不在 Pages 保留
