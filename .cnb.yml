@@ -1184,7 +1184,9 @@ main:
       failStages: *cars_npc_repair_chain
 
   pull_request:
-    - stages:
+    - docker:
+        image: python:3.12
+      stages:
         - name: NPC-PR审查
           type: npc:go
           options:
@@ -1348,9 +1350,27 @@ main:
                 || echo "diag 推送失败（不阻断）"
 $:
   issue.open:
-    - stages:
+    - docker:
+        image: python:3.12
+      stages:
         - name: 检查fix标签
           script: echo "$CNB_ISSUE_LABELS" | grep -q 'fix' || exit 0
+        # 默认构建镜像无 python：14 次 issue 运行里 agent 跑不了任何判据，只能读代码。
+        # 装依赖失败必须让链变红（不加 || true / || exit 0）：静默的失败会让下游重新报绿。
+        - name: install-deps
+          script: |
+            set -e
+            python -V
+            python -m pip install --disable-pip-version-check -r requirements.txt
+            python -m pytest --version >/dev/null 2>&1 || python -m pip install --disable-pip-version-check pytest
+            python -m pytest --version
+            # tests/test_scan_pages_columns.py 会真跑 node 扫页脚本（Issue 取证日志里 node 也缺）；
+            # 与 main.push 的 install-deps 同款装法，缺 node 时整套判据仍有 5 条跑不起来。
+            if ! command -v node >/dev/null 2>&1; then
+              apt-get update -qq
+              apt-get install -y -qq --no-install-recommends nodejs npm
+            fi
+            node --version
         - name: AI-Issue驱动修复
           type: npc:go
           options:
