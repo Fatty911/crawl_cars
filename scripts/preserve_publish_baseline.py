@@ -22,6 +22,7 @@ from merge_data import (
     match_score,
     model_variant_conflict_reason,
     model_variant_signature,
+    narrow_pages_rows,
     normalize_series_match_text,
     partition_publishable_rows,
     row_year,
@@ -320,11 +321,12 @@ def write_publish_assets(
             staged[target] = Path(temp_name)
 
         filtered_rows = [row for row in rows if filter_car(row)]
+        filtered_rows = narrow_pages_rows(filtered_rows)
         header = collect_fields(rows)
         write_json(staged[merged_json], rows)
         write_csv(staged[merged_csv], rows, header)
         write_json(staged[filtered_json], filtered_rows)
-        write_csv(staged[filtered_csv], filtered_rows, header)
+        write_csv(staged[filtered_csv], filtered_rows, collect_fields(filtered_rows))
         for temp_path in staged.values():
             with temp_path.open("rb+") as file:
                 os.fsync(file.fileno())
