@@ -8169,175 +8169,66 @@ def check_feature(row, field_names, value_keywords=None, require_keyword=False):
 
 
 
-def filter_car(row):
-
-
-
-
-
-
-    try:
-
-
-
-
-
-
-        for condition in FILTER_CONDITIONS:
-
-
-
-
-
-
-            condition_type = condition.get("type")
-
-
-
-
-
-
-            if condition_type == "range":
-
-
-
-
-
-
-                field_name = condition.get("field")
-
-
-
-
-
-
-                min_value = condition.get("min")
-
-
-
-
-
-
-                max_value = condition.get("max")
-
-
-
-
-
-
-                if min_value is not None and not check_numeric_condition(row, field_name, float(min_value), ">="):
-
-
-
-
-
-
-                    return False
-
-
-
-
-
-
-                if max_value is not None and not check_numeric_condition(row, field_name, float(max_value), "<="):
-
-
-
-
-
-
-                    return False
-
-
-
-
-
-
-            elif condition_type == "feature":
-
-
-
-
-
-
-                if not check_feature(
-
-
-
-
-
-
-                    row,
-
-
-
-
-
-
-                    condition.get("fields", []),
-
-
-
-
-
-
-                    condition.get("keywords", []),
-
-
-
-
-
-
-                    condition.get("requireKeyword", False),
-
-
-
-
-
-
-                ):
-
-
-
-
-
-
-                    return False
-
-
-
-
-
-
-
-
-
-
-
-
-
-        return True
-
-
-
-
-
-
-    except Exception as exc:
-
-
-
-
-
-
-        print(f"过滤检查异常: {exc}, row: {row.get('车型名称', 'unknown')}")
-
-
-
-
-
-
+def _publish_row_identity_present(row):
+    """通用身份校验：车型名称 + 年款（或车系ID）齐全，车系非 URL 片段。
+
+    只做「这条行有没有身份」的判定，不含各数据源特有的 stricter 规则
+    （易车 approved / 汽车之家 车款ID 等发布边界由 prepare 层负责）。
+    """
+    model = str(row.get("车型名称") or "").strip()
+    year = str(row.get("年款") or "").strip()
+    if not model or model in ("-", "--") or not re.fullmatch(r"(?:19|20)\d{2}", year):
         return False
+    series_id = str(row.get("车系ID") or "").strip()
+    if series_id:
+        return True
+    brand = str(row.get("品牌") or "").strip()
+    series = str(row.get("车系") or "").strip()
+    if not brand or not series:
+        return False
+    return not re.fullmatch(r"[a-z][a-z0-9-]*-\d+", series)
+
+
+IDENTITY_ONLY_FIELDS = {
+    "数据来源", "品牌", "车系", "车系ID", "车型名称", "年款",
+    "车款ID", "易车车型ID", "易车上市状态",
+}
+
+
+def _has_substantive_evidence(row):
+    """行内至少有一个非身份字段持有真实值（不是空/占位符）。"""
+    for key, value in row.items():
+        if key in IDENTITY_ONLY_FIELDS:
+            continue
+        text = str(value if value is not None else "").strip()
+        if text and text not in ("-", "--", "None", "null", "nan"):
+            return True
+    return False
+
+
+def filter_car(row):
+    """发布行门禁：身份合法 + 至少一项实质证据；不再按前端默认筛选丢行。
+
+    config/filter_conditions.json 的 conditions（zero_to_hundred / ev_range /
+    top_speed 及 feature/pagesFeature）是**前端界面的默认勾选值**，不是数据合格判据。
+    把它们当硬过滤会在合并阶段删数据源：纯油车的 纯电续航(km) 被 annotate_ev_range
+    规范化为 0 后过不了 ev_range ≥150，缺 百公里加速/最高车速 的易车行同理被砍，
+    现网后果是 filtered 里燃油车 0 台、易车保留率 1.7%。
+
+    仍然会丢的行：身份不合法（缺车型名称/年款，或车系是 URL 片段），
+    以及整行只有身份字段、没有任何实质证据的占位行。
+    拦截率诊断继续由 first_blocked_condition 按 FILTER_CONDITIONS 原样统计。
+    """
+    if not isinstance(row, dict):
+        return False
+    try:
+        if not _publish_row_identity_present(row):
+            return False
+    except Exception as exc:
+        print(f"过滤检查异常: {exc}, row: {row.get('车型名称', 'unknown')}")
+        return False
+    return _has_substantive_evidence(row)
+
 
 
 
