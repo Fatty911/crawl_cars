@@ -73,6 +73,35 @@ main:
             python scripts/validate_workflow_expectations.py || echo "WARN: workflow expectations 未通过"
             python scripts/validate_plan_agent_boundary.py || echo "WARN: plan/agent 边界未通过"
             python scripts/scan_direct_llm_calls.py scripts .github || echo "WARN: 存在 LLM 直调"
+      # 自愈入口：push CI 任一阶段报错即触发 NPC 免费模型修复（形状对齐 api_trigger 的 AI-修复-第1轮）。
+      # 定义处（YAML 锚点），pull_request / crontab: 37 / issue.open 三条链引用同一份，避免重复拷贝漂移。
+      failStages: &cars_failstages_npc_repair
+        - name: 诊断-收集失败上下文
+          script: |
+            python - <<'PY'
+            import json, os
+            from pathlib import Path
+            fields = ("CNB_BUILD_FAILED_STAGE_NAME", "CNB_BUILD_FAILED_MSG", "CNB_BRANCH", "CNB_COMMIT_SHORT", "CNB_BUILD_WEB_URL", "DEBUG_MODE", "RETRY_COUNT")
+            context = "# 流水线失败诊断\n" + json.dumps({key: os.environ.get(key) for key in fields}, ensure_ascii=False, indent=2)
+            Path("_fail_context_.md").write_text(context, encoding="utf-8")
+            print("失败诊断已写入 _fail_context_.md；修复前不重跑，不提交诊断到源码分支")
+            PY
+        - name: AI-修复-第1轮
+          type: npc:go
+          options:
+            model: deepseek-v4.1-flash
+            thinkingLevel: max
+            maxTurns: 120
+            contextWindow: 256k
+            systemPrompt: |
+              你是汽车爬虫修复专家。读取 _fail_context_.md，定位实际根因并做最小修复。
+              允许修复 scripts/、dongchedi/、docs/ 静态前端、config/ 的正常代码，或 .cnb.yml 正常 stages 的真实工作流 bug。
+              禁止修改 tests/、任何 .test.* 或 test_* 文件、AGENTS.md、ai_tools/、provider 配置。
+              禁止修改 scripts/check_npc_free_quota.py、scripts/finalize_npc_repair.py、.cnb.yml 中 failStages 安全链或 /tmp 安全检查器/快照。
+              不伪造数据、不刷新无新数据时间、不折叠真冲突、不删测试和校验、不降原质量门禁。
+              车系/车型身份必须完整，指导价与经销商报价分离。不得 git commit、push 或重触发。
+              完成后只另写 _fix_report_.md，说明根因、实际改动和验收依据；没有改动必须说明无法修复，不冒充成功。
+            userPrompt: 读取真实失败上下文并执行范围内最小修复，写 _fix_report_.md。保留所有受保护文件。
   api_trigger:
     # 半月增量爬取（每月 1/16 日 08:05 Asia/Shanghai，落在人类作息窗口 08:00-12:30 内；对齐负责人半月增量本意，撤销 09-20 移植期错峰 5/20）
     # 汽车之家/懂车帝走 --incremental 只爬新增车系；易车不带 GitHub 时代 artifact 断点恢复（CNB 无 artifact）
@@ -576,7 +605,7 @@ main:
             if git diff --cached --quiet; then
               echo "无增量变更"
             else
-              git commit -m "chore: 半月增量爬取+发布 [skip ci]"
+              git commit -m "chore: 半月增量爬取+发布"
               git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:main
             fi
             # 续跑状态（crawl_state/**）被体积闸撤出时必须变红点名：静默撤出等于把每轮进度归零。
@@ -1184,7 +1213,7 @@ main:
             if git diff --cached --quiet; then
               echo "无增量变更"
             else
-              git commit -m "chore: 半月增量爬取+发布 [skip ci]"
+              git commit -m "chore: 半月增量爬取+发布"
               git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:main
             fi
             # 续跑状态（crawl_state/**）被体积闸撤出时必须变红点名：静默撤出等于把每轮进度归零。
@@ -1227,6 +1256,8 @@ main:
             userPrompt: 审查本次 PR 的代码变更。
         # 原稿在此挂 CF/Codeberg 部署（且部署无数据的 docs/）——GitHub 的 deploy-frontend.yml 不由 PR 触发，
         # PR 部署会用空数据覆盖生产站点，故移除；发布统一走 crontab 数据链（site/ 含数据）。
+      # 自愈入口：PR 审查链报错时也触发 NPC 修复（只加 failStages，不动 stages 与顺序）。
+      failStages: *cars_failstages_npc_repair
 
   # ══ 经销商报价独立链路 ══
   # 失败域隔离：报价失败不许拖住基础属性链。详见 dealer_chain.yml 头部注释。
@@ -1373,9 +1404,11 @@ main:
               git config user.email "xuerui911@gmail.com"
               git config user.name "cnb-diag"
               git add diag
-              git commit -m "chore: 报价链失败诊断 [skip ci]" || echo "diag 无新增"
+              git commit -m "chore: 报价链失败诊断" || echo "diag 无新增"
               git push -f "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
                 || echo "diag 推送失败（不阻断）"
+      # 自愈入口：报价链报错时同样触发 NPC 修复（本链只加 failStages，不动 stages 与顺序）。
+      failStages: *cars_failstages_npc_repair
 $:
   issue.open:
     - docker:
@@ -1400,3 +1433,4 @@ $:
             userPrompt: |
               Issue 标题: $CNB_ISSUE_TITLE
               Issue 描述: $CNB_ISSUE_DESCRIPTION
+      failStages: *cars_failstages_npc_repair
