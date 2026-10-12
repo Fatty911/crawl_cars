@@ -891,8 +891,9 @@ class PreservePublishBaselineTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(expected, outputs["merged_json"])
         self.assertEqual(self.csv_rows(expected, header), outputs["merged_csv"])
-        self.assertEqual(expected_filtered, outputs["filtered_json"])
-        self.assertEqual(self.csv_rows(expected_filtered, header), outputs["filtered_csv"])
+        narrow_filtered = self.merge_data.narrow_pages_rows(expected_filtered)
+        self.assertEqual(narrow_filtered, outputs["filtered_json"])
+        self.assertEqual(self.csv_rows(narrow_filtered, self.merge_data.collect_fields(narrow_filtered)), outputs["filtered_csv"])
         self.assertEqual([], outputs["temp_files"])
         self.assertEqual(
             {

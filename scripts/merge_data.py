@@ -15544,6 +15544,28 @@ def report_source_coverage(analysis_dir, today, rows, filtered_rows):
 
 
 
+PAGES_IDENTITY_COLUMNS = ("品牌", "车系", "车型名称", "年款", "车系ID", "数据来源", "车款ID")
+
+
+def resolve_pages_columns(rows):
+    declared = [str(col) for col in (FILTER_CONFIG.get("defaultVisibleColumns") or [])]
+    allowed, seen = [], set()
+    for col in declared + list(PAGES_IDENTITY_COLUMNS):
+        if col and col not in seen:
+            seen.add(col)
+            allowed.append(col)
+    present = set()
+    for row in rows or []:
+        if isinstance(row, dict):
+            present.update(str(key) for key in row.keys())
+    return [col for col in allowed if col in present] or allowed[:1]
+
+
+def narrow_pages_rows(rows):
+    keep = set(resolve_pages_columns(rows))
+    return [{key: row.get(key) for key in row if key in keep} for row in rows]
+
+
 def collect_fields(rows):
     fields = []
     seen = set(fields)
@@ -17346,6 +17368,7 @@ def main():
 
 
 
+    filtered_rows = narrow_pages_rows(filtered_rows)
     write_csv(filtered_csv_path, filtered_rows, header)
 
 
