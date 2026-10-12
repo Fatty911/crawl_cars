@@ -204,7 +204,7 @@ def finalize(root, state_dir):
     git(root, "config", "user.name", "CodeBuddy-deepseek-v4.1-flash")
     git(root, "config", "user.email", "xuerui911@gmail.com")
     git(root, "add", "--", *names)
-    git(root, "commit", "--only", "-m", "fix: reviewed CNB NPC repair [skip ci]", "--", *names)
+    git(root, "commit", "--only", "-m", "fix: reviewed CNB NPC repair", "--", *names)
     sha = git(root, "rev-parse", "HEAD")
     committed = sorted(git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", sha).splitlines())
     if committed != sorted(names):
