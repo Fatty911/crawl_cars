@@ -1208,7 +1208,7 @@ main:
           options:
             model: deepseek-v4.1-flash
             thinkingLevel: high
-            maxTurns: 20
+            maxTurns: 150
             systemPrompt: |
               你是代码审查员。审查PR：车系身份完整、报价字段分离、merge门禁、测试断言同步。
               给出 PASS 或 FAIL 及理由。
