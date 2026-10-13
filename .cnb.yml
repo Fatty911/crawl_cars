@@ -77,7 +77,7 @@ main:
       # 定义处（YAML 锚点），pull_request / crontab: 37 / issue.open 三条链引用同一份，避免重复拷贝漂移。
       failStages: &cars_failstages_npc_repair
         - name: 诊断-收集失败上下文
-          script: |
+          script: &cars_failstage_diag_script |
             python - <<'PY'
             import json, os
             from pathlib import Path
@@ -88,12 +88,13 @@ main:
             PY
         - name: AI-修复-第1轮
           type: npc:go
+          timeout: 90m
           options:
             model: deepseek-v4.1-flash
             thinkingLevel: max
             maxTurns: 120
             contextWindow: 256k
-            systemPrompt: |
+            systemPrompt: &cars_repair_system_prompt |
               你是汽车爬虫修复专家。读取 _fail_context_.md，定位实际根因并做最小修复。
               允许修复 scripts/、dongchedi/、docs/ 静态前端、config/ 的正常代码，或 .cnb.yml 正常 stages 的真实工作流 bug。
               禁止修改 tests/、任何 .test.* 或 test_* 文件、AGENTS.md、ai_tools/、provider 配置。
@@ -717,6 +718,7 @@ main:
         - name: AI-修复-第1轮
           if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
           type: npc:go
+          timeout: 90m
           options:
             model: deepseek-v4.1-flash
             thinkingLevel: max
@@ -760,6 +762,7 @@ main:
         - name: 审查-GLM只读交叉评审
           if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
           type: npc:go
+          timeout: 30m
           options:
             model: glm-5.3-flash
             thinkingLevel: high
@@ -1346,6 +1349,7 @@ main:
             node --version
         - name: NPC-PR审查
           type: npc:go
+          timeout: 30m
           options:
             model: glm-5.3-flash
             thinkingLevel: high
@@ -1526,7 +1530,19 @@ main:
                 || echo "diag 推送失败（不阻断）"
               rm -f /tmp/cnb-askpass.sh
       # 自愈入口：报价链报错时同样触发 NPC 修复（本链只加 failStages，不动 stages 与顺序）。
-      failStages: *cars_failstages_npc_repair
+      failStages:
+        - name: 诊断-收集失败上下文
+          script: *cars_failstage_diag_script
+        - name: AI-修复-第1轮
+          type: npc:go
+          timeout: 20m
+          options:
+            model: deepseek-v4.1-flash
+            thinkingLevel: max
+            maxTurns: 40
+            contextWindow: 256k
+            systemPrompt: *cars_repair_system_prompt
+            userPrompt: 读取真实失败上下文并执行范围内最小修复，写 _fix_report_.md。保留所有受保护文件。
 $:
   issue.open:
     - docker:
@@ -1540,6 +1556,7 @@ $:
           script: *cars_python_env_install_deps
         - name: AI-Issue驱动修复
           type: npc:go
+          timeout: 3h
           options:
             model: deepseek-v4.1-flash
             thinkingLevel: max
