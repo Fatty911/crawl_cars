@@ -763,7 +763,7 @@ main:
           options:
             model: glm-5.3-flash
             thinkingLevel: high
-            maxTurns: 20
+            maxTurns: 120
             contextWindow: 128k
             systemPrompt: |
               你是独立只读审查员。读取 _fail_context_.md、_fix_report_.md、_repair_diff_.patch、_test_after_fix_.txt 和 /tmp/cars-npc-repair/validated.json。
@@ -1347,7 +1347,7 @@ main:
         - name: NPC-PR审查
           type: npc:go
           options:
-            model: deepseek-v4.1-flash
+            model: glm-5.3-flash
             thinkingLevel: high
             maxTurns: 150
             systemPrompt: |
