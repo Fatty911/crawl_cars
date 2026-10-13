@@ -29,8 +29,12 @@ import os
 import sys
 from pathlib import Path
 
-# CNB 流水线硬上限（日志明示 120min）。留 3 分钟余量给 runner 收尾与心跳尾巴。
-PIPELINE_LIMIT_SECONDS = 10 * 60 * 60  # 与爬虫 job 声明的 timeout: 10h 同尺度
+# CNB 整条流水线的实测运行上限是 240min（14400s）：计划声明 18h，但集群动态管控以实际为准。
+# 验收轮 cnb-tcl-1k4r3059q 起跑 16:54Z、被杀 20:55Z ≈ 241min，日志原文
+# "The maximum pipeline duration is exceeded: 240min" ⇒ 声明超过 14400 就是发空头预算。
+# 因此承认 12600s（3h30m）可分配，正好 12600 + 1800（发布预留）= 14400。
+# 另留 3 分钟安全余量给 runner 收尾与心跳尾巴。
+PIPELINE_LIMIT_SECONDS = 3 * 60 * 60 + 30 * 60  # 与爬虫 job 声明的 timeout: 3h30m 同尺度
 PIPELINE_SAFETY_MARGIN_SECONDS = 180
 
 # 合并 / 组装 / 发布 / 线上验收 / 回推的固定开销。

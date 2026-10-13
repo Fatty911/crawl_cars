@@ -112,9 +112,12 @@ main:
         image: python:3.12
       imports:
         - https://cnb.cool/xuerui911-mirror/crawl-secrets/-/blob/main/env.yml
-      # CNB Job 无输出默认 10min 即强杀；爬虫按窗口预算最长可跑 ~5.25h（08:05 触发，
-      # 易车 10800s + 汽车之家/懂车帝各 2700s×3）加合并发布，10h 覆盖最坏情况
-      timeout: 10h
+      # CNB 对整条流水线的实际管控上限是 240min（实测轮 cnb-tcl-1k4r3059q：起跑 16:54Z、
+      # 被杀 20:55Z，原文 "The maximum pipeline duration is exceeded: 240min"）——
+      # 声明 10h 只是空头预算，到点照样被容器级强杀、failStages 都跑不起来。
+      # 改为先到线：3h30m 与分配器的 PIPELINE_LIMIT_SECONDS 同尺，
+      # 到线时后续段是 skipped by timeout，而不是整个 job 被 SIGKILL。
+      timeout: 3h30m
       stages:
         - name: 检查代理配置
           script: |
@@ -205,7 +208,7 @@ main:
               --elapsed-seconds "$(python scripts/pipeline_elapsed_seconds.py)"
             cat /tmp/cnb-crawl-budget.env
         - name: 爬取-汽车之家
-          timeout: 3h
+          timeout: 1h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
@@ -239,7 +242,7 @@ main:
             ls -l autoHome_*.json autoHome_*.csv 2>/dev/null || echo "仓根无 autoHome_* 产物（零产出或增量无新增，继续）"
             exit 0
         - name: 爬取-懂车帝
-          timeout: 5h
+          timeout: 2h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
@@ -287,7 +290,7 @@ main:
             ls -l dongchedi_*.json dongchedi_*.csv 2>/dev/null || echo "仓根无 dongchedi_* 产物（零产出或增量无新增，继续）"
             exit 0
         - name: 爬取-易车
-          timeout: 6h
+          timeout: 2h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
@@ -718,7 +721,7 @@ main:
         - name: AI-修复-第1轮
           if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
           type: npc:go
-          timeout: 90m
+          timeout: 50m
           options:
             model: deepseek-v4.1-flash
             thinkingLevel: max
@@ -762,7 +765,7 @@ main:
         - name: 审查-GLM只读交叉评审
           if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
           type: npc:go
-          timeout: 30m
+          timeout: 20m
           options:
             model: glm-5.3-flash
             thinkingLevel: high
@@ -789,9 +792,12 @@ main:
         image: python:3.12
       imports:
         - https://cnb.cool/xuerui911-mirror/crawl-secrets/-/blob/main/env.yml
-      # CNB Job 无输出默认 10min 即强杀；爬虫按窗口预算最长可跑 ~5.25h（08:05 触发，
-      # 易车 10800s + 汽车之家/懂车帝各 2700s×3）加合并发布，10h 覆盖最坏情况
-      timeout: 10h
+      # CNB 对整条流水线的实际管控上限是 240min（实测轮 cnb-tcl-1k4r3059q：起跑 16:54Z、
+      # 被杀 20:55Z，原文 "The maximum pipeline duration is exceeded: 240min"）——
+      # 声明 10h 只是空头预算，到点照样被容器级强杀、failStages 都跑不起来。
+      # 改为先到线：3h30m 与分配器的 PIPELINE_LIMIT_SECONDS 同尺，
+      # 到线时后续段是 skipped by timeout，而不是整个 job 被 SIGKILL。
+      timeout: 3h30m
       stages:
         - name: 检查代理配置
           script: |
@@ -868,7 +874,7 @@ main:
               --elapsed-seconds "$(python scripts/pipeline_elapsed_seconds.py)"
             cat /tmp/cnb-crawl-budget.env
         - name: 爬取-汽车之家
-          timeout: 3h
+          timeout: 1h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
@@ -902,7 +908,7 @@ main:
             ls -l autoHome_*.json autoHome_*.csv 2>/dev/null || echo "仓根无 autoHome_* 产物（零产出或增量无新增，继续）"
             exit 0
         - name: 爬取-懂车帝
-          timeout: 5h
+          timeout: 2h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
@@ -948,7 +954,7 @@ main:
             ls -l dongchedi_*.json dongchedi_*.csv 2>/dev/null || echo "仓根无 dongchedi_* 产物（零产出或增量无新增，继续）"
             exit 0
         - name: 爬取-易车
-          timeout: 6h
+          timeout: 2h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
