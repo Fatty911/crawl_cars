@@ -1548,13 +1548,24 @@ $:
     - docker:
         image: python:3.12
       stages:
+        # 真闸：无 fix 标签时把结论经 exports 交出去（SKIP），下游 agent 段据此 skipped；
+        # 禁止退回 `|| exit 0` 之类吞失败的恒通过形状。
         - name: 检查fix标签
-          script: echo "$CNB_ISSUE_LABELS" | grep -q 'fix' || exit 0
+          script: |
+            if echo "$CNB_ISSUE_LABELS" | grep -q 'fix'; then
+              echo "##[set-output fix_gate=RUN]"
+            else
+              echo "##[set-output fix_gate=SKIP]"
+              echo "Issue 无 fix 标签：本轮不派发 NPC（下游段显示为 skipped，而不是跑了却什么都不做）"
+            fi
+          exports:
+            fix_gate: NPC_FIX_GATE
         # 默认构建镜像无 python：14 次 issue 运行里 agent 跑不了任何判据，只能读代码。
         # 装依赖失败必须让链变红（不加 || true / || exit 0）：静默的失败会让下游重新报绿。
         - name: install-deps
           script: *cars_python_env_install_deps
         - name: AI-Issue驱动修复
+          if: '[ "$NPC_FIX_GATE" = "RUN" ]'
           type: npc:go
           timeout: 3h
           options:
