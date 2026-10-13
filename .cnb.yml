@@ -429,6 +429,9 @@ main:
             git add -f data/dongchedi_series_list.json 2>/dev/null || true
             git add -f data/proxies.json 2>/dev/null || true
             [ -d crawl_state ] && git add -f crawl_state || true
+            # `-f` 无视 .gitignore：把字节码从暂存区摘出去，断点 json 仍留在暂存区。
+            # 重生无害（.gitignore 已覆盖），缺陷只在“被提交进仓库”这一环。
+            [ -d crawl_state ] && git reset -q HEAD -- 'crawl_state/__pycache__' '*.pyc' 2>/dev/null || true
             [ -d docs/analysis ] && git add -f docs/analysis || true
             git add -f pages-audit-report.json 2>/dev/null || true
             #体积闸：任何超过 5MB 的暂存文件一律撤出。
@@ -1093,6 +1096,9 @@ main:
             git add -f data/dongchedi_series_list.json 2>/dev/null || true
             git add -f data/proxies.json 2>/dev/null || true
             [ -d crawl_state ] && git add -f crawl_state || true
+            # `-f` 无视 .gitignore：把字节码从暂存区摘出去，断点 json 仍留在暂存区。
+            # 重生无害（.gitignore 已覆盖），缺陷只在“被提交进仓库”这一环。
+            [ -d crawl_state ] && git reset -q HEAD -- 'crawl_state/__pycache__' '*.pyc' 2>/dev/null || true
             [ -d docs/analysis ] && git add -f docs/analysis || true
             git add -f pages-audit-report.json 2>/dev/null || true
             #体积闸：任何超过 5MB 的暂存文件一律撤出。
