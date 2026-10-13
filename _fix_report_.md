@@ -1,4 +1,4 @@
-分支 `agent/56-independent-review-family`（本地就绪；代码提交 `c53dab6` + 报告随分支头提交，基线 `ea2a67c`）｜推送状态 HTTP 403｜原因：容器凭据缺少 `repo-code:rw` scope（`Your token does not have the repo-code:rw scope required to push to this repository.`），按 Issue 口径改走附件交付，未反复重试烧轮次｜实际模型：`deepseek-v4.1-flash`｜实际轮数：约第 35 轮（effective_max_turns=150，剩余约 115）
+分支 `agent/56-independent-review-family`（本地就绪；代码提交 `c53dab6` + 报告随分支头提交，基线 `ea2a67c`）｜推送状态 HTTP 403（缺 `repo-code:rw` scope）｜PR 创建状态 HTTP 403（缺 `repo-pr:rw` scope）｜原因：容器凭据权限不足，按 Issue 口径改走附件交付（`POST /{repo}/-/upload/files` 通道，三件均已 cmp 校验）｜实际模型：`deepseek-v4.1-flash`｜实际轮数：约第 35 轮（effective_max_turns=150，剩余约 115）
 
 # Issue #56 修复报告：把"评审"补成真正的独立评审
 
@@ -76,6 +76,7 @@ python -m pytest tests/ -x --tb=short -q
 - **实际使用模型**: `deepseek-v4.1-flash`（`.cnb.yml` `issue.open` → `AI-Issue驱动修复` 的 `options.model`，`thinkingLevel: max`）。
 - **effective_max_turns**: `150`（`.cnb.yml:1428` `maxTurns: 150`）。本报告完成于第 **35** 轮上下，**剩余约 115 轮**。
 - **三种静默终止（如实）**:
-  - `reached maxTurns limit`：**未出现**；
+  - PR 创建（`POST /-/pulls`）：HTTP **403**，`Missing required scopes: repo-pr:rw`（仅试 1 次，未重试）；
+- `reached maxTurns limit`：**未出现**；
   - `finish with length`：**未出现**（全部编辑均 ≤120 行小步替换）；
   - `finish with stop`：报告交付前**未出现**；本条为正常交付收尾，写完即停。
