@@ -74,9 +74,9 @@ $ python -m pytest tests/ -x --tb=short
 - 分支：`npc/53-crawl-stage-timeout`（本地），commit `85a8982`，base `main@ea2a67c`；
 - `git push origin HEAD:refs/heads/npc/53-crawl-stage-timeout` ⇒ **HTTP 403**（`repo-code:rw` 缺失），仅尝试 1 次；
 - `POST /-/pulls`（body 含 base/head/head_repo/title/body）⇒ **HTTP 403**（`repo-pr:rw` 缺失）；
-- 改走 Issue #53 评论交付（评论 id `2110016763839180800`，HTTP 201），附件：
-  - `npc-53.patch`（9457 B，`git apply --check` 在 `ea2a67c` 上通过）；
-  - `npc-53.bundle`（7.99 MB，含 `refs/heads/npc/53-crawl-stage-timeout` ⇒ `85a8982`，`git bundle verify` okay，本地 fetch 回读成功）；
+- 改走 Issue #53 评论交付（两条评论均 HTTP 201，id `2110016763839180800` 与后续更新条），**最终附件为 final 版（含 `85a8982` + `5307fb1` 两个 commit）**：
+  - `npc-53-final.patch`（22244 B，`git apply --check` 在 `ea2a67c` 上通过）；
+  - `npc-53-final.bundle`（7990438 B，含 `refs/heads/npc/53-crawl-stage-timeout` ⇒ `5307fb1`，`git bundle verify` okay；从 Issue 附件下载后可 fetch 出两个 commit，并在 fetch 出的工作树上复跑判据 3 passed）；
   - 附件下载校验：sha256 与本地文件一致（`uniq -c` 计数为 1）。
 - 监工侧接手路线：`git fetch <bundle> 'refs/heads/npc/53-crawl-stage-timeout:...'` 或 `git apply npc-53.patch`，然后由监工开 PR。
 
