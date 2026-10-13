@@ -1678,7 +1678,7 @@ $:
             # URL 整条取：捕到空白/引号/尖括号为止（? 之后的查询串保留），只剥 markdown 收尾标点
             ABS = re.compile(r"https://api\.cnb\.cool/[^\s\"'`<>\[\]]+")
             REL = re.compile(r"/-/files/[^\s\"'`<>\[\]]+")
-            TRIM = ")]}。，,、;."
+            TRIM = ")]}。，,、;.）】》”’"
 
 
             def candidates(body):
