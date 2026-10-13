@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ SCRIPT = REPO_ROOT / "scripts" / "spu_merge_analysis.py"
 
 def _run(data_path: Path, output_path: Path) -> dict:
     proc = subprocess.run(
-        ["python3", str(SCRIPT), "--data", str(data_path), "--output", str(output_path)],
+        [sys.executable, str(SCRIPT), "--data", str(data_path), "--output", str(output_path)],
         capture_output=True,
         text=True,
         timeout=120,

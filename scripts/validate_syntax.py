@@ -126,7 +126,7 @@ class SyntaxValidator:
         """验证 Python 文件语法"""
         try:
             result = subprocess.run(
-                ["python3", "-m", "py_compile", str(file_path)],
+                [sys.executable, "-m", "py_compile", str(file_path)],
                 capture_output=True, text=True, timeout=30
             )
             if result.returncode == 0:
