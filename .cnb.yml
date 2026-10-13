@@ -571,7 +571,22 @@ main:
             pkill -x mihomo || true
             unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
             : > /tmp/codeberg-proxy.env
-            python scripts/setup_proxy_runtime.py --github-env /tmp/codeberg-proxy.env --test-url https://codeberg.org
+            # 代理准备自身会做 TLS 连通性探测，是第一条会抖的网络命令：
+            # 在 `set -e` 下必须与后面的预检/push 一样进有界重试，否则一抖就整段退出、后续循环一次都轮不到。
+            PREP_ATTEMPT=1
+            PREP_MAX_ATTEMPTS=3
+            while [ "$PREP_ATTEMPT" -le "$PREP_MAX_ATTEMPTS" ]; do
+              if python scripts/setup_proxy_runtime.py --github-env /tmp/codeberg-proxy.env --test-url https://codeberg.org; then
+                break
+              fi
+              echo "代理准备第 ${PREP_ATTEMPT} 次失败（TLS/代理抖动），退避后重试" >&2
+              sleep $((PREP_ATTEMPT * 20))
+              PREP_ATTEMPT=$((PREP_ATTEMPT + 1))
+              if [ "$PREP_ATTEMPT" -gt "$PREP_MAX_ATTEMPTS" ]; then
+                echo "代理准备在 ${PREP_MAX_ATTEMPTS} 次尝试后仍失败，本轮判红" >&2
+                exit 1
+              fi
+            done
             sed 's/^\([A-Za-z_][A-Za-z0-9_]*\)=/export \1=/' /tmp/codeberg-proxy.env > /tmp/codeberg-proxy.sh
             . /tmp/codeberg-proxy.sh
             if [ "${PROXY_ENABLED:-false}" != "true" ] || [ -z "${HTTPS_PROXY:-}" ]; then
@@ -1215,7 +1230,22 @@ main:
             pkill -x mihomo || true
             unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
             : > /tmp/codeberg-proxy.env
-            python scripts/setup_proxy_runtime.py --github-env /tmp/codeberg-proxy.env --test-url https://codeberg.org
+            # 代理准备自身会做 TLS 连通性探测，是第一条会抖的网络命令：
+            # 在 `set -e` 下必须与后面的预检/push 一样进有界重试，否则一抖就整段退出、后续循环一次都轮不到。
+            PREP_ATTEMPT=1
+            PREP_MAX_ATTEMPTS=3
+            while [ "$PREP_ATTEMPT" -le "$PREP_MAX_ATTEMPTS" ]; do
+              if python scripts/setup_proxy_runtime.py --github-env /tmp/codeberg-proxy.env --test-url https://codeberg.org; then
+                break
+              fi
+              echo "代理准备第 ${PREP_ATTEMPT} 次失败（TLS/代理抖动），退避后重试" >&2
+              sleep $((PREP_ATTEMPT * 20))
+              PREP_ATTEMPT=$((PREP_ATTEMPT + 1))
+              if [ "$PREP_ATTEMPT" -gt "$PREP_MAX_ATTEMPTS" ]; then
+                echo "代理准备在 ${PREP_MAX_ATTEMPTS} 次尝试后仍失败，本轮判红" >&2
+                exit 1
+              fi
+            done
             sed 's/^\([A-Za-z_][A-Za-z0-9_]*\)=/export \1=/' /tmp/codeberg-proxy.env > /tmp/codeberg-proxy.sh
             . /tmp/codeberg-proxy.sh
             if [ "${PROXY_ENABLED:-false}" != "true" ] || [ -z "${HTTPS_PROXY:-}" ]; then
@@ -1484,8 +1514,17 @@ main:
               git config user.name "cnb-diag"
               git add diag
               git commit -m "chore: 报价链失败诊断" || echo "diag 无新增"
-              git push -f "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
+              cat > /tmp/cnb-askpass.sh <<'CNAPOP'
+              #!/bin/sh
+              case "$1" in
+                *sername*) echo "${CNB_TOKEN_USER_NAME:-cnb}" ;;
+                *) printf '%s' "$CNB_TOKEN" ;;
+              esac
+              CNAPOP
+              chmod 700 /tmp/cnb-askpass.sh
+              GIT_ASKPASS=/tmp/cnb-askpass.sh git push -f "https://cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
                 || echo "diag 推送失败（不阻断）"
+              rm -f /tmp/cnb-askpass.sh
       # 自愈入口：报价链报错时同样触发 NPC 修复（本链只加 failStages，不动 stages 与顺序）。
       failStages: *cars_failstages_npc_repair
 $:
