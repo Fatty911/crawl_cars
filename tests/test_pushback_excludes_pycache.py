@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import re
 
 import yaml
@@ -36,6 +37,28 @@ MAIN = CFG.get("main") or {}
 PUSHBACK = "回推增量状态"
 PYC_PATTERNS = ("__pycache__", "*.pyc", ".pyc")
 
+
+
+
+def _tracked_pyc():
+    """git 索引里 crawl_state 下的 .pyc（测量面=跟踪状态，不是磁盘存在性）。"""
+    return _tracked_under("crawl_state/", "*.pyc")
+
+
+def _tracked_under(prefix, pattern=""):
+    cmd = ["git", "-C", str(ROOT), "ls-files", "-z"]
+    if pattern:
+        cmd.append("%s/%s" % (prefix.rstrip("/"), pattern))
+    else:
+        cmd.append(prefix)
+    try:
+        out = subprocess.run(cmd, capture_output=True, timeout=60)
+    except Exception:  # noqa: BLE001 - 读不到就判『读不到』
+        return None
+    if out.returncode != 0:
+        return None
+    raw = out.stdout.decode("utf-8", "replace")
+    return [x for x in raw.split("\0") if x.strip()]
 
 def _pushback_stages():
     out = []
@@ -89,28 +112,48 @@ def test_pushback_excludes_pycache_from_the_commit():
 
 
 def test_repo_does_not_track_pyc_files():
-    """效果级断言：签出树里不该有被跟踪的 `crawl_state/**/*.pyc`（CI 克隆 = 已跟踪文件才会出现）。"""
-    cs = ROOT / "crawl_state"
-    if not cs.exists():
-        assert False, "crawl_state 目录不见了：断点面读不到，不许当通过"
-        return
-    pycs = sorted(str(p.relative_to(ROOT)) for p in cs.rglob("*.pyc"))
-    assert not pycs, (
-        "仓库里仍跟踪着 pyc：%s ⇒ 修复链每次都会被 finalize 门禁判 PROTECTED_OR_UNAPPROVED_CHANGE，"
-        "连带跳过额度复查/GLM 评审/最终门禁（实测 cnb-k02：修复 success(72.7m) 仍被这两个文件废掉）" % pycs[:4])
+    """效果级断言：**git 索引里**不该有 `crawl_state/**/*.pyc`。
+
+    测量面必须选对（10-14 的教训）：早先这一条用 `Path.rglob("*.pyc")` 查**工作区**，
+    而工作区里 pyc 本来就会重生（`tests/test_dcd_provider_identity.py` 等会 import
+    `crawl_state.registry`），于是"磁盘上有 pyc"与"仓库跟踪着 pyc"被混成一件事 ⇒
+    这条判据在全量 pytest 里**必红**（实测 #64 工作树：`11 failed` vs main `10 failed`，
+    新增的那一条就是它），合进去只会把 push CI 弄红，不是修好。
+    ⇒ 正确测量面是 git 索引：`git ls-files`（CI 克隆里出现的正是被跟踪的文件）。
+    """
+    tracked = _tracked_pyc()
+    assert tracked is not None, "读不到 git 索引 ⇒ 判『读不到』，不许当通过"
+    assert not tracked, (
+        "仓库仍跟踪着 pyc：%s ⇒ 修复链每次都会被 finalize 门禁判 PROTECTED_OR_UNAPPROVED_CHANGE，"
+        "连带跳过额度复查/GLM 评审/最终门禁（实测 cnb-k02：修复 success(72.7m) 仍被这两个文件废掉）"
+        % tracked[:4])
 
 
-def test_guard_message_would_still_be_reachable_if_pyc_returns():
-    """自校：如果 pyc 又出现，第三条必须能抓到（不是永远绿的空判据）。"""
+def test_the_sieve_can_actually_see_tracked_files():
+    """自校两条，防"空集是因为筛子坏了"和"测量面又滑回工作区"：
+
+    1. 同一个 `git ls-files` 查询必须能筛到 `crawl_state/` 下的**其他**被跟踪文件
+       （读不到任何跟踪文件 ⇒ 索引查询本身失效，判红而不是判绿）；
+    2. 在 `crawl_state/__pycache__/` 里造一个 dummy `.pyc` 后，
+       **索引**读数必须不变（证明我们量的是跟踪状态，不是磁盘存在性）。
+    """
+    others = _tracked_under("crawl_state/")
+    assert others is not None and len(others) > 0, (
+        "`git ls-files crawl_state/` 一个文件都没返回 ⇒ 索引查询坏了，"
+        "此时第一条的『空集』不代表没有 pyc 被跟踪（存在性≠状态，筛子坏了也算读不到）")
+    before = _tracked_pyc()
     probe = ROOT / "crawl_state" / "__pycache__" / "_oracle_probe_dummy.pyc"
     probe.parent.mkdir(parents=True, exist_ok=True)
-    created = not probe.exists()
+    existed = probe.exists()
     try:
-        probe.write_bytes(b"\x00probe")
-        found = sorted(str(p) for p in (ROOT / "crawl_state").rglob("*.pyc"))
-        assert found, "写入探针后 rglob 仍读不到 ⇒ 本判据的探测面坏了（宁可判崩）"
+        probe.write_bytes(b"\x00dummy")
+        after = _tracked_pyc()
+        assert after == before, (
+            "写入磁盘上的 dummy pyc 后索引读数从 %s 变成 %s ⇒ 测量面又滑回工作区了" % (before, after))
+        assert any("crawl_state" in o for o in others), "跟踪文件读数与 crawl_state 无关 ⇒ 筛子选错了面"
     finally:
-        if created:
-            probe.unlink()
-            if not any(probe.parent.iterdir()):
-                probe.parent.rmdir()
+        if not existed:
+            try:
+                probe.unlink()
+            except OSError:
+                pass
