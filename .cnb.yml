@@ -204,7 +204,7 @@ main:
               --elapsed-seconds "$(python scripts/pipeline_elapsed_seconds.py)"
             cat /tmp/cnb-crawl-budget.env
         - name: 爬取-汽车之家
-          timeout: 1h
+          timeout: 3h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
@@ -238,7 +238,7 @@ main:
             ls -l autoHome_*.json autoHome_*.csv 2>/dev/null || echo "仓根无 autoHome_* 产物（零产出或增量无新增，继续）"
             exit 0
         - name: 爬取-懂车帝
-          timeout: 2h
+          timeout: 5h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
@@ -865,7 +865,7 @@ main:
               --elapsed-seconds "$(python scripts/pipeline_elapsed_seconds.py)"
             cat /tmp/cnb-crawl-budget.env
         - name: 爬取-汽车之家
-          timeout: 1h
+          timeout: 3h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
@@ -899,7 +899,7 @@ main:
             ls -l autoHome_*.json autoHome_*.csv 2>/dev/null || echo "仓根无 autoHome_* 产物（零产出或增量无新增，继续）"
             exit 0
         - name: 爬取-懂车帝
-          timeout: 2h
+          timeout: 5h
           script: |
             . /tmp/proxy.sh
             . /tmp/cnb-crawl-budget.env
