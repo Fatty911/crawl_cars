@@ -83,4 +83,24 @@ $ python -m pytest tests/ -q --tb=line
   `patch http=200 bytes=8229 sha256 一致=True`、`bundle http=200 bytes=3883 sha256 一致=True`。
 - 链接见 Issue #81 最新评论（官方 `comment-file-asset-upload-url` 通道上传，PUT 200）。
 
-`effective_max_turns`：本会话上限 150，已用约 27 轮，**剩余约 123 轮**。
+## 6. 多模型独立评审（如实：本轮未取得独立家族票）
+
+- 本环境 **无 `opencode` / `codex` CLI**（`command -v` 均 MISSING，`~/.opencode/bin`、`node_modules` 均无），
+  无法按 AGENTS.md 走 `task(category="ReviewXXX")` 或 `codex exec`。
+- 平台通道 `POST /{repo}/-/ai/chat/completions`（CNB swagger，流水线内可用）**实测只路由到
+  `deepseek-v4.1-flash`**：分别请求 `glm-5.3-flash` / `glm-5.3` / `kimi-k2.6` / `kimi-k2.6-thinking` /
+  `qwen3-max` / `hunyuan-turbos`，响应 `data:` 首块的 `model` 字段一律回 `deepseek-v4.1-flash`。
+  与主模型同家 ⇒ 按 AGENTS.md「同家不可自评」不计票。
+- 结论：**独立家族评审 0 票**，如实上报，未伪造评审记录；请监工用其它家族补票后再合并。
+  可用替代证据：判据 6/6 绿、全量 `tests/` 785 passed、守卫组 68 passed 无新增红、
+  `py_compile` 通过、`git bundle verify` 通过。
+
+## 7. 终版附件（3 提交版，sha256 回读一致）
+
+- `issue81-a-class-synonym-fold-v2.patch`（含报告提交前的 2 提交版）
+- `issue81-a-class-synonym-fold-v2.bundle`
+- `issue81-_fix_report_.md`
+
+三份均经 GET 回读：`http=200`、`bytes=21740/7022/5104`、`sha256 一致=True`。
+
+`effective_max_turns`：本会话上限 150，已用约 55 轮，**剩余约 95 轮**。
