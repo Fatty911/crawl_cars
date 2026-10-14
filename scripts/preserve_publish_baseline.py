@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 
 from merge_data import (
+    _preserved_value_parts,
     IDENTITY_FIELDS,
     atomic_source_names,
     collect_fields,
@@ -48,8 +49,49 @@ def missing_value(value: object) -> bool:
     return value is None or str(value).strip() in {"", "-"}
 
 
+def refold_source_segments(value: str) -> str:
+    """把存量脏值重折成「每源一段」：复用 merge_data 的源段切分器。
+
+    与 merge_data 同一条口径：无源前缀的尾段归属上一个源；同源多段按字面并集；
+    不跨源折叠；同源段内重复前缀（叠前缀）就地剥掉。
+    """
+    previous = ""
+    order: list[str] = []
+    tokens: dict[str, list[str]] = {}
+    for label, text in _preserved_value_parts(value):
+        source = label or previous
+        if label:
+            previous = label
+        if source not in tokens:
+            tokens[source] = []
+            order.append(source)
+        folded = text
+        while source and folded.startswith(f"{source}:"):
+            folded = folded[len(source) + 1:]
+        if folded not in tokens[source]:
+            tokens[source].append(folded)
+    return "|".join(
+        f"{source}:{'|'.join(tokens[source])}" if source else "|".join(tokens[source])
+        for source in order
+    )
+
+
+def refold_row(row: dict) -> dict:
+    """只改值：把行内非身份/非来源字段的存量脏值重折成每源一段。"""
+    result = dict(row)
+    for field, value in row.items():
+        if field == "数据来源" or field in IDENTITY_FIELDS:
+            continue
+        if not isinstance(value, str) or missing_value(value):
+            continue
+        folded = refold_source_segments(value)
+        if folded != value:
+            result[field] = folded
+    return result
+
+
 def enrich_baseline_row(baseline: dict, candidate: dict) -> tuple[dict, bool]:
-    enriched = dict(baseline)
+    enriched = refold_row(baseline)
     changed = False
     sources = atomic_source_names(baseline.get("数据来源"))
     for source in atomic_source_names(candidate.get("数据来源")):
@@ -280,6 +322,8 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
             continue
         preserved[index] = dict(preserved[index], 数据来源=format_sources(remaining_sources))
         candidate_deenriched += 1
+
+    preserved = [refold_row(row) for row in preserved]
 
     stats = {
         "baseline_rows": len(baseline_rows),
