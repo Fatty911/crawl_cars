@@ -16,6 +16,7 @@ from prepare_pages_payload import (
     VISIBLE_COMPONENT_EVIDENCE,
     VISIBLE_COMPONENT_ID,
     annotate_safe_visible_components,
+    capability_value_residual,
     source_provenance_contradictions,
     visible_card_stats,
 )
@@ -208,6 +209,8 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
             "candidate_visible_rate": candidate_visible["visible_rate"],
             "visible_multi_delta": candidate_visible["visible_multi"] - baseline_visible["visible_multi"],
             "field_source_contradictions": len(provenance_contradictions),
+            # 能力列取值域守卫的观测读数（只进制品，不参与 blocked/pass 判定）
+            "capabilityValueResidual": capability_value_residual(candidate_rows),
             **component_stats,
         },
         "violations": violations,
