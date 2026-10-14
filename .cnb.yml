@@ -103,6 +103,15 @@ main:
               车系/车型身份必须完整，指导价与经销商报价分离。不得 git commit、push 或重触发。
               完成后只另写 _fix_report_.md，说明根因、实际改动和验收依据；没有改动必须说明无法修复，不冒充成功。
             userPrompt: 读取真实失败上下文并执行范围内最小修复，写 _fix_report_.md。保留所有受保护文件。
+        - name: 交付核对-修复后必须真取回
+          timeout: 10m
+          script: |
+            # 修复段之后复核：修完了必须有人再取一次产物、再判一次——否则"链的绿=交付发生"
+            # 在自愈路径上仍是空的（实测 cnb-8d5-1k4socvu6：AI-修复-第1轮 success 4613s，
+            # 评论仍 0、附件仍 0）。与主链核对段共用同一份实现（scripts/check_delivery_artifacts.py），
+            # 禁止再抄第二份内联块（重复字面块只改一份 = 半修，第二份会被执行）。
+            # 非 0 = 产物取不回或读不到 issue 号 ⇒ 不许当通过、不恒真。
+            python scripts/check_delivery_artifacts.py
   api_trigger:
     # 半月增量爬取（每月 1/16 日 08:05 Asia/Shanghai，落在人类作息窗口 08:00-12:30 内；对齐负责人半月增量本意，撤销 09-20 移植期错峰 5/20）
     # 汽车之家/懂车帝走 --incremental 只爬新增车系；易车不带 GitHub 时代 artifact 断点恢复（CNB 无 artifact）
@@ -1615,6 +1624,15 @@ main:
             contextWindow: 256k
             systemPrompt: *cars_repair_system_prompt
             userPrompt: 读取真实失败上下文并执行范围内最小修复，写 _fix_report_.md。保留所有受保护文件。
+        - name: 交付核对-修复后必须真取回
+          timeout: 10m
+          script: |
+            # 修复段之后复核：修完了必须有人再取一次产物、再判一次——否则"链的绿=交付发生"
+            # 在自愈路径上仍是空的（实测 cnb-8d5-1k4socvu6：AI-修复-第1轮 success 4613s，
+            # 评论仍 0、附件仍 0）。与主链核对段共用同一份实现（scripts/check_delivery_artifacts.py），
+            # 禁止再抄第二份内联块（重复字面块只改一份 = 半修，第二份会被执行）。
+            # 非 0 = 产物取不回或读不到 issue 号 ⇒ 不许当通过、不恒真。
+            python scripts/check_delivery_artifacts.py
 $:
   issue.open:
     - docker:
@@ -1657,143 +1675,18 @@ $:
             # 交付核对：agent 阶段 success 只代表会话结束，不代表有东西可交付——
             # 实测 cnb-fs9/trs/13k 三条阶段绿、零分支零产物；#59 更直接：交付评论声称附件
             # "已回读 cmp 逐字节一致"，监工侧 4 个地址（2 patch + 2 bundle）逐个取，全部失败。
-            # 本段不看声明：去 Issue 评论里把产物链接真取一次，HTTP 200 且 ≥64 字节才算交付。
+            # 本段不看声明：去 Issue 评论（comments 通道）里把产物链接（含 _fix_report_.md 附件）
+            # 真取一次，HTTP 200 且 ≥64 字节才算交付；零产物的死因（no-comments /
+            # artifact-unreachable）由脚本点名——agent 单次输出超限被截停在写盘之前
+            # （finish with length，不带 error，只认 maxTurns 会漏）同样是零产物。
             # 已知坑：curl -sSfL 带 Authorization 跟随重定向会把凭据带给存储端（401，监工实测），
-            # 所以这里用 python urllib 取（urlopen 家族），并且禁掉自动跳转：首跳带凭据、
-            # 跳转后的每一跳不带凭据。
-            # 零产物的可能死因（失败时点名）：agent 单次输出超限被截停在写盘之前
-            # （finish with length，不带 error，只认 maxTurns 会漏）、轮数耗尽、或根本没上传。
-            # issue 号优先取 CNB_ISSUE_NUMBER；本平台 issue.open 环境实测只有 CNB_ISSUE_IID，
-            # 两者都读不到才算"核对没有发生"（不许当通过）。
-            ISSUE_NUM="${CNB_ISSUE_NUMBER:-${CNB_ISSUE_IID:-}}"
-            if [ -z "$ISSUE_NUM" ]; then
-              echo "DELIVERY-FAIL reason=no-issue-number：读不到 issue 号 ⇒ 核对没有发生，不许当通过"
-              exit 1
-            fi
+            # 脚本内用 python urllib 的 urlopen 家族取（禁掉自动跳转：首跳带凭据、之后每跳不带）。
+            # 核对逻辑只有一份物理实现：scripts/check_delivery_artifacts.py——自愈链的
+            # "交付核对-修复后必须真取回"段调用同一脚本，禁止再出现第二份内联字面块。
+            # issue 号优先取 CNB_ISSUE_NUMBER；本平台 issue.open 环境实测只有 CNB_ISSUE_IID；
+            # 两者都读不到时脚本报 no-issue-number 退非 0（核对没有发生，不许当通过）。
             rc=0
-            python - "$ISSUE_NUM" <<'PY' || rc=$?
-            import json
-            import os
-            import re
-            import sys
-            import urllib.error
-            import urllib.parse
-            import urllib.request
-
-            NUM = sys.argv[1]
-            BASE = os.environ.get("DELIVERY_BASE") or "https://api.cnb.cool/xuerui911-mirror/crawl_cars"
-            TOKEN = os.environ.get("CNB_TOKEN") or ""
-            MIN_BYTES = 64
-
-
-            class _NoRedirect(urllib.request.HTTPRedirectHandler):
-                """重定向不自动跟：自动跟会把 Authorization 带给存储端（401 的根因）。"""
-
-                def redirect_request(self, req, fp, code, msg, headers, newurl):
-                    return None
-
-
-            OPENER = urllib.request.build_opener(_NoRedirect)
-
-
-            def _once(url, with_auth):
-                req = urllib.request.Request(url, method="GET")
-                req.add_header("Accept", "application/vnd.cnb.api+json")
-                if with_auth and TOKEN:
-                    req.add_header("Authorization", "Bearer " + TOKEN)
-                try:
-                    resp = OPENER.open(req, timeout=60)
-                    return resp.status, dict(resp.headers), resp.read()
-                except urllib.error.HTTPError as exc:
-                    return exc.code, dict(exc.headers or {}), exc.read()
-
-
-            def fetch(url):
-                """取一次，最多跟 3 跳重定向；第一跳带凭据、之后不带。返回 (status, 字节, 落点, err)。
-
-                非 ASCII（例如复制时被省略号截断的地址）先做 percent 编码，否则 urlopen 会抛
-                UnicodeEncodeError 而不是给出 HTTP 读数——那样就说不清到底是哪一格失败。
-                """
-                where = urllib.parse.quote(url, safe="/-._~%:?=&+")
-                auth = True
-                status, size, headers = 0, 0, {}
-                for _ in range(4):
-                    try:
-                        status, headers, body = _once(where, auth)
-                    except Exception as exc:
-                        return 0, 0, where, "%s: %s" % (type(exc).__name__, exc)
-                    size = len(body)
-                    if status in (301, 302, 303, 307, 308):
-                        nxt = headers.get("Location") or headers.get("location")
-                        if not nxt:
-                            break
-                        where, auth = urllib.parse.urljoin(where, nxt), False
-                        continue
-                    return status, size, where, ""
-                return status, size, where, "redirect 超限"
-
-
-            def latest_comment_body():
-                """评论通道。只认**最新评论**：退回更早的评论会让上一轮遗留的附件
-                替本轮零产物蒙混过关（那正是要消灭的假绿形状）。"""
-                url = "%s/-/issues/%s/comments" % (BASE, NUM)
-                status, headers, body = _once(url, True)
-                if status != 200:
-                    print("DELIVERY-FAIL reason=comments-unreachable issue=%s http=%s" % (NUM, status))
-                    raise SystemExit(1)
-                data = json.loads(body.decode("utf-8"))
-                if not isinstance(data, list) or not data:
-                    print("DELIVERY-FAIL reason=no-comments issue=%s" % NUM)
-                    raise SystemExit(1)
-                return str(data[-1].get("body") or "")
-
-
-            # URL 整条取：捕到空白/引号/尖括号为止（? 之后的查询串保留），只剥 markdown 收尾标点
-            ABS = re.compile(r"https://api\.cnb\.cool/[^\s\"'`<>\[\]]+")
-            REL = re.compile(r"/-/files/[^\s\"'`<>\[\]]+")
-            TRIM = ")]}。，,、;.）】》”’"
-
-
-            def candidates(body):
-                found = []
-                for pattern, prefix in ((ABS, ""), (REL, BASE)):
-                    for match in pattern.finditer(body):
-                        url = match.group(0).rstrip(TRIM)
-                        # 只认真有文件名的产物地址：`/-/files/` 后面必须还有一层路径，
-                        # 否则评论里的示意写法 "(/-/files/...)" 会被当成候选，失败读数就被稀释
-                        tail = url.split("/-/files/", 1)[-1]
-                        if url and "/-/files/" in prefix + url and "/" in tail:
-                            found.append(prefix + url)
-                out = []
-                for url in found:
-                    if url not in out:
-                        out.append(url)
-                return out
-
-
-            def main():
-                body = latest_comment_body()
-                note = "yes" if "_fix_report_" in body else "no"
-                urls = candidates(body)
-                print("DELIVERY-NOTE issue=%s mentions_fix_report=%s candidates=%d" % (NUM, note, len(urls)))
-                if not urls:
-                    print("DELIVERY-FAIL reason=no-artifact-link issue=%s（最新评论里没有 /-/files/ 产物链接）" % NUM)
-                    return 1
-                for url in urls:
-                    status, size, where, err = fetch(url)
-                    print("GET %s -> http=%s bytes=%s%s" % (where, status, size, (" err=" + err) if err else ""))
-                    if status == 200 and size >= MIN_BYTES:
-                        print("DELIVERY-OK issue=%s artifact=%s http=200 bytes=%s mentions_fix_report=%s"
-                              % (NUM, where, size, note))
-                        return 0
-                print("DELIVERY-FAIL reason=artifact-unreachable issue=%s candidates=%d（逐个取过，没一个 200 且 ≥%d 字节）"
-                      % (NUM, len(urls), MIN_BYTES))
-                return 1
-
-
-            if __name__ == "__main__":
-                sys.exit(main())
-            PY
+            python scripts/check_delivery_artifacts.py --issue "${CNB_ISSUE_NUMBER:-${CNB_ISSUE_IID:-}}" || rc=$?
             if [ "$rc" -ne 0 ]; then
               echo "交付核对失败：最新评论里的产物一个也取不回来 ⇒ 链判红（候选地址与 HTTP 读数见上）"
               exit 1
