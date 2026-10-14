@@ -470,11 +470,15 @@ main:
                 if [ "$n" -ge 3 ]; then
                   echo "PUSHBACK-FAIL reason=rebase-exhausted attempts=$n"
                   git status --short | head -20
-                  break
+                  exit 1
                 fi
                 echo "[pushback] rebase 第 $n 次没成，10s 后重试"
                 sleep 10
               done
+              # 成活要按工作树判：有未合并项就让本段变红，别带着冲突标记去推
+              if [ -n "$(git ls-files -u)" ]; then
+                echo "PUSHBACK-FAIL reason=unmerged-after-rebase"; exit 1
+              fi
               GIT_ASKPASS=/tmp/pb-askpass.sh git push https://cnb.cool/xuerui911-mirror/crawl_cars.git HEAD:main
               rm -f /tmp/pb-askpass.sh
             fi
@@ -1153,11 +1157,15 @@ main:
                 if [ "$n" -ge 3 ]; then
                   echo "PUSHBACK-FAIL reason=rebase-exhausted attempts=$n"
                   git status --short | head -20
-                  break
+                  exit 1
                 fi
                 echo "[pushback] rebase 第 $n 次没成，10s 后重试"
                 sleep 10
               done
+              # 成活要按工作树判：有未合并项就让本段变红，别带着冲突标记去推
+              if [ -n "$(git ls-files -u)" ]; then
+                echo "PUSHBACK-FAIL reason=unmerged-after-rebase"; exit 1
+              fi
               GIT_ASKPASS=/tmp/pb-askpass.sh git push https://cnb.cool/xuerui911-mirror/crawl_cars.git HEAD:main
               rm -f /tmp/pb-askpass.sh
             fi
@@ -1538,11 +1546,15 @@ main:
                   if [ "$n" -ge 3 ]; then
                     echo "PUSHBACK-FAIL reason=rebase-exhausted attempts=$n"
                     git status --short | head -20
-                    break
+                    exit 1
                   fi
                   echo "[pushback] rebase 第 $n 次没成，10s 后重试"
                   sleep 10
                 done
+                # 成活要按工作树判：有未合并项就让本段变红，别带着冲突标记去推
+                if [ -n "$(git ls-files -u)" ]; then
+                  echo "PUSHBACK-FAIL reason=unmerged-after-rebase"; exit 1
+                fi
                 GIT_ASKPASS=/tmp/dl-askpass.sh git push https://cnb.cool/xuerui911-mirror/crawl_cars.git HEAD:main
                 rm -f /tmp/dl-askpass.sh
                 echo "✅ 报价已回推；下一轮基础属性链会用它覆盖 Pages 上的陈旧经销商参考价"

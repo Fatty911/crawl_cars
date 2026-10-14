@@ -187,3 +187,47 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ---------------- 尾部补齐：样张从两处补到三处 ----------------
+# 既有 189 行一字未改。原 sample() 只造 api_trigger / 半月 crontab 两处回推段，而现网是三处
+# （另有周报价链 `回推报价数据`）；派发单要求 `test_dirty_tree_recognizes_three_sites` 断言样张
+# 认到三处、且既可跳过两处样张、又不许改既有行 ⇒ 只能在尾部把第三处补上（原实现保留为 _sample_two_sites）。
+_sample_two_sites = sample
+
+
+def sample(autostash=True, half=False, mask=False, force=False):
+    """三处回推段样张：既有两处 + 尾部补的周报价链一处（语义与既有两处一致）。"""
+    def block(third=False):
+        use_autostash = autostash and not (half and third)
+        rebase = "git rebase -q%s FETCH_HEAD" % (" --autostash" if use_autostash else "")
+        if mask:
+            rebase = rebase + " || true"
+        push = 'git push%s "$PB_REMOTE" HEAD:main' % (" --force" if force else "")
+        return ("set -e\n"
+                "PB_REMOTE=https://cnb.example/repo.git\n"
+                "n=0\n"
+                "git add -f crawl_state || true\n"
+                "until git fetch -q \"$PB_REMOTE\" main && %s; do\n"
+                "  n=$((n+1)); [ $n -ge 3 ] && { echo \"PUSHBACK-FAIL reason=rebase-exhausted attempts=$n\"; exit 1; }\n"
+                "  sleep 10\n"
+                "done\n"
+                "GIT_ASKPASS=/tmp/x.sh %s\n" % (rebase, push))
+
+    cfg = _sample_two_sites(autostash=autostash, half=half, mask=mask, force=force)
+    cfg["$"] = {"crontab: 37 8 * * 0": [{"name": "轮次3", "stages": [
+        {"name": "回推报价数据", "timeout": "1h", "script": block(third=True)}]}]}
+    return cfg
+
+
+def test_dirty_tree_recognizes_three_sites():
+    assert sum(len(pushback_stages(j)) for _e, j in jobs_of(sample())) == 3
+
+
+def test_dirty_tree_selftest_bidirectional():
+    assert selftest() == 0
+
+
+def test_dirty_tree_repo_sites_all_dirty_safe():
+    problems = check(load())
+    assert not problems, "\n".join(problems)
