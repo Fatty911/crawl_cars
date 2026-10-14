@@ -95,11 +95,17 @@ $ python -m pytest tests/ -q --tb=line
   可用替代证据：判据 6/6 绿、全量 `tests/` 785 passed、守卫组 68 passed 无新增红、
   `py_compile` 通过、`git bundle verify` 通过。
 
-## 7. 终版附件（含全部提交，sha256 回读一致）
+## 7. 判据文件逐字对齐
 
-- `issue81-a-class-synonym-fold-v3.patch`（`6e25916..HEAD` 全量 patch）
-- `issue81-a-class-synonym-fold-v3.bundle`（同区间 bundle，`git bundle verify` 通过）
-- `issue81-_fix_report_.md`（本报告，随分支最新提交一致）
+落盘后与 Issue 正文的 ```python 代码块逐行比对，发现我第一版 docstring 的
+`manifest 2026-10-14T04:16Z` 多了一对反引号（原文没有）。已按原文对齐，
+现 `difflib` 比对 **完全一致**（`IDENTICAL_TO_ISSUE_TEXT: True`），随后重新跑判据仍 `6 passed`。
+
+## 8. 终版附件（含全部提交，sha256 回读一致）
+
+- `issue81-a-class-synonym-fold-v4.patch`（`6e25916..HEAD` 全量 patch）
+- `issue81-a-class-synonym-fold-v4.bundle`（同区间 bundle，`git bundle verify` 通过）
+- `issue81-_fix_report_.md`（本报告）
 
 三份均经 GET 回读：`http=200` 且 `sha256` 与本地一致（读数见 Issue #81 最新评论）。
 
