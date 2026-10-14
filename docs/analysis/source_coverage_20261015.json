@@ -1,0 +1,42 @@
+{
+  "date": "20261015",
+  "sources": {
+    "懂车帝": {
+      "rows": 2727,
+      "kept": 2727,
+      "share_before": 0.785,
+      "share_after": 0.785,
+      "first_blocked_by_condition": {
+        "zero_to_hundred": 2707,
+        "ev_range": 10,
+        "PASS": 5,
+        "auto_headlight": 5
+      }
+    },
+    "汽车之家": {
+      "rows": 881,
+      "kept": 881,
+      "share_before": 0.2536,
+      "share_after": 0.2536,
+      "first_blocked_by_condition": {
+        "zero_to_hundred": 665,
+        "ev_range": 138,
+        "auto_headlight": 39,
+        "city_navigation": 29,
+        "PASS": 5,
+        "rain_sensor_wiper": 3,
+        "seat_memory": 2
+      }
+    },
+    "易车": {
+      "rows": 7,
+      "kept": 7,
+      "share_before": 0.002,
+      "share_after": 0.002,
+      "first_blocked_by_condition": {
+        "zero_to_hundred": 5,
+        "city_navigation": 2
+      }
+    }
+  }
+}
