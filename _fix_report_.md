@@ -106,3 +106,27 @@ B) 最新评论里没有任何产物（= 探针 #74 的死法）
 - `git push origin HEAD:refs/heads/npc/75-delivery-gate-fix-label` ⇒ **HTTP 403**（`repo-code:rw` 缺失），试 2 种凭据变体后停止；
 - `POST /-/pulls` ⇒ **HTTP 403**（`repo-pr:rw` 缺失）；
 - 附件：`npc-75.patch`（8.1 KB，`git apply --check` 在 base 上通过）、`npc-75.bundle`（含分支 ref，`git bundle verify` okay）。上传后逐字节回读 `cmp` 一致。
+
+## 6. 交付附录（最终读数）
+
+**线上核对段对本次真实 Issue 的实跑**（用本单修复后的核对段原文 + 真实 API，`NPC_FIX_GATE=RUN`）：
+```
+$ NPC_FIX_GATE=RUN CNB_ISSUE_NUMBER=75 sh gate.sh
+DELIVERY-NOTE issue=75 mentions_fix_report=yes candidates=3
+GET .../npc-75.patch -> http=200 bytes=19852
+DELIVERY-OK issue=75 artifact=... http=200 bytes=19852 mentions_fix_report=yes
+exit=0
+```
+即：加条件后，**带标签且产物真在**时核对照常放行；上面 §4 证明带标签且产物不在时照常判红。
+
+**门禁口径读数（如实）**：`python3 scripts/codex_delivery_gate.py verify`
+⇒ `DELIVERY_GATE_FAILED HEAD has not been delivered exactly: local a1c1c25…, remote a7febc1…`
+——原因是分支推不上去（HTTP 403 `repo-code:rw`），不是代码面问题；按 Issue 口径走评论附件交付。
+
+**附件终版**（Issue #75 评论 `2110248186009415680`）：
+- `npc-75.patch`（19852 B，`git apply --check` 在 base `a7febc1` 上通过）
+- `npc-75-full.bundle`（8.1 MB，含 `refs/heads/npc/75-delivery-gate-fix-label` ⇒ HEAD；已在新 clone 中 `git fetch` 回读成功）
+- 两份上传后均按 `/-/files/issues/...` 地址回读 `cmp` 逐字节一致。
+
+**轮数**：本报告写盘后正常收束，未出现 `reached maxTurns limit` / `finish with length`；
+`effective_max_turns=150`，已用约 58 轮，**剩余约 92 轮**。
