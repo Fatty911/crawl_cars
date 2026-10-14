@@ -465,7 +465,7 @@ main:
               # 凭据不变：仍走上面的 askpass；PB_REMOTE 不带凭据。
               PB_REMOTE=https://cnb.cool/xuerui911-mirror/crawl_cars.git
               n=0
-              until git fetch -q "$PB_REMOTE" main && git rebase -q FETCH_HEAD; do
+              until git fetch -q "$PB_REMOTE" main && git rebase -q --autostash FETCH_HEAD; do
                 n=$((n+1))
                 if [ "$n" -ge 3 ]; then
                   echo "PUSHBACK-FAIL reason=rebase-exhausted attempts=$n"
@@ -1148,7 +1148,7 @@ main:
               # 凭据不变：仍走上面的 askpass；PB_REMOTE 不带凭据。
               PB_REMOTE=https://cnb.cool/xuerui911-mirror/crawl_cars.git
               n=0
-              until git fetch -q "$PB_REMOTE" main && git rebase -q FETCH_HEAD; do
+              until git fetch -q "$PB_REMOTE" main && git rebase -q --autostash FETCH_HEAD; do
                 n=$((n+1))
                 if [ "$n" -ge 3 ]; then
                   echo "PUSHBACK-FAIL reason=rebase-exhausted attempts=$n"
@@ -1527,6 +1527,22 @@ main:
               esac
               DLASK
                 chmod +x /tmp/dl-askpass.sh
+                # 轮次中途有人合并进 main 时，克隆还停在起跑时的 main，回推会被
+                # ! [rejected] (fetch first) 拒掉，整轮数据作废。故先取回远端 main
+                # 并 rebase 到其上（--autostash：脏工作树也能成活），再有界重试；
+                # 失败点名 reason，不静默。凭据不变：仍走上面的 askpass；PB_REMOTE 不带凭据。
+                PB_REMOTE=https://cnb.cool/xuerui911-mirror/crawl_cars.git
+                n=0
+                until git fetch -q "$PB_REMOTE" main && git rebase -q --autostash FETCH_HEAD; do
+                  n=$((n+1))
+                  if [ "$n" -ge 3 ]; then
+                    echo "PUSHBACK-FAIL reason=rebase-exhausted attempts=$n"
+                    git status --short | head -20
+                    break
+                  fi
+                  echo "[pushback] rebase 第 $n 次没成，10s 后重试"
+                  sleep 10
+                done
                 GIT_ASKPASS=/tmp/dl-askpass.sh git push https://cnb.cool/xuerui911-mirror/crawl_cars.git HEAD:main
                 rm -f /tmp/dl-askpass.sh
                 echo "✅ 报价已回推；下一轮基础属性链会用它覆盖 Pages 上的陈旧经销商参考价"
