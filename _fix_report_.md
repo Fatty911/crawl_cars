@@ -73,9 +73,9 @@ $ python -m pytest tests/ -q --no-header        # 修后
 
 ## 6. 产物（附件交付）
 
-- `issue84-merge-idempotence.patch`（`6999c96..f5ec26e`，git format-patch）
+- `issue84-merge-idempotence.patch`（`6999c96..HEAD`，含修复/判据/本报告三个提交，git format-patch）
 - `issue84-merge-idempotence.bundle`（同区间 bundle，`git bundle verify` 通过）
-- 本报告 `issue84-_fix_report_.md`
+- 本报告 `issue84-_fix_report_.md`（上传字节数见随附评论回读读数）
 
 各产物上传后经 GET 回读 http=200 + sha256 一致（读数见 Issue #84 最新评论）。
 
