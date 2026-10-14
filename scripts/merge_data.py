@@ -6760,21 +6760,11 @@ def _merge_distinct_values(existing, incoming):
 
 
 
-    parts = [part.strip() for part in str(existing).split("|")]
+    folded = _folded_source_buckets(existing)
 
+    _merge_source_buckets(folded, _folded_source_buckets(incoming))
 
-
-
-
-
-    incoming_text = str(incoming).strip()
-
-
-
-
-
-
-    return existing if incoming_text in parts else f"{existing}|{incoming_text}"
+    return _render_source_buckets(folded) or existing
 
 
 
@@ -13888,6 +13878,62 @@ def _preserved_value_parts(value):
 
 
 
+def _folded_source_buckets(value, default_sources=()):
+    """把值折成 {源: [字面段]}：无前缀尾段归前面最近源，整值无前缀时归 default_sources。"""
+    buckets = {}
+    previous = ""
+    for label, text in _preserved_value_parts(value):
+        text = str(text).strip()
+        if not text:
+            continue
+        if label:
+            previous = label
+            while text.startswith(f"{label}:"):
+                text = text[len(label) + 1:].strip()
+            if not text:
+                continue
+            sources = [label]
+        elif previous:
+            sources = [previous]
+        elif default_sources:
+            sources = list(default_sources)
+        else:
+            sources = [""]
+        for source in sources:
+            tokens = buckets.setdefault(source, [])
+            if text not in tokens:
+                tokens.append(text)
+    return buckets
+
+
+def _merge_source_buckets(base, extra):
+    """同源按字面去重；裸段已被任一源记录时不再重复，不跨源折叠。"""
+    known = {token for tokens in base.values() for token in tokens}
+    for source, tokens in extra.items():
+        target = base.setdefault(source, [])
+        for token in tokens:
+            if token in target or (not source and token in known):
+                continue
+            target.append(token)
+            known.add(token)
+    return base
+
+
+def _render_source_buckets(buckets):
+    """按「源:段|段|源2:段」写回，无源段原样平铺。"""
+    parts = []
+    for source, tokens in buckets.items():
+        tokens = [str(token).strip() for token in tokens if str(token).strip()]
+        if not tokens:
+            continue
+        if source:
+            parts.append(f"{source}:{'|'.join(tokens)}")
+        else:
+            parts.extend(tokens)
+    return "|".join(parts)
+
+
+
 def _merge_existing_with_source(current, current_source, source_name, incoming):
 
 
@@ -14133,63 +14179,13 @@ def _merge_existing_with_source(current, current_source, source_name, incoming):
 
 
 
-        if parts and all(label for label, _ in parts):
+        default_sources = atomic_source_names(current_source) or [current_source or "已有来源"]
 
+        source_buckets = _folded_source_buckets(existing, default_sources)
 
+        _merge_source_buckets(source_buckets, _folded_source_buckets(added, [source_name] if source_name else []))
 
-
-
-
-            result[key] = f"{existing}|{source_name}:{added}"
-
-
-
-
-
-
-        else:
-
-
-
-
-
-
-            existing_sources = atomic_source_names(current_source)
-
-
-
-
-
-
-            if existing_sources:
-
-
-
-
-
-
-                preserved = "|".join(f"{existing_source}:{existing}" for existing_source in existing_sources)
-
-
-
-
-
-
-            else:
-
-
-
-
-
-
-                preserved = f"{current_source or '已有来源'}:{existing}"
-
-
-
-
-
-
-            result[key] = f"{preserved}|{source_name}:{added}"
+        result[key] = _render_source_buckets(source_buckets)
 
 
 
