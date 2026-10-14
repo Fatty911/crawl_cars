@@ -1,6 +1,7 @@
+提示: 断点 producer.crawler_sha256=6d20e02f3f6a6a55d3eea34598ea9a42646dc7c63db12775f5dd82c98679dc75 与本轮脚本 a983833dec0b56762b1f14957bfd3c04b0525fefbcc9f96908e652161f5407bd 不一致（无认证来源，按仓内断点续跑）
 易车检查点: status=running stage=initializing attempted=149 brands_scanned=1 rows=191
 易车恢复: attempted=149 rows=191 pending=53 targets_discovered=132 source_run=
-易车预算: budget_seconds=1280 finish_buffer_seconds=60 item_timeout_seconds=120.0 deadline_monotonic=131057.976 targets_initial=132 max_attempts=2
+易车预算: budget_seconds=1603 finish_buffer_seconds=60 item_timeout_seconds=120.0 deadline_monotonic=174510.646 targets_initial=132 max_attempts=2
 抓取易车: https://car.yiche.com/aodia0/peizhi/
   易车配置 API: serialId=8370 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -49,7 +50,7 @@
   易车配置 API: serialId=10377 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=157 brands_scanned=1 rows=191 elapsed_seconds=60.128 last_progress_age_seconds=2.471
+易车心跳: status=running stage=item attempted=157 brands_scanned=1 rows=191 elapsed_seconds=60.044 last_progress_age_seconds=2.005
 易车检查点: status=running stage=item_complete attempted=157 brands_scanned=1 rows=191
 抓取易车: https://car.yiche.com/aodielaine/peizhi/
   易车配置 API: serialId=6417 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
@@ -93,7 +94,7 @@
   易车配置 API: serialId=9881 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=164 brands_scanned=1 rows=191 elapsed_seconds=120.129 last_progress_age_seconds=5.078
+易车心跳: status=running stage=item attempted=164 brands_scanned=1 rows=191 elapsed_seconds=120.046 last_progress_age_seconds=4.285
 抓取易车: https://car.yiche.com/aodiq8etronsportback/peizhi/
   易车配置 API: serialId=9882 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -137,7 +138,7 @@
   易车配置 API: serialId=9748 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=171 brands_scanned=1 rows=191 elapsed_seconds=180.13 last_progress_age_seconds=7.641
+易车心跳: status=running stage=item attempted=171 brands_scanned=1 rows=191 elapsed_seconds=180.047 last_progress_age_seconds=6.574
 抓取易车: https://car.yiche.com/aodia6chadianhundong/peizhi/
   易车配置 API: serialId=6415 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -187,7 +188,7 @@
   易车配置 API: serialId=6422 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=179 brands_scanned=1 rows=191 elapsed_seconds=240.132 last_progress_age_seconds=1.985
+易车心跳: status=running stage=item attempted=179 brands_scanned=1 rows=191 elapsed_seconds=240.048 last_progress_age_seconds=0.664
 抓取易车: https://car.yiche.com/aodipb18/peizhi/
   易车配置 API: serialId=6413 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -212,28 +213,31 @@
 抓取易车: https://car.yiche.com/aodisq2/peizhi/
   易车配置 API: serialId=6032 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
   易车配置 API: serialId=6032 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
-  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+  易车页面受限(403)且无可用真实配置，跳过
 抓取易车: https://car.yiche.com/aodirsq3-6064/peizhi/
   易车配置 API: serialId=6064 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
   易车配置 API: serialId=6064 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
-  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+  易车页面受限(403)且无可用真实配置，跳过
 抓取易车: https://car.yiche.com/aodisq5/peizhi/
   易车配置 API: serialId=3829 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
   易车配置 API: serialId=3829 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
-  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+  易车页面受限(403)且无可用真实配置，跳过
 抓取易车: https://car.yiche.com/aodisq9/peizhi/
   易车配置 API: serialId=12468 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   易车配置 API: serialId=12468 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=186 brands_scanned=1 rows=191 elapsed_seconds=300.133 last_progress_age_seconds=4.327
+易车心跳: status=running stage=item attempted=186 brands_scanned=1 rows=191 elapsed_seconds=300.05 last_progress_age_seconds=1.516
 抓取易车: https://car.yiche.com/aodis1/peizhi/
   易车配置 API: serialId=6427 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -277,7 +281,7 @@
   易车配置 API: serialId=7608 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=193 brands_scanned=1 rows=191 elapsed_seconds=360.134 last_progress_age_seconds=6.901
+易车心跳: status=running stage=item attempted=193 brands_scanned=1 rows=191 elapsed_seconds=360.051 last_progress_age_seconds=3.48
 抓取易车: https://car.yiche.com/aodirsq6etron/peizhi/
   易车配置 API: serialId=9289 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -321,13 +325,13 @@
   易车配置 API: serialId=11105 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=200 brands_scanned=1 rows=191 elapsed_seconds=420.053 last_progress_age_seconds=5.618
 抓取易车: https://car.yiche.com/aodis6etron/peizhi/
   易车配置 API: serialId=11181 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   易车配置 API: serialId=11181 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=201 brands_scanned=1 rows=191 elapsed_seconds=420.135 last_progress_age_seconds=1.261
 抓取易车: https://car.yiche.com/aodif1gainianche/peizhi/
   易车配置 API: serialId=10265 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -362,12 +366,12 @@
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=3 rejected_rows=0
   提取真实配置 3 条
   真实配置样例: 车型名称='24款 Plus 80 智尊版' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
+易车心跳: status=running stage=item attempted=207 brands_scanned=2 rows=222 elapsed_seconds=480.055 last_progress_age_seconds=7.704
 抓取易车: https://car.yiche.com/aionrt/peizhi/
   易车配置 API: serialId=11235 status=1 message='success' data_type=list groups=21 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=11 rejected_rows=0
   提取真实配置 11 条
   真实配置样例: 车型名称='27款 505km RT super' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
-易车心跳: status=running stage=item attempted=208 brands_scanned=2 rows=225 elapsed_seconds=480.137 last_progress_age_seconds=3.75
 抓取易车: https://car.yiche.com/guangqixinnengyuanaions/peizhi/
   易车配置 API: serialId=5536 status=1 message='success' data_type=list groups=21 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=8 rejected_rows=0
@@ -407,7 +411,7 @@
   易车配置 API: serialId=8814 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=215 brands_scanned=2 rows=258 elapsed_seconds=540.139 last_progress_age_seconds=6.235
+易车心跳: status=running stage=item attempted=215 brands_scanned=2 rows=258 elapsed_seconds=540.057 last_progress_age_seconds=1.671
 抓取易车: https://car.yiche.com/guangqixinnengyuan2all/peizhi/
   易车配置 API: serialId=8820 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -452,7 +456,7 @@
   易车配置 API: serialId=12459 status=1 message='success' data_type=list groups=7 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=2
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=222 brands_scanned=2 rows=260 elapsed_seconds=600.141 last_progress_age_seconds=8.199
+易车心跳: status=running stage=item attempted=222 brands_scanned=2 rows=260 elapsed_seconds=600.059 last_progress_age_seconds=2.276
 抓取易车: https://car.yiche.com/enverge/peizhi/
   易车配置 API: serialId=6888 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -497,6 +501,7 @@
   易车配置 API: serialId=10611 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=229 brands_scanned=2 rows=260 elapsed_seconds=660.061 last_progress_age_seconds=3.325
 易车检查点: status=running stage=item_complete attempted=229 brands_scanned=2 rows=260
 易车可信发现: brand='brand_619' master_id=619 brands_scanned=3 brands_total=84 pages_scanned=3 new_serial_ids=10 unique_serial_ids=155 remaining_brands=81
 易车发现队列: round=3 new_serial_ids=10 queue_depth=10 unique_serial_ids=156
@@ -505,7 +510,6 @@
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=9 rejected_rows=0
   提取真实配置 9 条
   真实配置样例: 车型名称='26款 增程版 245km 后驱Elite' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
-易车心跳: status=running stage=item attempted=230 brands_scanned=3 rows=260 elapsed_seconds=660.143 last_progress_age_seconds=1.553
 抓取易车: https://car.yiche.com/aweita07l/peizhi/
   易车配置 API: serialId=12372 status=1 message='success' data_type=list groups=20 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=3 rejected_rows=0
@@ -537,13 +541,13 @@
   易车配置 API: serialId=11662 status=1 message='success' data_type=list groups=8 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=2
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=236 brands_scanned=3 rows=299 elapsed_seconds=720.064 last_progress_age_seconds=4.895
 抓取易车: https://car.yiche.com/aweita08/peizhi/
   易车配置 API: serialId=11262 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   易车配置 API: serialId=11262 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=237 brands_scanned=3 rows=299 elapsed_seconds=720.145 last_progress_age_seconds=3.908
 易车检查点: status=running stage=item_complete attempted=237 brands_scanned=3 rows=299
 抓取易车: https://car.yiche.com/aweitad706/peizhi/
   易车配置 API: serialId=11663 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
@@ -581,6 +585,7 @@
   易车配置 API: serialId=12007 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=243 brands_scanned=3 rows=299 elapsed_seconds=780.067 last_progress_age_seconds=6.626
 易车可信发现: brand='brand_629' master_id=629 brands_scanned=4 brands_total=84 pages_scanned=4 new_serial_ids=5 unique_serial_ids=160 remaining_brands=80
 易车发现队列: round=4 new_serial_ids=5 queue_depth=5 unique_serial_ids=161
 抓取易车: https://car.yiche.com/wenjiem5/peizhi/
@@ -588,7 +593,6 @@
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=3 rejected_rows=0
   提取真实配置 3 条
   真实配置样例: 车型名称='25款 增程版 255km Ultra 后驱版' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
-易车心跳: status=running stage=item attempted=244 brands_scanned=4 rows=299 elapsed_seconds=780.147 last_progress_age_seconds=6.347
 抓取易车: https://car.yiche.com/wenjiem6/peizhi/
   易车配置 API: serialId=12154 status=1 message='success' data_type=list groups=23 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=8 rejected_rows=0
@@ -622,14 +626,14 @@
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=5 rejected_rows=0
   提取真实配置 5 条
   真实配置样例: 车型名称='26款 618km 后驱先锋型' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
+易车心跳: status=running stage=item attempted=250 brands_scanned=5 rows=378 elapsed_seconds=840.071 last_progress_age_seconds=7.878
 易车可信发现: brand='brand_97' master_id=97 brands_scanned=6 brands_total=84 pages_scanned=6 new_serial_ids=36 unique_serial_ids=198 remaining_brands=78
 易车发现队列: round=6 new_serial_ids=36 queue_depth=36 unique_serial_ids=199
 抓取易车: https://car.yiche.com/asidunmadingdbx-6008/peizhi/
   易车配置 API: serialId=6008 status=1 message='success' data_type=list groups=19 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
-  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=1 rejected_rows=0
-  提取真实配置 1 条
-  真实配置样例: 车型名称='26款 4.0T V8 S' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
-易车心跳: status=running stage=item attempted=251 brands_scanned=6 rows=383 elapsed_seconds=840.15 last_progress_age_seconds=7.714
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=3 rejected_rows=0
+  提取真实配置 3 条
+  真实配置样例: 车型名称='27款 4.0T V8 GT' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
 抓取易车: https://car.yiche.com/vanquish/peizhi/
   易车配置 API: serialId=3811 status=1 message='success' data_type=list groups=19 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=2 rejected_rows=2
@@ -640,7 +644,7 @@
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=5 rejected_rows=0
   提取真实配置 5 条
   真实配置样例: 车型名称='26款 4.0T V8 S' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
-易车检查点: status=running stage=item_complete attempted=253 brands_scanned=6 rows=391
+易车检查点: status=running stage=item_complete attempted=253 brands_scanned=6 rows=393
 抓取易车: https://car.yiche.com/v8vantage/peizhi/
   易车配置 API: serialId=2140 status=1 message='success' data_type=list groups=19 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=4 rejected_rows=0
@@ -668,12 +672,12 @@
   易车配置 API: serialId=3558 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=258 brands_scanned=6 rows=401 elapsed_seconds=900.075 last_progress_age_seconds=1.755
 抓取易车: https://car.yiche.com/db7/peizhi/
   易车配置 API: serialId=3538 status=1 message='success' data_type=list groups=13 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=3 rejected_rows=0
   提取真实配置 3 条
   真实配置样例: 车型名称='03款 Vantage' 配置字段=['价格', '厂商', '级别', '能源类型', '环保标准']
-易车心跳: status=running stage=item attempted=259 brands_scanned=6 rows=399 elapsed_seconds=900.154 last_progress_age_seconds=2.324
 抓取易车: https://car.yiche.com/asidunmadingdb9/peizhi/
   易车配置 API: serialId=2621 status=1 message='success' data_type=list groups=18 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=1 rejected_rows=0
@@ -684,7 +688,7 @@
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=1 rejected_rows=0
   提取真实配置 1 条
   真实配置样例: 车型名称='11款 one-77' 配置字段=['价格', '厂商', '级别', '能源类型', '环保标准']
-易车检查点: status=running stage=item_complete attempted=261 brands_scanned=6 rows=404
+易车检查点: status=running stage=item_complete attempted=261 brands_scanned=6 rows=406
 抓取易车: https://car.yiche.com/v12vantage/peizhi/
   易车配置 API: serialId=2720 status=1 message='success' data_type=list groups=18 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=2 rejected_rows=0
@@ -706,12 +710,12 @@
   易车配置 API: serialId=11666 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=265 brands_scanned=6 rows=412 elapsed_seconds=960.079 last_progress_age_seconds=4.399
 抓取易车: https://car.yiche.com/asidunmadingdbs/peizhi/
   易车配置 API: serialId=2620 status=1 message='success' data_type=list groups=19 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=2 rejected_rows=0
   提取真实配置 2 条
   真实配置样例: 车型名称='23款 DBS Superleggera V12 Coupe' 配置字段=['价格', '厂商', '级别', '能源类型', '环保标准']
-易车心跳: status=running stage=item attempted=266 brands_scanned=6 rows=410 elapsed_seconds=960.158 last_progress_age_seconds=5.246
 抓取易车: https://car.yiche.com/ulster/peizhi/
   易车配置 API: serialId=11667 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -730,7 +734,7 @@
   易车配置 API: serialId=12460 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车检查点: status=running stage=item_complete attempted=269 brands_scanned=6 rows=412
+易车检查点: status=running stage=item_complete attempted=269 brands_scanned=6 rows=414
 抓取易车: https://car.yiche.com/cygnet-6549/peizhi/
   易车配置 API: serialId=6549 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -749,13 +753,13 @@
   易车配置 API: serialId=6544 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=272 brands_scanned=6 rows=414 elapsed_seconds=1020.084 last_progress_age_seconds=6.308
 抓取易车: https://car.yiche.com/asidunmadingdb5/peizhi/
   易车配置 API: serialId=6542 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   易车配置 API: serialId=6542 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=273 brands_scanned=6 rows=412 elapsed_seconds=1020.161 last_progress_age_seconds=7.772
 抓取易车: https://car.yiche.com/asidunmadingdb6/peizhi/
   易车配置 API: serialId=6546 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -780,7 +784,7 @@
   易车配置 API: serialId=6547 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车检查点: status=running stage=item_complete attempted=277 brands_scanned=6 rows=412
+易车检查点: status=running stage=item_complete attempted=277 brands_scanned=6 rows=414
 抓取易车: https://car.yiche.com/bulldog/peizhi/
   易车配置 API: serialId=8061 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -793,6 +797,7 @@
   易车配置 API: serialId=6941 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=279 brands_scanned=6 rows=414 elapsed_seconds=1080.088 last_progress_age_seconds=8.251
 抓取易车: https://car.yiche.com/vulcan/peizhi/
   易车配置 API: serialId=6550 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -805,7 +810,6 @@
   易车配置 API: serialId=9733 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=281 brands_scanned=6 rows=412 elapsed_seconds=1080.165 last_progress_age_seconds=2.123
 抓取易车: https://car.yiche.com/valen/peizhi/
   易车配置 API: serialId=12492 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -831,7 +835,7 @@
   易车配置 API: serialId=5718 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车检查点: status=running stage=item_complete attempted=285 brands_scanned=6 rows=413
+易车检查点: status=running stage=item_complete attempted=285 brands_scanned=6 rows=415
 抓取易车: https://car.yiche.com/heritageev/peizhi/
   易车配置 API: serialId=6545 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -844,13 +848,13 @@
   易车配置 API: serialId=3555 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=287 brands_scanned=6 rows=415 elapsed_seconds=1140.092 last_progress_age_seconds=1.16
 抓取易车: https://car.yiche.com/zagato/peizhi/
   易车配置 API: serialId=3558 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   易车配置 API: serialId=3558 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=288 brands_scanned=6 rows=413 elapsed_seconds=1140.168 last_progress_age_seconds=4.185
 抓取易车: https://car.yiche.com/asidunmadingdb4/peizhi/
   易车配置 API: serialId=11666 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -881,20 +885,20 @@
   易车配置 API: serialId=6549 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车检查点: status=running stage=item_complete attempted=293 brands_scanned=6 rows=413
+易车检查点: status=running stage=item_complete attempted=293 brands_scanned=6 rows=415
 抓取易车: https://car.yiche.com/lagongdataraf/peizhi/
   易车配置 API: serialId=6543 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   易车配置 API: serialId=6543 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=294 brands_scanned=6 rows=415 elapsed_seconds=1200.096 last_progress_age_seconds=3.561
 抓取易车: https://car.yiche.com/asidunmadingcc100/peizhi/
   易车配置 API: serialId=6544 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   易车配置 API: serialId=6544 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车心跳: status=running stage=item attempted=295 brands_scanned=6 rows=413 elapsed_seconds=1200.172 last_progress_age_seconds=6.672
 抓取易车: https://car.yiche.com/asidunmadingdb5/peizhi/
   易车配置 API: serialId=6542 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
@@ -913,6 +917,244 @@
   易车配置 API: serialId=6364 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
   易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
   仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
-易车抓取统计: attempted=298 success=95 403=6 429=0 failed=6 degraded_identity=197 discovery_rounds=6 discovery_network_errors=0 retry_attempted=94 item_timeouts=0 invalid_brand=0 invalid_model_name=0 invalid_series=99 invalid_year=0 unapproved_status=63 targets_discovered=204 unique_serial_ids_attempted=199 brands_total=84 brands_scanned=6 remaining_brands=78 pages_scanned=6 brand_discovery_retries=2 brand_discovery_failures=0 last_failed_master_id=- queue_depth=10 real_rows=413 elapsed_seconds=1226.3 remaining_seconds=53.7 stop_reason=safety_buffer_reached
-易车检查点: status=partial stage=finished attempted=298 brands_scanned=6 rows=413
-易车数据已写入 yiche_20261012.json，共 413 条
+抓取易车: https://car.yiche.com/asidunmadingdb10/peizhi/
+  易车配置 API: serialId=6548 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=6548 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/asidunmadingdp100/peizhi/
+  易车配置 API: serialId=6547 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=6547 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/bulldog/peizhi/
+  易车配置 API: serialId=8061 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=8061 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=301 brands_scanned=6 rows=415 elapsed_seconds=1260.101 last_progress_age_seconds=5.821
+易车检查点: status=running stage=item_complete attempted=301 brands_scanned=6 rows=415
+抓取易车: https://car.yiche.com/victor/peizhi/
+  易车配置 API: serialId=6941 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=6941 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/vulcan/peizhi/
+  易车配置 API: serialId=6550 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=6550 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/dbr22/peizhi/
+  易车配置 API: serialId=9733 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9733 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/valen/peizhi/
+  易车配置 API: serialId=12492 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=12492 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/valour/peizhi/
+  易车配置 API: serialId=10382 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=10382 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/asidunmadingrapidee/peizhi/
+  易车配置 API: serialId=5718 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=5718 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/heritageev/peizhi/
+  易车配置 API: serialId=6545 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=6545 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=308 brands_scanned=6 rows=415 elapsed_seconds=1320.106 last_progress_age_seconds=8.123
+易车可信发现: brand='brand_92' master_id=92 brands_scanned=7 brands_total=84 pages_scanned=7 new_serial_ids=25 unique_serial_ids=223 remaining_brands=77
+易车发现队列: round=7 new_serial_ids=25 queue_depth=25 unique_serial_ids=224
+抓取易车: https://car.yiche.com/aerfaluomiougiulia/peizhi/
+  易车配置 API: serialId=4598 status=1 message='success' data_type=list groups=20 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=4 rejected_rows=0
+  提取真实配置 4 条
+  真实配置样例: 车型名称='26款 2.0T VELOCE 赛道版' 配置字段=['价格', '城市参考价', '厂商', '级别', '能源类型']
+易车检查点: status=running stage=item_complete attempted=309 brands_scanned=7 rows=419
+抓取易车: https://car.yiche.com/aerfaluomioutonale/peizhi/
+  易车配置 API: serialId=5656 status=1 message='success' data_type=list groups=20 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=8 rejected_rows=0
+  提取真实配置 8 条
+  真实配置样例: 车型名称='24款 改款二 2.0T 纵擎版' 配置字段=['价格', '厂商', '级别', '能源类型', '环保标准']
+抓取易车: https://car.yiche.com/aerfaluomiou147/peizhi/
+  易车配置 API: serialId=9069 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9069 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/aerfaluomiou159/peizhi/
+  易车配置 API: serialId=9067 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9067 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/aerfa156/peizhi/
+  易车配置 API: serialId=2129 status=1 message='success' data_type=list groups=18 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=1 rejected_rows=0
+  提取真实配置 1 条
+  真实配置样例: 车型名称='04款 156 2.0' 配置字段=['价格', '厂商', '级别', '能源类型', '环保标准']
+抓取易车: https://car.yiche.com/aerfa166/peizhi/
+  易车配置 API: serialId=2128 status=1 message='success' data_type=list groups=17 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=1 rejected_rows=0
+  提取真实配置 1 条
+  真实配置样例: 车型名称='03款 166 3.0' 配置字段=['价格', '厂商', '级别', '能源类型', '环保标准']
+抓取易车: https://car.yiche.com/aerfaluomiougtv/peizhi/
+  易车配置 API: serialId=2127 status=1 message='success' data_type=list groups=17 group_keys=['items', 'name'] item_keys=['customSameType', 'desc', 'encyclopediaId', 'id', 'imagePlaceId', 'imageUrl', 'keyItem', 'name', 'paramId', 'paramType', 'paramValues', 'sameType', 'type', 'videoPlaceId']
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=1 rejected_rows=0
+  提取真实配置 1 条
+  真实配置样例: 车型名称='03款 Gtv' 配置字段=['价格', '厂商', '级别', '能源类型', '上市时间']
+抓取易车: https://car.yiche.com/serial-9066/peizhi/
+  易车配置 API: serialId=9066 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9066 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=316 brands_scanned=7 rows=430 elapsed_seconds=1380.111 last_progress_age_seconds=2.382
+抓取易车: https://car.yiche.com/aerfaluomiou8c/peizhi/
+  易车配置 API: serialId=9064 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9064 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车检查点: status=running stage=item_complete attempted=317 brands_scanned=7 rows=430
+抓取易车: https://car.yiche.com/aerfaluomioug1/peizhi/
+  易车配置 API: serialId=9071 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9071 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/aerfaluomiousz/peizhi/
+  易车配置 API: serialId=9065 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9065 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/aerfaluomioutz3/peizhi/
+  易车配置 API: serialId=9068 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=9068 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+抓取易车: https://car.yiche.com/gloria/peizhi/
+  易车配置 API: serialId=9072 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=9072 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+抓取易车: https://car.yiche.com/junior/peizhi/
+  易车配置 API: serialId=11601 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=11601 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+抓取易车: https://car.yiche.com/aerfaluomioustelvio/peizhi/
+  易车配置 API: serialId=4985 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=4985 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+易车心跳: status=running stage=item attempted=323 brands_scanned=7 rows=430 elapsed_seconds=1440.117 last_progress_age_seconds=3.873
+抓取易车: https://car.yiche.com/mito-6846/peizhi/
+  易车配置 API: serialId=6846 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=6846 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+抓取易车: https://car.yiche.com/giulietta-6845/peizhi/
+  易车配置 API: serialId=6845 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=6845 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+易车检查点: status=running stage=item_complete attempted=325 brands_scanned=7 rows=430
+抓取易车: https://car.yiche.com/aerfaluomioucuorerosso/peizhi/
+  易车配置 API: serialId=12563 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=12563 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+抓取易车: https://car.yiche.com/discovolante/peizhi/
+  易车配置 API: serialId=6856 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=6856 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+抓取易车: https://car.yiche.com/aerfaluomiou4c-6304/peizhi/
+  易车配置 API: serialId=6304 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车出口受限(403)，已重建连接以切换出口 IP
+  易车配置 API: serialId=6304 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车页面受限(403)且无可用真实配置，跳过
+抓取易车: https://car.yiche.com/serial-10471/peizhi/
+  易车配置 API: serialId=10471 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=10471 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/brennero/peizhi/
+  易车配置 API: serialId=10666 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=10666 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车心跳: status=running stage=item attempted=330 brands_scanned=7 rows=430 elapsed_seconds=1500.122 last_progress_age_seconds=4.553
+抓取易车: https://car.yiche.com/tonalexinnengyuan/peizhi/
+  易车配置 API: serialId=9901 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9901 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/stelvioxinnengyuan/peizhi/
+  易车配置 API: serialId=10547 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=10547 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/aerfaluomiou4e/peizhi/
+  易车配置 API: serialId=11335 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=11335 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车检查点: status=running stage=item_complete attempted=333 brands_scanned=7 rows=430
+抓取易车: https://car.yiche.com/aerfaluomiou147/peizhi/
+  易车配置 API: serialId=9069 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9069 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+抓取易车: https://car.yiche.com/aerfaluomiou159/peizhi/
+  易车配置 API: serialId=9067 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  易车配置 API: serialId=9067 status=1 message='success' data_type=list groups=0 group_keys=[] item_keys=[]
+  易车上市过滤: sale_model_ids=0 sale_model_names=0 approved_rows=0 rejected_rows=0
+  仅获得降级身份，未计入真实配置 (html_bytes=1697 title='')
+易车抓取统计: attempted=335 success=100 403=18 429=0 failed=18 degraded_identity=217 discovery_rounds=7 discovery_network_errors=0 retry_attempted=106 item_timeouts=0 invalid_brand=0 invalid_model_name=0 invalid_series=101 invalid_year=0 unapproved_status=63 targets_discovered=229 unique_serial_ids_attempted=224 brands_total=84 brands_scanned=7 remaining_brands=77 pages_scanned=7 brand_discovery_retries=2 brand_discovery_failures=0 last_failed_master_id=- queue_depth=18 real_rows=430 elapsed_seconds=1545.2 remaining_seconds=57.8 stop_reason=safety_buffer_reached
+易车检查点: status=partial stage=finished attempted=335 brands_scanned=7 rows=430
+易车数据已写入 yiche_20261014.json，共 430 条
