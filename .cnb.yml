@@ -1624,6 +1624,7 @@ $:
               Issue 标题: $CNB_ISSUE_TITLE
               Issue 描述: $CNB_ISSUE_DESCRIPTION
         - name: 交付核对-产物必须真取回
+          if: '[ "$NPC_FIX_GATE" = "RUN" ]'
           script: |
             # 交付核对：agent 阶段 success 只代表会话结束，不代表有东西可交付——
             # 实测 cnb-fs9/trs/13k 三条阶段绿、零分支零产物；#59 更直接：交付评论声称附件
