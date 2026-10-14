@@ -95,12 +95,12 @@ $ python -m pytest tests/ -q --tb=line
   可用替代证据：判据 6/6 绿、全量 `tests/` 785 passed、守卫组 68 passed 无新增红、
   `py_compile` 通过、`git bundle verify` 通过。
 
-## 7. 终版附件（3 提交版，sha256 回读一致）
+## 7. 终版附件（含全部提交，sha256 回读一致）
 
-- `issue81-a-class-synonym-fold-v2.patch`（含报告提交前的 2 提交版）
-- `issue81-a-class-synonym-fold-v2.bundle`
-- `issue81-_fix_report_.md`
+- `issue81-a-class-synonym-fold-v3.patch`（`6e25916..HEAD` 全量 patch）
+- `issue81-a-class-synonym-fold-v3.bundle`（同区间 bundle，`git bundle verify` 通过）
+- `issue81-_fix_report_.md`（本报告，随分支最新提交一致）
 
-三份均经 GET 回读：`http=200`、`bytes=21740/7022/5104`、`sha256 一致=True`。
+三份均经 GET 回读：`http=200` 且 `sha256` 与本地一致（读数见 Issue #81 最新评论）。
 
 `effective_max_turns`：本会话上限 150，已用约 55 轮，**剩余约 95 轮**。
