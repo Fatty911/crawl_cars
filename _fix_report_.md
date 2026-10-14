@@ -48,10 +48,10 @@ E1（只 break 无 exit）+ E2（push 前无未合并项检查）。自校 8/8 �
 
 ## 5. 产物（附件交付）
 
-本报告由 `_fix_report_.md` **全量覆写**（上一单 #84 的旧报告内容已随本单替换）。上传后经 GET 回读校验时报告 §5 的资产地址以 Issue 评论为准。
+本报告由 `_fix_report_.md` **全量覆写**（上一单 #84 的旧报告内容已随本单替换）。本报告 v2 仅把 §5 的 sha/字节数换成含报告 v1 的最终导出读数（一次性写，之后不再跑套件）；bundle/patch 内是报告 v1，两者差异仅本 §5 数字。上传后经 GET 回读校验的资产地址与读数见 Issue #88 评论。
 
-- `issue88-pushback-worktree-gate.bundle`（`2a76534..6f78c0f`）：8685 字节，sha256 `d5c6d285ac4c6b5ac5f30af18dfc114d6767380dedec409913d37e48f90a1264`，PUT 200
-- `issue88-pushback-worktree-gate.patch`（`git format-patch 2a76534..6f78c0f`）：22637 字节，sha256 `2d597df63d8e36d6a10c4349484f79913ff534c58ddeaf1064bb0c13300a4d04`，PUT 200
+- `issue88-pushback-worktree-gate.bundle`（`2a76534..a2825c7`，含本报告 v1）：11473 字节，sha256 `ea84f7fda405a96151c6300f43d0745fbd6c2d69c43f1e99a1a84fac88b60d6f`，PUT 200
+- `issue88-pushback-worktree-gate.patch`（`git format-patch 2a76534..a2825c7`，含本报告 v1）：33969 字节，sha256 `46c30b4889b7ea318676c3d837524d6e570ea032b85aa83e173e76f9c86c80ec`，PUT 200
 
 判据文件字节（原样落盘校核）：`tests/test_pushback_success_is_measured_on_worktree.py` sha256 `e8ce07495c9788c4827f019385286b7e`（md5），与 Issue 下发 python 块逐字节相同（实测 `identical: True`）。
 
