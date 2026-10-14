@@ -1,112 +1,84 @@
-分支 `npc/81-a-class-synonym-fold`（本地就绪，提交 `1a5fe24` + `973ecef`，基线 `main@6e25916`）｜推送 HTTP 403（`Your token does not have the repo-code:rw scope required to push to this repository.`）｜`POST /-/pulls` 另返 403（`Missing required scopes: repo-pr:rw`）｜交付方式：按 Issue 口径改走 Issue #81 评论附件交付（patch + bundle，官方 `comment-file-asset-upload-url` 通道）｜实际模型 `deepseek-v4.1-flash`（npc:go，maxTurns=150）
+分支 `npc/84-merge-idempotence`（本地提交 `f5ec26e`，基线 `main@6999c96`）｜推送 HTTP 403（`repo-code:rw` 缺失）｜`POST /-/pulls` HTTP 403（`repo-pr:rw` 缺失）｜按 Issue 口径附件交付（bundle + patch + 本报告）｜实际模型 `deepseek-v4.1-flash`（npc:go，maxTurns=150）
 
-# Issue #81 修复报告：A 类判异同族折一（悬架/悬挂、万/万元）
+# Issue #84 修复报告：合并幂等（同一段值第二次合并不许叠前缀/同源多段）
 
 ## 1. 根因
 
-`canonical_compare`（`scripts/merge_data.py`）的归一表不闭环：
+现网 `汽车之家:汽车之家:…` 逐轮膨胀的根因是跨源合并两处写出点的解析形状：
 
-- **拼写族缺失**：`麦弗逊式独立悬架` 与 `麦弗逊式独立悬挂` 是同一个词两种写法，比较键不折叠 ⇒ 两源值被判异 ⇒ `merge_source_rows` 走冲突分支写成 `汽车之家:…|懂车帝:…`（现网 150+99 行）。
-- **单位后缀不闭环**：`万元` 在 `_VALUE_UNIT_SUFFIX` 里、`万` 不在 ⇒ `59.88万元` 折成 `num:59.88`，`59.88万` 不折 ⇒ 同一价格的两种写法折叠程度不一致。
+- `_merge_existing_with_source` 尾部把 `existing` 与 `source_name:added` 直接字面拼接，不先解析既有串里各源位置 ⇒ 已带前缀的串再合一次就在外层套第二层前缀（判据实测 main 第 1 次 `汽车之家:汽车之家:电动调节…`，第 2 次叠第三层）。
+- 值串里**没有源前缀的尾段**（`汽车之家:真皮|仿皮` 的 `仿皮`）被当成独立"新源"，每轮重拼一次。
+- `_merge_distinct_values` 只用 `incoming_text in parts` 做字面成员判断，不解析源归属 ⇒ 同族写出点形状分叉（判据 `test_both_writers_leave_at_most_one_segment_per_source`）。
 
-两处都只涉及**比较键**，不涉及存储值——`canonical_compare` 的 docstring 已声明 "without changing the stored value"。
+## 2. 实际改动（1 个源码文件）
 
-## 2. 实际改动（1 个文件、3 行）
+`scripts/merge_data.py`（+63 −67 行，净 −4）：
 
-`scripts/merge_data.py`，`canonical_compare` 函数体入口（`text = str(value or "").strip()` 之后、
-`compact = re.sub(...)` 之前）新增 3 行：
+- **新增 3 个纯函数**（插在 `_merge_existing_with_source` 定义前，复用既有 `_preserved_value_parts`、不改其签名）：
+  - `_folded_source_buckets(value, default_sources=())`：把值串解析成 `{源: [字面段]}`；**无前缀尾段归前面最近源**；整值无前缀时归 `default_sources`（裸值归该行全部原子源）；剥同源重复前缀。
+  - `_merge_source_buckets(base, extra)`：**同源按字面 token 去重**（不用 `canonical_compare` 归一键，避免误删合法信息）；裸段已被任一源记录时不重复；**不跨源折叠**（真冲突留痕）。
+  - `_render_source_buckets(buckets)`：按 `源:段|段|源2:段` 拼回。
+- **`_merge_existing_with_source` 写出点**：`if parts and all(...)` 分叉分支替换为统一折叠——`default_sources = atomic_source_names(current_source) or [current_source or "已有来源"]`，两侧折桶后合并、再渲染。删除了原来只会拼 `f"{existing}|{source_name}:{added}"` / `f"{preserved}|{source_name}:{added}"` 的两条写出行。
+- **`_merge_distinct_values` 尾部**：替换为 `_folded_source_buckets(existing)` + `_merge_source_buckets(...)` + `return _render_source_buckets(folded) or existing`（同族写出点一起改，不留半修）。
 
-```python
-    # A 类归一：只折比较键，不改存储值——悬架/悬挂 同词异写，万元/万 同单位异写
-    text = text.replace("悬挂", "悬架")
-    text = re.sub(r"万元$", "万", text)
-```
-
-加在 `text` 上而不是 `compact` 上（监工提示的坑①：`前悬挂形式` 这类字段的比较键不走 `compact` 那条返回路径）；
-`万元$ → 万` 用后缀正则而非 `(\d)元$`（坑②：`59.88万元` 结尾是"万+元"）。
-
-新增判据文件 `tests/test_value_synonym_and_granularity.py`（**原样落盘**，含 docstring 口径说明，未改一字）。
+未动：`canonical_compare`/`VALUE_SYNONYMS`/`_DATE_FIELDS`/`_SHIFT_FIELDS`（#81 已合入）、`_preserved_value_parts` 签名、`merge_source_rows` 行级主干（其经 `merge_single_row` 调用同一套 helper）。新增判据文件 `tests/test_merge_value_idempotence.py` **原样落盘**（归一行尾后 sha256 = `aa1de4dbd5aaba76b65b2d12457305ed1c242c06ad48c81d3a55a9bc32ae5f99`，与 Issue 下发块一致，未改一字）。
 
 | 文件 | 改动 |
 |---|---|
-| `scripts/merge_data.py` | +3 行（`canonical_compare` 入口两条归一） |
-| `tests/test_value_synonym_and_granularity.py` | 新增，判据原样落盘 |
-
-范围外一律未动：`.cnb.yml`、`config/`、其它 `tests/`、`VALUE_SYNONYMS` 均未改。
+| `scripts/merge_data.py` | +63 −67（新增 3 纯函数；两处写出点统一折叠） |
+| `tests/test_merge_value_idempotence.py` | 新增，判据原样落盘 |
 
 ## 3. 判据运行结果原文
 
 ```
-$ python -m pytest tests/test_value_synonym_and_granularity.py -q
+$ python -m pytest tests/test_merge_value_idempotence.py -q --no-header    # 修前（红样，缺陷存在证据）
+3 failed, 3 passed in 0.05s
+
+$ python -m pytest tests/test_merge_value_idempotence.py -q --no-header    # 修后
 ......                                                                   [100%]
-6 passed in 0.03s
-
-$ python -m pytest tests/ -q --tb=line
-785 passed, 139 subtests passed in 36.81s
+6 passed in 0.04s
 ```
 
-判据落地时的红样（修复前，作为缺陷存在的证据）：
-`2 failed, 4 passed` ——
-`test_suspension_spelling_family_is_folded`（悬架/悬挂 仍判异）、
-`test_price_unit_suffix_folds_to_one_shape`（`'59.88万'` vs `'num:59.88'`）；4 条红线当时即绿。
+改前红样三条：`test_existing_prefixed_value_is_not_prefixed_again`（叠第二层前缀）、
+`test_remerging_the_same_incoming_is_idempotent`（非幂等）、
+`test_both_writers_leave_at_most_one_segment_per_source`（同族写出点分叉）。
+红线三条（真冲突留痕 / helper 不许改名 / 幂等底线）当时即绿，修后仍绿。
 
-红线守卫组（修复前基线 `68 passed` → 修复后）：
-`test_merge_matching` / `test_merge_data_aliases` / `test_spu_duplicate_sku` /
-`test_pages_columns_narrow_publish_paths` / `test_pages_filter_defaults_not_hard_drops` = `68 passed`，新增红 0。
-
-判定形状（修复后实测）：
+## 4. 全量套件失败集合比对（同比成员，不比条数）
 
 ```
-麦弗逊式独立悬架 vs 麦弗逊式独立悬挂 判同=True      五连杆 vs 多连杆 判同=False
-多连杆式独立悬架 vs 多连杆式独立悬挂 判同=True      标配 vs 选装     判同=False
-59.88万 vs 59.88万元 判同=True                     6 vs 5.815m     判同=False
-59.88万 vs 60.88万 判同=False
+$ python -m pytest tests/ -q --no-header        # 修前基线
+3 failed, 788 passed, 139 subtests passed in 23.07s
+
+$ python -m pytest tests/ -q --no-header        # 修后
+791 passed, 139 subtests passed in 22.31s
 ```
 
-## 4. 红线自查
+失败集合 diff（`comm -13 改前红集 改后红集`）= **空** ⇒ 新增红 0；改前 3 红全部为本单判据（修复后转绿）。
 
-1. **只改比较键、不改存储值**：改动只在 `canonical_compare` 内；`canonical_value`（存储用）未动，
-   `merge_source_rows` / `_merge_existing_with_source` 写出仍取各源原值（如 `59.88万元` 保留原文写入）。
-2. **没丢行、没删列**：未触碰任何行级/列级逻辑。
-3. **没有按车系/品牌白名单**：无任何白名单分支。
-4. **未动 `.cnb.yml`**，改动面 = `scripts/merge_data.py` + 新增判据文件。
-5. **凭据**：仅 `GIT_ASKPASS` 临时脚本，已 `rm -f`；未进 URL/进程表/被跟踪文件/本报告。
-6. **未用** `--no-verify` / `SKIP_TESTS` / `SKIP_REVIEW`；判据文件未被修改凑绿。
-7. **`上市时间` 未加特判**（Issue 明令）：`merge_source_rows` 的 `_DATE_FIELDS` 精细取值路径本来就绿，
-   判据第 3 条实测通过；288 行属上一轮产物滞后，新一轮全量重合并消掉。
+守卫组（本次一并复跑）：`test_merge_matching.py` / `test_merge_data_aliases.py` /
+`test_prepare_pages_payload.py` / `test_capability_column_value_domain.py` → `92 passed`；
+`test_publish_baseline_dirty_values_refolded.py` 亦绿。`py_compile scripts/merge_data.py` → `COMPILE_OK`。
 
-## 5. 交付产物与验证
+## 5. 红线自查
 
-- `git format-patch 6e25916..HEAD` → `issue81-a-class-synonym-fold.patch`
-- `git bundle create ... 6e25916..HEAD` → `issue81-a-class-synonym-fold.bundle`
-- 同一对文件随后经 Issue 资产通道**回读校验**（GET 首跳带凭据、不自动跟跳转）：
-  `patch http=200 bytes=8229 sha256 一致=True`、`bundle http=200 bytes=3883 sha256 一致=True`。
-- 链接见 Issue #81 最新评论（官方 `comment-file-asset-upload-url` 通道上传，PUT 200）。
+1. **真跨源冲突留痕**：`加热` vs `制冷` 两源两段都在（不折叠、不覆盖）；同源字面去重不涉跨源。
+2. **幂等**：`twice == once` 逐字相等（行合并 + 值合并两条路径都验）。
+3. **不许改名绕过**：`_merge_existing_with_source` / `_merge_distinct_values` 均在场可调用。
+4. **判据未改字**：归一行尾后 sha256 与 Issue 下发版一致。
+5. **受保护面未动**：`tests/`（除本单判据）、`scripts/check_npc_free_quota.py`、
+   `scripts/finalize_npc_repair.py`、`AGENTS.md`、`failStages` 安全链均未触碰。
+6. **凭据**：仅 `GIT_ASKPASS` 临时脚本（已 `rm -f`）；未进 URL/进程表/被跟踪文件/本报告。
+7. **未用** `--no-verify` / `SKIP_TESTS` / `SKIP_REVIEW`；测试一律 `python -m pytest tests/...` 口径。
 
-## 6. 多模型独立评审（如实：本轮未取得独立家族票）
+## 6. 产物（附件交付）
 
-- 本环境 **无 `opencode` / `codex` CLI**（`command -v` 均 MISSING，`~/.opencode/bin`、`node_modules` 均无），
-  无法按 AGENTS.md 走 `task(category="ReviewXXX")` 或 `codex exec`。
-- 平台通道 `POST /{repo}/-/ai/chat/completions`（CNB swagger，流水线内可用）**实测只路由到
-  `deepseek-v4.1-flash`**：分别请求 `glm-5.3-flash` / `glm-5.3` / `kimi-k2.6` / `kimi-k2.6-thinking` /
-  `qwen3-max` / `hunyuan-turbos`，响应 `data:` 首块的 `model` 字段一律回 `deepseek-v4.1-flash`。
-  与主模型同家 ⇒ 按 AGENTS.md「同家不可自评」不计票。
-- 结论：**独立家族评审 0 票**，如实上报，未伪造评审记录；请监工用其它家族补票后再合并。
-  可用替代证据：判据 6/6 绿、全量 `tests/` 785 passed、守卫组 68 passed 无新增红、
-  `py_compile` 通过、`git bundle verify` 通过。
+- `issue84-merge-idempotence.patch`（`6999c96..f5ec26e`，git format-patch）
+- `issue84-merge-idempotence.bundle`（同区间 bundle，`git bundle verify` 通过）
+- 本报告 `issue84-_fix_report_.md`
 
-## 7. 判据文件逐字对齐
+各产物上传后经 GET 回读 http=200 + sha256 一致（读数见 Issue #84 最新评论）。
 
-落盘后与 Issue 正文的 ```python 代码块逐行比对，发现我第一版 docstring 的
-`manifest 2026-10-14T04:16Z` 多了一对反引号（原文没有）。已按原文对齐，
-现 `difflib` 比对 **完全一致**（`IDENTICAL_TO_ISSUE_TEXT: True`），随后重新跑判据仍 `6 passed`。
+## 7. effective_max_turns
 
-## 8. 终版附件（含全部提交，sha256 回读一致）
-
-- `issue81-a-class-synonym-fold-v4.patch`（`6e25916..HEAD` 全量 patch）
-- `issue81-a-class-synonym-fold-v4.bundle`（同区间 bundle，`git bundle verify` 通过）
-- `issue81-_fix_report_.md`（本报告）
-
-三份均经 GET 回读：`http=200` 且 `sha256` 与本地一致（读数见 Issue #81 最新评论）。
-
-`effective_max_turns`：本会话上限 150，已用约 55 轮，**剩余约 95 轮**。
+本会话 `maxTurns=150`，当前约第 40 轮，**剩余约 110 轮**。
