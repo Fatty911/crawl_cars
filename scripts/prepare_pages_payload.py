@@ -1793,6 +1793,127 @@ def reconcile_source_provenance(
     return reconciled, stats
 
 
+_CAPABILITY_VALUE_DOMAIN_PATH = (
+    Path(__file__).resolve().parents[1] / "config" / "capability_value_domain.json"
+)
+_CAPABILITY_VALUE_DOMAIN: dict[str, Any] | None = None
+
+
+def _capability_value_domain() -> dict[str, Any]:
+    """能力列取值域规则表（config/capability_value_domain.json，集中定义，不散在 if 分支）。"""
+    global _CAPABILITY_VALUE_DOMAIN
+    if _CAPABILITY_VALUE_DOMAIN is None:
+        with open(_CAPABILITY_VALUE_DOMAIN_PATH, encoding="utf-8") as handle:
+            raw = json.load(handle)
+        section = raw.get("capabilityValueDomain") if isinstance(raw, dict) else None
+        if not isinstance(section, dict):
+            raise RuntimeError(
+                "capability value domain config missing: %s" % _CAPABILITY_VALUE_DOMAIN_PATH
+            )
+        _CAPABILITY_VALUE_DOMAIN = {
+            "columns": tuple(str(item) for item in (section.get("columns") or ())),
+            "statusPrefixes": tuple(str(item) for item in (section.get("statusPrefixes") or ())),
+            "allowedStatusValues": frozenset(
+                str(item) for item in (section.get("allowedStatusValues") or ())
+            ),
+            "foreignPatterns": tuple(
+                re.compile(str(item)) for item in (section.get("foreignPatterns") or ())
+            ),
+        }
+    return _CAPABILITY_VALUE_DOMAIN
+
+
+def _capability_status_prefixed(value: str, domain: dict[str, Any]) -> bool:
+    """源状态符号开头的写法一律合法，必须逐字保留（先短路，别用正则负向查断）。"""
+    text = value.strip()
+    return bool(text) and text[0] in domain["statusPrefixes"]
+
+
+def _capability_foreign_segment(value: Any, domain: dict[str, Any]) -> bool:
+    text = str(value if value is not None else "").strip()
+    if not text:
+        return False
+    if _capability_status_prefixed(text, domain):
+        return False
+    if text in domain["allowedStatusValues"]:
+        return False
+    return any(pattern.search(text) for pattern in domain["foreignPatterns"])
+
+
+def _strip_capability_foreign_segments(value: Any, domain: dict[str, Any]) -> tuple[str, int]:
+    text = str(value if value is not None else "")
+    if not text.strip() or _capability_status_prefixed(text, domain):
+        return text, 0
+    segments = _qualified_value_segments(text)
+    if segments is None:
+        return ("", 1) if _capability_foreign_segment(text, domain) else (text, 0)
+    kept: list[tuple[str, str]] = []
+    removed = 0
+    for source, content in segments:
+        if _capability_foreign_segment(content, domain):
+            removed += 1
+        else:
+            kept.append((source, content))
+    if not removed:
+        return text, 0
+    if not kept:
+        return "", removed
+    return "|".join(f"{source}:{content}" if source else content for source, content in kept), removed
+
+
+def capability_value_guard(rows: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """能力列取值域守卫：清掉落在能力列里的外域值，行数守恒。
+
+    - 列的含义由列名钉死，值必须落在该列取值域内；
+      发动机规格/能源类型/裸价格文本不属于能力列取值域。
+    - 源状态写法（`○ 暂无价格` / `● 暂无价格` …）先短路、逐字保留——这是"选装"的源证明。
+    - 段级处理：`汽车之家:<非法>|懂车帝:标配` 只剔非法段，合法段连同源前缀留下
+      （源前缀反过来指出是哪一个源写错了列）。
+    - 剔除后无合法值 ⇒ 保留空串，不删行、不动其它列。
+    """
+    if not isinstance(rows, list):
+        raise ValueError("capability_value_guard input must be a list of rows")
+    domain = _capability_value_domain()
+    guarded: list[dict[str, Any]] = []
+    removed_by_column: dict[str, int] = {}
+    affected_rows = 0
+    for row in rows:
+        if not isinstance(row, dict):
+            guarded.append(row)
+            continue
+        cleaned_row = row
+        for column in domain["columns"]:
+            if column not in row:
+                continue
+            cleaned, removed = _strip_capability_foreign_segments(row.get(column), domain)
+            if not removed:
+                continue
+            if cleaned_row is row:
+                cleaned_row = dict(row)
+            cleaned_row[column] = cleaned
+            removed_by_column[column] = removed_by_column.get(column, 0) + removed
+            affected_rows += 1
+        guarded.append(cleaned_row)
+    return guarded, {
+        "capabilityValueRemovedSegments": removed_by_column,
+        "capabilityValueAffectedRows": affected_rows,
+    }
+
+
+def capability_value_residual(rows: Any) -> dict[str, int]:
+    """只读探测：能力列里还剩下多少外域段（进审计 JSON 的观测口径，不参与成败判定）。"""
+    domain = _capability_value_domain()
+    residual: dict[str, int] = {}
+    for row in rows or ():
+        if not isinstance(row, dict):
+            continue
+        for column in domain["columns"]:
+            _cleaned, removed = _strip_capability_foreign_segments(row.get(column), domain)
+            if removed:
+                residual[column] = residual.get(column, 0) + removed
+    return residual
+
+
 def visible_card_stats(rows: list[dict[str, Any]]) -> dict[str, int | float]:
     groups: dict[str, set[str]] = {}
     for row in rows:
@@ -2075,7 +2196,7 @@ def prepare_rows_with_stats(
     *,
     absorption_scope: set[tuple[str, str, str, str]] | None = None,
     refresh_dealer_prices: bool = False,
-) -> tuple[list[dict[str, Any]], dict[str, int]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     if not isinstance(rows, list):
         raise ValueError("Pages payload input must be a JSON array")
     # refresh_dealer_prices=True：以 dealer 索引为准刷新已有单值报价。
@@ -2140,6 +2261,9 @@ def prepare_rows_with_stats(
         cleanup_retired=True,
     )
     stats.update({key: value for key, value in provenance_stats.items() if value})
+    # 能力列取值域守卫：发布面行级出口的最后一道，清掉越域值（行数守恒，不删行不删列）
+    prepared, capability_stats = capability_value_guard(prepared)
+    stats.update(capability_stats)
     return prepared, stats
 
 
@@ -2214,6 +2338,7 @@ def main() -> int:
                     if key.startswith("visibleF")
                     or key.startswith("fieldSource")
                     or key.startswith("retiredField")
+                    or key.startswith("capability")
                 },
             },
             ensure_ascii=False,
