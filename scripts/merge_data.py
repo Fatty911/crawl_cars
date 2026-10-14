@@ -3743,6 +3743,9 @@ def canonical_compare(value: Any, field: str | None = None) -> str:
 
 
 
+    # A 类归一：只折比较键，不改存储值——悬架/悬挂 同词异写，万元/万 同单位异写
+    text = text.replace("悬挂", "悬架")
+    text = re.sub(r"万元$", "万", text)
     compact = re.sub(r"\s+", "", text)
 
 

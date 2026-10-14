@@ -1,132 +1,112 @@
-分支 `npc/75-delivery-gate-fix-label`（本地就绪，提交 `55f7dd7` + 报告提交，基线 `main@a7febc1`）｜推送 HTTP 403（`Your token does not have the repo-code:rw scope required to push to this repository.`，配方 askpass 凭据仅试 1 次即停）｜`POST /-/pulls` 另返 403（`Missing required scopes: repo-pr:rw`）｜交付方式：按 Issue 口径改走 Issue #75 评论附件交付（patch + bundle，已回读 cmp 一致）｜实际模型 `deepseek-v4.1-flash`（npc:go，maxTurns=150）
+分支 `npc/81-a-class-synonym-fold`（本地就绪，提交 `1a5fe24` + `973ecef`，基线 `main@6e25916`）｜推送 HTTP 403（`Your token does not have the repo-code:rw scope required to push to this repository.`）｜`POST /-/pulls` 另返 403（`Missing required scopes: repo-pr:rw`）｜交付方式：按 Issue 口径改走 Issue #81 评论附件交付（patch + bundle，官方 `comment-file-asset-upload-url` 通道）｜实际模型 `deepseek-v4.1-flash`（npc:go，maxTurns=150）
 
-# Issue #75 修复报告：交付核对段与修复段同条件（无 fix 标签不再空跑判红）
+# Issue #81 修复报告：A 类判异同族折一（悬架/悬挂、万/万元）
 
-**实际模型 / 轮数**：`deepseek-v4.1-flash`（`.cnb.yml` 的 npc:go 段，`maxTurns: 150`）。
-本轮未触发 `reached maxTurns limit`；未触发 `finish with length`；本报告写盘后正常收束。
-`effective_max_turns` 已用约 48 轮，**剩余约 102 轮**（按本会话工具调用计）。
+## 1. 根因
 
----
+`canonical_compare`（`scripts/merge_data.py`）的归一表不闭环：
 
-## 1. 实际改动（1 行 + 1 个判据文件）
+- **拼写族缺失**：`麦弗逊式独立悬架` 与 `麦弗逊式独立悬挂` 是同一个词两种写法，比较键不折叠 ⇒ 两源值被判异 ⇒ `merge_source_rows` 走冲突分支写成 `汽车之家:…|懂车帝:…`（现网 150+99 行）。
+- **单位后缀不闭环**：`万元` 在 `_VALUE_UNIT_SUFFIX` 里、`万` 不在 ⇒ `59.88万元` 折成 `num:59.88`，`59.88万` 不折 ⇒ 同一价格的两种写法折叠程度不一致。
 
-`.cnb.yml` 第 **1627** 行新增（`$: issue.open` 链的 `交付核对-产物必须真取回` 段）：
+两处都只涉及**比较键**，不涉及存储值——`canonical_compare` 的 docstring 已声明 "without changing the stored value"。
 
-```yaml
-1626:        - name: 交付核对-产物必须真取回
-1627:          if: '[ "$NPC_FIX_GATE" = "RUN" ]'      # ← 新增行（原文，单引号包整串）
-1628:          script: |
+## 2. 实际改动（1 个文件、3 行）
+
+`scripts/merge_data.py`，`canonical_compare` 函数体入口（`text = str(value or "").strip()` 之后、
+`compact = re.sub(...)` 之前）新增 3 行：
+
+```python
+    # A 类归一：只折比较键，不改存储值——悬架/悬挂 同词异写，万元/万 同单位异写
+    text = text.replace("悬挂", "悬架")
+    text = re.sub(r"万元$", "万", text)
 ```
 
-即：核对段的执行条件与 `AI-Issue驱动修复`（L1612）**同一条口径**——都看 `检查fix标签` 段导出的 `NPC_FIX_GATE`。
-无 fix 标签时该段被平台判 `skipped`（而不是跑了再 error），自愈链 `failStages` 不再被空任务拉起。
+加在 `text` 上而不是 `compact` 上（监工提示的坑①：`前悬挂形式` 这类字段的比较键不走 `compact` 那条返回路径）；
+`万元$ → 万` 用后缀正则而非 `(\d)元$`（坑②：`59.88万元` 结尾是"万+元"）。
 
-**与监工 §5 仿真的一处口径修正（如实）**：§5 给的插行是 `if: '[ "RUN" = "RUN" ]'`（恒真）。
-实测该写法**过不了判据**——`test_delivery_gate_does_not_run_without_fix_label` 断言条件里必须出现
-`fix` 或 `NPC_FIX_GATE`，恒真串两者都没有。我用的是与修复段**完全一致**的 `'[ "$NPC_FIX_GATE" = "RUN" ]'`，
-这才是"同一条口径"，5 条判据全绿。
+新增判据文件 `tests/test_value_synonym_and_granularity.py`（**原样落盘**，含 docstring 口径说明，未改一字）。
 
 | 文件 | 改动 |
 |---|---|
-| `.cnb.yml` | +1 行（上面那一行），其余一字未动 |
-| `tests/test_delivery_gate_conditional_on_fix_label.py` | 新增 136 行（判据原样落盘，6303 B，与 Issue 正文 `python` 块归一化后逐字节 `EQ: True`，无 CRLF） |
+| `scripts/merge_data.py` | +3 行（`canonical_compare` 入口两条归一） |
+| `tests/test_value_synonym_and_granularity.py` | 新增，判据原样落盘 |
 
-未触碰：`scripts/merge_data.py`、`scripts/prepare_pages_payload.py`、`AI-Issue驱动修复` 的 `if:`、
-`检查fix标签` 的 `exports: fix_gate: NPC_FIX_GATE`、核对段 `script` 正文、`failStages`、门禁脚本。
-未用 `--no-verify` / `SKIP_TESTS` / `SKIP_REVIEW` / `ALLOW_UNREVIEWED_EDIT`。
+范围外一律未动：`.cnb.yml`、`config/`、其它 `tests/`、`VALUE_SYNONYMS` 均未改。
 
-## 2. 判据运行结果原文（逐条真实退出码）
-
-修复前基线（`main@a7febc1` 工作树 + 仅落盘判据文件）：
-```
-$ python -m pytest tests/test_delivery_gate_conditional_on_fix_label.py -q
-1 failed, 4 passed in 0.12s        (exit 1)
-FAILED ...::test_delivery_gate_does_not_run_without_fix_label — 交付核对段没有条件 ⇒ …（实测 cnb-pnu-1k4seieri）
-```
-
-修复后，逐条单跑（每条各自的退出码与最后 3 行）：
-```
-$ python -m pytest tests/test_delivery_gate_conditional_on_fix_label.py::test_chain_still_has_both_stages -q
-.    1 passed in 0.09s        (exit 0)
-
-$ python -m pytest ...::test_agent_stage_is_still_label_gated -q
-.    1 passed in 0.08s        (exit 0)
-
-$ python -m pytest ...::test_delivery_gate_does_not_run_without_fix_label -q
-.    1 passed in 0.08s        (exit 0)
-
-$ python -m pytest ...::test_delivery_gate_still_fails_loudly_when_label_present -q
-.    1 passed in 0.08s        (exit 0)
-
-$ python -m pytest ...::test_fix_label_stage_still_sets_the_gate_variable -q
-.    1 passed in 0.08s        (exit 0)
-
-$ python -m pytest tests/test_delivery_gate_conditional_on_fix_label.py -q
-.....    5 passed in 0.08s        (exit 0)
-```
-
-## 3. 既有守卫组与全量门禁
+## 3. 判据运行结果原文
 
 ```
-$ python -m pytest tests/test_chain_selfheal_coverage.py tests/test_dealer_chain_isolation.py \
-      tests/test_issue_chain_fix_label_gate.py tests/test_issue_chain_delivery_gate.py \
-      tests/test_issue_chain_python_env.py -q
-................................    32 passed, 4 subtests passed in 0.81s        (exit 0)
+$ python -m pytest tests/test_value_synonym_and_granularity.py -q
+......                                                                   [100%]
+6 passed in 0.03s
 
-$ python -m pytest tests/ -x --tb=short
-766 passed, 139 subtests passed in 31.28s        (exit 0)
+$ python -m pytest tests/ -q --tb=line
+785 passed, 139 subtests passed in 36.81s
 ```
 
-## 4. 反向自证：带 `fix` 标签时核对仍会判红（不是单向样张）
+判据落地时的红样（修复前，作为缺陷存在的证据）：
+`2 failed, 4 passed` ——
+`test_suspension_spelling_family_is_folded`（悬架/悬挂 仍判异）、
+`test_price_unit_suffix_folds_to_one_shape`（`'59.88万'` vs `'num:59.88'`）；4 条红线当时即绿。
 
-取核对段 `script` 正文，**原样**在本地用 mock 端点跑（`NPC_FIX_GATE=RUN`，即带标签那一侧）：
+红线守卫组（修复前基线 `68 passed` → 修复后）：
+`test_merge_matching` / `test_merge_data_aliases` / `test_spu_duplicate_sku` /
+`test_pages_columns_narrow_publish_paths` / `test_pages_filter_defaults_not_hard_drops` = `68 passed`，新增红 0。
+
+判定形状（修复后实测）：
 
 ```
-A) 评论里有产物链接、但产物取不到（HTTP 404）
-   $ NPC_FIX_GATE=RUN CNB_ISSUE_NUMBER=74 DELIVERY_BASE=http://127.0.0.1:8731 sh gate.sh
-   DELIVERY-NOTE issue=74 mentions_fix_report=no candidates=1
-   GET .../prod.zip -> http=404 bytes=44
-   DELIVERY-FAIL reason=artifact-unreachable issue=74 candidates=1（逐个取过，没一个 200 且 ≥64 字节）
-   交付核对失败：最新评论里的产物一个也取不回来 ⇒ 链判红
-   exit=1                                ← 仍判红
-
-B) 最新评论里没有任何产物（= 探针 #74 的死法）
-   $ NPC_FIX_GATE=RUN CNB_ISSUE_NUMBER=74 DELIVERY_BASE=http://127.0.0.1:8732 sh gate.sh
-   DELIVERY-FAIL reason=no-comments issue=74
-   exit=1                                ← 仍判红
+麦弗逊式独立悬架 vs 麦弗逊式独立悬挂 判同=True      五连杆 vs 多连杆 判同=False
+多连杆式独立悬架 vs 多连杆式独立悬挂 判同=True      标配 vs 选装     判同=False
+59.88万 vs 59.88万元 判同=True                     6 vs 5.815m     判同=False
+59.88万 vs 60.88万 判同=False
 ```
 
-条件层的接线也做了三态实读（`sh -c 'if <cond>; then RUN; else SKIP'`）：
-`NPC_FIX_GATE` 未设置 → `SKIP`；`=SKIP` → `SKIP`；`=RUN` → `RUN`。
-⇒ 标签缺席时"不跑"、标签在场时"严格跑"两侧都实测过。
+## 4. 红线自查
 
-## 5. 交付状态
+1. **只改比较键、不改存储值**：改动只在 `canonical_compare` 内；`canonical_value`（存储用）未动，
+   `merge_source_rows` / `_merge_existing_with_source` 写出仍取各源原值（如 `59.88万元` 保留原文写入）。
+2. **没丢行、没删列**：未触碰任何行级/列级逻辑。
+3. **没有按车系/品牌白名单**：无任何白名单分支。
+4. **未动 `.cnb.yml`**，改动面 = `scripts/merge_data.py` + 新增判据文件。
+5. **凭据**：仅 `GIT_ASKPASS` 临时脚本，已 `rm -f`；未进 URL/进程表/被跟踪文件/本报告。
+6. **未用** `--no-verify` / `SKIP_TESTS` / `SKIP_REVIEW`；判据文件未被修改凑绿。
+7. **`上市时间` 未加特判**（Issue 明令）：`merge_source_rows` 的 `_DATE_FIELDS` 精细取值路径本来就绿，
+   判据第 3 条实测通过；288 行属上一轮产物滞后，新一轮全量重合并消掉。
 
-- 分支 `npc/75-delivery-gate-fix-label`（本地），base `a7febc1`；
-- `git push origin HEAD:refs/heads/npc/75-delivery-gate-fix-label` ⇒ **HTTP 403**（`repo-code:rw` 缺失），试 2 种凭据变体后停止；
-- `POST /-/pulls` ⇒ **HTTP 403**（`repo-pr:rw` 缺失）；
-- 附件：`npc-75.patch`（8.1 KB，`git apply --check` 在 base 上通过）、`npc-75.bundle`（含分支 ref，`git bundle verify` okay）。上传后逐字节回读 `cmp` 一致。
+## 5. 交付产物与验证
 
-## 6. 交付附录（最终读数）
+- `git format-patch 6e25916..HEAD` → `issue81-a-class-synonym-fold.patch`
+- `git bundle create ... 6e25916..HEAD` → `issue81-a-class-synonym-fold.bundle`
+- 同一对文件随后经 Issue 资产通道**回读校验**（GET 首跳带凭据、不自动跟跳转）：
+  `patch http=200 bytes=8229 sha256 一致=True`、`bundle http=200 bytes=3883 sha256 一致=True`。
+- 链接见 Issue #81 最新评论（官方 `comment-file-asset-upload-url` 通道上传，PUT 200）。
 
-**线上核对段对本次真实 Issue 的实跑**（用本单修复后的核对段原文 + 真实 API，`NPC_FIX_GATE=RUN`）：
-```
-$ NPC_FIX_GATE=RUN CNB_ISSUE_NUMBER=75 sh gate.sh
-DELIVERY-NOTE issue=75 mentions_fix_report=yes candidates=3
-GET .../npc-75.patch -> http=200 bytes=19852
-DELIVERY-OK issue=75 artifact=... http=200 bytes=19852 mentions_fix_report=yes
-exit=0
-```
-即：加条件后，**带标签且产物真在**时核对照常放行；上面 §4 证明带标签且产物不在时照常判红。
+## 6. 多模型独立评审（如实：本轮未取得独立家族票）
 
-**门禁口径读数（如实）**：`python3 scripts/codex_delivery_gate.py verify`
-⇒ `DELIVERY_GATE_FAILED HEAD has not been delivered exactly: local a1c1c25…, remote a7febc1…`
-——原因是分支推不上去（HTTP 403 `repo-code:rw`），不是代码面问题；按 Issue 口径走评论附件交付。
+- 本环境 **无 `opencode` / `codex` CLI**（`command -v` 均 MISSING，`~/.opencode/bin`、`node_modules` 均无），
+  无法按 AGENTS.md 走 `task(category="ReviewXXX")` 或 `codex exec`。
+- 平台通道 `POST /{repo}/-/ai/chat/completions`（CNB swagger，流水线内可用）**实测只路由到
+  `deepseek-v4.1-flash`**：分别请求 `glm-5.3-flash` / `glm-5.3` / `kimi-k2.6` / `kimi-k2.6-thinking` /
+  `qwen3-max` / `hunyuan-turbos`，响应 `data:` 首块的 `model` 字段一律回 `deepseek-v4.1-flash`。
+  与主模型同家 ⇒ 按 AGENTS.md「同家不可自评」不计票。
+- 结论：**独立家族评审 0 票**，如实上报，未伪造评审记录；请监工用其它家族补票后再合并。
+  可用替代证据：判据 6/6 绿、全量 `tests/` 785 passed、守卫组 68 passed 无新增红、
+  `py_compile` 通过、`git bundle verify` 通过。
 
-**附件终版**（Issue #75 评论 `2110248186009415680`）：
-- `npc-75.patch`（19852 B，`git apply --check` 在 base `a7febc1` 上通过）
-- `npc-75-full.bundle`（8.1 MB，含 `refs/heads/npc/75-delivery-gate-fix-label` ⇒ HEAD；已在新 clone 中 `git fetch` 回读成功）
-- 两份上传后均按 `/-/files/issues/...` 地址回读 `cmp` 逐字节一致。
+## 7. 判据文件逐字对齐
 
-**轮数**：本报告写盘后正常收束，未出现 `reached maxTurns limit` / `finish with length`；
-`effective_max_turns=150`，已用约 58 轮，**剩余约 92 轮**。
+落盘后与 Issue 正文的 ```python 代码块逐行比对，发现我第一版 docstring 的
+`manifest 2026-10-14T04:16Z` 多了一对反引号（原文没有）。已按原文对齐，
+现 `difflib` 比对 **完全一致**（`IDENTICAL_TO_ISSUE_TEXT: True`），随后重新跑判据仍 `6 passed`。
+
+## 8. 终版附件（含全部提交，sha256 回读一致）
+
+- `issue81-a-class-synonym-fold-v4.patch`（`6e25916..HEAD` 全量 patch）
+- `issue81-a-class-synonym-fold-v4.bundle`（同区间 bundle，`git bundle verify` 通过）
+- `issue81-_fix_report_.md`（本报告）
+
+三份均经 GET 回读：`http=200` 且 `sha256` 与本地一致（读数见 Issue #81 最新评论）。
+
+`effective_max_turns`：本会话上限 150，已用约 55 轮，**剩余约 95 轮**。
