@@ -1,84 +1,60 @@
-分支 `npc/84-merge-idempotence`（本地提交 `f5ec26e`，基线 `main@6999c96`）｜推送 HTTP 403（`repo-code:rw` 缺失）｜`POST /-/pulls` HTTP 403（`repo-pr:rw` 缺失）｜按 Issue 口径附件交付（bundle + patch + 本报告）｜实际模型 `deepseek-v4.1-flash`（npc:go，maxTurns=150）
+分支 `agent/88-pushback-worktree-gate`（本地提交 `6f78c0f`，基线 `main@2a76534`）｜推送 HTTP 403（`repo-code:rw` 缺失，`--dry-run` 实测）｜开 PR 未测（按 Issue 口径走附件交付）｜实际模型 `deepseek-v4.1-flash`（npc:go，maxTurns=150）
 
-# Issue #84 修复报告：合并幂等（同一段值第二次合并不许叠前缀/同源多段）
+# Issue #88 修复报告：回推段按工作树判成活（堵 `--autostash` rc=0 假成活 + 用尽后 break 仍 push）
 
-## 1. 根因
+## 1. 根因（两条独立假绿通道）
 
-现网 `汽车之家:汽车之家:…` 逐轮膨胀的根因是跨源合并两处写出点的解析形状：
+- **① `--autostash` rc=0 假成活**：脏树冲突时 `git rebase -q --autostash FETCH_HEAD` 返回 0，本地提交已重放、工作树留着冲突标记，`until` 第一次就"成功" ⇒ 不重试、不点名，随后 push 是 fast-forward ⇒ 判绿。
+- **② 用尽后 `break` 仍走到 push**：三处回推段原来只 `break` 跳出循环，下一行无条件 `git push`；HEAD 与远端相同时 push 回 `Everything up-to-date` rc=0 ⇒ 又是绿。
 
-- `_merge_existing_with_source` 尾部把 `existing` 与 `source_name:added` 直接字面拼接，不先解析既有串里各源位置 ⇒ 已带前缀的串再合一次就在外层套第二层前缀（判据实测 main 第 1 次 `汽车之家:汽车之家:电动调节…`，第 2 次叠第三层）。
-- 值串里**没有源前缀的尾段**（`汽车之家:真皮|仿皮` 的 `仿皮`）被当成独立"新源"，每轮重拼一次。
-- `_merge_distinct_values` 只用 `incoming_text in parts` 做字面成员判断，不解析源归属 ⇒ 同族写出点形状分叉（判据 `test_both_writers_leave_at_most_one_segment_per_source`）。
-
-## 2. 实际改动（1 个源码文件）
-
-`scripts/merge_data.py`（+63 −67 行，净 −4）：
-
-- **新增 3 个纯函数**（插在 `_merge_existing_with_source` 定义前，复用既有 `_preserved_value_parts`、不改其签名）：
-  - `_folded_source_buckets(value, default_sources=())`：把值串解析成 `{源: [字面段]}`；**无前缀尾段归前面最近源**；整值无前缀时归 `default_sources`（裸值归该行全部原子源）；剥同源重复前缀。
-  - `_merge_source_buckets(base, extra)`：**同源按字面 token 去重**（不用 `canonical_compare` 归一键，避免误删合法信息）；裸段已被任一源记录时不重复；**不跨源折叠**（真冲突留痕）。
-  - `_render_source_buckets(buckets)`：按 `源:段|段|源2:段` 拼回。
-- **`_merge_existing_with_source` 写出点**：`if parts and all(...)` 分叉分支替换为统一折叠——`default_sources = atomic_source_names(current_source) or [current_source or "已有来源"]`，两侧折桶后合并、再渲染。删除了原来只会拼 `f"{existing}|{source_name}:{added}"` / `f"{preserved}|{source_name}:{added}"` 的两条写出行。
-- **`_merge_distinct_values` 尾部**：替换为 `_folded_source_buckets(existing)` + `_merge_source_buckets(...)` + `return _render_source_buckets(folded) or existing`（同族写出点一起改，不留半修）。
-
-未动：`canonical_compare`/`VALUE_SYNONYMS`/`_DATE_FIELDS`/`_SHIFT_FIELDS`（#81 已合入）、`_preserved_value_parts` 签名、`merge_source_rows` 行级主干（其经 `merge_single_row` 调用同一套 helper）。新增判据文件 `tests/test_merge_value_idempotence.py` **原样落盘**（归一行尾后 sha256 = `aa1de4dbd5aaba76b65b2d12457305ed1c242c06ad48c81d3a55a9bc32ae5f99`，与 Issue 下发块一致，未改一字）。
+## 2. 实际改动（2 个文件，均按派发单指定形状）
 
 | 文件 | 改动 |
 |---|---|
-| `scripts/merge_data.py` | +63 −67（新增 3 纯函数；两处写出点统一折叠） |
-| `tests/test_merge_value_idempotence.py` | 新增，判据原样落盘 |
+| `.cnb.yml` | 三处回推段：`break` → `exit 1`；push 前插入 5 行紧凑工作树闸（`git ls-files -u` 非空即 `PUSHBACK-FAIL reason=unmerged-after-rebase; exit 1`） |
+| `tests/test_pushback_success_is_measured_on_worktree.py` | 新增，判据原样落盘（sha256 见 §5） |
+| `tests/test_pushback_rebase_survives_dirty_tree.py` | **只尾部追加 44 行**（`git diff --numstat` = `44 0`，无删除）：三处样张 + 3 个 `test_*` 入口 |
 
-## 3. 判据运行结果原文
+三处位置（行号为改动前）：`api_trigger` `:473/478`、`crontab: 5 8 1,16 * *` `:1156/1161`、`crontab: 37 8 * * 0` `:1541/1546`；缩进各按其自身（18/18/20 空格）逐处修改。
 
-```
-$ python -m pytest tests/test_merge_value_idempotence.py -q --no-header    # 修前（红样，缺陷存在证据）
-3 failed, 3 passed in 0.05s
-
-$ python -m pytest tests/test_merge_value_idempotence.py -q --no-header    # 修后
-......                                                                   [100%]
-6 passed in 0.04s
-```
-
-改前红样三条：`test_existing_prefixed_value_is_not_prefixed_again`（叠第二层前缀）、
-`test_remerging_the_same_incoming_is_idempotent`（非幂等）、
-`test_both_writers_leave_at_most_one_segment_per_source`（同族写出点分叉）。
-红线三条（真冲突留痕 / helper 不许改名 / 幂等底线）当时即绿，修后仍绿。
-
-## 4. 全量套件失败集合比对（同比成员，不比条数）
+## 3. 判据运行结果原文（验收命令全部 rc=0）
 
 ```
-$ python -m pytest tests/ -q --no-header        # 修前基线
-3 failed, 788 passed, 139 subtests passed in 23.07s
+$ python -m pytest tests/test_pushback_success_is_measured_on_worktree.py -q --no-header
+....                                                                     [100%]
+4 passed in 0.09s
 
-$ python -m pytest tests/ -q --no-header        # 修后
-791 passed, 139 subtests passed in 22.31s
+$ python -m pytest tests/test_pushback_rebase_survives_dirty_tree.py -q --no-header
+...                                                                      [100%]
+3 passed in 0.09s
+
+$ python -m pytest tests/test_pushback_rebases_before_push.py tests/test_pushback_survives_publish_failure.py \
+    tests/test_pushback_size_gate.py tests/test_pushback_excludes_pycache.py \
+    tests/test_dealer_chain_isolation.py tests/test_chain_selfheal_coverage.py -q --no-header
+..................................                             [100%]
+34 passed, 10 subtests passed in 1.13s
 ```
 
-失败集合 diff（`comm -13 改前红集 改后红集`）= **空** ⇒ 新增红 0；改前 3 红全部为本单判据（修复后转绿）。
+修前基线：`test_pushback_success_is_measured_on_worktree.py` 红（3 failed），`check(load())` 三处全部点名
+E1（只 break 无 exit）+ E2（push 前无未合并项检查）。自校 8/8 例（六变异全红 + 合规样张 + 三处识别）双向通过。
+全量套件额外跑过 1 次用于最终确认：`798 passed, 139 subtests passed`（未为对齐报告数字重跑）。
 
-守卫组（本次一并复跑）：`test_merge_matching.py` / `test_merge_data_aliases.py` /
-`test_prepare_pages_payload.py` / `test_capability_column_value_domain.py` → `92 passed`；
-`test_publish_baseline_dirty_values_refolded.py` 亦绿。`py_compile scripts/merge_data.py` → `COMPILE_OK`。
+## 4. 红线自查
 
-## 5. 红线自查
+- 未删/未放宽任何既有断言、`exit 1`、体积闸、白名单；既有 189 行逐字节未动（`44 0` 纯追加）。
+- 未用 `--force`、未删 `--autostash`/`fetch`/rebase 到 `FETCH_HEAD` 语义；push 前 400 字符无 `|| true`/`|| exit 0`（实测三条全 False）。
+- 凭据仅 `GIT_ASKPASS` 临时脚本（已 `rm -f`），未进 URL/被跟踪文件/本报告。
+- 未碰 `failStages`、爬取预算、发布阶段实现、`scripts/check_npc_free_quota.py`、`AGENTS.md`。
 
-1. **真跨源冲突留痕**：`加热` vs `制冷` 两源两段都在（不折叠、不覆盖）；同源字面去重不涉跨源。
-2. **幂等**：`twice == once` 逐字相等（行合并 + 值合并两条路径都验）。
-3. **不许改名绕过**：`_merge_existing_with_source` / `_merge_distinct_values` 均在场可调用。
-4. **判据未改字**：归一行尾后 sha256 与 Issue 下发版一致。
-5. **受保护面未动**：`tests/`（除本单判据）、`scripts/check_npc_free_quota.py`、
-   `scripts/finalize_npc_repair.py`、`AGENTS.md`、`failStages` 安全链均未触碰。
-6. **凭据**：仅 `GIT_ASKPASS` 临时脚本（已 `rm -f`）；未进 URL/进程表/被跟踪文件/本报告。
-7. **未用** `--no-verify` / `SKIP_TESTS` / `SKIP_REVIEW`；测试一律 `python -m pytest tests/...` 口径。
+## 5. 产物（附件交付）
 
-## 6. 产物（附件交付）
+本报告由 `_fix_report_.md` **全量覆写**（上一单 #84 的旧报告内容已随本单替换）。上传后经 GET 回读校验时报告 §5 的资产地址以 Issue 评论为准。
 
-- `issue84-merge-idempotence.patch`（`6999c96..HEAD`，含修复/判据/本报告三个提交，git format-patch）
-- `issue84-merge-idempotence.bundle`（同区间 bundle，`git bundle verify` 通过）
-- 本报告 `issue84-_fix_report_.md`（上传字节数见随附评论回读读数）
+- `issue88-pushback-worktree-gate.bundle`（`2a76534..6f78c0f`）：8685 字节，sha256 `d5c6d285ac4c6b5ac5f30af18dfc114d6767380dedec409913d37e48f90a1264`，PUT 200
+- `issue88-pushback-worktree-gate.patch`（`git format-patch 2a76534..6f78c0f`）：22637 字节，sha256 `2d597df63d8e36d6a10c4349484f79913ff534c58ddeaf1064bb0c13300a4d04`，PUT 200
 
-各产物上传后经 GET 回读 http=200 + sha256 一致（读数见 Issue #84 最新评论）。
+判据文件字节（原样落盘校核）：`tests/test_pushback_success_is_measured_on_worktree.py` sha256 `e8ce07495c9788c4827f019385286b7e`（md5），与 Issue 下发 python 块逐字节相同（实测 `identical: True`）。
 
-## 7. effective_max_turns
+## 6. effective_max_turns
 
-本会话 `maxTurns=150`，当前约第 40 轮，**剩余约 110 轮**。
+本会话 `maxTurns=150`，当前约第 60 轮，**剩余约 90 轮**。
