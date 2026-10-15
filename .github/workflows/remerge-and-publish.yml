@@ -1,0 +1,197 @@
+name: 重合并并发布（不爬取）
+
+# CNB 核时限额用完时的数据生成通道：
+# 吃上一轮真实爬取的合并产物（cnb-data-* release 里的 merged_<date>.json，
+# 即发布面 latest），用**修好的合并逻辑**补跑归并段，重建发布面并部署到 GitHub Pages。
+# 不触发任何爬虫：输入就是已爬到的数据。
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: '要重合并的 cnb-data-* release；留空取最新一条'
+        required: false
+        default: ''
+      date:
+        description: '输出日期（默认认输入文件名里的日期）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  remerge-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@main
+
+      - name: 设置 Python
+        uses: actions/setup-python@main
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: 下载上一轮合并产物
+        id: fetch
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 40 --json tagName --jq '.[] | .tagName' \
+                  | grep -E '^cnb-data-' | head -1)
+          fi
+          echo "release=$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          rm -rf src-data && mkdir -p src-data
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir src-data \
+            --pattern 'merged_*.json' --pattern 'filtered_cars_*.json'
+          ls -la src-data
+          SRC=$(ls src-data/merged_*.json | head -1)
+          FILT=$(ls src-data/filtered_cars_*.json | head -1)
+          echo "src=$SRC" >> "$GITHUB_OUTPUT"
+          echo "filtered=$FILT" >> "$GITHUB_OUTPUT"
+          echo "src=$SRC filtered=$FILT"
+
+      - name: 重合并（用修好的归并逻辑，不重新爬取）
+        id: remerge
+        env:
+          SRC: ${{ steps.fetch.outputs.src }}
+          FILT: ${{ steps.fetch.outputs.filtered }}
+          DATE: ${{ github.event.inputs.date }}
+        run: |
+          set -euo pipefail
+          ARGS=(--merged "$SRC")
+          # filtered 也只做去重：保住现网发布行集不变，只折叠重复 SKU
+          if [ -n "$FILT" ] && [ -f "$FILT" ]; then ARGS+=(--filtered "$FILT"); fi
+          if [ -n "$DATE" ]; then ARGS+=(--date "$DATE"); fi
+          python scripts/remerge_published_data.py "${ARGS[@]}" --outdir out | tee remerge-stats.json
+          DATE=$(python -c 'import json;print(json.load(open("remerge-stats.json"))["date"])')
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE"
+
+      - name: 发布防缩小校验（候选必须不丢已发布身份）
+        env:
+          DATE: ${{ steps.remerge.outputs.date }}
+        run: |
+          set -euo pipefail
+          # 基线 = 上一轮发布数据本身；verify_publish_superset 会先对基线做同一套
+          # SKU 归并再比对，因此"被折叠掉的重复行"不会被误判成丢数据。
+          cp "${{ steps.fetch.outputs.src }}" "baseline-${DATE}.json"
+          python scripts/verify_publish_superset.py \
+            --baseline "baseline-${DATE}.json" \
+            --candidate "out/merged_${DATE}.json"
+
+      - name: 组装发布站点
+        env:
+          DATE: ${{ steps.remerge.outputs.date }}
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir -p site/data site/config
+          cp -R docs/. site/
+          cp config/filter_conditions.json site/config/filter_conditions.json
+          cp "out/merged_${DATE}.json" site/data/latest.json
+          cp "out/filtered_cars_${DATE}.json" site/data/filtered.json
+          python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022 --refresh-dealer-prices
+          python scripts/prepare_pages_payload.py --input site/data/filtered.json --output site/data/filtered.json --min-year 2022
+          python scripts/audit_pages_payload.py \
+            --baseline "baseline-${DATE}.json" \
+            --candidate site/data/latest.json \
+            --report pages-audit-report.json \
+            --head-sha "$GITHUB_SHA" || echo "审计报告非致命，继续"
+          cp "out/merged_${DATE}.csv" "site/data/merged_${DATE}.csv"
+          cp "out/filtered_cars_${DATE}.csv" "site/data/filtered_cars_${DATE}.csv"
+          python - "$DATE" <<'PY'
+          import json, shutil, sys
+          from datetime import datetime, timezone
+          date = sys.argv[1]
+          latest = json.load(open("site/data/latest.json", encoding="utf-8"))
+          filtered = json.load(open("site/data/filtered.json", encoding="utf-8"))
+          stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+          shutil.copy("site/data/latest.json", f"site/data/latest_{stamp}.json")
+          shutil.copy("site/data/filtered.json", f"site/data/filtered_{stamp}.json")
+          manifest = {
+              "date": date,
+              "updatedAt": datetime.now(timezone.utc).isoformat(),
+              "rowCount": len(latest),
+              "filteredRowCount": len(filtered),
+              "files": {
+                  "latestJson": f"data/latest_{stamp}.json",
+                  "filteredJson": f"data/filtered_{stamp}.json",
+                  "latestCsv": f"data/merged_{date}.csv",
+                  "filteredCsv": f"data/filtered_cars_{date}.csv",
+              },
+          }
+          json.dump(manifest, open("site/data/manifest.json", "w", encoding="utf-8"),
+                    ensure_ascii=False, indent=2)
+          print(manifest)
+          PY
+          touch site/.nojekyll
+
+      - name: 配置 GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: 上传 Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      - name: 校验线上数据清单
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          DATE: ${{ steps.remerge.outputs.date }}
+        run: |
+          set -euo pipefail
+          python scripts/prepare_cnb_pages.py --site site --verify-url "$PAGE_URL" || true
+          echo "--- 重合并读数 ---"
+          cat remerge-stats.json
+
+      - name: 上传数据产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: remerged-data-${{ steps.remerge.outputs.date }}-${{ github.run_id }}
+          path: |
+            out/merged_${{ steps.remerge.outputs.date }}.json
+            out/merged_${{ steps.remerge.outputs.date }}.csv
+            out/filtered_cars_${{ steps.remerge.outputs.date }}.json
+            out/filtered_cars_${{ steps.remerge.outputs.date }}.csv
+            remerge-stats.json
+            pages-audit-report.json
+          retention-days: 7
+
+      # tag 以 cnb-data- 开头 ⇒ deploy-frontend.yml 会按规矩跳过，不会用旧站点覆盖本次部署
+      - name: 创建数据发布
+        env:
+          DATE: ${{ steps.remerge.outputs.date }}
+        run: |
+          set -euo pipefail
+          TAG="cnb-data-${DATE}-remerged-r${{ github.run_id }}"
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "重合并数据 ${DATE}（去重后）" \
+            --notes "由 重合并并发布 工作流 r${{ github.run_id }} 生成：用修好的 SKU 归并逻辑重跑上一轮合并产物，不重新爬取。" \
+            "out/merged_${DATE}.json" \
+            "out/merged_${DATE}.csv" \
+            "out/filtered_cars_${DATE}.json" \
+            "out/filtered_cars_${DATE}.csv"
