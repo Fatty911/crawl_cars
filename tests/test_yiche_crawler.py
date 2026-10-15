@@ -1166,3 +1166,142 @@ def test_yiche_two_digit_years_do_not_use_model_code_as_year():
     rows = yiche.validate_real_rows(yiche.extract_from_config_api(payload, {"brand": "测试品牌", "series": "测试车系"}))
 
     assert {row["车款ID"]: row["年款"] for row in rows} == {car_id: year for car_id, (_name, year) in cases.items()}
+
+
+def degrade_cause_readout(output):
+    """从「易车抓取统计」行取成因读数：{成因码: 计数}（缺的码补 0）。"""
+    line = [row for row in output.splitlines() if row.startswith("易车抓取统计:")][0]
+    counts = {}
+    for token in line.split():
+        if token.startswith("degrade_cause."):
+            key, _, value = token.partition("=")
+            counts[key[len("degrade_cause."):]] = int(value)
+    assert counts, f"统计行里没有 degrade_cause.* 读数: {line}"
+    return counts
+
+
+def stats_value(output, key):
+    line = [row for row in output.splitlines() if row.startswith("易车抓取统计:")][0]
+    for token in line.split():
+        if token.startswith(key + "="):
+            return int(token.split("=", 1)[1])
+    raise AssertionError(f"统计行里没有 {key}: {line}")
+
+
+def test_degrade_causes_separate_waf_shell_from_rejected_page_and_missing_serial(monkeypatch, capsys):
+    """降级身份分支三类成因各造一次：WAF 壳页 / 页面校验全否 / serial_id 未取到。"""
+    waf_shell = '<html><head><title>验证</title></head><body><script src="https://t.captcha.qq.com/captcha.js"></script></body></html>'
+    # 有表头行 ⇒ extract_from_tables 出 1 行，但缺品牌/车系/配置字段 ⇒ validate_real_rows 全否
+    rejected_page = '<table><tr><th>车型</th><th>2026款 半成品</th></tr></table>'
+    bare_page = "<html></html>"
+
+    def fake_fetch(session, url):
+        if "waf" in url:
+            return waf_shell
+        if "rejected" in url:
+            return rejected_page
+        return bare_page
+
+    monkeypatch.setattr(yiche, "fetch", fake_fetch)
+
+    rows = yiche.crawl([
+        "https://car.yiche.com/waf/peizhi/",
+        "https://car.yiche.com/rejected/peizhi/",
+        "https://car.yiche.com/bare/peizhi/",
+    ], delay=0)
+
+    output = capsys.readouterr().out
+    counts = degrade_cause_readout(output)
+    assert rows == []
+    assert counts["waf_shell_page"] == 1
+    assert counts["validate_rejected"] == 1
+    assert counts["serial_id_missing"] == 1
+    assert stats_value(output, "degraded_identity") == 3
+    assert sum(counts.values()) == 3
+
+
+def test_degrade_causes_separate_api_error_api_empty_and_sale_page_rejected(monkeypatch, capsys):
+    """降级身份分支另三类成因各造一次：配置 API 报错 / 配置 API 0 条 / 在售页裁决全否。
+
+    配置 API 报错只注入首次调用：页面兜底路径里的第二次配置 API 调用不在 try 内，
+    两次都抛会走最外层 except（只记 failed，不落在本单分类的两条分支上）。
+    """
+    junk_payload = {"data": [{"items": [
+        {"name": "车型名称", "paramValues": [{"value": "2026款 半成品", "saleStatusName": "在售"}]},
+    ]}]}
+    failed_once = {"602": False}
+
+    def fake_api(session, serial_id):
+        if serial_id == "602":
+            if not failed_once["602"]:
+                failed_once["602"] = True
+                raise requests.RequestException("api boom")
+            return {}
+        if serial_id == "603":
+            return junk_payload
+        return {}
+
+    monkeypatch.setattr(yiche, "fetch_config_api", fake_api)
+    monkeypatch.setattr(yiche, "fetch", lambda session, url: '<html><script>{"serialId": "0"}</script></html>')
+
+    targets = {
+        "https://car.yiche.com/api-broken/peizhi/": yiche.make_target("602", "测试品牌", "测试车系"),
+        "https://car.yiche.com/sale-gate/peizhi/": yiche.make_target("603", "测试品牌", "测试车系"),
+        "https://car.yiche.com/api-empty/peizhi/": yiche.make_target("604", "测试品牌", "测试车系"),
+    }
+    rows = yiche.crawl(targets, delay=0)
+
+    output = capsys.readouterr().out
+    counts = degrade_cause_readout(output)
+    assert rows == []
+    assert counts["config_api_error"] == 1
+    assert counts["config_api_empty"] == 1
+    assert counts["sale_page_rejected"] == 1
+    assert stats_value(output, "degraded_identity") == 3
+    assert sum(counts.values()) == 3
+
+
+def test_degrade_causes_cover_403_branch_and_share_one_sum(monkeypatch, capsys):
+    """403 后无真实配置分支三类各一次（含一个正常页面），且成因之和 = 两分支次数合计。
+
+    夹具各行均为空行集：降级分支每次只加 1（`len(rows) or 1`），failed 也不含
+    本夹具之外的失败种类，故两条分支次数合计可直接用 degraded_identity + failed 读。
+    """
+    junk_payload = {"data": [{"items": [
+        {"name": "车型名称", "paramValues": [{"value": "2026款 半成品", "saleStatusName": "在售"}]},
+    ]}]}
+
+    def fake_api(session, serial_id):
+        if serial_id == "701":
+            raise requests.RequestException("api boom")
+        if serial_id == "702":
+            return junk_payload
+        return {}
+
+    def fake_fetch(session, url):
+        if "blocked" in url:
+            raise http_error(403)
+        return '<html><head><title>参数配置暂未公布</title></head></html>'
+
+    monkeypatch.setattr(yiche, "fetch_config_api", fake_api)
+    monkeypatch.setattr(yiche, "fetch", fake_fetch)
+
+    targets = {
+        "https://car.yiche.com/plain-empty/peizhi/": yiche.make_target("703", "测试品牌", "测试车系"),
+        "https://car.yiche.com/blocked-no-serial/peizhi/": yiche.make_target(""),
+        "https://car.yiche.com/blocked-broken/peizhi/": yiche.make_target("701", "测试品牌", "测试车系"),
+        "https://car.yiche.com/blocked-gate/peizhi/": yiche.make_target("702", "测试品牌", "测试车系"),
+    }
+    rows = yiche.crawl(targets, delay=0)
+
+    output = capsys.readouterr().out
+    counts = degrade_cause_readout(output)
+    assert rows == []
+    assert counts["config_api_empty"] == 1
+    assert counts["after_403_no_serial_id"] == 1
+    assert counts["after_403_config_api_error"] == 1
+    assert counts["after_403_sale_page_rejected"] == 1
+    assert stats_value(output, "403") == 3
+    assert stats_value(output, "degraded_identity") == 1
+    assert stats_value(output, "failed") == 3
+    assert sum(counts.values()) == stats_value(output, "degraded_identity") + stats_value(output, "failed")

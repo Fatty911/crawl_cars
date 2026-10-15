@@ -1602,6 +1602,55 @@ def enrich_identity(rows, url, target=None):
     return rows
 
 
+# 易车两类「没产出」的成因码：走到「仅降级身份」与「403 后无真实配置」两条分支的
+# 每一次，按代码里已有的环节归类（不自造组件）。只进「易车抓取统计」打印行，
+# 不进 stats、不进断点文件 crawl_state/yiche_frontier.json（5MB 回推体积闸）。
+DEGRADE_CAUSE_CODES = (
+    "waf_shell_page",                # 200 但正文是 WAF 验证码壳页
+    "serial_id_missing",             # serial_id 未提取到 ⇒ 配置 API 根本没调用
+    "config_api_error",              # 配置 API 请求失败
+    "config_api_empty",              # 配置 API 返回空/不可解析
+    "validate_rejected",             # 页面上有行，但 validate_real_rows 全判否
+    "sale_page_rejected",            # 配置 API 给过行，被 approve_rows_from_sale_page 全否
+    "after_403_no_serial_id",        # 403/429 后受限，且无 serial_id
+    "after_403_config_api_error",    # 403/429 后受限，配置 API 请求失败
+    "after_403_api_empty",           # 403/429 后受限，配置 API 给 0 条
+    "after_403_sale_page_rejected",  # 403/429 后受限，仍被在售页裁决否决
+)
+
+
+def classify_degraded_identity_cause(*, shell_page, page_validate_rejected, serial_id, api_error, api_rows):
+    """归类一次「仅降级身份」：一次访问可能叠加多个环节，按下列证据优先序取一条。
+
+    WAF 壳页 → 配置 API 给过行但被裁决清零 → 配置 API 请求失败 → 配置 API 0 条
+    → （无 serial ⇒ API 未调用）页面有行但校验全否 → 页面也没解析出行（serial 也没取到）。
+    """
+    if shell_page:
+        return "waf_shell_page"
+    if api_rows:
+        # 走到该分支说明最终 real_rows 为空；API 给过行 ⇒ 是裁决/过滤把行全否了
+        return "sale_page_rejected"
+    if api_error:
+        return "config_api_error"
+    if serial_id:
+        # serial_id 在 ⇒ 配置 API 一定调用过（:1866 与 :1891 两处门都是 if serial_id）
+        return "config_api_empty"
+    if page_validate_rejected:
+        return "validate_rejected"
+    return "serial_id_missing"
+
+
+def classify_after_403_cause(*, serial_id, api_error, api_rows):
+    """归类一次「403/429 后仍无真实配置」：换出口没救回来，再按下游子环节细分。"""
+    if not serial_id:
+        return "after_403_no_serial_id"
+    if api_error:
+        return "after_403_config_api_error"
+    if not api_rows:
+        return "after_403_api_empty"
+    return "after_403_sale_page_rejected"
+
+
 def crawl(
     targets,
     delay,
@@ -1625,6 +1674,7 @@ def crawl(
     stats = dict(resume_state.get("stats") or {
         "attempted": 0, "success": 0, "403": 0, "429": 0, "failed": 0, "degraded_identity": 0,
     })
+    degrade_cause_counts = {code: 0 for code in DEGRADE_CAUSE_CODES}
     start = start_time if start_time is not None else time.monotonic()
     deadline = start + time_limit if time_limit else 0
     known_targets = {
@@ -1813,14 +1863,19 @@ def crawl(
         try:
             html = ""
             rows = []
+            api_request_error = False
+            api_rows_found = False
+            page_validate_rejected = False
             if serial_id:
                 try:
                     api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta)
+                    api_rows_found = api_rows_found or bool(api_rows)
                     real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
                     add_quality_counts(stats, api_rows)
                     rows = api_rows
                 except requests.RequestException as api_exc:
                     print(f"  易车配置 API 抓取失败，改用页面限时兜底: {api_exc}")
+                    api_request_error = True
                     real_rows = []
             if not serial_id or not real_rows:
                 html = fetch(session, page_url)
@@ -1834,8 +1889,10 @@ def crawl(
                 rows = enrich_identity(rows, page_url, meta)
                 add_quality_counts(stats, rows)
                 real_rows = validate_real_rows(rows)
+                page_validate_rejected = bool(rows) and not real_rows
                 if not real_rows and serial_id:
                     api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta)
+                    api_rows_found = api_rows_found or bool(api_rows)
                     real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
                     add_quality_counts(stats, api_rows)
             if real_rows:
@@ -1846,6 +1903,13 @@ def crawl(
                 all_rows.extend(real_rows)
             else:
                 stats["degraded_identity"] += len(rows) or 1
+                degrade_cause_counts[classify_degraded_identity_cause(
+                    shell_page=is_captcha_challenge(html),
+                    page_validate_rejected=page_validate_rejected,
+                    serial_id=serial_id,
+                    api_error=api_request_error,
+                    api_rows=api_rows_found,
+                )] += 1
                 page_title = clean_text(bs4.BeautifulSoup(html, "html.parser").title) if not serial_id else ""
                 print(f"  仅获得降级身份，未计入真实配置 (html_bytes={len(html.encode())} title={page_title!r})")
         except ItemStageTimeout as exc:
@@ -1859,12 +1923,16 @@ def crawl(
                 stats[str(status_code)] += 1
                 session = rotate_session(session)
                 print(f"  易车出口受限({status_code})，已重建连接以切换出口 IP")
+            api_403_error = False
+            api_403_rows_found = False
             try:
                 api_rows = enrich_identity(extract_from_config_api(fetch_config_api(session, serial_id), meta), page_url, meta) if serial_id else []
+                api_403_rows_found = bool(api_rows)
                 real_rows = approve_rows_from_sale_page(session, page_url, api_rows, meta)
                 add_quality_counts(stats, api_rows)
             except requests.RequestException as api_exc:
                 real_rows = []
+                api_403_error = True
                 print(f"  易车配置 API 抓取失败: {api_exc}")
             if real_rows:
                 target_succeeded = True
@@ -1874,6 +1942,11 @@ def crawl(
                 all_rows.extend(real_rows)
             else:
                 stats["failed"] += 1
+                degrade_cause_counts[classify_after_403_cause(
+                    serial_id=serial_id,
+                    api_error=api_403_error,
+                    api_rows=api_403_rows_found,
+                )] += 1
                 print(f"  易车页面受限({status_code})且无可用真实配置，跳过")
         except requests.RequestException as exc:
             stats["failed"] += 1
@@ -1946,6 +2019,8 @@ def crawl(
         + f"last_failed_master_id={getattr(discovery_callback, 'last_failed_master_id', '') or '-'} queue_depth={len(pending)} real_rows={len(deduped_rows)} "
         + f"elapsed_seconds={time.monotonic() - start:.1f} remaining_seconds={max(0, deadline - time.monotonic()):.1f} "
         + f"stop_reason={stop_reason}"
+        + " " + " ".join(f"degrade_cause.{code}={degrade_cause_counts[code]}" for code in DEGRADE_CAUSE_CODES)
+        + f" degrade_cause_sum={sum(degrade_cause_counts.values())}"
     )
     final_status = "partial" if stop_reason in {"safety_buffer_reached", "resume_smoke_limit_reached"} else "completed"
     if owns_observer:
