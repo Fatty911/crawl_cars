@@ -733,10 +733,12 @@ class VerifyPublishSupersetTests(unittest.TestCase):
     def test_row_count_decrease_fails_closed(self) -> None:
         # 基线两个**无法被 dedupe 合并**的 SKU，候选只剩一个 → 行数下降，必须 fail closed。
         #
-        # 关键：dedupe 键是「车系 + 年款 + 官方指导价 + 配置签名」，**不含车款ID**
-        # （merge_data.py:16291）。所以想造出「dedupe 后仍是 2 行」的基线，
-        # 必须让两行在**价格或配置**上有差异——只改车款ID 会被合并成 1 行，
-        # 基线就塌成 1 行，测到的就不再是「候选行数少于基线」。
+        # 关键：dedupe 键在有车款ID 时是
+        # 「("sku", 车款ID, 年款, 官方指导价, 配置签名, 核心 token)」，无车款ID 时
+        # 才是「车系 + 年款 + 官方指导价 + 配置签名」。所以想造出「dedupe 后仍是
+        # 2 行」的基线，必须让两行在**价格或配置（或车款ID）**上有差异——
+        # 两行完全相同会被合并成 1 行，基线就塌成 1 行，
+        # 测到的就不再是「候选行数少于基线」。
         baseline = [
             {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
              "车型名称": "A 2026款 标准版", "年款": "2026", "车款ID": "54529",
@@ -756,19 +758,26 @@ class VerifyPublishSupersetTests(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("row count", result.stderr.lower())
 
-    def test_dedupe_key_ignores_car_id_known_limitation(self) -> None:
-        # 记录当前真实语义：同价同配置的**不同车款ID** 会被 dedupe 合并。
-        # 这是已知限制（改键会动生产语义），此测试的作用是：一旦有人改键，
-        # 这个用例会立刻失败，逼迫他同时更新这条记录与相关护栏，
-        # 而不是悄悄改变 SKU 粒度。
+    def test_dedupe_key_separates_distinct_car_ids(self) -> None:
+        # 语义变更记录（2026-10-15）：dedupe 键**已含车款ID**。
+        # 旧语义是"同价同配置的不同车款ID 会被合并成 1 行"（当时记为已知限制，
+        # 见 tests/test_sku_dedupe_by_id.py 的线上实测：14097 行里 1095 个车款ID
+        # 出现多行——同一个 SKU 跨源/异名/异车系ID 各成一行）。现在键为
+        # ("sku", 车款ID, 年款, 价格, 配置签名, 核心 token)：
+        #   - 同 车款ID + 同 年款 + 同 token => 合并（修的就是这个）；
+        #   - 不同 车款ID => 不再被无脑合并（本用例锁住这条）；
+        #   - 年款不同 => 不合并（用户裁定：年款不同 = 不同 SKU）。
         row_a = {"品牌": "甲", "车系": "甲车系", "车系ID": "100",
                  "车型名称": "A 2026款 标准版", "年款": "2026", "车款ID": "54529",
                  "官方指导价": "10.00万"}
         row_b = dict(row_a, 车款ID="54530")
+        row_c = dict(row_a)          # 同 ID 同配置：来自另一个源的同一 SKU
 
-        deduped = self.merge_data.dedupe_merged_rows([row_a, row_b])
+        deduped = self.merge_data.dedupe_merged_rows([row_a, row_b, row_c])
 
-        self.assertEqual(1, len(deduped), "dedupe 键已变（含车款ID？），请同步更新本记录与护栏")
+        self.assertEqual(2, len(deduped),
+                         "dedupe 键不再按车款ID 分行了？请同步更新本记录与 tests/test_sku_dedupe_by_id.py")
+        self.assertEqual({"54529", "54530"}, {str(r.get("车款ID")) for r in deduped})
 
     def test_pre_2022_baseline_rows_do_not_block_2022_plus_publication(self) -> None:
         baseline = [
