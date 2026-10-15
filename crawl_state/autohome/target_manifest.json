@@ -458,6 +458,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/145.html"
   },
+  "145_spec_2022_55350": {
+    "brand": "大众",
+    "cache_key": "145_spec_2022_55350",
+    "car_id": "145",
+    "discovery": "year-api",
+    "series": "Polo",
+    "spec_id": "55350",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55350.html",
+    "year": "2022"
+  },
+  "145_spec_2023_60331": {
+    "brand": "大众",
+    "cache_key": "145_spec_2023_60331",
+    "car_id": "145",
+    "discovery": "year-api",
+    "series": "Polo",
+    "spec_id": "60331",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60331.html",
+    "year": "2023"
+  },
   "146": {
     "brand": "奥迪",
     "cache_key": "146",
@@ -1130,6 +1152,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2039.html"
   },
+  "2039_history_no_data": {
+    "brand": "大众",
+    "car_id": "2039",
+    "series": "New Compact",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2039/sale.html"
+  },
   "204": {
     "brand": "日产",
     "cache_key": "204",
@@ -1735,6 +1765,14 @@
     "series": "Milano",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2106.html"
+  },
+  "2106_history_no_data": {
+    "brand": "大众",
+    "car_id": "2106",
+    "series": "Milano",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2106/sale.html"
   },
   "2107": {
     "brand": "丰田",
@@ -2394,6 +2432,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2178.html"
   },
+  "2178_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "2178",
+    "series": "旗云2",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2178/sale.html"
+  },
   "2180": {
     "brand": "奇瑞",
     "cache_key": "2180",
@@ -2402,6 +2448,14 @@
     "series": "旗云3",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2180.html"
+  },
+  "2180_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "2180",
+    "series": "旗云3",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2180/sale.html"
   },
   "2183": {
     "brand": "福特",
@@ -2447,6 +2501,14 @@
     "series": "Routan",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2187.html"
+  },
+  "2187_history_no_data": {
+    "brand": "大众",
+    "car_id": "2187",
+    "series": "Routan",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2187/sale.html"
   },
   "2189": {
     "brand": "雷诺",
@@ -3253,6 +3315,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2279.html"
   },
+  "2279_history_no_data": {
+    "brand": "大众",
+    "car_id": "2279",
+    "series": "Bulli",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2279/sale.html"
+  },
   "2280": {
     "brand": "西雅特",
     "cache_key": "2280",
@@ -3771,6 +3841,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2331.html"
   },
+  "2331_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "2331",
+    "series": "旗云5",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2331/sale.html"
+  },
   "2332": {
     "brand": "三菱",
     "cache_key": "2332",
@@ -4209,6 +4287,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2380.html"
   },
+  "2380_history_no_data": {
+    "brand": "大众",
+    "car_id": "2380",
+    "series": "Amarok",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2380/sale.html"
+  },
   "2381": {
     "brand": "日产",
     "cache_key": "2381",
@@ -4560,6 +4646,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2427.html"
   },
+  "2427_history_no_data": {
+    "brand": "大众",
+    "car_id": "2427",
+    "series": "Buggy Up",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2427/sale.html"
+  },
   "2428": {
     "brand": "玛莎拉蒂",
     "cache_key": "2428",
@@ -4639,6 +4733,14 @@
     "series": "Nils",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2435.html"
+  },
+  "2435_history_no_data": {
+    "brand": "大众",
+    "car_id": "2435",
+    "series": "Nils",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2435/sale.html"
   },
   "2436": {
     "brand": "smart",
@@ -6038,6 +6140,14 @@
     "series": "Cross Coupe",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2584.html"
+  },
+  "2584_history_no_data": {
+    "brand": "大众",
+    "car_id": "2584",
+    "series": "Cross Coupe",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2584/sale.html"
   },
   "2585": {
     "brand": "丰田",
@@ -8340,6 +8450,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2825.html"
   },
+  "2825_history_no_data": {
+    "brand": "大众",
+    "car_id": "2825",
+    "series": "Pickup",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2825/sale.html"
+  },
   "2828": {
     "brand": "永源",
     "cache_key": "2828",
@@ -9162,6 +9280,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2914.html"
   },
+  "2914_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "2914",
+    "series": "爱卡",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2914/sale.html"
+  },
   "2915": {
     "brand": "北京汽车制造厂",
     "cache_key": "2915",
@@ -9188,6 +9314,14 @@
     "series": "Taigun",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2917.html"
+  },
+  "2917_history_no_data": {
+    "brand": "大众",
+    "car_id": "2917",
+    "series": "Taigun",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2917/sale.html"
   },
   "2918": {
     "brand": "日产",
@@ -9372,6 +9506,14 @@
     "series": "Space Up",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2938.html"
+  },
+  "2938_history_no_data": {
+    "brand": "大众",
+    "car_id": "2938",
+    "series": "Space Up",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2938/sale.html"
   },
   "2939": {
     "brand": "凯迪拉克",
@@ -9860,6 +10002,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2980.html"
   },
+  "2980_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "2980",
+    "series": "艾瑞泽7",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2980/sale.html"
+  },
   "2981": {
     "brand": "日产",
     "cache_key": "2981",
@@ -10006,6 +10156,14 @@
     "series": "CrossBlue",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/2993.html"
+  },
+  "2993_history_no_data": {
+    "brand": "大众",
+    "car_id": "2993",
+    "series": "CrossBlue",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/2993/sale.html"
   },
   "2994": {
     "brand": "奥迪",
@@ -10321,6 +10479,14 @@
     "series": "e-Co-Motion",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3027.html"
+  },
+  "3027_history_no_data": {
+    "brand": "大众",
+    "car_id": "3027",
+    "series": "e-Co-Motion",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3027/sale.html"
   },
   "3028": {
     "brand": "福特",
@@ -10728,6 +10894,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3071.html"
   },
+  "3071_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "3071",
+    "series": "奇瑞β5",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3071/sale.html"
+  },
   "3072": {
     "brand": "奇瑞",
     "cache_key": "3072",
@@ -10736,6 +10910,14 @@
     "series": "奇瑞α7",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3072.html"
+  },
+  "3072_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "3072",
+    "series": "奇瑞α7",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3072/sale.html"
   },
   "3073": {
     "brand": "现代",
@@ -11524,6 +11706,14 @@
     "series": "艾瑞泽3",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3157.html"
+  },
+  "3157_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "3157",
+    "series": "艾瑞泽3",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3157/sale.html"
   },
   "3158": {
     "brand": "沃尔沃",
@@ -12977,6 +13167,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3300.html"
   },
+  "3300_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "3300",
+    "series": "艾瑞泽M7",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3300/sale.html"
+  },
   "3301": {
     "brand": "东风风行",
     "cache_key": "3301",
@@ -13953,6 +14151,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3397.html"
   },
+  "3397_spec_2022_53640": {
+    "brand": "奇瑞",
+    "cache_key": "3397_spec_2022_53640",
+    "car_id": "3397",
+    "discovery": "year-api",
+    "series": "瑞虎3",
+    "spec_id": "53640",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/53640.html",
+    "year": "2022"
+  },
   "3398": {
     "brand": "大众",
     "cache_key": "3398",
@@ -13961,6 +14170,14 @@
     "series": "T-ROC(海外)",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3398.html"
+  },
+  "3398_history_no_data": {
+    "brand": "大众",
+    "car_id": "3398",
+    "series": "T-ROC(海外)",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3398/sale.html"
   },
   "3400": {
     "brand": "GMC",
@@ -14006,6 +14223,28 @@
     "series": "艾瑞泽5",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3405.html"
+  },
+  "3405_spec_2023_64788": {
+    "brand": "奇瑞",
+    "cache_key": "3405_spec_2023_64788",
+    "car_id": "3405",
+    "discovery": "year-api",
+    "series": "艾瑞泽5",
+    "spec_id": "64788",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64788.html",
+    "year": "2023"
+  },
+  "3405_spec_2024_65153": {
+    "brand": "奇瑞",
+    "cache_key": "3405_spec_2024_65153",
+    "car_id": "3405",
+    "discovery": "year-api",
+    "series": "艾瑞泽5",
+    "spec_id": "65153",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65153.html",
+    "year": "2024"
   },
   "3406": {
     "brand": "双龙",
@@ -14149,6 +14388,14 @@
     "series": "凯路威",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3416.html"
+  },
+  "3416_history_no_data": {
+    "brand": "大众",
+    "car_id": "3416",
+    "series": "凯路威",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3416/sale.html"
   },
   "3417": {
     "brand": "北京汽车",
@@ -14630,6 +14877,50 @@
     "series": "凌渡",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3457.html"
+  },
+  "3457_spec_2022_56052": {
+    "brand": "大众",
+    "cache_key": "3457_spec_2022_56052",
+    "car_id": "3457",
+    "discovery": "year-api",
+    "series": "凌渡",
+    "spec_id": "56052",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56052.html",
+    "year": "2022"
+  },
+  "3457_spec_2023_63106": {
+    "brand": "大众",
+    "cache_key": "3457_spec_2023_63106",
+    "car_id": "3457",
+    "discovery": "year-api",
+    "series": "凌渡",
+    "spec_id": "63106",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63106.html",
+    "year": "2023"
+  },
+  "3457_spec_2024_60621": {
+    "brand": "大众",
+    "cache_key": "3457_spec_2024_60621",
+    "car_id": "3457",
+    "discovery": "year-api",
+    "series": "凌渡",
+    "spec_id": "60621",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60621.html",
+    "year": "2024"
+  },
+  "3457_spec_2025_70120": {
+    "brand": "大众",
+    "cache_key": "3457_spec_2025_70120",
+    "car_id": "3457",
+    "discovery": "year-api",
+    "series": "凌渡",
+    "spec_id": "70120",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/70120.html",
+    "year": "2025"
   },
   "3458": {
     "brand": "斯柯达",
@@ -16302,6 +16593,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3616.html"
   },
+  "3616_history_no_data": {
+    "brand": "大众",
+    "car_id": "3616",
+    "series": "Tristar",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3616/sale.html"
+  },
   "3617": {
     "brand": "英菲尼迪",
     "cache_key": "3617",
@@ -17091,6 +17390,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3689.html"
   },
+  "368_history_no_data": {
+    "brand": "大众",
+    "car_id": "368",
+    "series": "Passat",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/368/sale.html"
+  },
   "369": {
     "brand": "三菱",
     "cache_key": "369",
@@ -17570,6 +17877,14 @@
     "series": "Sport Coupe",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3732.html"
+  },
+  "3732_history_no_data": {
+    "brand": "大众",
+    "car_id": "3732",
+    "series": "Sport Coupe",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3732/sale.html"
   },
   "3733": {
     "brand": "迈凯伦",
@@ -18252,6 +18567,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3790.html"
   },
+  "3790_history_no_data": {
+    "brand": "大众",
+    "car_id": "3790",
+    "series": "Transporter",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3790/sale.html"
+  },
   "3791": {
     "brand": "观致",
     "cache_key": "3791",
@@ -18368,6 +18691,14 @@
     "series": "C Coupe",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3801.html"
+  },
+  "3801_history_no_data": {
+    "brand": "大众",
+    "car_id": "3801",
+    "series": "C Coupe",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3801/sale.html"
   },
   "3802": {
     "brand": "凯迪拉克",
@@ -20099,6 +20430,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3969.html"
   },
+  "396_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "396",
+    "series": "瑞虎",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/396/sale.html"
+  },
   "397": {
     "brand": "雪佛兰",
     "cache_key": "397",
@@ -20422,6 +20761,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/3998.html"
   },
+  "3998_history_no_data": {
+    "brand": "大众",
+    "car_id": "3998",
+    "series": "BUDD-e",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/3998/sale.html"
+  },
   "3999": {
     "brand": "大众",
     "cache_key": "3999",
@@ -20655,6 +21002,15 @@
     "series": "Ameo",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4022.html"
+  },
+  "4022_history_pending": {
+    "brand": "大众",
+    "car_id": "4022",
+    "retry_count": 1,
+    "series": "Ameo",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/4022/sale.html"
   },
   "4023": {
     "brand": "东风风光",
@@ -20900,6 +21256,14 @@
     "series": "T-Cross(海外)",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4048.html"
+  },
+  "4048_history_no_data": {
+    "brand": "大众",
+    "car_id": "4048",
+    "series": "T-Cross(海外)",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4048/sale.html"
   },
   "4049": {
     "brand": "摩根",
@@ -21231,6 +21595,15 @@
     "series": "Saveiro",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4075.html"
+  },
+  "4075_history_pending": {
+    "brand": "大众",
+    "car_id": "4075",
+    "retry_count": 1,
+    "series": "Saveiro",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/4075/sale.html"
   },
   "4076": {
     "brand": "金杯",
@@ -21745,6 +22118,14 @@
     "series": "T-Prime",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4113.html"
+  },
+  "4113_history_no_data": {
+    "brand": "大众",
+    "car_id": "4113",
+    "series": "T-Prime",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4113/sale.html"
   },
   "4114": {
     "brand": "奔腾",
@@ -22282,6 +22663,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4157.html"
   },
+  "4157_history_pending": {
+    "brand": "大众",
+    "car_id": "4157",
+    "retry_count": 1,
+    "series": "Crafter",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/4157/sale.html"
+  },
   "4159": {
     "brand": "阿斯顿·马丁",
     "cache_key": "4159",
@@ -22590,6 +22980,26 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4186.html"
   },
+  "4186_spec_2022_60384": {
+    "brand": "大众",
+    "cache_key": "4186_spec_2022_60384",
+    "car_id": "4186",
+    "series": "大众Atlas",
+    "spec_id": "60384",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60384.html",
+    "year": "2022"
+  },
+  "4186_spec_2024_61519": {
+    "brand": "大众",
+    "cache_key": "4186_spec_2024_61519",
+    "car_id": "4186",
+    "series": "大众Atlas",
+    "spec_id": "61519",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/61519.html",
+    "year": "2024"
+  },
   "4187": {
     "brand": "Inferno",
     "cache_key": "4187",
@@ -22743,6 +23153,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4204.html"
   },
+  "4204_history_no_data": {
+    "brand": "大众",
+    "car_id": "4204",
+    "series": "C-TREK蔚领",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4204/sale.html"
+  },
   "4205": {
     "brand": "海马",
     "cache_key": "4205",
@@ -22814,6 +23232,14 @@
     "series": "大众ID.",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4211.html"
+  },
+  "4211_history_no_data": {
+    "brand": "大众",
+    "car_id": "4211",
+    "series": "大众ID.",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4211/sale.html"
   },
   "4212": {
     "brand": "ALPINA",
@@ -22997,6 +23423,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4223.html"
   },
+  "4223_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "4223",
+    "series": "艾瑞泽7e",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4223/sale.html"
+  },
   "4224": {
     "brand": "领克",
     "cache_key": "4224",
@@ -23050,6 +23484,14 @@
     "series": "CELESTA",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4229.html"
+  },
+  "422_history_no_data": {
+    "brand": "大众",
+    "car_id": "422",
+    "series": "大众Fox",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/422/sale.html"
   },
   "4230": {
     "brand": "广汽传祺",
@@ -23487,6 +23929,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4268.html"
   },
+  "4268_spec_2022_50920": {
+    "brand": "大众",
+    "cache_key": "4268_spec_2022_50920",
+    "car_id": "4268",
+    "discovery": "year-api",
+    "series": "Arteon",
+    "spec_id": "50920",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/50920.html",
+    "year": "2022"
+  },
   "4269": {
     "brand": "长安",
     "cache_key": "4269",
@@ -23655,6 +24108,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4275.html"
   },
+  "4275_history_no_data": {
+    "brand": "大众",
+    "car_id": "4275",
+    "series": "Tiguan Allspace",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4275/sale.html"
+  },
   "4276": {
     "brand": "北汽幻速",
     "cache_key": "4276",
@@ -23761,6 +24222,26 @@
     "series": "ID. Buzz",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4287.html"
+  },
+  "4287_spec_2022_55988": {
+    "brand": "大众",
+    "cache_key": "4287_spec_2022_55988",
+    "car_id": "4287",
+    "series": "ID. Buzz",
+    "spec_id": "55988",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55988.html",
+    "year": "2022"
+  },
+  "4287_spec_2023_63356": {
+    "brand": "大众",
+    "cache_key": "4287_spec_2023_63356",
+    "car_id": "4287",
+    "series": "ID. Buzz",
+    "spec_id": "63356",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63356.html",
+    "year": "2023"
   },
   "4288": {
     "brand": "奥迪",
@@ -24019,6 +24500,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4309.html"
   },
+  "430_history_no_data": {
+    "brand": "大众",
+    "car_id": "430",
+    "series": "大众Eos",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/430/sale.html"
+  },
   "431": {
     "brand": "现代",
     "cache_key": "431",
@@ -24269,6 +24758,14 @@
     "series": "大众e-up!",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4330.html"
+  },
+  "4330_history_no_data": {
+    "brand": "大众",
+    "car_id": "4330",
+    "series": "大众e-up!",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4330/sale.html"
   },
   "4331": {
     "brand": "标致",
@@ -24587,6 +25084,14 @@
     "series": "Sedric Concept",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4358.html"
+  },
+  "4358_history_no_data": {
+    "brand": "大众",
+    "car_id": "4358",
+    "series": "Sedric Concept",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4358/sale.html"
   },
   "4359": {
     "brand": "Italdesign",
@@ -25195,6 +25700,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4406.html"
   },
+  "4406_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "4406",
+    "series": "瑞虎概念轿跑SUV",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4406/sale.html"
+  },
   "4408": {
     "brand": "五菱汽车",
     "cache_key": "4408",
@@ -25239,6 +25752,14 @@
     "series": "ID. CROZZ",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4412.html"
+  },
+  "4412_history_no_data": {
+    "brand": "大众",
+    "car_id": "4412",
+    "series": "ID. CROZZ",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4412/sale.html"
   },
   "4413": {
     "brand": "丰田",
@@ -26421,6 +26942,14 @@
     "series": "大众California",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4515.html"
+  },
+  "4515_history_no_data": {
+    "brand": "大众",
+    "car_id": "4515",
+    "series": "大众California",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4515/sale.html"
   },
   "4516": {
     "brand": "星途",
@@ -28103,6 +28632,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4674.html"
   },
+  "4674_spec_2022_56199": {
+    "brand": "大众",
+    "cache_key": "4674_spec_2022_56199",
+    "car_id": "4674",
+    "discovery": "year-api",
+    "series": "T-ROC探歌",
+    "spec_id": "56199",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56199.html",
+    "year": "2022"
+  },
+  "4674_spec_2023_57580": {
+    "brand": "大众",
+    "cache_key": "4674_spec_2023_57580",
+    "car_id": "4674",
+    "discovery": "year-api",
+    "series": "T-ROC探歌",
+    "spec_id": "57580",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57580.html",
+    "year": "2023"
+  },
+  "4674_spec_2024_66574": {
+    "brand": "大众",
+    "cache_key": "4674_spec_2024_66574",
+    "car_id": "4674",
+    "discovery": "year-api",
+    "series": "T-ROC探歌",
+    "spec_id": "66574",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66574.html",
+    "year": "2024"
+  },
+  "4674_spec_2025_71025": {
+    "brand": "大众",
+    "cache_key": "4674_spec_2025_71025",
+    "car_id": "4674",
+    "discovery": "year-api",
+    "series": "T-ROC探歌",
+    "spec_id": "71025",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71025.html",
+    "year": "2025"
+  },
   "4675": {
     "brand": "日产",
     "cache_key": "4675",
@@ -28639,6 +29212,14 @@
     "series": "ID. VIZZION",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4709.html"
+  },
+  "4709_history_no_data": {
+    "brand": "大众",
+    "car_id": "4709",
+    "series": "ID. VIZZION",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4709/sale.html"
   },
   "471": {
     "brand": "奥迪",
@@ -29513,6 +30094,14 @@
     "series": "艾瑞泽GX",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/4787.html"
+  },
+  "4787_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "4787",
+    "series": "艾瑞泽GX",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/4787/sale.html"
   },
   "4788": {
     "brand": "红旗",
@@ -32078,6 +32667,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5000.html"
   },
+  "5000_history_no_data": {
+    "brand": "大众",
+    "car_id": "5000",
+    "series": "Tarok",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/5000/sale.html"
+  },
   "5001": {
     "brand": "东风富康",
     "cache_key": "5001",
@@ -33775,6 +34372,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5151.html"
   },
+  "5151_history_no_data": {
+    "brand": "大众",
+    "car_id": "5151",
+    "series": "ID. BUGGY",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/5151/sale.html"
+  },
   "5152": {
     "brand": "宾尼法利纳",
     "cache_key": "5152",
@@ -34504,6 +35109,14 @@
     "series": "ID. ROOMZZ",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5207.html"
+  },
+  "5207_history_no_data": {
+    "brand": "大众",
+    "car_id": "5207",
+    "series": "ID. ROOMZZ",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/5207/sale.html"
   },
   "5208": {
     "brand": "英菲尼迪",
@@ -37949,6 +38562,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5510.html"
   },
+  "5510_history_no_data": {
+    "brand": "大众",
+    "car_id": "5510",
+    "series": "ID. Space Vizzion",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/5510/sale.html"
+  },
   "5511": {
     "brand": "大众",
     "cache_key": "5511",
@@ -37957,6 +38578,50 @@
     "series": "ID.4 X",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5511.html"
+  },
+  "5511_spec_2022_57680": {
+    "brand": "大众",
+    "cache_key": "5511_spec_2022_57680",
+    "car_id": "5511",
+    "discovery": "year-api",
+    "series": "ID.4 X",
+    "spec_id": "57680",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57680.html",
+    "year": "2022"
+  },
+  "5511_spec_2023_60739": {
+    "brand": "大众",
+    "cache_key": "5511_spec_2023_60739",
+    "car_id": "5511",
+    "discovery": "year-api",
+    "series": "ID.4 X",
+    "spec_id": "60739",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60739.html",
+    "year": "2023"
+  },
+  "5511_spec_2024_66302": {
+    "brand": "大众",
+    "cache_key": "5511_spec_2024_66302",
+    "car_id": "5511",
+    "discovery": "year-api",
+    "series": "ID.4 X",
+    "spec_id": "66302",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66302.html",
+    "year": "2024"
+  },
+  "5511_spec_2025_69274": {
+    "brand": "大众",
+    "cache_key": "5511_spec_2025_69274",
+    "car_id": "5511",
+    "discovery": "year-api",
+    "series": "ID.4 X",
+    "spec_id": "69274",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69274.html",
+    "year": "2025"
   },
   "5512": {
     "brand": "Karma",
@@ -38329,6 +38994,14 @@
     "series": "Nivus",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5549.html"
+  },
+  "5549_history_no_data": {
+    "brand": "大众",
+    "car_id": "5549",
+    "series": "Nivus",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/5549/sale.html"
   },
   "555": {
     "brand": "名爵",
@@ -38773,6 +39446,36 @@
     "series": "科雷缤新能源(海外)",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5579.html"
+  },
+  "557_spec_2022_51213": {
+    "brand": "大众",
+    "cache_key": "557_spec_2022_51213",
+    "car_id": "557",
+    "series": "Tiguan",
+    "spec_id": "51213",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/51213.html",
+    "year": "2022"
+  },
+  "557_spec_2023_64587": {
+    "brand": "大众",
+    "cache_key": "557_spec_2023_64587",
+    "car_id": "557",
+    "series": "Tiguan",
+    "spec_id": "64587",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64587.html",
+    "year": "2023"
+  },
+  "557_spec_2024_65107": {
+    "brand": "大众",
+    "cache_key": "557_spec_2024_65107",
+    "car_id": "557",
+    "series": "Tiguan",
+    "spec_id": "65107",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65107.html",
+    "year": "2024"
   },
   "558": {
     "brand": "众泰",
@@ -39413,6 +40116,15 @@
     "series": "Virtus",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5638.html"
+  },
+  "5638_history_pending": {
+    "brand": "大众",
+    "car_id": "5638",
+    "retry_count": 1,
+    "series": "Virtus",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/5638/sale.html"
   },
   "5639": {
     "brand": "布加迪",
@@ -40127,6 +40839,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5706.html"
   },
+  "5706_history_no_data": {
+    "brand": "大众",
+    "car_id": "5706",
+    "series": "e-Bulli",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/5706/sale.html"
+  },
   "5707": {
     "brand": "Hudson",
     "cache_key": "5707",
@@ -40387,6 +41107,14 @@
     "series": "Passat新能源",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5732.html"
+  },
+  "5732_history_no_data": {
+    "brand": "大众",
+    "car_id": "5732",
+    "series": "Passat新能源",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/5732/sale.html"
   },
   "5733": {
     "brand": "观致",
@@ -41041,6 +41769,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5785.html"
   },
+  "5785_spec_2022_57302": {
+    "brand": "大众",
+    "cache_key": "5785_spec_2022_57302",
+    "car_id": "5785",
+    "discovery": "year-api",
+    "series": "ID.4 CROZZ",
+    "spec_id": "57302",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57302.html",
+    "year": "2022"
+  },
+  "5785_spec_2024_65209": {
+    "brand": "大众",
+    "cache_key": "5785_spec_2024_65209",
+    "car_id": "5785",
+    "discovery": "year-api",
+    "series": "ID.4 CROZZ",
+    "spec_id": "65209",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/65209.html",
+    "year": "2024"
+  },
+  "5785_spec_2025_71289": {
+    "brand": "大众",
+    "cache_key": "5785_spec_2025_71289",
+    "car_id": "5785",
+    "discovery": "year-api",
+    "series": "ID.4 CROZZ",
+    "spec_id": "71289",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71289.html",
+    "year": "2025"
+  },
   "5786": {
     "brand": "吉利几何",
     "cache_key": "5786",
@@ -41112,6 +41873,14 @@
     "series": "Arteon新能源",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5792.html"
+  },
+  "5792_history_no_data": {
+    "brand": "大众",
+    "car_id": "5792",
+    "series": "Arteon新能源",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/5792/sale.html"
   },
   "5793": {
     "brand": "兰博基尼",
@@ -42388,6 +43157,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5902.html"
   },
+  "5902_history_pending": {
+    "brand": "大众",
+    "car_id": "5902",
+    "retry_count": 1,
+    "series": "Taos",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/5902/sale.html"
+  },
   "5903": {
     "brand": "名爵",
     "cache_key": "5903",
@@ -42866,6 +43644,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5936.html"
   },
+  "5936_history_pending": {
+    "brand": "大众",
+    "car_id": "5936",
+    "retry_count": 1,
+    "series": "Tiguan新能源",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/5936/sale.html"
+  },
   "5937": {
     "brand": "奥迪",
     "cache_key": "5937",
@@ -43200,6 +43987,28 @@
     "series": "艾瑞泽5 PLUS",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/5959.html"
+  },
+  "5959_spec_2023_63053": {
+    "brand": "奇瑞",
+    "cache_key": "5959_spec_2023_63053",
+    "car_id": "5959",
+    "discovery": "year-api",
+    "series": "艾瑞泽5 PLUS",
+    "spec_id": "63053",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63053.html",
+    "year": "2023"
+  },
+  "5959_spec_2025_73283": {
+    "brand": "奇瑞",
+    "cache_key": "5959_spec_2025_73283",
+    "car_id": "5959",
+    "discovery": "year-api",
+    "series": "艾瑞泽5 PLUS",
+    "spec_id": "73283",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/73283.html",
+    "year": "2025"
   },
   "596": {
     "brand": "力帆汽车",
@@ -44055,6 +44864,28 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6035.html"
   },
+  "6035_spec_2022_56125": {
+    "brand": "大众",
+    "cache_key": "6035_spec_2022_56125",
+    "car_id": "6035",
+    "discovery": "year-api",
+    "series": "ID.6 X",
+    "spec_id": "56125",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56125.html",
+    "year": "2022"
+  },
+  "6035_spec_2023_60744": {
+    "brand": "大众",
+    "cache_key": "6035_spec_2023_60744",
+    "car_id": "6035",
+    "discovery": "year-api",
+    "series": "ID.6 X",
+    "spec_id": "60744",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60744.html",
+    "year": "2023"
+  },
   "6037": {
     "brand": "魏牌",
     "cache_key": "6037",
@@ -44225,6 +45056,28 @@
     "series": "ID.6 CROZZ",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6055.html"
+  },
+  "6055_spec_2022_56427": {
+    "brand": "大众",
+    "cache_key": "6055_spec_2022_56427",
+    "car_id": "6055",
+    "discovery": "year-api",
+    "series": "ID.6 CROZZ",
+    "spec_id": "56427",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/56427.html",
+    "year": "2022"
+  },
+  "6055_spec_2024_64678": {
+    "brand": "大众",
+    "cache_key": "6055_spec_2024_64678",
+    "car_id": "6055",
+    "discovery": "year-api",
+    "series": "ID.6 CROZZ",
+    "spec_id": "64678",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/64678.html",
+    "year": "2024"
   },
   "6056": {
     "brand": "长安",
@@ -44613,6 +45466,15 @@
     "series": "Taigo",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6089.html"
+  },
+  "6089_history_pending": {
+    "brand": "大众",
+    "car_id": "6089",
+    "retry_count": 1,
+    "series": "Taigo",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/6089/sale.html"
   },
   "608_history_no_data": {
     "brand": "吉利汽车",
@@ -45313,6 +46175,17 @@
     "series": "瑞虎8 PLUS 鲲鹏e+",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6147.html"
+  },
+  "6147_spec_2022_55383": {
+    "brand": "奇瑞",
+    "cache_key": "6147_spec_2022_55383",
+    "car_id": "6147",
+    "discovery": "year-api",
+    "series": "瑞虎8 PLUS 鲲鹏e+",
+    "spec_id": "55383",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/55383.html",
+    "year": "2022"
   },
   "6148": {
     "brand": "大通",
@@ -46907,6 +47780,50 @@
     "series": "大众ID.3",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6265.html"
+  },
+  "6265_spec_2022_57678": {
+    "brand": "大众",
+    "cache_key": "6265_spec_2022_57678",
+    "car_id": "6265",
+    "discovery": "year-api",
+    "series": "大众ID.3",
+    "spec_id": "57678",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57678.html",
+    "year": "2022"
+  },
+  "6265_spec_2023_60737": {
+    "brand": "大众",
+    "cache_key": "6265_spec_2023_60737",
+    "car_id": "6265",
+    "discovery": "year-api",
+    "series": "大众ID.3",
+    "spec_id": "60737",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/60737.html",
+    "year": "2023"
+  },
+  "6265_spec_2024_66088": {
+    "brand": "大众",
+    "cache_key": "6265_spec_2024_66088",
+    "car_id": "6265",
+    "discovery": "year-api",
+    "series": "大众ID.3",
+    "spec_id": "66088",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/66088.html",
+    "year": "2024"
+  },
+  "6265_spec_2025_69271": {
+    "brand": "大众",
+    "cache_key": "6265_spec_2025_69271",
+    "car_id": "6265",
+    "discovery": "year-api",
+    "series": "大众ID.3",
+    "spec_id": "69271",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69271.html",
+    "year": "2025"
   },
   "6268": {
     "brand": "起亚",
@@ -48576,6 +49493,15 @@
     "series": "ID. AERO(海外)",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6395.html"
+  },
+  "6395_history_pending": {
+    "brand": "大众",
+    "car_id": "6395",
+    "retry_count": 1,
+    "series": "ID. AERO(海外)",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/6395/sale.html"
   },
   "6396": {
     "brand": "凯翼",
@@ -52396,6 +53322,17 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6707.html"
   },
+  "6707_spec_2023_62046": {
+    "brand": "奇瑞",
+    "cache_key": "6707_spec_2023_62046",
+    "car_id": "6707",
+    "discovery": "year-api",
+    "series": "瑞虎8 PRO新能源",
+    "spec_id": "62046",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62046.html",
+    "year": "2023"
+  },
   "6708": {
     "brand": "丰田",
     "cache_key": "6708",
@@ -53391,6 +54328,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6789.html"
   },
+  "6789_history_pending": {
+    "brand": "大众",
+    "car_id": "6789",
+    "retry_count": 1,
+    "series": "ID. AERO",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/6789/sale.html"
+  },
   "6790": {
     "brand": "大通",
     "cache_key": "6790",
@@ -53800,6 +54746,28 @@
     "series": "艾瑞泽5 GT",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6821.html"
+  },
+  "6821_spec_2022_59355": {
+    "brand": "奇瑞",
+    "cache_key": "6821_spec_2022_59355",
+    "car_id": "6821",
+    "discovery": "year-api",
+    "series": "艾瑞泽5 GT",
+    "spec_id": "59355",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59355.html",
+    "year": "2022"
+  },
+  "6821_spec_2023_62181": {
+    "brand": "奇瑞",
+    "cache_key": "6821_spec_2023_62181",
+    "car_id": "6821",
+    "discovery": "year-api",
+    "series": "艾瑞泽5 GT",
+    "spec_id": "62181",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/62181.html",
+    "year": "2023"
   },
   "6822": {
     "brand": "东风",
@@ -54304,6 +55272,15 @@
     "series": "瑞虎7 PLUS新能源",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6861.html"
+  },
+  "6861_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "6861",
+    "retry_count": 1,
+    "series": "瑞虎7 PLUS新能源",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/6861/sale.html"
   },
   "6862": {
     "brand": "吉利几何",
@@ -55421,6 +56398,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6952.html"
   },
+  "6952_history_pending": {
+    "brand": "大众",
+    "car_id": "6952",
+    "retry_count": 1,
+    "series": "GEN.TRAVEL",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/6952/sale.html"
+  },
   "6953": {
     "brand": "申龙汽车",
     "cache_key": "6953",
@@ -55957,6 +56943,39 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/6999.html"
   },
+  "6999_spec_2023_63993": {
+    "brand": "奇瑞",
+    "cache_key": "6999_spec_2023_63993",
+    "car_id": "6999",
+    "discovery": "year-api",
+    "series": "探索06",
+    "spec_id": "63993",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/63993.html",
+    "year": "2023"
+  },
+  "6999_spec_2024_68155": {
+    "brand": "奇瑞",
+    "cache_key": "6999_spec_2024_68155",
+    "car_id": "6999",
+    "discovery": "year-api",
+    "series": "探索06",
+    "spec_id": "68155",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/68155.html",
+    "year": "2024"
+  },
+  "6999_spec_2025_69753": {
+    "brand": "奇瑞",
+    "cache_key": "6999_spec_2025_69753",
+    "car_id": "6999",
+    "discovery": "year-api",
+    "series": "探索06",
+    "spec_id": "69753",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69753.html",
+    "year": "2025"
+  },
   "69_spec_2022_53734": {
     "brand": "路虎",
     "cache_key": "69_spec_2022_53734",
@@ -56132,6 +57151,14 @@
     "series": "CJ Surge",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7009.html"
+  },
+  "700_history_no_data": {
+    "brand": "大众",
+    "car_id": "700",
+    "series": "大众CC",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/700/sale.html"
   },
   "701": {
     "brand": "大发",
@@ -58179,6 +59206,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7190.html"
   },
+  "7190_history_pending": {
+    "brand": "大众",
+    "car_id": "7190",
+    "retry_count": 1,
+    "series": "大众ID.2",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7190/sale.html"
+  },
   "7191": {
     "brand": "大通",
     "cache_key": "7191",
@@ -58762,6 +59798,15 @@
     "series": "欧萌达E5",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7232.html"
+  },
+  "7232_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "7232",
+    "retry_count": 1,
+    "series": "欧萌达E5",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7232/sale.html"
   },
   "7233": {
     "brand": "大众",
@@ -59382,6 +60427,15 @@
     "series": "欧萌达3",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7285.html"
+  },
+  "7285_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "7285",
+    "retry_count": 1,
+    "series": "欧萌达3",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7285/sale.html"
   },
   "7286": {
     "brand": "雷诺",
@@ -60441,6 +61495,14 @@
     "series": "五菱荣光新卡房车",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7379.html"
+  },
+  "737_history_no_data": {
+    "brand": "大众",
+    "car_id": "737",
+    "series": "BlueSport",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/737/sale.html"
   },
   "738": {
     "brand": "道奇",
@@ -64132,6 +65194,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7691.html"
   },
+  "7691_history_pending": {
+    "brand": "大众",
+    "car_id": "7691",
+    "retry_count": 1,
+    "series": "ID.CODE",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7691/sale.html"
+  },
   "7692": {
     "brand": "马自达",
     "cache_key": "7692",
@@ -65822,6 +66893,16 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7829.html"
   },
+  "782_spec_2022_57536": {
+    "brand": "大众",
+    "cache_key": "782_spec_2022_57536",
+    "car_id": "782",
+    "series": "Polo(进口)",
+    "spec_id": "57536",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/57536.html",
+    "year": "2022"
+  },
   "783": {
     "brand": "英菲尼迪",
     "cache_key": "783",
@@ -66203,6 +67284,17 @@
     "series": "瑞虎7 C-DM",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7862.html"
+  },
+  "7862_spec_2025_69917": {
+    "brand": "奇瑞",
+    "cache_key": "7862_spec_2025_69917",
+    "car_id": "7862",
+    "discovery": "year-api",
+    "series": "瑞虎7 C-DM",
+    "spec_id": "69917",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69917.html",
+    "year": "2025"
   },
   "7863": {
     "brand": "奇瑞风云",
@@ -66982,6 +68074,15 @@
     "series": "猎风",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/7931.html"
+  },
+  "7931_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "7931",
+    "retry_count": 1,
+    "series": "猎风",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/7931/sale.html"
   },
   "7932": {
     "brand": "奇瑞",
@@ -68320,6 +69421,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8041.html"
   },
+  "8041_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "8041",
+    "retry_count": 1,
+    "series": "艾瑞泽8 PRO",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8041/sale.html"
+  },
   "8042": {
     "brand": "吉利银河",
     "cache_key": "8042",
@@ -68450,6 +69560,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8051.html"
   },
+  "8051_history_pending": {
+    "brand": "大众",
+    "car_id": "8051",
+    "retry_count": 1,
+    "series": "ID.EVERY1",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8051/sale.html"
+  },
   "8052": {
     "brand": "大众",
     "cache_key": "8052",
@@ -68458,6 +69577,15 @@
     "series": "Tera",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8052.html"
+  },
+  "8052_history_pending": {
+    "brand": "大众",
+    "car_id": "8052",
+    "retry_count": 1,
+    "series": "Tera",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8052/sale.html"
   },
   "8053": {
     "brand": "ARCFOX极狐",
@@ -68895,6 +70023,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8090.html"
   },
+  "8090_history_pending": {
+    "brand": "大众",
+    "car_id": "8090",
+    "retry_count": 1,
+    "series": "ID.AURA",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8090/sale.html"
+  },
   "8091": {
     "brand": "猛士",
     "cache_key": "8091",
@@ -68922,6 +70059,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8092.html"
   },
+  "8092_history_pending": {
+    "brand": "大众",
+    "car_id": "8092",
+    "retry_count": 1,
+    "series": "ID.ERA 9X",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8092/sale.html"
+  },
   "8093": {
     "brand": "大众",
     "cache_key": "8093",
@@ -68930,6 +70076,15 @@
     "series": "ID.EVO",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8093.html"
+  },
+  "8093_history_pending": {
+    "brand": "大众",
+    "car_id": "8093",
+    "retry_count": 1,
+    "series": "ID.EVO",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8093/sale.html"
   },
   "8094": {
     "brand": "名爵",
@@ -69174,6 +70329,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8111.html"
   },
+  "8111_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "8111",
+    "retry_count": 1,
+    "series": "瑞虎9L",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8111/sale.html"
+  },
   "8112": {
     "brand": "奇瑞",
     "cache_key": "8112",
@@ -69182,6 +70346,15 @@
     "series": "欧萌达C7",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8112.html"
+  },
+  "8112_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "8112",
+    "retry_count": 1,
+    "series": "欧萌达C7",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8112/sale.html"
   },
   "8113": {
     "brand": "雷克萨斯",
@@ -70974,6 +72147,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8269.html"
   },
+  "826_history_no_data": {
+    "brand": "大众",
+    "car_id": "826",
+    "series": "Passat领驭",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/826/sale.html"
+  },
   "827": {
     "brand": "吉利汽车",
     "cache_key": "827",
@@ -71153,6 +72334,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8284.html"
   },
+  "8284_history_pending": {
+    "brand": "大众",
+    "car_id": "8284",
+    "retry_count": 1,
+    "series": "ID.Cross",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8284/sale.html"
+  },
   "8285": {
     "brand": "阿维塔",
     "cache_key": "8285",
@@ -71170,6 +72360,15 @@
     "series": "ID.POLO",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8286.html"
+  },
+  "8286_history_pending": {
+    "brand": "大众",
+    "car_id": "8286",
+    "retry_count": 1,
+    "series": "ID.POLO",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8286/sale.html"
   },
   "8287": {
     "brand": "WALD",
@@ -72135,6 +73334,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8379.html"
   },
+  "837_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "837",
+    "series": "风云2",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/837/sale.html"
+  },
   "838": {
     "brand": "日产",
     "cache_key": "838",
@@ -72816,6 +74023,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8499.html"
   },
+  "84_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "84",
+    "series": "风云",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/84/sale.html"
+  },
   "85": {
     "brand": "奇瑞",
     "cache_key": "85",
@@ -73453,6 +74668,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8584.html"
   },
+  "8584_history_pending": {
+    "brand": "大众",
+    "car_id": "8584",
+    "retry_count": 1,
+    "series": "ID.AURA T6",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8584/sale.html"
+  },
   "8585": {
     "brand": "五菱汽车",
     "cache_key": "8585",
@@ -73606,6 +74830,14 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8599.html"
   },
+  "85_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "85",
+    "series": "旗云",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/85/sale.html"
+  },
   "86": {
     "brand": "大众",
     "cache_key": "86",
@@ -73714,6 +74946,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8608.html"
   },
+  "8608_history_pending": {
+    "brand": "大众",
+    "car_id": "8608",
+    "retry_count": 1,
+    "series": "与众09",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8608/sale.html"
+  },
   "8609": {
     "brand": "东风奕派",
     "cache_key": "8609",
@@ -73803,6 +75044,15 @@
     "series": "瑞虎V",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8616.html"
+  },
+  "8616_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "8616",
+    "retry_count": 1,
+    "series": "瑞虎V",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8616/sale.html"
   },
   "8617": {
     "brand": "迈莎锐",
@@ -73921,6 +75171,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8628.html"
   },
+  "8628_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "8628",
+    "retry_count": 1,
+    "series": "艾瑞泽X",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8628/sale.html"
+  },
   "8629": {
     "brand": "奇瑞",
     "cache_key": "8629",
@@ -73930,6 +75189,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8629.html"
   },
+  "8629_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "8629",
+    "retry_count": 1,
+    "series": "瑞虎X",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8629/sale.html"
+  },
   "8630": {
     "brand": "奇瑞",
     "cache_key": "8630",
@@ -73938,6 +75206,15 @@
     "series": "艾瑞泽S",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8630.html"
+  },
+  "8630_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "8630",
+    "retry_count": 1,
+    "series": "艾瑞泽S",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8630/sale.html"
   },
   "8631": {
     "brand": "奇瑞",
@@ -74173,6 +75450,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8651.html"
   },
+  "8651_history_pending": {
+    "brand": "大众",
+    "car_id": "8651",
+    "retry_count": 1,
+    "series": "ID.ERA 5S",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8651/sale.html"
+  },
   "8652": {
     "brand": "东风",
     "cache_key": "8652",
@@ -74217,6 +75503,15 @@
     "series": "瑞虎4",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8656.html"
+  },
+  "8656_history_pending": {
+    "brand": "奇瑞",
+    "car_id": "8656",
+    "retry_count": 1,
+    "series": "瑞虎4",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8656/sale.html"
   },
   "8657": {
     "brand": "长安欧尚",
@@ -74542,6 +75837,15 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8688.html"
   },
+  "8688_history_pending": {
+    "brand": "大众",
+    "car_id": "8688",
+    "retry_count": 1,
+    "series": "ID.ERA 8X",
+    "target_type": "history_pending",
+    "terminal": false,
+    "url": "https://www.autohome.com.cn/8688/sale.html"
+  },
   "8689": {
     "brand": "卡尔森",
     "cache_key": "8689",
@@ -74649,6 +75953,14 @@
     "series": "康派斯道奇公羊Ram",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/8699.html"
+  },
+  "86_history_no_data": {
+    "brand": "大众",
+    "car_id": "86",
+    "series": "夏朗",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/86/sale.html"
   },
   "87": {
     "brand": "奇瑞",
@@ -75207,6 +76519,50 @@
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/905.html"
   },
+  "905_spec_2023_59769": {
+    "brand": "大众",
+    "cache_key": "905_spec_2023_59769",
+    "car_id": "905",
+    "discovery": "year-api",
+    "series": "一汽-大众CC",
+    "spec_id": "59769",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/59769.html",
+    "year": "2023"
+  },
+  "905_spec_2024_69043": {
+    "brand": "大众",
+    "cache_key": "905_spec_2024_69043",
+    "car_id": "905",
+    "discovery": "year-api",
+    "series": "一汽-大众CC",
+    "spec_id": "69043",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/69043.html",
+    "year": "2024"
+  },
+  "905_spec_2025_71859": {
+    "brand": "大众",
+    "cache_key": "905_spec_2025_71859",
+    "car_id": "905",
+    "discovery": "year-api",
+    "series": "一汽-大众CC",
+    "spec_id": "71859",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/71859.html",
+    "year": "2025"
+  },
+  "905_spec_2026_75014": {
+    "brand": "大众",
+    "cache_key": "905_spec_2026_75014",
+    "car_id": "905",
+    "discovery": "year-api",
+    "series": "一汽-大众CC",
+    "spec_id": "75014",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/75014.html",
+    "year": "2026"
+  },
   "906": {
     "brand": "大众",
     "cache_key": "906",
@@ -75215,6 +76571,16 @@
     "series": "Jetta",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/906.html"
+  },
+  "906_spec_2022_52799": {
+    "brand": "大众",
+    "cache_key": "906_spec_2022_52799",
+    "car_id": "906",
+    "series": "Jetta",
+    "spec_id": "52799",
+    "target_type": "history",
+    "url": "https://car.autohome.com.cn/config/spec/52799.html",
+    "year": "2022"
   },
   "907": {
     "brand": "宝马",
@@ -76091,6 +77457,14 @@
     "series": "旗云1",
     "target_type": "current",
     "url": "https://car.autohome.com.cn/config/series/996.html"
+  },
+  "996_history_no_data": {
+    "brand": "奇瑞",
+    "car_id": "996",
+    "series": "旗云1",
+    "target_type": "history_terminal_no_data",
+    "terminal": true,
+    "url": "https://www.autohome.com.cn/996/sale.html"
   },
   "997": {
     "brand": "比亚迪",
