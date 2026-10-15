@@ -16224,20 +16224,53 @@ def _dedupe_source_labels(row):
         row["数据来源"] = "+".join(atoms)
     return row
 
-def _sku_core_name(name, series):
-    """Reduce a model name to its SKU core so variant spellings merge.
-    Strips series prefix, year, displacement/range spec tokens; keeps
-    trim words (大满配/超满配/豪华...) and distinctive tokens."""
+_ARABIC_TO_CN = str.maketrans("0123456789", "\u3007\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d")
+# 年款标记及其之前的整段前缀（车系名+年款都在里面）一次性丢掉。
+# 必须整段丢而不是只丢"年款"两个字：同 SKU 的异名写法差别就在这段前缀上——
+#   "乐道L90 2026款 Pro 六座版" vs "六座版Pro"（懂车帝侧根本没有前缀）
+#   "腾势N9 2026款 闪充 尊荣型" vs "腾势N9 DM 2026款 闪充 尊荣型"（同 ID 两个车系名）
+# 只认四位年份（19xx/20xx）或"两位数字+款"：normalize_match_text 会把小数点当标点删掉，
+# "1.5T" 会变成 "15T"，若允许裸两位数字就会把排量当年款吃掉（线上实测踩过）。
+_YEAR_PREFIX_RE = re.compile(r"^.*?(?:(?:19|20)\d{2}\u6b3e?|\d{2}\u6b3e)")
+
+
+def _sku_core_tokens(name, series):
+    """SKU 核心 token **集合**：词序不敏感、阿拉伯/中文数字不敏感、前缀不敏感。
+
+    线上实测（2026-10-15 发布面）旧实现是字符串 core，三种脆弱性各自造成同 SKU 多行：
+      词序    "六座版Pro" → "六座版pro"  vs  "…Pro 六座版" → "pro六座版"
+      数字    "1.5T Halo 六座" → "thalo六座"  vs  "…1.5T Halo 6座" → "thalo 座"（6 被当裸数字剥掉）
+      前缀    "腾势N9 2026款…" → "闪充尊荣型"  vs  "腾势N9 DM 2026款…" → "dm闪充尊荣型"
+    改为 frozenset + 6→六  transliterate + 年款前缀整段丢之后，三对都落到同一集合。
+    genuinely 不同的配置仍然分开（token 集合不同）：
+      "…荣耀型 机甲套装" → {荣耀型, 机甲套装}
+      "…荣耀型 锦衣套装 逐日版" → {荣耀型, 锦衣套装, 逐日版}
+    """
     text = normalize_match_text(name)
     if series:
         s = normalize_match_text(series)
-        text = text.replace(s, " ")
-    text = re.sub(r"(?:19|20)?\d{2}\u6b3e?", " ", text)
-    text = re.sub(r"\d+(?:\.\d+)?", " ", text)
-    text = re.sub(r"(?<![a-z])[a-z](?![a-z])", " ", text, flags=re.I)
-    text = re.sub(r"\b[a-z]{1,3}\b", " ", text, flags=re.I)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+        if s:
+            text = text.replace(s, " ")
+    m = _YEAR_PREFIX_RE.match(text)
+    if m:
+        text = text[m.end():]
+    # 阿拉伯数字翻成中文再比：6座 == 六座；一.五 != 二.〇（排量差异保留为 token 差异）
+    text = text.translate(_ARABIC_TO_CN)
+    # 按 CJK / 拉丁边界切词，词序进集合后自然无害：
+    #   "六座版Pro" -> {六座版, pro}；"…Pro 六座版" -> {pro, 六座版} ⇒ 同集合
+    # CJK 连续段再按"版/型"切成子词并去掉尾缀，段内词序也无关：
+    #   "六座版 马到成功版Max" -> {六座, 马到成功, max}
+    #   "2026款 Max 马到成功版 六座" -> {max, 马到成功, 六座}   ⇒ 同集合
+    tokens = set()
+    for piece in re.findall(r"[a-z]+|[\u4e00-\u9fff]+", text, flags=re.I):
+        if piece.isascii():
+            tokens.add(piece.lower())
+            continue
+        for sub in re.split(r"(?<=\u7248)|(?<=\u578b)", piece):
+            sub = sub.strip("\u7248\u578b")
+            if sub:
+                tokens.add(sub)
+    return frozenset(tokens)
 
 def dedupe_merged_rows(rows):
     if not isinstance(rows, list):
@@ -16258,16 +16291,24 @@ def dedupe_merged_rows(rows):
         sig = model_variant_signature(row)
         name_text = str(row.get('车型名称', '') or '')
         trims = tuple(sorted(set(_TRIM_WORDS.findall(name_text))))
-        core_name = _sku_core_name(name_text, str(row.get('车系', '') or ''))
-        key = (
-            normalize_match_text(str(row.get('车系', '') or '')),
-            str(row.get('年款', '') or ''),
+        core_tokens = _sku_core_tokens(name_text, str(row.get('车系', '') or ''))
+        sku_id = str(row.get('车款ID', '') or '').strip()
+        tail = (
+            str(row.get('年款', '') or ''),          # 年款不同 = 不同 SKU（用户裁定），始终在键里
             _price_norm(row.get('官方指导价')),
             tuple(sorted(sig['tier'])),
             tuple(sorted(sig['seat'])),
             trims,
-            core_name,
+            core_tokens,
         )
+        if sku_id:
+            # 车款ID 是源侧 SKU 主键，关联层已把它跨源对齐 ⇒ 同 ID 同年款必须归并，
+            # 不再带车系（实测同 ID 会挂在"腾势N9 DM"/"腾势N9"两个车系名下），
+            # 但保留价格/特征/token：同 ID 同款不同配置（奥迪Q5 e-tron 同 ID 四行两价）
+            # 仍须分开。
+            key = ("sku", sku_id) + tail
+        else:
+            key = (normalize_match_text(str(row.get('车系', '') or '')),) + tail
         groups.setdefault(key, []).append(row)
 
     out = []
@@ -16277,13 +16318,19 @@ def dedupe_merged_rows(rows):
             continue
         labels = []
         best = group[0]
+
+        def _rank(row):
+            # 来源富集度优先；并列时优先"价格干净"（不带 | 合并串）的那一行，
+            # 否则合并串价格会盖掉规范化单价（实测 40.5万 vs 40.5万|40.50万）。
+            label = str(row.get('数据来源', '') or '')
+            price = str(row.get('官方指导价', '') or '')
+            return (label.count('+'), 0 if '|' not in price else 1)
+
         for row in group:
             label = str(row.get('数据来源', '') or '')
             if label and label not in labels:
                 labels.append(label)
-            base_score = str(best.get('数据来源', '') or '').count('+')
-            cand_score = label.count('+')
-            if cand_score > base_score:
+            if _rank(row) > _rank(best):
                 best = row
         base = dict(best)
         name_candidates = [str(row.get('车型名称', '') or '').strip() for row in group
@@ -17158,6 +17205,12 @@ def main():
 
 
     all_rows = deduped_rows
+    # SKU 级归并：identity_key 只按 (车系ID, 车型名称, 年款) 去重，同一 SKU 跨源/跨车系ID/
+    # 异名写法各成一行（线上实测 14097 行里 1095 个车款ID 出现多行，涉 2327 行）。
+    # dedupe_merged_rows 以前只在审计/校验脚本里被调用，合并主链路从未调用过——这里补上。
+    before_sku = len(all_rows)
+    all_rows = dedupe_merged_rows(all_rows)
+    print(f"SKU 归并: {before_sku} -> {len(all_rows)} 行（移除 {before_sku - len(all_rows)} 条同 SKU 多行）")
 
 
 
