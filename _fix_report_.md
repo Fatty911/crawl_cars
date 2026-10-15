@@ -1,60 +1,61 @@
-分支 `agent/88-pushback-worktree-gate`（本地提交 `6f78c0f`，基线 `main@2a76534`）｜推送 HTTP 403（`repo-code:rw` 缺失，`--dry-run` 实测）｜开 PR 未测（按 Issue 口径走附件交付）｜实际模型 `deepseek-v4.1-flash`（npc:go，maxTurns=150）
+分支 `npc/104-degrade-cause-readout`（本地提交 `4958e1e`，基线 `main@ab54abe`）｜实测模型 `deepseek-v4.1-flash`（npc:go）｜推送 HTTP 403（`repo-code:rw` 缺失，remote 原文见下）｜开 PR HTTP 403（`POST /-/pulls` errcode 10023，缺 `repo-pr:rw`）⇒ 按 Issue 口径走附件交付。
 
-# Issue #88 修复报告：回推段按工作树判成活（堵 `--autostash` rc=0 假成活 + 用尽后 break 仍 push）
+# Issue #104 修复报告：易车降级身份/403 成因分类读数
 
-## 1. 根因（两条独立假绿通道）
+## 1. 根因
 
-- **① `--autostash` rc=0 假成活**：脏树冲突时 `git rebase -q --autostash FETCH_HEAD` 返回 0，本地提交已重放、工作树留着冲突标记，`until` 第一次就"成功" ⇒ 不重试、不点名，随后 push 是 fast-forward ⇒ 判绿。
-- **② 用尽后 `break` 仍走到 push**：三处回推段原来只 `break` 跳出循环，下一行无条件 `git push`；HEAD 与远端相同时 push 回 `Everything up-to-date` rc=0 ⇒ 又是绿。
+`scripts/crawl_yiche.py` 走到「仅降级身份」与「403 后无真实配置」两条分支时只累加计数
+（`stats["degraded_identity"]` / `stats["failed"]`），不记录成因。每轮 471 次降级身份
+死在哪一环不可见。修复=在这两条分支各按代码已有环节记一个成因码，只进「易车抓取统计」打印行。
 
-## 2. 实际改动（2 个文件，均按派发单指定形状）
+## 2. 改动清单（2 文件，214 增 / 0 删，未动任何既有行）
 
 | 文件 | 改动 |
 |---|---|
-| `.cnb.yml` | 三处回推段：`break` → `exit 1`；push 前插入 5 行紧凑工作树闸（`git ls-files -u` 非空即 `PUSHBACK-FAIL reason=unmerged-after-rebase; exit 1`） |
-| `tests/test_pushback_success_is_measured_on_worktree.py` | 新增，判据原样落盘（sha256 见 §5） |
-| `tests/test_pushback_rebase_survives_dirty_tree.py` | **只尾部追加 44 行**（`git diff --numstat` = `44 0`，无删除）：三处样张 + 3 个 `test_*` 入口 |
+| `scripts/crawl_yiche.py` | 新增 75 行：`DEGRADE_CAUSE_CODES`（10 码，`:1608`）、`classify_degraded_identity_cause`（`:1622`）、`classify_after_403_cause`（`:1643`）、`degrade_cause_counts` 局部初始化（`:1677`）、两分支累加（`:1906`/`:1945`）、打印行追加（`:2022-2023`） |
+| `tests/test_yiche_crawler.py` | 尾部新增 3 例（139 行，纯追加，既有 1168 行逐字节未动） |
 
-三处位置（行号为改动前）：`api_trigger` `:473/478`、`crontab: 5 8 1,16 * *` `:1156/1161`、`crontab: 37 8 * * 0` `:1541/1546`；缩进各按其自身（18/18/20 空格）逐处修改。
+成因码（10 个）：
 
-## 3. 判据运行结果原文（验收命令全部 rc=0）
+- 降级身份分支 6 个：`waf_shell_page`（200 但壳页）、`validate_rejected`（页面有行但全员校验否）、`serial_id_missing`（无 serial ⇒ API 未调用）、`config_api_error`（API 请求失败）、`config_api_empty`（API 0 条）、`sale_page_rejected`（API 给过行、裁决全否）
+- 403/429 后分支 4 个：`after_403_no_serial_id`、`after_403_config_api_error`、`after_403_api_empty`、`after_403_sale_page_rejected`
+
+分类函数用关键字参数，调用点显式传各环节证据；`degrade_cause_counts` 是 `crawl()` 局部 dict，
+**不进 `stats`、不进断点文件** `crawl_state/yiche_frontier.json`（守住 5MB 回推体积闸）。
+
+## 3. 判据运行结果原文
 
 ```
-$ python -m pytest tests/test_pushback_success_is_measured_on_worktree.py -q --no-header
-....                                                                     [100%]
-4 passed in 0.09s
-
-$ python -m pytest tests/test_pushback_rebase_survives_dirty_tree.py -q --no-header
-...                                                                      [100%]
-3 passed in 0.09s
-
-$ python -m pytest tests/test_pushback_rebases_before_push.py tests/test_pushback_survives_publish_failure.py \
-    tests/test_pushback_size_gate.py tests/test_pushback_excludes_pycache.py \
-    tests/test_dealer_chain_isolation.py tests/test_chain_selfheal_coverage.py -q --no-header
-..................................                             [100%]
-34 passed, 10 subtests passed in 1.13s
+$ python -m pytest tests/test_yiche_crawler.py -q        # 改前
+62 passed in 4.67s
+$ python -m pytest tests/test_yiche_crawler.py -q        # 改后
+65 passed in 4.83s
 ```
 
-修前基线：`test_pushback_success_is_measured_on_worktree.py` 红（3 failed），`check(load())` 三处全部点名
-E1（只 break 无 exit）+ E2（push 前无未合并项检查）。自校 8/8 例（六变异全红 + 合规样张 + 三处识别）双向通过。
-全量套件额外跑过 1 次用于最终确认：`798 passed, 139 subtests passed`（未为对齐报告数字重跑）。
+新增 3 例注入 HEAD 源码（去掉改动）全部转红（`统计行里没有 degrade_cause.* 读数`），
+带改动全绿 ⇒ 非恒绿用例、双向成立。
 
-## 4. 红线自查
+## 4. 全量套件失败集合差异
 
-- 未删/未放宽任何既有断言、`exit 1`、体积闸、白名单；既有 189 行逐字节未动（`44 0` 纯追加）。
-- 未用 `--force`、未删 `--autostash`/`fetch`/rebase 到 `FETCH_HEAD` 语义；push 前 400 字符无 `|| true`/`|| exit 0`（实测三条全 False）。
-- 凭据仅 `GIT_ASKPASS` 临时脚本（已 `rm -f`），未进 URL/被跟踪文件/本报告。
-- 未碰 `failStages`、爬取预算、发布阶段实现、`scripts/check_npc_free_quota.py`、`AGENTS.md`。
+- 改前：`801 passed, 139 subtests passed in 31.05s`，失败集合 `{}`
+- 改后：`804 passed, 139 subtests passed in 31.80s`，失败集合 `{}`（+3 即新增用例）
+⇒ 新增红 0，消失红 0。
 
-## 5. 产物（附件交付）
+## 5. 顺带发现（本单不要求修，点名）
 
-本报告由 `_fix_report_.md` **全量覆写**（上一单 #84 的旧报告内容已随本单替换）。本报告 v2 仅把 §5 的 sha/字节数换成含报告 v1 的最终导出读数（一次性写，之后不再跑套件）；bundle/patch 内是报告 v1，两者差异仅本 §5 数字。上传后经 GET 回读校验的资产地址与读数见 Issue #88 评论。
+`scripts/crawl_yiche.py:1462`（HEAD 原文）：`approve_rows_from_sale_page` 的回退分支里
+`sale_ids.update(ids)` / `:1463 sale_names.update(names)` 引用了未定义变量 `ids`/`names`
+（上一行只算了 `page_html`，从未调用 `extract_sale_model_refs(page_html)`）。触发条件=
+必须走到在售页回退（`serial_id` 缺失或状态 unknown 且有 200 响应），一旦触发是 `NameError`，
+会被外层 `requests.RequestException` 之外的 except 链漏接。属代码缺陷非风控，本单按边界未动。
 
-- `issue88-pushback-worktree-gate.bundle`（`2a76534..a2825c7`，含本报告 v1）：11473 字节，sha256 `ea84f7fda405a96151c6300f43d0745fbd6c2d69c43f1e99a1a84fac88b60d6f`，PUT 200
-- `issue88-pushback-worktree-gate.patch`（`git format-patch 2a76534..a2825c7`，含本报告 v1）：33969 字节，sha256 `46c30b4889b7ea318676c3d837524d6e570ea032b85aa83e173e76f9c86c80ec`，PUT 200
+## 6. 交付实况
 
-判据文件字节（原样落盘校核）：`tests/test_pushback_success_is_measured_on_worktree.py` sha256 `e8ce07495c9788c4827f019385286b7e`（md5），与 Issue 下发 python 块逐字节相同（实测 `identical: True`）。
+- 分支 `npc/104-degrade-cause-readout`（提交 `4958e1e`）本地已存在；push 实测 remote 原文：
+  `Your token does not have the repo-code:rw scope required to push to this repository.`
+- `POST /-/pulls` → `{"errcode":10023,...,"Missing required scopes: repo-pr:rw"}` ⇒ 403
+- 附件（`.patch` / `.bundle` / `.tar.gz`）+ 本报告贴在 Issue #104 评论（首行 `## NPC 交付：#104 …`）
 
-## 6. effective_max_turns
+## 7. effective_max_turns
 
-本会话 `maxTurns=150`，当前约第 60 轮，**剩余约 90 轮**。
+本会话 `maxTurns=150`，当前约第 95 轮，**剩余约 55 轮**。
