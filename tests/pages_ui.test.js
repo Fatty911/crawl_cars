@@ -1260,3 +1260,46 @@ test("Display columns put low-frequency source-specific columns into a separate 
   assert.deepEqual(JSON.parse(JSON.stringify(groups.attribute)), ["车系"]);
   assert.deepEqual(JSON.parse(JSON.stringify(groups.option)), ["静享驾乘包"]);
 });
+
+test("SKU display merge keeps same 车款ID + same name rows together even when source prices conflict", () => {
+  // 线上实测形状（车款ID 171437）：一行是单源价 `11.98万`，另一行是聚合串 `懂车帝:10.89万|易车:11.98万`；
+  // 只取第一个数字会把聚合行读成 10.89 ⇒ 与 11.98 判成互斥 ⇒ 展示层留下两行 ⇒ 线上验收不变式直接红。
+  const app = loadAppForTest();
+  const base = {
+    "品牌": "捷途", "车系": "捷途X70", "年款": "2024",
+    "能源类型": "汽油", "发动机": "1.5T 156马力 L4", "排量(L)": "1.5", "纯电续航(km)": "0"
+  };
+  const a = Object.assign(row("易车", 2024, "24款 1.5T 双离合跃享版 5座"), base, {
+    "车款ID": "171437", "官方指导价": "11.98万"
+  });
+  const b = Object.assign(row("懂车帝+易车", 2024, "24款 1.5T 双离合跃享版 5座"), base, {
+    "车款ID": "171437", "官方指导价": "懂车帝:10.89万|易车:11.98万"
+  });
+  app.hooks.initializeRows([a, b]);
+  assert.equal(app.hooks.state.rows.length, 1, "同 车款ID 同名必须是同一行（线上验收不变式）");
+  assert.ok(String(app.hooks.state.rows[0]["数据来源"]).includes("懂车帝"), "两家来源都要留在来源列");
+  assert.ok(String(app.hooks.state.rows[0]["数据来源"]).includes("易车"));
+});
+
+test("SKU display merge does not chain conflicting SKUs through a bridging row", () => {
+  // step 家族票 P1 的复现形状：A(58.98万/2.0T) + B(缺价缺动力) + C(62.98万/2.4L) 曾被桥接行 B 合成 1 行、C 静默消失。
+  // 完全链接下 C 自成一簇；这里钉"不是 1 行"且两档价格都还在面上。
+  const app = loadAppForTest();
+  const common = {
+    "品牌": "测试品牌", "车系": "桥接车系", "年款": "2024", "能源类型": "汽油",
+    "纯电续航(km)": "0", "驱动方式": "前置前驱"
+  };
+  const a = Object.assign(row("汽车之家", 2024, "2024款 2.0T 豪华版"), common, {
+    "车款ID": "900011", "官方指导价": "58.98万", "发动机": "2.0T 200马力 L4"
+  });
+  const b = Object.assign(row("懂车帝", 2024, "2024款 豪华版"), common, { "车款ID": "" });
+  const c = Object.assign(row("易车", 2024, "2024款 2.4L 豪华版"), common, {
+    "车款ID": "900013", "官方指导价": "62.98万", "发动机": "2.4L 180马力 L4"
+  });
+  app.hooks.initializeRows([a, b, c]);
+  const rows = app.hooks.state.rows;
+  assert.notEqual(rows.length, 1, "互斥的 A~C 不许被桥接行 B 合掉（1 行 = C 静默消失）");
+  const prices = rows.map((r) => String(r["官方指导价"] || "")).join(" | ");
+  assert.ok(prices.includes("62.98万"), "2.4L 那一档的价格必须仍在面上");
+  assert.ok(prices.includes("58.98万"), "2.0T 那一档的价格必须仍在面上");
+});

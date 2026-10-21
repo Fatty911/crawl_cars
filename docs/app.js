@@ -458,8 +458,18 @@
     return name ? name[1] + name[2].toLowerCase() : "";
   }
 
+  function skuPriceSet(row) {
+    // 现网一根价格串会带多源值（`懂车帝:10.89万|易车:11.98万`，实测 车款ID 171437 的线上行）。
+    // 只取第一个数字会把聚合行读成 10.89，跟另一行的 11.98 判成互斥 ⇒ 同 ID 同名两行合不上
+    // （线上验收不变式直接红）。按**值集合**比（与仓里 merge_data 的"集合不相交才算冲突"同口径）。
+    var text = String(row["官方指导价"] == null ? "" : row["官方指导价"]);
+    var numbers = text.match(/\d+(?:\.\d+)?/g);
+    return numbers ? numbers.map(Number).filter(function (n) { return Number.isFinite(n) && n > 0; }) : [];
+  }
+
   function skuPrice(row) {
-    return firstNumber(row["官方指导价"]);
+    var values = skuPriceSet(row);
+    return values.length ? Math.min.apply(null, values) : null;
   }
 
   function skuRangeSet(row) {
@@ -483,6 +493,14 @@
     return text;
   }
 
+  function skuIdNameKey(row) {
+    // 与 tests/pages_ui.test.js 线上不变式同一口径：空白全去掉 + 小写。
+    var id = String(row["车款ID"] == null ? "" : row["车款ID"]).trim();
+    if (!id || id === "-") { return ""; }
+    var name = String(row["车型名称"] == null ? "" : row["车型名称"]).replace(/\s+/g, "").toLowerCase();
+    return name ? id + "\u0000" + name : "";
+  }
+
   function skuCoarseKey(row) {
     return [cleanText(row["车系"]), modelYear(row), skuEnergy(row), skuTrim(row)].join("|");
   }
@@ -490,8 +508,11 @@
   function skuCompatible(a, b) {
     var ea = skuEngine(a), eb = skuEngine(b);
     if (ea && eb && ea !== eb) { return false; }
-    var pa = skuPrice(a), pb = skuPrice(b);
-    if (pa != null && pb != null && Math.abs(pa - pb) > 0.01) { return false; }
+    var pa = skuPriceSet(a), pb = skuPriceSet(b);
+    if (pa.length && pb.length) {
+      var samePrice = pa.some(function (value) { return pb.indexOf(value) !== -1; });
+      if (!samePrice) { return false; }
+    }
     var ra = skuRangeSet(a), rb = skuRangeSet(b);
     if (ra.length && rb.length) {
       var common = ra.some(function (value) { return rb.indexOf(value) !== -1; });
@@ -503,31 +524,21 @@
   }
 
   function clusterSkuRows(items) {
-    if (!items.length) { return []; }
-    var parent = items.map(function (_, index) { return index; });
-    function find(index) {
-      while (parent[index] !== index) {
-        parent[index] = parent[parent[index]];
-        index = parent[index];
+    // **完全链接**：一条行只有当它与目标簇里**现有每一条**都兼容时才并入。
+    // 单链接并查集（原实现）会被桥接行串成大簇：实测 A(58.98万/2.0T)+B(缺价缺动力)+C(62.98万/2.4L)
+    // 经 B 合成 1 行、C 静默消失（step 家族票 P1 的复现形状）。完全链接下 C 留在自己簇里，
+    // 互斥的 SKU 不再被桥接行吞掉；偏向"漏合"而不是"误合"。
+    var clusters = [];
+    items.forEach(function (item) {
+      for (var i = 0; i < clusters.length; i += 1) {
+        if (clusters[i].every(function (member) { return skuCompatible(member, item); })) {
+          clusters[i].push(item);
+          return;
+        }
       }
-      return index;
-    }
-    function union(a, b) {
-      var ra = find(a), rb = find(b);
-      if (ra !== rb) { parent[rb] = ra; }
-    }
-    for (var i = 0; i < items.length; i += 1) {
-      for (var j = i + 1; j < items.length; j += 1) {
-        if (skuCompatible(items[i], items[j])) { union(i, j); }
-      }
-    }
-    var groups = {};
-    items.forEach(function (item, index) {
-      var root = find(index);
-      if (!groups[root]) { groups[root] = []; }
-      groups[root].push(item);
+      clusters.push([item]);
     });
-    return Object.keys(groups).map(function (key) { return groups[key]; });
+    return clusters;
   }
 
   function skuDisplayName(items) {
@@ -589,14 +600,30 @@
         rest.push(row);
       }
     });
+    var identity = {};
+    rest.forEach(function (row) {
+      // 同一 车款ID + 同名 = 同一个 SKU（源侧主键），**成组（≥2）时无条件并**：线上验收不变式
+      // 就钉在"展示层不许留同车款ID 同名的两行"上；属性值互斥多半是源侧数据问题（实测 171437：
+      // 一行价格 `11.98万`、另一行是聚合串 `懂车帝:10.89万|易车:11.98万`），过兼容闸会把它拆开。
+      // 单条（该 ID+名只有一行）不吃掉：跨源两行 ID 不同（如 E7 的 186452/76217）仍要走粗键+兼容闸。
+      var key = skuIdNameKey(row);
+      if (!key) { return; }
+      if (!identity[key]) { identity[key] = []; }
+      identity[key].push(row);
+    });
     var coarse = {};
     rest.forEach(function (row) {
-      var key = skuCoarseKey(row);
-      if (!coarse[key]) { coarse[key] = []; }
-      coarse[key].push(row);
+      var key = skuIdNameKey(row);
+      if (key && identity[key].length >= 2) { return; }
+      var ckey = skuCoarseKey(row);
+      if (!coarse[ckey]) { coarse[ckey] = []; }
+      coarse[ckey].push(row);
     });
     var clusters = [];
     Object.keys(audited).forEach(function (key) { clusters.push(audited[key]); });
+    Object.keys(identity).forEach(function (key) {
+      if (identity[key].length >= 2) { clusters.push(identity[key]); }
+    });
     Object.keys(coarse).forEach(function (key) {
       clusters = clusters.concat(clusterSkuRows(coarse[key]));
     });
