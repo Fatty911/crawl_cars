@@ -373,11 +373,13 @@ jobs:
           python - <<'PY'
           import shutil
           import sys
+          from pathlib import Path
           sys.path.insert(0, "scripts")
           from publish_github_release import bundle_site, collect_assets
-          collect_assets("site", "Fatty911/crawl_cars")  # 校验 manifest↔文件（含分片 sha256）
-          bundle_site("site", "verified-site.zip")
-          shutil.copyfile("site/data/manifest.json", "manifest.json")
+          site = Path("site")  # collect_assets/bundle_site 收 Path；传字符串会在 site/relative 上 TypeError（10-21 实测）
+          collect_assets(site, "Fatty911/crawl_cars")  # 校验 manifest↔文件（含分片 sha256）
+          bundle_site(site, Path("verified-site.zip"))
+          shutil.copyfile(site / "data/manifest.json", "manifest.json")
           PY
           gh release upload "$TAG" manifest.json verified-site.zip --repo "$GITHUB_REPOSITORY" --clobber
           echo "✅ verified 资产已挂 $TAG"
