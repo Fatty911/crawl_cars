@@ -262,6 +262,18 @@ jobs:
           print("已发布面行数=%d ｜ 分片=%d ｜ manifest.updatedAt=%s"
                 % (len(rows), len(chunks), man.get("updatedAt")))
           json.dump(rows, open("/tmp/live-latest.json", "w", encoding="utf-8"), ensure_ascii=False)
+          # 展示层是 filtered 面，不是 latest：74782 这类"同车款ID 同名两行"只在 filtered 出现
+          # （10-21 run #9 实证）。只验 latest 会让链绿而展示层红 ⇒ 同一条验收也要吃一遍 filtered。
+          fj = str(files.get("filteredJson") or "").strip()
+          if not fj:
+              print("❌ manifest 里没有 filteredJson ⇒ 展示层取数面不可用", file=sys.stderr)
+              raise SystemExit(3)
+          frows = get("/" + fj.lstrip("/"))
+          if not isinstance(frows, list):
+              print("❌ filteredJson 不是数组", file=sys.stderr)
+              raise SystemExit(3)
+          print("展示层行数=%d" % len(frows))
+          json.dump(frows, open("/tmp/live-filtered.json", "w", encoding="utf-8"), ensure_ascii=False)
           PY
           set +e
           CARS_LIVE_DATA=/tmp/live-latest.json node --test tests/pages_ui.test.js > live-acceptance.log 2>&1
@@ -280,6 +292,23 @@ jobs:
             exit 1
           fi
           echo "✅ 线上验收真跑且通过（取的是本轮发布面）"
+          set +e
+          CARS_LIVE_DATA=/tmp/live-filtered.json node --test tests/pages_ui.test.js > live-acceptance-filtered.log 2>&1
+          FARC=$?
+          set -e
+          grep -aE "^ *(tests|pass|fail|skipped) [0-9]+" live-acceptance-filtered.log | tail -6 || true
+          FSKIP=$(grep -aoE "skipped [0-9]+" live-acceptance-filtered.log | tail -1 | tr -dc '0-9')
+          echo "展示层验收 rc=$FARC ｜ skipped=${FSKIP:-读不到}"
+          if [ "${FSKIP:-x}" != "0" ]; then
+            echo "❌ 展示层验收 skipped≠0 ⇒ 那条没真跑"
+            exit 4
+          fi
+          if [ "$FARC" != "0" ]; then
+            echo "❌ 展示层（filtered）验收判红 ⇒ 发布出去的展示面不符合预期（原文见 live-acceptance-filtered.log）"
+            tail -40 live-acceptance-filtered.log
+            exit 1
+          fi
+          echo "✅ 展示层（filtered）验收真跑且通过"
 
       - name: 上传数据产物
         uses: actions/upload-artifact@v4
