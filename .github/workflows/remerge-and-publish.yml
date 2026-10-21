@@ -25,6 +25,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: pages
@@ -50,7 +51,10 @@ jobs:
           python-version: '3.12'
 
       - name: 安装依赖
-        run: pip install requests beautifulsoup4 lxml
+        run: pip install requests beautifulsoup4 lxml pyyaml
+
+      - name: 红线通道覆盖断言（active 数据链必须都在监视名单里）
+        run: python scripts/check_red_channel_coverage.py
 
       - name: 下载上一轮合并产物
         id: fetch

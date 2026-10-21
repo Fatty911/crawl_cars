@@ -1,0 +1,63 @@
+name: AI Auto Fix Monitor
+
+# 配额耗尽期的旁路链红线通道。
+#
+# 只覆盖**真正在跑**的三条链（爬虫链是负责人明确停用的，不属于待修项）：
+#   重合并并发布（不爬取） / Deploy verified CNB Pages / 部署前端展示
+# 只在 conclusion=failure 时触发（去掉原来 `|| success` 的过度触发）。
+# GitHub 侧没有 NPC 执行器，这一腿不假装修复：把红的证据固定成 Issue，
+# 修复由 CNB 的 npc 免费角色接手。覆盖关系由 scripts/check_red_channel_coverage.py
+# 在每次旁路构建里按 Actions API 的 state=active 实查（少一条/凑数一条都红）。
+
+on:
+  workflow_run:
+    workflows: ["重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: ai-red-channel-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  archive_failure:
+    name: "红线归档 → 开 Issue"
+    if: >-
+      ${{
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.conclusion == 'failure'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 归档失败证据并开 Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WF_NAME: ${{ github.event.workflow_run.name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          TITLE="[旁路链红] ${WF_NAME} run ${RUN_ID}"
+          BODY=$(printf '%s\n' \
+            "工作流：${WF_NAME}" \
+            "Run：${RUN_URL}" \
+            "headSha：${HEAD_SHA}" \
+            "" \
+            "这条 Issue 由 AI Auto Fix Monitor 自动创建：配额期的旁路链（只合并/发布、不爬数据）红了。" \
+            "GitHub 侧没有 NPC 执行器，不做假装修复；修复由 CNB 的 npc 免费角色接手。" \
+            "复现证据：gh run view ${RUN_ID} --log-failed（或下载该 run 的 error-log artifact）。")
+          EXIST=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "${WF_NAME} in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$EXIST" ]; then
+            gh issue comment "$EXIST" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+            echo "RED_CHANNEL_ISSUE_OK workflow=${WF_NAME} run=${RUN_ID} issue=${EXIST} mode=comment"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$BODY"
+            echo "RED_CHANNEL_ISSUE_OK workflow=${WF_NAME} run=${RUN_ID} mode=create"
+          fi
