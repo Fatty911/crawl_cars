@@ -32,6 +32,10 @@ SELF_NAME = "AI Auto Fix Monitor"
 MIN_ACTIVE = 3
 
 
+class UnreadableState(RuntimeError):
+    """读到的 active 集合可疑（少于地板值）⇒ 第三态，不是红也不是过。"""
+
+
 def load_states(path: str | None, repo: str) -> list[dict]:
     if path:
         data = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
@@ -68,15 +72,18 @@ def check(monitor_path: pathlib.Path, states: list[dict]) -> tuple[list[str], se
 
     active = {str(w.get("name")) for w in states
               if str(w.get("state")) == "active" and str(w.get("name")) != SELF_NAME}
-    if len(active) < MIN_ACTIVE:
-        errors.append("读到的 active 数据链只有 %d 条（< %d）⇒ 状态读数可疑，不当成通过"
-                      % (len(active), MIN_ACTIVE))
+    # **先算名单差，再判"读数可疑"**：真有人停用了一条链时，名单会比 active 多一项 ⇒
+    # 这是覆盖红(1)，不能被下面的第三态(2)吞掉。只有名单与 active 完全一致、而 active 仍低于
+    # 地板值时，才说明是 API 读数退化/权限读不全 ⇒ 第三态。
     missing = sorted(active - monitored)
     extra = sorted(monitored - active)
     if missing:
         errors.append("active 链没有被监视：%s" % missing)
     if extra:
         errors.append("监视名单里有非 active 的链（停用/不存在，属凑数覆盖）：%s" % extra)
+    if len(active) < MIN_ACTIVE and not missing and not extra:
+        raise UnreadableState("active 数据链只有 %d 条（< %d），且名单与读到的 active 完全一致 ⇒ 状态读数可疑"
+                              % (len(active), MIN_ACTIVE))
 
     jobs = data.get("jobs") or {}
     ifs = " ".join(str(j.get("if") or "") for j in jobs.values() if isinstance(j, dict))
@@ -92,6 +99,12 @@ def check(monitor_path: pathlib.Path, states: list[dict]) -> tuple[list[str], se
 
 
 def main() -> int:
+    # Windows 控制台默认 cp936：错误文案里有 `⇒`，不重配 stdout 会在**打印第三态时**崩成 rc=1
+    # （实测：本机 degraded 分支 UnicodeEncodeError ⇒ 2 被降级成 1，第三态与红混在一起）。
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--monitor", default=str(MONITOR))
     ap.add_argument("--states-json", default="", help="本地夹具：{\"workflows\":[{name,state}...]}")
@@ -104,6 +117,9 @@ def main() -> int:
         return 2
     try:
         errors, active, monitored = check(pathlib.Path(a.monitor), states)
+    except UnreadableState as e:
+        print("COVERAGE_UNREADABLE %s" % e)
+        return 2
     except Exception as e:
         print("COVERAGE_UNREADABLE monitor=%r" % (e,))
         return 2
