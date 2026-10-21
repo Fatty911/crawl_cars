@@ -214,8 +214,14 @@ jobs:
           man = get("/data/manifest.json")
           files = man.get("files") or {}
           chunks = files.get("latestJsonChunks") or []
+          if not chunks and files.get("latestJson"):
+              # 单文件发布面也是合法的一格：验收只要求取到**全量** face。
+              # 不往 manifest 里加 latestJsonChunks —— 前端 app.js 见到这个键就强制走
+              # 分片加载器并校验 sha256/rowCount/size，单 path 会让浏览器取数面断
+              # （10-21 step 家族评审点名 docs/app.js:185-195）。
+              chunks = [{"path": files["latestJson"]}]
           if not chunks:
-              print("❌ manifest 里没有 latestJsonChunks ⇒ 取数面不可用", file=sys.stderr)
+              print("❌ manifest 里没有 latestJsonChunks/latestJson ⇒ 取数面不可用", file=sys.stderr)
               raise SystemExit(3)
           rows, bad = [], []
           for c in chunks:
