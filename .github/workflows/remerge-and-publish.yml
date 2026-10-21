@@ -6,6 +6,13 @@ name: 重合并并发布（不爬取）
 # 不触发任何爬虫：输入就是已爬到的数据。
 
 on:
+  release:
+    # CNB 真发布一条 clean `cnb-data-*` release 时自动补跑合并/发布（配额期的兜底通道）。
+    # 本链自己发布的 `…-remerged-…` release 也在同一仓库里，job 级 if 会跳过它（避免自喂食/回声）。
+    types: [published]
+  schedule:
+    # 兜底：万一 release 事件没拉起（平台抖动/事件丢失），每天一次把最新 clean release 再处理一遍。
+    - cron: '17 4 * * *'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -17,7 +24,7 @@ on:
         required: false
         default: ''
       max_drop_pct:
-        description: '掉行阈值（%）；留空用脚本默认 8.0。车款ID 身份守恒不变式无条件生效，与本值无关'
+        description: '掉行阈值（%）；留空用 15（配额期实测 merged 11.03% / filtered 13.17%）。车款ID 身份守恒不变式无条件生效，与本值无关'
         required: false
         default: ''
 
@@ -33,6 +40,11 @@ concurrency:
 
 jobs:
   remerge-and-publish:
+    # release 触发只接 clean 爬取 tag；`-remerged-` 是本链自己的产物，必须跳过（否则自我喂食/回声）。
+    if: >-
+      ${{ github.event_name != 'release' ||
+          (startsWith(github.event.release.tag_name, 'cnb-data-') &&
+           !contains(github.event.release.tag_name, '-remerged-')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment:
@@ -44,6 +56,10 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@main
+        with:
+          # release 事件默认检出的是 tag 的树，而 clean tag 可能早于本工作流的最新脚本；
+          # 数据和脚本必须分开：脚本永远用 main，release 只当数据输入。
+          ref: main
 
       - name: 设置 Python
         uses: actions/setup-python@main
@@ -60,7 +76,7 @@ jobs:
         id: fetch
         run: |
           set -euo pipefail
-          TAG="${{ github.event.inputs.release_tag }}"
+          TAG="${{ github.event.inputs.release_tag || github.event.release.tag_name }}"
           if [ -z "$TAG" ]; then
             # 本链自己发布的 release 也叫 cnb-data-*（tag 形如 cnb-data-<date>-remerged-r<run>）；
             # 不过滤就会把上一轮自己的输出当输入（自我喂食，行集逐轮变薄，见 ISSUE-CNB-CHAIN-INPUT-SELFFEED）。
@@ -92,7 +108,7 @@ jobs:
           SRC: ${{ steps.fetch.outputs.src }}
           FILT: ${{ steps.fetch.outputs.filtered }}
           DATE: ${{ github.event.inputs.date }}
-          DROP: ${{ github.event.inputs.max_drop_pct }}
+          DROP: ${{ github.event.inputs.max_drop_pct || '15' }}
         run: |
           set -euo pipefail
           ARGS=(--merged "$SRC")
