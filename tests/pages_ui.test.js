@@ -242,6 +242,7 @@ function loadAppForTest() {
       normalizeRowColumns: normalizeRowColumns,
       isEquipmentColumn: isEquipmentColumn,
       shouldHideColumn: shouldHideColumn,
+      classifySkuColumns: classifySkuColumns,
       getFilterTaxonomy: getFilterTaxonomy,
       selectedCountForCategory: selectedCountForCategory,
       activateMobileCategory: activateMobileCategory,
@@ -609,11 +610,21 @@ test("Pages defaults to filter center and shares filters with table result set",
   assert.equal(elements.get("tableRegion").hidden, false);
   assert.equal(elements.get("cardList").hidden, true);
   assert.equal(elements.get("cardToolbar").hidden, true);
+  // 数据表模式的位置契约：workspace 带 mode-table（CSS 把 table 放回主栏），hero 让位。
+  assert.ok(String(elements.get("workspace").className).split(/\s+/).includes("mode-table"));
+  assert.equal(elements.get("centerHero").hidden, true);
 
   const html = fs.readFileSync(path.join(__dirname, "..", "docs", "index.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "..", "docs", "styles.css"), "utf8");
+  // shim 的 getElementById 会自动造元素，光靠 JS 断言钉不住 HTML 接线；这里直接断源码。
+  assert.match(html, /<main class="workspace" id="workspace">/);
+  assert.match(html, /class="center-hero" id="centerHero"/);
   assert.doesNotMatch(html, /table-region advanced-hidden/);
   assert.doesNotMatch(css, /\.advanced-hidden\s*,\s*\.center-hidden/);
+  assert.ok(css.includes(".workspace.mode-table .table-region { grid-column: 1; }"),
+    "数据表模式必须把表格显式放回主栏（否则会被自动排进 310px 侧栏列）");
+  assert.ok(css.includes(".workspace.mode-table .side-panel { grid-column: 2; }"),
+    "数据表模式侧栏必须留在右栏");
 });
 
 test("Side panels collapse independently and the filter bar survives the mode switch", () => {
@@ -645,6 +656,8 @@ test("Side panels collapse independently and the filter bar survives the mode sw
   assert.equal(elements.get("cardList").hidden, true);
   elements.get("centerMode").dispatch("click");
   assert.equal(elements.get("cardList").hidden, false);
+  assert.equal(String(elements.get("workspace").className).split(/\s+/).includes("mode-table"), false);
+  assert.equal(elements.get("centerHero").hidden, false);
 });
 
 test("On-sale scope switch drops future-listing models and toggles back", () => {
@@ -1212,4 +1225,38 @@ test("display normalization: energy synonyms, pipe ranges, brand/series merge", 
   assert.ok(snap[0].meta.indexOf("插电混合/") === -1, "不应出现未归一写法");
   assert.ok(snap[0].meta.indexOf("纯电续航(km): 163-230") !== -1, "管道多值去重后显示范围");
   assert.ok(snap[0].meta.indexOf("999") === -1, "999 占位不应显示");
+});
+
+test("SKU display merge unifies name formats within one SPU and keeps powertrain conflicts apart", () => {
+  const app = loadAppForTest();
+  const base = {
+    "品牌": "别克", "车系": "别克至境E7", "年款": "2026",
+    "官方指导价": "19.99万", "纯电续航(km)": "CLTC:230 / WLTC:163",
+    "能源类型": "插电式混合动力", "发动机": "1.5T 156马力 L4 涡轮增压",
+    "驱动方式": "前置前驱"
+  };
+  const a = Object.assign(row("汽车之家", 2026, "26款 1.5T 230km 1600 超满配Turbo版"), base, { "车款ID": "186452" });
+  const b = Object.assign(row("懂车帝", 2026, "别克至境E7 2026款 1600 超满配Turbo版"), base, { "车款ID": "76217" });
+  app.hooks.initializeRows([a, b]);
+  assert.equal(app.hooks.state.rows.length, 1, "同一 SKU 的两种命名必须并成一行");
+  assert.equal(app.hooks.state.rows[0]["车型名称"], "2026款 1.5T 230km 1600 超满配Turbo版");
+  assert.ok(String(app.hooks.state.rows[0]["源车型名称"]).includes("26款 1.5T 230km"));
+  assert.ok(String(app.hooks.state.rows[0]["源车型名称"]).includes("别克至境E7 2026款"));
+
+  const c = Object.assign(row("汽车之家", 2026, "26款 2.0T 230km 1600 超满配Turbo版"), base, {
+    "车款ID": "900001", "发动机": "2.0T 200马力 L4 涡轮增压"
+  });
+  app.hooks.initializeRows([a, c]);
+  assert.equal(app.hooks.state.rows.length, 2, "动力不同（1.5T vs 2.0T）不许合并");
+});
+
+test("Display columns put low-frequency source-specific columns into a separate group", () => {
+  const app = loadAppForTest();
+  const rows = [];
+  for (let i = 0; i < 100; i += 1) {
+    rows.push({ "车系": "S" + i, "静享驾乘包": i === 0 ? "●" : "" });
+  }
+  const groups = app.hooks.classifySkuColumns(["车系", "静享驾乘包"], rows);
+  assert.deepEqual(JSON.parse(JSON.stringify(groups.attribute)), ["车系"]);
+  assert.deepEqual(JSON.parse(JSON.stringify(groups.option)), ["静享驾乘包"]);
 });
