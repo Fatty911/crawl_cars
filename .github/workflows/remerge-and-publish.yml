@@ -136,6 +136,19 @@ jobs:
           stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
           shutil.copy("site/data/latest.json", f"site/data/latest_{stamp}.json")
           shutil.copy("site/data/filtered.json", f"site/data/filtered_{stamp}.json")
+          # 114MB 单文件对前端/复量都太重；按前端既有的分片契约写出带 sha256/rowCount/size
+          # 的分片（docs/app.js:179-201 校验，ΣrowCount 必须等于 manifest.rowCount）。
+          import hashlib
+          CHUNK_ROWS = 2000
+          chunks = []
+          for _i in range(0, len(latest), CHUNK_ROWS):
+              _part = latest[_i:_i + CHUNK_ROWS]
+              _rel = "data/latest_%s_part%02d.json" % (stamp, _i // CHUNK_ROWS)
+              with open("site/" + _rel, "w", encoding="utf-8") as _fh:
+                  json.dump(_part, _fh, ensure_ascii=False, separators=(",", ":"))
+              _blob = open("site/" + _rel, "rb").read()
+              chunks.append({"path": _rel, "sha256": hashlib.sha256(_blob).hexdigest(),
+                             "rowCount": len(_part), "size": len(_blob)})
           manifest = {
               "date": date,
               "updatedAt": datetime.now(timezone.utc).isoformat(),
@@ -143,6 +156,7 @@ jobs:
               "filteredRowCount": len(filtered),
               "files": {
                   "latestJson": f"data/latest_{stamp}.json",
+                  "latestJsonChunks": chunks,
                   "filteredJson": f"data/filtered_{stamp}.json",
                   "latestCsv": f"data/merged_{date}.csv",
                   "filteredCsv": f"data/filtered_cars_{date}.csv",
