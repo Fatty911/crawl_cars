@@ -364,22 +364,18 @@ jobs:
       # complete = assets ⊇ {manifest.json, verified-site.zip}；本链的 release 此前只有 4 个 CSV/JSON
       # ⇒ 它永远选到**旧的 CNB clean release**（10-15 面），把重合并面翻回旧面（10-21 #25/#26 实测两次）。
       # 挂上这两个资产后，任何前端推送重发的都是**同一个重合并面**，不再互相覆盖。
-      - name: 挂 verified 资产（manifest.json + verified-site.zip）
+      - name: 发布 verified 资产 release（draft→上传→发布；不可变发布不许事后补资产）
         env:
           DATE: ${{ steps.remerge.outputs.date }}
         run: |
           set -euo pipefail
-          TAG="cnb-data-${DATE}-remerged-r${{ github.run_id }}"
-          python - <<'PY'
-          import shutil
-          import sys
-          from pathlib import Path
-          sys.path.insert(0, "scripts")
-          from publish_github_release import bundle_site, collect_assets
-          site = Path("site")  # collect_assets/bundle_site 收 Path；传字符串会在 site/relative 上 TypeError（10-21 实测）
-          collect_assets(site, "Fatty911/crawl_cars")  # 校验 manifest↔文件（含分片 sha256）
-          bundle_site(site, Path("verified-site.zip"))
-          shutil.copyfile(site / "data/manifest.json", "manifest.json")
-          PY
-          gh release upload "$TAG" manifest.json verified-site.zip --repo "$GITHUB_REPOSITORY" --clobber
-          echo "✅ verified 资产已挂 $TAG"
+          # 仓库开了 immutable releases：release 一旦 draft=false 就不能再上传资产
+          # （真机 run 39609358770：HTTP 422 Cannot upload assets to an immutable release）。
+          # 所以另发一条 **-remerged-verified-** release，走仓里既有的
+          # publish_github_release.py 的 draft→全资产上传→PATCH 发布 流程；
+          # tag 带 `-remerged-` ⇒ 本链输入选择器仍排除它（不自喂食），deploy-frontend 的
+          # complete_release 会选中它（含 manifest.json + verified-site.zip）→ 前端推送重发同一面。
+          # tag 带 run_attempt：同一 run 重跑时会拿到新 tag，不会撞上上次残留的 draft（publish() 拒绝已存在 tag）。
+          TAG="cnb-data-${DATE}-remerged-verified-r${{ github.run_id }}a${{ github.run_attempt }}"
+          python scripts/publish_github_release.py --site-dir site --repo "$GITHUB_REPOSITORY" --tag "$TAG" --ref main
+          echo "✅ verified 面已发布 $TAG"
