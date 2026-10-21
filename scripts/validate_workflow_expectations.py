@@ -339,15 +339,27 @@ def check_dongchedi_reset_script(path: Path, errors: list[str]) -> None:
 
 
 def check_ai_monitor(path: Path, errors: list[str]) -> None:
+    """配额期的红线通道：只覆盖在跑的三条旁路链，只在 failure 触发，修复腿只归档证据。
+
+    旧断言要求它监听两条**已停用**的爬虫链并集成付费 Codex Action —— 这两条都是
+    "名单里有、实际接不住"的反面教材（停用链不会触发；绿的一轮也会被 `|| success` 拉起）。
+    """
     data = load_yaml(path)
     text = resolve_workflow_file(path).read_text(encoding="utf-8")
     workflow_run = data.get(True, {}).get("workflow_run", {})
     workflows = set(workflow_run.get("workflows", []))
+    expected = {"重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示"}
 
-    assert_condition({"汽车之家爬虫", "懂车帝爬虫"}.issubset(workflows), "AI 监控未监听两个主爬虫", errors)
-    assert_condition("openai/codex-action@v1" in text, "AI 监控未集成官方 Codex Action", errors)
-    assert_condition("ensure_codex_autofix_scope.py" in text, "AI 监控缺少 Codex 修改范围检查", errors)
-    assert_condition("check_workflow_expectations.py" in text, "AI 监控缺少 workflow 预期检查", errors)
+    assert_condition(workflows == expected,
+                     "AI 监控名单必须恰好覆盖配额期在跑的三条旁路链（实际：%s）" % sorted(workflows),
+                     errors)
+    ifs = " ".join(str(j.get("if") or "") for j in (data.get("jobs") or {}).values())
+    assert_condition("failure" in ifs, "AI 监控必须只在 failure 时触发", errors)
+    assert_condition("success" not in ifs, "AI 监控的 if 不得包含 success（绿的一轮也会被拉起）", errors)
+    assert_condition("gh issue create" in text, "AI 监控缺少开 Issue 的归档腿", errors)
+    assert_condition("openai/codex-action" not in text,
+                     "AI 监控不得调用付费模型 Action（这一腿只归档证据）", errors)
+    assert_condition("issues: write" in text, "AI 监控缺少 issues: write 权限，开不了 Issue", errors)
 
 
 def check_merge_workflow(path: Path, errors: list[str]) -> None:
