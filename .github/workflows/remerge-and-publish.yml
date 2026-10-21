@@ -40,11 +40,13 @@ concurrency:
 
 jobs:
   remerge-and-publish:
-    # release 触发只接 clean 爬取 tag；`-remerged-` 是本链自己的产物，必须跳过（否则自我喂食/回声）。
-    if: >-
-      ${{ github.event_name != 'release' ||
-          (startsWith(github.event.release.tag_name, 'cnb-data-') &&
-           !contains(github.event.release.tag_name, '-remerged-')) }}
+    # release 事件的 run 在 **tag ref** 上 ⇒ 同 deploy-frontend：github-pages 环境的 branch_policy 会在分配阶段拒绝（0 步骤、无日志、无自愈票，实测 run 39619805892）。
+    # 所以这条链不在 release 事件里部署 Pages；新 clean 数据由**已生效的两个自动入口**接手：
+    #   1) `schedule: 17 4 * * *`（每天一次，跑在 main ref 上，Pages 部署合法）；
+    #   2) 上游 CNB 链发布后自己 dispatch 本链。
+    # 想做"release ⇒ 立刻以 main 重新 dispatch"的接力，必须先证明 GITHUB_TOKEN 能触发 workflow_dispatch（平台防递归规则），已另立单，不许先写了当已生效。
+    # `-remerged-` 是本链产物，本来就永不接手（自我喂食/回声），语义不变。
+    if: ${{ github.event_name != 'release' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment:
