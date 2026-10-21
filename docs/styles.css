@@ -190,6 +190,27 @@ button {
   padding: 16px;
 }
 
+/* 数据表模式：筛选栏保留并跨两栏，表格回主栏、侧栏留右栏。
+   不写显式列时，隐藏卡片区后 grid 自动排布会把 table 塞进 310px 侧栏列（10-21 实测）。 */
+.column-option-group {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.column-option-group summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.column-option-group label {
+  margin-top: 6px;
+}
+
+.workspace.mode-table .center-region { grid-column: 1 / -1; }
+.workspace.mode-table .table-region { grid-column: 1; }
+.workspace.mode-table .side-panel { grid-column: 2; }
+
 .table-region,
 .side-panel {
   min-width: 0;
@@ -615,6 +636,12 @@ tbody tr:hover td {
     grid-template-columns: 1fr;
   }
 
+  .workspace.mode-table .center-region,
+  .workspace.mode-table .table-region,
+  .workspace.mode-table .side-panel {
+    grid-column: 1 / -1;
+  }
+
   .table-wrap {
     height: 62vh;
   }
@@ -953,6 +980,10 @@ tbody tr:hover td {
     display: flex;
     flex-direction: column;
     padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  .workspace.mode-table .center-region {
+    padding-bottom: 0;
   }
 
   .center-hero { order: 1; }
