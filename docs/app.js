@@ -146,6 +146,8 @@
     tableMode: document.getElementById("tableMode"),
     filterCenter: document.getElementById("filterCenter"),
     tableRegion: document.getElementById("tableRegion"),
+    workspace: document.getElementById("workspace"),
+    centerHero: document.getElementById("centerHero"),
     centerBrandFilter: document.getElementById("centerBrandFilter"),
     centerSeriesFilter: document.getElementById("centerSeriesFilter"),
     centerConditionList: document.getElementById("centerConditionList"),
@@ -397,42 +399,208 @@
     return "fallback|" + [row["品牌"], row["车系"], row["车型名称"], row["年款"]].map(cleanText).join("|");
   }
 
-  function mergeVerifiedRows(rows) {
-    var groups = {};
-    rows.forEach(function (row) {
-      var key = rowKey(row);
-      if (!groups[key]) {
-        groups[key] = [];
+  var SKU_SOURCE_PREFIX = /^\s*(?:懂车帝|汽车之家|易车)\s*[:：]\s*/;
+  var SKU_YEAR_TOKEN = /(^|[\s（(])\s*(?:20\d{2}|\d{2})\s*款/g;
+  var SKU_ENGINE_TOKEN = /(\d+(?:\.\d+)?)\s*([TtLl])(?![a-zA-Z])/g;
+  var SKU_ENGINE_FIND = /(\d+(?:\.\d+)?)\s*([TtLl])(?![a-zA-Z])/;
+  var SKU_RANGE_TOKEN = /\d+(?:\.\d+)?\s*km/ig;
+  var SKU_DRIVE_TOKEN = /(前驱|后驱|四驱|两驱|全驱)/;
+
+  function skuStripLead(text, token) {
+    var target = cleanText(token);
+    if (!target) { return text; }
+    var acc = "";
+    var index = 0;
+    while (index < text.length && acc.length < target.length) {
+      var ch = text.charAt(index);
+      if (!/\s/.test(ch)) { acc += ch.toLowerCase(); }
+      index += 1;
+    }
+    return acc === target ? text.slice(index).replace(/^\s+/, "") : text;
+  }
+
+  function skuTrimName(name, row) {
+    var text = String(name == null ? "" : name).replace(SKU_SOURCE_PREFIX, "").trim();
+    var tokens = [row["车系"], row["品牌"]].map(cleanText).filter(Boolean)
+      .sort(function (a, b) { return b.length - a.length; });
+    var changed = true;
+    while (changed) {
+      changed = false;
+      tokens.forEach(function (token) {
+        var next = skuStripLead(text, token);
+        if (next !== text) { text = next; changed = true; }
+      });
+    }
+    text = text.replace(SKU_YEAR_TOKEN, "$1")
+      .replace(SKU_ENGINE_TOKEN, " ")
+      .replace(SKU_RANGE_TOKEN, " ")
+      .replace(SKU_DRIVE_TOKEN, " ");
+    return text.replace(/\s+/g, " ").trim();
+  }
+
+  function skuTrim(row) {
+    var trimmed = skuTrimName(row["车型名称"], row);
+    return trimmed || cleanModelText(row["车型名称"]);
+  }
+
+  function skuEngine(row) {
+    var fields = [row["发动机"], row["排量(L)"], row["排量"]];
+    for (var i = 0; i < fields.length; i += 1) {
+      var text = String(fields[i] == null ? "" : fields[i]);
+      var match = SKU_ENGINE_FIND.exec(text);
+      if (match) { return match[1] + match[2].toLowerCase(); }
+      if (i > 0) {
+        var number = text.match(/\d+(?:\.\d+)?/);
+        if (number) { return number[0] + "l"; }
       }
-      groups[key].push(row);
+    }
+    var name = SKU_ENGINE_FIND.exec(String(row["车型名称"] || ""));
+    return name ? name[1] + name[2].toLowerCase() : "";
+  }
+
+  function skuPrice(row) {
+    return firstNumber(row["官方指导价"]);
+  }
+
+  function skuRangeSet(row) {
+    var numbers = String(row["纯电续航(km)"] == null ? "" : row["纯电续航(km)"]).match(/\d+(?:\.\d+)?/g);
+    return numbers ? numbers.map(Number) : [];
+  }
+
+  function skuDrive(row) {
+    var text = normalizeText(row["驱动方式"]) + " " + normalizeText(row["车型名称"]);
+    var match = text.match(SKU_DRIVE_TOKEN);
+    return match ? match[1] : "";
+  }
+
+  function skuEnergy(row) {
+    var text = normalizeText(row["能源类型"]);
+    if (/插电|插混/.test(text)) { return "phev"; }
+    if (/增程/.test(text)) { return "erev"; }
+    if (/纯电/.test(text)) { return "bev"; }
+    if (/油电|混动/.test(text)) { return "hev"; }
+    if (/汽油/.test(text)) { return "ice"; }
+    return text;
+  }
+
+  function skuCoarseKey(row) {
+    return [cleanText(row["车系"]), modelYear(row), skuEnergy(row), skuTrim(row)].join("|");
+  }
+
+  function skuCompatible(a, b) {
+    var ea = skuEngine(a), eb = skuEngine(b);
+    if (ea && eb && ea !== eb) { return false; }
+    var pa = skuPrice(a), pb = skuPrice(b);
+    if (pa != null && pb != null && Math.abs(pa - pb) > 0.01) { return false; }
+    var ra = skuRangeSet(a), rb = skuRangeSet(b);
+    if (ra.length && rb.length) {
+      var common = ra.some(function (value) { return rb.indexOf(value) !== -1; });
+      if (!common) { return false; }
+    }
+    var da = skuDrive(a), db = skuDrive(b);
+    if (da && db && da !== db) { return false; }
+    return true;
+  }
+
+  function clusterSkuRows(items) {
+    if (!items.length) { return []; }
+    var parent = items.map(function (_, index) { return index; });
+    function find(index) {
+      while (parent[index] !== index) {
+        parent[index] = parent[parent[index]];
+        index = parent[index];
+      }
+      return index;
+    }
+    function union(a, b) {
+      var ra = find(a), rb = find(b);
+      if (ra !== rb) { parent[rb] = ra; }
+    }
+    for (var i = 0; i < items.length; i += 1) {
+      for (var j = i + 1; j < items.length; j += 1) {
+        if (skuCompatible(items[i], items[j])) { union(i, j); }
+      }
+    }
+    var groups = {};
+    items.forEach(function (item, index) {
+      var root = find(index);
+      if (!groups[root]) { groups[root] = []; }
+      groups[root].push(item);
     });
+    return Object.keys(groups).map(function (key) { return groups[key]; });
+  }
 
-    return Object.keys(groups).map(function (key) {
-      var items = groups[key];
-      var merged = {};
-      var sources = new Set();
-
-      items.forEach(function (row) {
-        atomicSources(row["数据来源"]).forEach(function (source) {
-          sources.add(source);
-        });
-        Object.keys(row).forEach(function (column) {
-          var current = merged[column];
-          var next = row[column];
-          if (!hasPositiveValue(current) && hasPositiveValue(next)) {
-            merged[column] = next;
-          }
-        });
-      });
-
-      var sourceList = Array.from(sources).sort(function (a, b) {
-        return a.localeCompare(b, "zh-Hans");
-      });
-      merged["数据来源"] = sourceList.join(" + ") || merged["数据来源"] || "-";
-      merged["核验来源"] = sourceList.join(" + ") || "-";
-      merged["交叉核验"] = sourceList.length >= 2 ? "双源核验" : "单源数据";
-      return merged;
+  function skuDisplayName(items) {
+    var best = items[0];
+    var bestScore = -1;
+    items.forEach(function (row) {
+      var name = String(row["车型名称"] || "");
+      // 信息量优先：名字里带动力/续航的那条比只有前缀的更完整（E7 的 1.5T/230km 不能丢）。
+      var score = cleanText(name).length
+        + (/(\d+(?:\.\d+)?)\s*[TtLl](?![a-zA-Z])/.test(name) ? 20 : 0)
+        + (/\d+(?:\.\d+)?\s*km/i.test(name) ? 20 : 0);
+      if (score > bestScore) { bestScore = score; best = row; }
     });
+    var text = String(best["车型名称"] || "").replace(SKU_SOURCE_PREFIX, "").trim();
+    var year = modelYear(best);
+    // 年款写法就地归一（26款 -> 2026款），不把车系/动力 token 挪位、也不硬塞没有的年款：
+    // 车系列已单列；保留源名里的车系/配置顺序，避免改写展示语义和既有断言。
+    text = text.replace(/(^|[\s（(])\s*(?:20\d{2}|\d{2})\s*款/, function (match, prefix) {
+      return year ? prefix + year + "款" : match;
+    });
+    return text.replace(/\s+/g, " ").trim();
+  }
+
+  function mergeSkuCluster(items) {
+    var merged = {};
+    var sources = new Set();
+    var rawNames = [];
+    items.forEach(function (row) {
+      atomicSources(row["数据来源"]).forEach(function (source) { sources.add(source); });
+      Object.keys(row).forEach(function (column) {
+        if (!hasPositiveValue(merged[column]) && hasPositiveValue(row[column])) {
+          merged[column] = row[column];
+        }
+      });
+      var name = String(row["车型名称"] || "").trim();
+      if (name && rawNames.indexOf(name) === -1) { rawNames.push(name); }
+    });
+    var sourceList = Array.from(sources).sort(function (a, b) {
+      return a.localeCompare(b, "zh-Hans");
+    });
+    merged["数据来源"] = sourceList.join(" + ") || merged["数据来源"] || "-";
+    merged["核验来源"] = sourceList.join(" + ") || "-";
+    merged["交叉核验"] = sourceList.length >= 2 ? "双源核验" : "单源数据";
+    merged["源车型名称"] = rawNames.join(" / ");
+    merged["车型名称"] = skuDisplayName(items);
+    return merged;
+  }
+
+  function mergeVerifiedRows(rows) {
+    var audited = {};
+    var rest = [];
+    rows.forEach(function (row) {
+      var id = String(row["跨源归并ID"] || "").trim();
+      if (id) {
+        var key = "audited|" + id;
+        if (!audited[key]) { audited[key] = []; }
+        audited[key].push(row);
+      } else {
+        rest.push(row);
+      }
+    });
+    var coarse = {};
+    rest.forEach(function (row) {
+      var key = skuCoarseKey(row);
+      if (!coarse[key]) { coarse[key] = []; }
+      coarse[key].push(row);
+    });
+    var clusters = [];
+    Object.keys(audited).forEach(function (key) { clusters.push(audited[key]); });
+    Object.keys(coarse).forEach(function (key) {
+      clusters = clusters.concat(clusterSkuRows(coarse[key]));
+    });
+    return clusters.map(mergeSkuCluster);
   }
 
   function withDerivedDimensions(rows) {
@@ -1123,13 +1291,31 @@
     els.emptyState.hidden = rows.length !== 0;
   }
 
+  function classifySkuColumns(columns, rows) {
+    var core = new Set(state.config.defaultVisibleColumns || []);
+    var sample = (rows || []).slice(0, 2000);
+    var result = { attribute: [], option: [] };
+    (columns || []).forEach(function (column) {
+      if (core.has(column)) { result.attribute.push(column); return; }
+      var filled = 0;
+      for (var i = 0; i < sample.length; i += 1) {
+        var value = String(sample[i][column] == null ? "" : sample[i][column]).trim();
+        if (value && value !== "-") { filled += 1; }
+      }
+      var dense = sample.length > 0 && filled / sample.length >= 0.05;
+      (dense ? result.attribute : result.option).push(column);
+    });
+    return result;
+  }
+
   function renderColumnList() {
     var query = normalizeText(state.columnSearch);
     var fragment = document.createDocumentFragment();
     els.columnList.textContent = "";
-    state.columns.filter(function (column) {
+    function matches(column) {
       return !query || normalizeText(column).indexOf(query) !== -1;
-    }).forEach(function (column) {
+    }
+    function appendLabel(container, column) {
       var label = document.createElement("label");
       var checkbox = document.createElement("input");
       var text = document.createElement("span");
@@ -1139,8 +1325,21 @@
       text.textContent = column;
       label.appendChild(checkbox);
       label.appendChild(text);
-      fragment.appendChild(label);
-    });
+      container.appendChild(label);
+    }
+    var groups = classifySkuColumns(state.columns.filter(matches), state.rows);
+    groups.attribute.forEach(function (column) { appendLabel(fragment, column); });
+    if (groups.option.length) {
+      // 低频/源特有列不再和属性平铺：它们多是选装包、外观套件、特定款式的值。
+      // 仍可选（展开即可），但默认收在 details 里，避免把"值"当"属性"读。
+      var details = document.createElement("details");
+      details.className = "column-option-group";
+      var summary = document.createElement("summary");
+      summary.textContent = "源特有/低频列（" + groups.option.length + "）· 多为选装/特定款式的值，不是通用属性";
+      details.appendChild(summary);
+      groups.option.forEach(function (column) { appendLabel(details, column); });
+      fragment.appendChild(details);
+    }
     els.columnList.appendChild(fragment);
   }
 
@@ -1254,6 +1453,17 @@
     if (els.cardToolbar) { els.cardToolbar.hidden = table; }
     if (els.centerActions) { els.centerActions.hidden = table; }
     if (els.mobileFilterActions) { els.mobileFilterActions.hidden = table; }
+    // 筛选栏保留（10-16 口径），但数据表必须回到主栏：隐藏只服务"筛选中心"的 hero，
+    // 并给 workspace 一个模式类，由 CSS 把 center 跨两栏、table 放回第一栏（否则自动排布会把
+    // table 塞进右侧 310px 的侧栏列，侧栏掉到左下——10-21 实测）。
+    if (els.centerHero) { els.centerHero.hidden = table; }
+    if (els.workspace) {
+      var classes = String(els.workspace.className || "").split(/\s+/).filter(function (name) {
+        return name && name !== "mode-table";
+      });
+      if (table) { classes.push("mode-table"); }
+      els.workspace.className = classes.join(" ");
+    }
     els.centerMode.className = table ? "segment" : "segment active";
     els.tableMode.className = table ? "segment active" : "segment";
   }
