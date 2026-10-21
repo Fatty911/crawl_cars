@@ -428,15 +428,11 @@ python scripts/auto_fix_workflow.py error.log scripts/test_autohome.py
 - 日志显示输出行数过少、少量车型 `无法解析config或option`、拒绝上传/合并等数据质量保护时，跳过大模型修复，避免把正常保护机制误判为代码需要改。
 - 日志显示 AI Provider 自身 SSL、401、403、证书或网络异常时，跳过再次自动修复，避免监控工作流围绕自动修复失败产生噪音。
 - 只有日志显示未生成数据、完全解析不到车型数据、配置页/接口致命异常等站点结构或链接异常时，才调用大模型修复。
-- `AI_Auto_Fix_Monitor.yml` 会优先抓取完整失败日志，再静默尝试下载 `error-log` artifact 参与分类；成功的爬虫 run 通常没有该 artifact，不会因此产生红色 annotation。
-- `AI_Auto_Fix_Monitor.yml` 会先用 `custom_scripts/check_workflow_expectations.py` 判断是否需要代码修复：失败日志属于站点结构/解析异常或未知代码问题时才修，成功但长爬虫跑到允许窗口外时也会触发修复。
-- 监控工作流优先调用官方 `openai/codex-action@v1` 作为 Codex 自修复代理；需要仓库 Secret `OPENAI_API_KEY`。Codex 修完后必须通过 `ensure_codex_autofix_scope.py`、`validate_syntax.py` 和 `validate_workflow_expectations.py`，才会提交并推送到 `main`。
-- 未配置 `OPENAI_API_KEY` 或 Codex 执行失败时，监控工作流才退回 `scripts/auto_fix_workflow.py` 多 Provider 旧修复器兜底。
-- `scripts/auto_fix_workflow.py` 明确拒绝所有 Plan/CodingPlan/AgentPlan/TokenPlan 凭证；Plan 套餐密钥只能在专用只读 OpenCode Agent step 中使用。
-- 仓库虽包含 OpenCode/OMO 配置文件，Pages 单源修复和审查 workflow 现在使用固定版本、只读权限的 OpenCode Agent 调用 Plan 模型；旧版自动修复器仍只处理非 Plan API fallback。
-- 发布前审计、AI 有界自愈、跨 run 记忆及是否引入 Hermes 的完整设计见 [`docs/operations/ai-self-healing.md`](docs/operations/ai-self-healing.md)。该设计尚未上线，不应把它描述成当前已启用能力。
-- `scripts/auto_fix_workflow.py` 未能产出可用修复时，监控工作流记录为跳过并正常结束；只有真正生成改动、语法校验通过、提交并推送成功后才标记 `fixed=true`。
-- 分类逻辑位于 `custom_scripts/classify_crawl_failure.py`，两个爬虫 workflow 和 `AI_Auto_Fix_Monitor.yml` 都会调用。
+- **2026-10-21 起，`AI_Auto_Fix_Monitor.yml` 的职责收窄为「配额期旁路链的红线归档」**：只监听三条在跑的链（`重合并并发布（不爬取）`、`Deploy verified CNB Pages`、`部署前端展示`），只在 `conclusion=failure` 时触发；**不做自动修复、不调用任何付费模型**，只把 run URL / headSha 落成 Issue（同名未关闭则追加评论）。
+- 覆盖关系不是文档：`重合并并发布（不爬取）` 链每次构建先跑 `scripts/check_red_channel_coverage.py`，按 Actions API 的 `state=active` 实查；少一条或多一条（含已停用链）都判红，读不到状态退出 2。
+- 旧的 Codex / `auto_fix_workflow.py` 修复腿已从监视器移除；`scripts/auto_fix_workflow.py`、`ensure_codex_autofix_scope.py`、`scripts/classify_crawl_failure.py` 作为历史组件保留。它们在爬虫/CI workflow 中仍有调用点，但这些链当前非 active ⇒ 实际不会执行。
+- `scripts/auto_fix_workflow.py` 仍明确拒绝 Plan/CodingPlan/AgentPlan/TokenPlan 凭证（历史约束，未随监视器改动失效）。
+- 发布前审计、AI 有界自愈、跨 run 记忆等历史设计见 [`docs/operations/ai-self-healing.md`](docs/operations/ai-self-healing.md)；该文档记录的是 2026-07-28 的设计，不代表当前监视器行为。
 
 **当前已配置的 GitHub Secrets**：
 
@@ -463,7 +459,7 @@ python scripts/auto_fix_workflow.py error.log scripts/test_autohome.py
 | `crawl-trigger.yml` | cron-job.org 外部触发器，仅在指定时间窗口触发目标爬虫 |
 | `merge-and-filter.yml` | 抓取零整比、合并过滤、Release、GitHub Pages 发布 |
 | `deploy-pages.yml` | 静态网页独立发布 |
-| `AI_Auto_Fix_Monitor.yml` | Codex 优先的 AI 自动修复监控；当前只监听汽车之家/懂车帝，发布前自愈尚未上线 |
+| `AI_Auto_Fix_Monitor.yml` | 旁路链红线归档：只监听三条 active 链、仅 failure 触发、只开 Issue（不自动修复） |
 | `ci.yml` | CI 语法校验和冒烟测试 |
 | `auto-merge.yml` | PR 自动合并（squash） |
 
