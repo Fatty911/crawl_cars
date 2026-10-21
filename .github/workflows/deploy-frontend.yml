@@ -29,7 +29,11 @@ concurrency:
 
 jobs:
   deploy-frontend:
-    if: ${{ github.event_name != 'release' || (github.event.release.tag_name != 'data-latest' && !startsWith(github.event.release.tag_name, 'cnb-data-')) }}
+    # release 事件的 run 跑在 **tag ref** 上，而本仓 github-pages 环境设了 branch_policy（GET /environments/github-pages → protection_rules=[branch_policy]）
+    # ⇒ 环境在"分配阶段"就拒绝：job 0 步骤、无日志、3 秒判 failure，而且这种红不产生 workflow_run 修复票（监控还要求 head_branch=='main'）。实测 run 39619805892。
+    # 修法：release 一律跳过（ Pages 部署只走 push(docs/**) 与 workflow_dispatch，两者都在 main ref 上）。旧的按 tag 前缀排除的写法在这里是**或**式，
+    # 对外部 tag（如 v1.2.3）仍会放行 ⇒ 必红；守卫见 tests/test_workflow_pages_env_ref_guard.py。
+    if: ${{ github.event_name != 'release' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
