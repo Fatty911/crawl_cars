@@ -122,6 +122,30 @@ class ReleasePublisherTests(unittest.TestCase):
         self.assertIn('manifest.json', assets)
         self.assertNotIn('deals.json', assets)
 
+    def test_chunk_manifest_is_verified_per_chunk(self):
+        import hashlib
+        (self.site / 'data/filtered_cars_20261009.csv').write_text('id\n1\n')
+        blob = b'[{"id":1}]'
+        (self.site / 'data/latest_part00.json').write_bytes(blob)
+        self.manifest({'date': '20261009', 'files': {
+            'latestJson': 'data/latest.json',
+            'latestJsonChunks': [{'path': 'data/latest_part00.json',
+                                  'sha256': hashlib.sha256(blob).hexdigest(),
+                                  'rowCount': 1, 'size': len(blob)}]}})
+        assets = publisher.collect_assets(self.site, 'Fatty911/crawl_cars')
+        self.assertEqual(assets['merged_20261009.json'].read_bytes(),
+                         (self.site / 'data/latest.json').read_bytes())
+
+    def test_chunk_checksum_mismatch_fails(self):
+        (self.site / 'data/filtered_cars_20261009.csv').write_text('id\n1\n')
+        (self.site / 'data/latest_part00.json').write_bytes(b'[]')
+        self.manifest({'date': '20261009', 'files': {
+            'latestJson': 'data/latest.json',
+            'latestJsonChunks': [{'path': 'data/latest_part00.json', 'sha256': '0' * 64,
+                                  'rowCount': 0, 'size': 2}]}})
+        with self.assertRaises(ValueError):
+            publisher.collect_assets(self.site, 'Fatty911/crawl_cars')
+
     def test_http_errors_fail_hard_except_missing_release(self):
         api = publisher.GitHub('Fatty911/crawl-sim', 'test')
         for code in (401, 403, 422, 500):

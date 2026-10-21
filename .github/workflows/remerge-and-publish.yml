@@ -358,3 +358,26 @@ jobs:
             "out/merged_${DATE}.csv" \
             "out/filtered_cars_${DATE}.json" \
             "out/filtered_cars_${DATE}.csv"
+
+      # 同一份 site/ 也打成 verified 资产挂到本轮 release。为什么：deploy-frontend.yml（docs/** 推送
+      # 就触发）用 download_verified_release.py 选「最新 **complete** 的 cnb-data-* release」，
+      # complete = assets ⊇ {manifest.json, verified-site.zip}；本链的 release 此前只有 4 个 CSV/JSON
+      # ⇒ 它永远选到**旧的 CNB clean release**（10-15 面），把重合并面翻回旧面（10-21 #25/#26 实测两次）。
+      # 挂上这两个资产后，任何前端推送重发的都是**同一个重合并面**，不再互相覆盖。
+      - name: 挂 verified 资产（manifest.json + verified-site.zip）
+        env:
+          DATE: ${{ steps.remerge.outputs.date }}
+        run: |
+          set -euo pipefail
+          TAG="cnb-data-${DATE}-remerged-r${{ github.run_id }}"
+          python - <<'PY'
+          import shutil
+          import sys
+          sys.path.insert(0, "scripts")
+          from publish_github_release import bundle_site, collect_assets
+          collect_assets("site", "Fatty911/crawl_cars")  # 校验 manifest↔文件（含分片 sha256）
+          bundle_site("site", "verified-site.zip")
+          shutil.copyfile("site/data/manifest.json", "manifest.json")
+          PY
+          gh release upload "$TAG" manifest.json verified-site.zip --repo "$GITHUB_REPOSITORY" --clobber
+          echo "✅ verified 资产已挂 $TAG"

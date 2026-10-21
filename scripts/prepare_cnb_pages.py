@@ -24,16 +24,40 @@ def safe_path(value):
 
 
 def file_references(value):
+    """收集 manifest.files 里的文件引用。
+
+    10-21：`latestJsonChunks` 这类分片清单（[{"path","sha256","rowCount","size"}]）也在这里。
+    带 path 的条目只按 path 计；纯标量（rowCount/size 等元数据）不再当错误——旧版对 int 直接
+    抛 ValueError，带分片的 manifest 根本进不了部署链，而分片正是绕开 114MB 单文件的那版契约。
+    """
     if isinstance(value, str):
         yield value
     elif isinstance(value, dict):
-        for child in value.values():
-            yield from file_references(child)
+        path = value.get("path")
+        if isinstance(path, str):
+            yield path
+        else:
+            for child in value.values():
+                yield from file_references(child)
     elif isinstance(value, list):
         for child in value:
             yield from file_references(child)
-    else:
-        raise ValueError("manifest files must contain relative path strings")
+
+
+def reference_checksums(value, found=None):
+    """(路径 -> sha256)：分片/清单条目自带 sha256 时收进来，除存在性外再做一次内容校验。"""
+    found = {} if found is None else found
+    if isinstance(value, dict):
+        path, sha = value.get("path"), value.get("sha256")
+        if isinstance(path, str) and isinstance(sha, str):
+            found[path] = sha
+        else:
+            for child in value.values():
+                reference_checksums(child, found)
+    elif isinstance(value, list):
+        for child in value:
+            reference_checksums(child, found)
+    return found
 
 
 def prepare(archive, expected_manifest, site):
@@ -77,13 +101,18 @@ def prepare(archive, expected_manifest, site):
     references = list(files) if inventory else list(file_references(files))
     if not references and not any(path.name != "manifest.json" for path in (site / "data").glob("*.json")):
         raise ValueError("manifest has no data files")
+    # 校验口径分两层：清单式（files 值都是 {"sha256": ...}）与分片式（latestJsonChunks 每条带 sha256），
+    # 都做内容校验；纯字符串引用只查存在性（历史契约保持）。
+    checksums = ({reference: files[reference]["sha256"] for reference in files} if inventory
+                 else {reference: sha for reference, sha in reference_checksums(files).items()
+                       if reference in set(references)})
     for reference in references:
         target = site.joinpath(*safe_path(reference).parts)
         if not target.is_file():
             raise ValueError(f"manifest references missing file: {reference}")
-        if inventory:
+        if reference in checksums:
             import hashlib
-            if hashlib.sha256(target.read_bytes()).hexdigest() != files[reference]["sha256"]:
+            if hashlib.sha256(target.read_bytes()).hexdigest() != checksums[reference]:
                 raise ValueError(f"manifest checksum mismatch: {reference}")
     print(f"verified CNB site: {len(members)} archive members, {len(references)} references")
 

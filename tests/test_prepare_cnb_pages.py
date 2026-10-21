@@ -115,3 +115,40 @@ def test_verify_fails_for_permanent_mismatch(tmp_path, monkeypatch):
     monkeypatch.setattr(bridge.urllib.request, "urlopen", lambda *args, **kwargs: Response())
     with pytest.raises(ValueError, match="did not match"):
         bridge.verify(site, "https://pages.example/", attempts=1)
+
+
+def chunk_payload(tmp_path, sha=None, write_chunk=True):
+    chunk = b'[{"a":1}]'
+    files = {"latestJson": "data/latest.json",
+             "latestJsonChunks": [{"path": "data/latest_part00.json",
+                                   "sha256": sha if sha is not None else hashlib.sha256(chunk).hexdigest(),
+                                   "rowCount": 1, "size": len(chunk)}]}
+    manifest = json.dumps({"updatedAt": "2026-01-02T03:04:05Z", "files": files}).encode()
+    expected = tmp_path / "manifest.json"
+    expected.write_bytes(manifest)
+    archive = tmp_path / "verified-site.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("index.html", "<html>verified</html>")
+        bundle.writestr("data/manifest.json", manifest)
+        bundle.writestr("data/latest.json", b"[]")
+        if write_chunk:
+            bundle.writestr("data/latest_part00.json", chunk)
+    return archive, expected, chunk
+
+
+def test_accepts_chunk_manifest_and_checks_each_chunk(tmp_path):
+    archive, expected, chunk = chunk_payload(tmp_path)
+    bridge.prepare(archive, expected, tmp_path / "site")
+    assert (tmp_path / "site/data/latest_part00.json").read_bytes() == chunk
+
+
+def test_rejects_chunk_checksum_mismatch(tmp_path):
+    archive, expected, _ = chunk_payload(tmp_path, sha="0" * 64)
+    with pytest.raises(ValueError, match="checksum"):
+        bridge.prepare(archive, expected, tmp_path / "site")
+
+
+def test_rejects_missing_chunk_file(tmp_path):
+    archive, expected, _ = chunk_payload(tmp_path, write_chunk=False)
+    with pytest.raises(ValueError, match="missing file"):
+        bridge.prepare(archive, expected, tmp_path / "site")
