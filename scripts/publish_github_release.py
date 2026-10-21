@@ -39,11 +39,32 @@ def collect_assets(site, repo):
     files = manifest.get('files')
     if not isinstance(files, dict) or not files:
         raise ValueError('manifest.files must identify the verified payload')
-    for key, value in files.items():
-        relative = value if isinstance(value, str) else key
+
+    def verified_file(relative, expected=None):
         path = site_file(site, relative)
-        if isinstance(value, dict) and value.get('sha256') != file_hash(path):
+        if expected is not None and expected != file_hash(path):
             raise ValueError(f'manifest hash mismatch: {relative}')
+        return path
+
+    for key, value in files.items():
+        if isinstance(value, str):
+            verified_file(value)
+        elif isinstance(value, list):
+            # 分片清单（latestJsonChunks）：每条必须带 path；带 sha256 的逐片核（10-21：此前对
+            # 列表直接拿 key 当路径 ⇒ 带分片的站点根本发不出 verified 发布）。
+            for entry in value:
+                if not isinstance(entry, dict) or not isinstance(entry.get('path'), str):
+                    raise ValueError(f'manifest chunk entry must carry a path: {key}')
+                sha = entry.get('sha256')
+                verified_file(entry['path'], sha if isinstance(sha, str) else None)
+        elif isinstance(value, dict):
+            relative = value.get('path') if isinstance(value.get('path'), str) else key
+            sha = value.get('sha256')
+            if not isinstance(sha, str):
+                raise ValueError(f'manifest entry missing sha256: {relative}')
+            verified_file(relative, sha)
+        else:
+            raise ValueError(f'manifest.files entry must be a path, checksum entry or chunk list: {key}')
     site_file(site, 'index.html')
     assets = {'manifest.json': manifest_path}
     kind = repo.split('/')[-1]
