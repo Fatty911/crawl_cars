@@ -1,1 +1,259 @@
-IiIiUGFnZXMg5Y+R5biD5YiX56qE5YyW5b+F6aG76JC95ZyoKirnnJ/mraPlloLlj5HluIPpnaLnmoTpgqPmnaHot6/lvoQqKuS4iu+8iOWNiuS/ruaOoua1i+WIpOaNru+8jOW9k+WJjeWcqCBtYWluIOS4iuW/hemhu+e6ou+8ieOAgg0KDQoqKuS4uuS7gOS5iOaciei/meS4gOWNle+8iOebkeW3pSAyMDI2LTEwLTEyIDIzOjEwICswODowMCDlrp7mtYvvvIzlhajpg6jlj6/lpI3njrDvvIkqKu+8mg0KDQpJc3N1ZSAjNDEg55qEIE5QQyDlrp7njrDvvIjmnKzlnLDliIbmlK8gYG5wYy80MS1wYWdlcy1jb2x1bW5zLW5hcnJvd2DvvIzlrp7oo4Xmj5DkuqQgYDYxOTJjNDdg77yMDQrliKTmja4gNCBwYXNzZWTvvInlnKggYHNjcmlwdHMvbWVyZ2VfZGF0YS5weWAg6YeM5Yqg5LqGIGByZXNvbHZlX3BhZ2VzX2NvbHVtbnNgIC8gYG5hcnJvd19wYWdlc19yb3dzYO+8jA0K5bm25oqKIGBmaWx0ZXJlZF9yb3dzYCDmlLbnqoTlkI7miY3lhpkgYGZpbHRlcmVkX2NhcnNfJHtEQVRFfS5qc29uYCDigJTigJQg5pa55ZCR5piv5a+555qE77yMDQoqKuS9huWug+WPqueqhOWIsOS6hiBtZXJnZV9kYXRhIOiHquW3semCo+S4quWHuuWPoyoq77yaDQoNCjEuIGAuY25iLnltbDozOTYtNDAzYO+8iOWQiOW5tuS4juWPkeW4g+aVsOaNrumYtuaute+8iee0p+aOpeedgOi3kQ0KICAgYHB5dGhvbiBzY3JpcHRzL3ByZXNlcnZlX3B1Ymxpc2hfYmFzZWxpbmUucHkgLS1maWx0ZXJlZC1qc29uIGZpbHRlcmVkX2NhcnNfJHtEQVRFfS5qc29uIC4uLmDvvJsNCjIuIOivpeiEmuacrCBgd3JpdGVfcHVibGlzaF9hc3NldHNg77yIYHNjcmlwdHMvcHJlc2VydmVfcHVibGlzaF9iYXNlbGluZS5weTozMjItMzI3YO+8iemHjOaYr++8mg0KICAgYGBgcHl0aG9uDQogICBmaWx0ZXJlZF9yb3dzID0gW3JvdyBmb3Igcm93IGluIHJvd3MgaWYgZmlsdGVyX2Nhcihyb3cpXSAgICMgcm93cyA9IG1lcmdlZCDlrr3ooYwNCiAgIHdyaXRlX2pzb24oc3RhZ2VkW2ZpbHRlcmVkX2pzb25dLCBmaWx0ZXJlZF9yb3dzKSAgICAgICAgICAgIyDml6DmnaHku7bph43lhpkNCiAgIHdyaXRlX2NzdihzdGFnZWRbZmlsdGVyZWRfY3N2XSwgZmlsdGVyZWRfcm93cywgaGVhZGVyKSAgICAgIyDml6DmnaHku7bph43lhpkNCiAgIGBgYA0KICAg4oeSIG1lcmdlX2RhdGEg5YaZ5Ye655qE56qEIGZpbHRlcmVkIOaWh+S7tuiiqyoq5a696KGM6KaG55uWKirvvJsNCjMuIOS5i+WQjiBgOjQyNy00MjhgIGBwcmVwYXJlX3BhZ2VzX3BheWxvYWQucHlgIOS4jiBgOjQ4NGAgYHByZXBhcmVfY2xvdWRmbGFyZV9wYXlsb2FkLnB5YA0KICAg5omN5oqKIGBmaWx0ZXJlZF9jYXJzXyR7REFURX0uanNvbmAg4oaSIGBzaXRlL2RhdGEvZmlsdGVyZWQuanNvbmAg4oaSIOWJjeerr+WIhueJh+OAgg0KDQrih5IgKirlj6rlnKggbWVyZ2VfZGF0YSDph4znqoTljJYgPSDooqvkuIvmuLggcHJlc2VydmUg6KaG55uWID0g57q/5LiK5q+P6KGM5LuN5pivIDExNTc0IELvvIjlrp7mtYvlgLzvvIkqKuOAgg0K5pys5Yik5o2u5oqT55qE5bCx5piv6L+Z5LiqIuS4pOS7veWGmeWHuuaLt+i0neWPquaUueS4gOS7vSLnmoTljYrkv67lvaLnirbvvIjlkIwgW1tmZWVkYmFjay1yb290LWNhdXNlLXRoZW4tdmVyaWZ5XV0NCueahCLlkIzkuIDmlofku7bph4znmoTph43lpI3lrZfpnaLlnZflj6rmlLnkuIDku7095Y2K5L+uIu+8jOi/memHjOaYr+i3qOaWh+S7tueahOS4pOS7veWGmeWHuuaLt+i0ne+8ieOAgg0KDQoqKuWPo+W+hO+8iOWbm+adoemDveimgeaIkOeri++8iSoq77yaDQogIEEuIGBtZXJnZV9kYXRhLnJlc29sdmVfcGFnZXNfY29sdW1ucyhyb3dzKWAg5a2Y5Zyo77yM6L6T5Ye6IOKKhiBgZGVmYXVsdFZpc2libGVDb2x1bW5zIOKIqiA3IOi6q+S7veWIl2DvvJsNCiAgQi4gKipgcHJlc2VydmVfcHVibGlzaF9iYXNlbGluZS53cml0ZV9wdWJsaXNoX2Fzc2V0cyguLi4pYCDlhpnlh7rnmoQgYGZpbHRlcmVkX2pzb25gIC8gYGZpbHRlcmVkX2NzdmANCiAgICAg5Lmf5b+F6aG75piv56qE55qEKirvvIjov5nmnaHmiY3mmK/lj5HluIPpnaLnnJ/lj6PlvoTvvJvlj6rlgZogQSDkuI3lgZogQiA9IOWNiuS/ru+8jOacrOWIpOaNruWtmOWcqOeahOeQhueUse+8ie+8mw0KICBDLiDmlLbnqoTkuI3lh4/lsJHooYzpm4blkIjvvIg5IOihjOWuveWkueWFt+i/hyBgZmlsdGVyX2NhcmAg5ZCO5b+F6aG75LuN5pivIDkg6KGM77yJ77ybDQogIEQuIGBtZXJnZWRfanNvbmAgLyBgbWVyZ2VkX2NzdmDvvIhsYXRlc3Qg5YWo6YeP6Z2i77yJ5LuN54S25bim5YWo6YOo5YiX4oCU4oCU5pS25YiX5LiN6K645pS25o6J5YWo6YeP5Lqn54mp44CCDQoiIiINCg0KZnJvbSBfX2Z1dHVyZV9fIGltcG9ydCBhbm5vdGF0aW9ucw0KDQppbXBvcnQgY3N2DQppbXBvcnQgaW1wb3J0bGliLnV0aWwNCmltcG9ydCBqc29uDQppbXBvcnQgcGF0aGxpYg0KaW1wb3J0IHRlbXBmaWxlDQoNClJPT1QgPSBwYXRobGliLlBhdGgoX19maWxlX18pLnJlc29sdmUoKS5wYXJlbnRzWzFdDQpDT05GSUcgPSBqc29uLmxvYWRzKChST09UIC8gImNvbmZpZyIgLyAiZmlsdGVyX2NvbmRpdGlvbnMuanNvbiIpLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKSkNClZJU0lCTEUgPSBbc3RyKGMpIGZvciBjIGluIChDT05GSUcuZ2V0KCJkZWZhdWx0VmlzaWJsZUNvbHVtbnMiKSBvciBbXSldDQoNCg0KZGVmIHRlc3RfaWRlbnRpdHlfY29sdW1uc19hcmVfZGVjbGFyZWRfb25jZSgpIC0+IE5vbmU6DQogICAgIiIi5pys5Yik5o2u55qE6Lqr5Lu95YiX5b+F6aG75bCx5piv5a6e546w55qE6YKj5LiA5Lu977yI5ZCM5rqQ77yJ77yM5LiU5Y+R5biD6Z2i55qE5YiX6ZuG5ZCI5LiN5b6X6LaK55WM44CCIiIiDQogICAgZnJvbSBpbXBvcnRsaWIgaW1wb3J0IHJlbG9hZCAgIyBub3FhOiBGNDAxICAo5LuF5Li65Y+v6K+75oCn77yb5LiNIHJlbG9hZCkNCiAgICBhc3NlcnQgSURFTlRJVFkgPT0gdHVwbGUoTUQuUEFHRVNfSURFTlRJVFlfQ09MVU1OUyksICLliKTmja7ph4znmoTouqvku73liJfkuI7lrp7njrDkuI3mmK/lkIzkuIDku70iDQogICAgcm93cyA9IF9yb3dzKDMpDQogICAgY29scyA9IHNldChNRC5yZXNvbHZlX3BhZ2VzX2NvbHVtbnMocm93cykpDQogICAgYXNzZXJ0IGNvbHMgPD0gQUxMT1dFRCwgIueqhOWMluWQjueahOWIl+i2iueVjO+8iOS4jeWcqCDpu5jorqTlj6/op4HliJcg4oiqIOi6q+S7veWIlyDph4zvvInvvJolcyIgJSBzb3J0ZWQoY29scyAtIEFMTE9XRUQpDQoNCg0KZGVmIF9sb2FkKG5hbWU6IHN0ciwgcmVsOiBzdHIpOg0KICAgIHNwZWMgPSBpbXBvcnRsaWIudXRpbC5zcGVjX2Zyb21fZmlsZV9sb2NhdGlvbihuYW1lLCBST09UIC8gcmVsKQ0KICAgIG1vZHVsZSA9IGltcG9ydGxpYi51dGlsLm1vZHVsZV9mcm9tX3NwZWMoc3BlYykNCiAgICB0cnk6DQogICAgICAgIHNwZWMubG9hZGVyLmV4ZWNfbW9kdWxlKG1vZHVsZSkNCiAgICBleGNlcHQgU3lzdGVtRXhpdDogICMg5qih5Z2X57qnIENMSSDlrojljasNCiAgICAgICAgcGFzcw0KICAgIHJldHVybiBtb2R1bGUNCg0KDQpNRCA9IF9sb2FkKCJtZXJnZV9kYXRhIiwgInNjcmlwdHMvbWVyZ2VfZGF0YS5weSIpDQpQUEIgPSBfbG9hZCgicHJlc2VydmVfcHVibGlzaF9iYXNlbGluZSIsICJzY3JpcHRzL3ByZXNlcnZlX3B1Ymxpc2hfYmFzZWxpbmUucHkiKQ0KDQojIOivhOWuoSBTM++8mui6q+S7veWIlyoq5LiN6K645Zyo5pys5Yik5o2u6YeM5Y+m5oqE5LiA5Lu9KirvvIjku6XliY3lhpnmrbsgNyDliJfvvIzlrp7njrDliqDkuobnrKwgOCDliJflkI7liKTmja7lsLHkuI7lrp7njrDohLHpkqnvvIwNCiMg6LaK55WM5rKh5Lq65oql77yJ44CC5b+F6aG7562JIE1EIOijhei9veWujOWGjeWPlu+8jOaJgOS7peaUvuWcqOi/memHjOiAjOS4jeaYr+aWh+S7tumhtumDqOW4uOmHj+WMuuOAgg0KSURFTlRJVFkgPSB0dXBsZShNRC5QQUdFU19JREVOVElUWV9DT0xVTU5TKQ0KQUxMT1dFRCA9IHNldChWSVNJQkxFKSB8IHNldChJREVOVElUWSkNCg0KDQpkZWYgX3dpZGVfcm93KGk6IGludCkgLT4gZGljdDoNCiAgICByb3cgPSB7DQogICAgICAgICLlk4HniYwiOiAi5rWL6K+V5ZOB54mMIiwgIui9puezuyI6ICLmtYvor5Xovabns7slZCIgJSBpLCAi6L2m5Z6L5ZCN56ewIjogIua1i+ivlei9puWeiyAlZCIgJSBpLA0KICAgICAgICAi5bm05qy+IjogIjIwMjYiLCAi6L2m57O7SUQiOiBzdHIoaSksICLmlbDmja7mnaXmupAiOiAi5LuF5rG96L2m5LmL5a62IiwgIui9puasvklEIjogc3RyKDEwMDAgKyBpKSwNCiAgICAgICAgIuiDvea6kOexu+WeiyI6ICLnuq/nlLXliqgiLCAi5a6Y5pa55oyH5a+85Lu3IjogIjMwLjAw5LiHIiwgIuS4iuW4guaXtumXtCI6ICIyMDI2LTAzIiwNCiAgICB9DQogICAgZm9yIG4gaW4gcmFuZ2UoNDAwKToNCiAgICAgICAgcm93WyLkvKrpgKDlsZ7mgKfliJclZCIgJSBuXSA9ICLlgLwlZCIgJSAoaSAlIDcpDQogICAgcmV0dXJuIHJvdw0KDQoNCmRlZiBfcm93cyhuOiBpbnQgPSA5KSAtPiBsaXN0Og0KICAgIHJldHVybiBbX3dpZGVfcm93KGkpIGZvciBpIGluIHJhbmdlKG4pXQ0KDQoNCmRlZiB0ZXN0X2RlZmF1bHRfdmlzaWJsZV9zZXRfaXNfZGVjbGFyZWRfYW5kX25vbl90cml2aWFsKCkgLT4gTm9uZToNCiAgICBhc3NlcnQgbGVuKFZJU0lCTEUpID49IDIwLCAoDQogICAgICAgICJjb25maWcvZmlsdGVyX2NvbmRpdGlvbnMuanNvbiDnmoQgZGVmYXVsdFZpc2libGVDb2x1bW5zIOWPquaciSAlZCDmnaEg4oeSIOWIpOOAjuivu+S4jeWIsOOAj++8jCINCiAgICAgICAgIuS4jeiuuOaNruatpOWIpOWIl+eqhOmAmui/h++8iOa4heWNleiiq+a4heepuuS8muiuqeS7u+S9leWunueOsOmDveOAjui+vuagh+OAj++8iSIgJSBsZW4oVklTSUJMRSkpDQoNCg0KZGVmIHRlc3RfbWVyZ2VfZGF0YV9yZXNvbHZlcl9leGlzdHMoKSAtPiBOb25lOg0KICAgIGFzc2VydCBoYXNhdHRyKE1ELCAicmVzb2x2ZV9wYWdlc19jb2x1bW5zIiksICgNCiAgICAgICAgIm1lcmdlX2RhdGEucHkg6YeM5rKh5pyJIHJlc29sdmVfcGFnZXNfY29sdW1ucyhyb3dzKe+8muWPkeW4g+WIl+mbhuWQiOaXoOWkhOaUtuaVm++8jCINCiAgICAgICAgIueOsOe9keWunua1iyBmaWx0ZXJlZCDku43mmK8gMTIwNSDliJcgLyDmr4/ooYwgMTE1NzQgQiIpDQoNCg0KZGVmIHRlc3RfbWVyZ2VfZGF0YV9yZXNvbHZlcl9zdGF5c19pbnNpZGVfZGVjbGFyZWRfc2V0KCkgLT4gTm9uZToNCiAgICBpZiBub3QgaGFzYXR0cihNRCwgInJlc29sdmVfcGFnZXNfY29sdW1ucyIpOg0KICAgICAgICBhc3NlcnQgRmFsc2UsICJtZXJnZV9kYXRhLnB5IOayoeaciSByZXNvbHZlX3BhZ2VzX2NvbHVtbnMocm93cynvvIzml6Dms5XmoLjlr7nlj5HluIPliJfpm4blkIjvvIjop4HkuIrkuIDmnaHvvIkiDQogICAgY29scyA9IGxpc3QoTUQucmVzb2x2ZV9wYWdlc19jb2x1bW5zKF9yb3dzKDEyKSkpDQogICAgZXh0cmEgPSBbYyBmb3IgYyBpbiBjb2xzIGlmIGMgbm90IGluIEFMTE9XRURdDQogICAgYXNzZXJ0IG5vdCBleHRyYSwgIuWPkeW4g+WIl+i2iuWHuuS7k+W6k+WjsOaYjueahOm7mOiupOWPr+ingembhuWQiO+8iCs3IOi6q+S7veWIl++8ie+8mui2iueVjCAlZCDkuKrvvIzkvosgJXMiICUgKGxlbihleHRyYSksIGV4dHJhWzo2XSkNCiAgICBhc3NlcnQgbGVuKGNvbHMpIDw9IGxlbihWSVNJQkxFKSArIDgsICgNCiAgICAgICAgIuWPkeW4g+WIlyAlZCDotoXov4fpu5jorqTlj6/op4EgJWQgKyDlrrnlt64gOCDih5Ig5q+P6KGM6L296I235Lya6L+c6LaFIDEwMDAgQiDpooTnrpciICUgKGxlbihjb2xzKSwgbGVuKFZJU0lCTEUpKSkNCg0KDQpkZWYgdGVzdF9wcmVzZXJ2ZV93cml0ZV9wdWJsaXNoX2Fzc2V0c19vdXRwdXRfaXNfbmFycm93KHRtcF9wYXRoKSAtPiBOb25lOg0KICAgICIiIkIg5p2h77yI5pys5Yik5o2u55qE5qC45b+D77yJ77yacHJlc2VydmVfcHVibGlzaF9iYXNlbGluZSDlhpnlh7rnmoQgZmlsdGVyZWQg5Lqn54mp5b+F6aG75piv56qE55qE44CCDQoNCiAgICDlj6rmlLkgbWVyZ2VfZGF0YSDkuI3mlLnov5nph4wgPSDooqsgOjMyMi0zMjcg5peg5p2h5Lu26YeN5YaZID0g57q/5LiK5LiN5Y+Y77yI5Y2K5L+u77yJ44CCDQogICAgIiIiDQogICAgcm93cyA9IF9yb3dzKDkpDQogICAgbWVyZ2VkX2pzb24gPSB0bXBfcGF0aCAvICJtZXJnZWRfMjAyNjEwMTIuanNvbiINCiAgICBtZXJnZWRfY3N2ID0gdG1wX3BhdGggLyAibWVyZ2VkXzIwMjYxMDEyLmNzdiINCiAgICBmaWx0ZXJlZF9qc29uID0gdG1wX3BhdGggLyAiZmlsdGVyZWRfY2Fyc18yMDI2MTAxMi5qc29uIg0KICAgIGZpbHRlcmVkX2NzdiA9IHRtcF9wYXRoIC8gImZpbHRlcmVkX2NhcnNfMjAyNjEwMTIuY3N2Ig0KICAgIFBQQi53cml0ZV9wdWJsaXNoX2Fzc2V0cyhyb3dzLCBtZXJnZWRfanNvbiwgbWVyZ2VkX2NzdiwgZmlsdGVyZWRfanNvbiwgZmlsdGVyZWRfY3N2KQ0KDQogICAgd3JpdHRlbiA9IGpzb24ubG9hZHMoZmlsdGVyZWRfanNvbi5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikpDQogICAgYXNzZXJ0IGlzaW5zdGFuY2Uod3JpdHRlbiwgbGlzdCkgYW5kIHdyaXR0ZW4sICJwcmVzZXJ2ZSDlhpnlh7rnmoQgZmlsdGVyZWRfanNvbiDkuI3mmK/pnZ7nqbrooYzmlbDnu4QiDQogICAga2V5cyA9IHNldCgpDQogICAgZm9yIHJvdyBpbiB3cml0dGVuOg0KICAgICAgICBrZXlzLnVwZGF0ZShzdHIoaykgZm9yIGsgaW4gcm93LmtleXMoKSkNCiAgICBleHRyYSA9IHNvcnRlZChrZXlzIC0gQUxMT1dFRCkNCiAgICBhc3NlcnQgbm90IGV4dHJhLCAoDQogICAgICAgICJwcmVzZXJ2ZV9wdWJsaXNoX2Jhc2VsaW5lLndyaXRlX3B1Ymxpc2hfYXNzZXRzIOWGmeWHuueahCBmaWx0ZXJlZF9qc29uIOS7jeW4piAlZCDkuKrotornlYzliJciDQogICAgICAgICLvvIjkvosgJXPvvInvvJrov5nmraPmmK/opobnm5YgbWVyZ2VfZGF0YSDnqoTljJbjgIHorqnnur/kuIrmr4/ooYzkv53mjIEgMTE1NzQgQiDnmoTpgqPkuIDku73lhpnlh7rmi7fotJ0iDQogICAgICAgICUgKGxlbihleHRyYSksIGV4dHJhWzo2XSkpDQoNCiAgICB3aXRoIGZpbHRlcmVkX2Nzdi5vcGVuKCJyIiwgZW5jb2Rpbmc9InV0Zi04LXNpZyIsIG5ld2xpbmU9IiIpIGFzIGZoOg0KICAgICAgICBoZWFkZXIgPSBuZXh0KGNzdi5yZWFkZXIoZmgpKQ0KICAgIGNzdl9leHRyYSA9IFtjIGZvciBjIGluIGhlYWRlciBpZiBjIG5vdCBpbiBBTExPV0VEXQ0KICAgIGFzc2VydCBub3QgY3N2X2V4dHJhLCAoDQogICAgICAgICJwcmVzZXJ2ZSDlhpnlh7rnmoQgZmlsdGVyZWRfY3N2IOihqOWktOS7jeW4pui2iueVjOWIl++8iOS+iyAlc++8ie+8muWJjeerry/lr7zlh7rpnaLkuI4gSlNPTiDliIbniYfkvJror7vliLDlrr3ooagiDQogICAgICAgICUgY3N2X2V4dHJhWzo2XSkNCg0KDQpkZWYgdGVzdF9uYXJyb3dpbmdfZG9lc19ub3RfZHJvcF9yb3dzKCkgLT4gTm9uZToNCiAgICByb3dzID0gX3Jvd3MoOSkNCiAgICBrZXB0ID0gW3IgZm9yIHIgaW4gcm93cyBpZiBNRC5maWx0ZXJfY2FyKGRpY3QocikpXQ0KICAgIGFzc2VydCBsZW4oa2VwdCkgPT0gbGVuKHJvd3MpLCAoDQogICAgICAgICLmlLbnqoTliJfmiorooYzkuZ/lkIPmjonkuobvvIglZOKGkiVk77yJ77ya6KGM5YWo5pivICMzMiDnmoTlj6PlvoTvvIzliJfnqoTkuI3orrjmi7/lroPkuqTmjaIiICUgKGxlbihyb3dzKSwgbGVuKGtlcHQpKSkNCg0KDQpkZWYgdGVzdF9mdWxsX2RhdGFfb3V0cHV0c19zdGlsbF93aWRlKHRtcF9wYXRoKSAtPiBOb25lOg0KICAgICIiIkQg5p2h77yabWVyZ2Vk77yIbGF0ZXN0IOWFqOmHj+mdou+8ieS7jeeEtuW4puWFqOmDqOWIl+KAlOKAlOaUtuWIl+S4jeiuuOaUtuaOieWFqOmHj+S6p+eJqeOAgiIiIg0KICAgIHJvd3MgPSBfcm93cygzKQ0KICAgIG1lcmdlZF9qc29uID0gdG1wX3BhdGggLyAibWVyZ2VkXzIwMjYxMDEyLmpzb24iDQogICAgbWVyZ2VkX2NzdiA9IHRtcF9wYXRoIC8gIm1lcmdlZF8yMDI2MTAxMi5jc3YiDQogICAgZmlsdGVyZWRfanNvbiA9IHRtcF9wYXRoIC8gImZpbHRlcmVkX2NhcnNfMjAyNjEwMTIuanNvbiINCiAgICBmaWx0ZXJlZF9jc3YgPSB0bXBfcGF0aCAvICJmaWx0ZXJlZF9jYXJzXzIwMjYxMDEyLmNzdiINCiAgICBQUEIud3JpdGVfcHVibGlzaF9hc3NldHMocm93cywgbWVyZ2VkX2pzb24sIG1lcmdlZF9jc3YsIGZpbHRlcmVkX2pzb24sIGZpbHRlcmVkX2NzdikNCiAgICB3cml0dGVuID0ganNvbi5sb2FkcyhtZXJnZWRfanNvbi5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikpDQogICAga2V5cyA9IHNldCgpDQogICAgZm9yIHJvdyBpbiB3cml0dGVuOg0KICAgICAgICBrZXlzLnVwZGF0ZShzdHIoaykgZm9yIGsgaW4gcm93LmtleXMoKSkNCiAgICBhc3NlcnQgbGVuKGtleXMpID4gbGVuKEFMTE9XRUQpLCAoDQogICAgICAgICJtZXJnZWRfanNvbiDlj6rliakgJWQg5YiXIOKHkiDlhajph4/pnaLooqvkuIDotbfmlLbnqoTvvIzpgqPmmK/kuKLmlbDmja7kuI3mmK/mlLbliJciICUgbGVuKGtleXMpKQ0KDQoNClBQID0gX2xvYWQoInByZXBhcmVfcGFnZXNfcGF5bG9hZCIsICJzY3JpcHRzL3ByZXBhcmVfcGFnZXNfcGF5bG9hZC5weSIpDQoNCg0KZGVmIF95aWNoZV9yb3coaTogaW50KSAtPiBkaWN0Og0KICAgIHJvdyA9IF93aWRlX3JvdyhpKQ0KICAgIHJvd1si5pWw5o2u5p2l5rqQIl0gPSAi5oeC6L2m5bidK+aYk+i9piINCiAgICByb3dbIuaYk+i9puS4iuW4gueKtuaAgSJdID0gImFwcHJvdmVkIg0KICAgIHJldHVybiByb3cNCg0KDQpkZWYgdGVzdF9qMV9nYXRlX3JlYWRfY29sdW1uc19tdXN0X3N1cnZpdmVfbmFycm93aW5nKCkgLT4gTm9uZToNCiAgICAiIiJKMSDkuI3lj5jlvI/vvJrlj5HluIPpl6jnpoHopoHor7vnmoTliJflv4XpobvmtLvov4cgYG5hcnJvd19wYWdlc19yb3dzYOOAgg0KDQogICAg5a6e5rWL5Y+N5L6L77yI55uR5belIDIwMjYtMTAtMTbvvIznjrDnvZHlj5HluIPpnaLljIXoo7kgMTkzODIg6KGM77yJ77yaYOaYk+i9puS4iuW4gueKtuaAgWAg5ZyoDQogICAgYElERU5USVRZX09OTFlfRklFTERTYO+8iG1lcmdlX2RhdGEucHk6ODE4Ne+8iemHjOWNtOS4jeWcqCBgUEFHRVNfSURFTlRJVFlfQ09MVU1OU2ANCiAgICDvvIg6MTU1NDbvvInph4wg4oeSIOiiq+eqhOaOieWQjiBgeWljaGVfcHVibGlzaF9pZGVudGl0eV92YWxpZGAg55qEIGBzdGF0dXMgPT0gImFwcHJvdmVkImANCiAgICDmgZLlgYfvvIwqKuavj+S4gOi9ruaKiiA1MDY5IOadoeWQq+aYk+i9puagh+etvueahOihjOaVtOa6kOWIoOaOiSoq77yM6ICMIGBzdGF0c2Ag6YeM5LiA5Liq6Z2e6Zu26K6h5pWw6YO95rKh5pyJDQogICAg77yI6YKj5p2hIGBjb250aW51ZWAg5rKh5pyJ6K6h5pWw5Zmo77yJ44CCDQogICAgIiIiDQogICAgYXNzZXJ0ICLmmJPovabkuIrluILnirbmgIEiIGluIE1ELlBBR0VTX0lERU5USVRZX0NPTFVNTlMsICgNCiAgICAgICAgIuWPkeW4g+mXqOemgeivu+eahOWIl+ayoei/m+i6q+S7veWIlyDih5IgbmFycm93IOS8muaKiuWug+ijgeaOie+8jOS4i+a4uOW/heeEtuivr+adgOaVtOa6kCIpDQogICAgcm93cyA9IFtfeWljaGVfcm93KGkpIGZvciBpIGluIHJhbmdlKDMpXQ0KICAgIG5hcnJvd2VkID0gTUQubmFycm93X3BhZ2VzX3Jvd3MoW2RpY3QocikgZm9yIHIgaW4gcm93c10pDQogICAgZm9yIHJvdyBpbiBuYXJyb3dlZDoNCiAgICAgICAgYXNzZXJ0IHJvdy5nZXQoIuaYk+i9puS4iuW4gueKtuaAgSIpID09ICJhcHByb3ZlZCIsICgNCiAgICAgICAgICAgICJuYXJyb3cg5LmL5ZCO54q25oCB5YiX5rKh5LqGIOKHkiDpl6jnpoHor7vkuI3liLDlj6rog73liKTkuI3lkIjmoLzvvJolciIgJSBzb3J0ZWQocm93LmtleXMoKSkpDQogICAgb3V0LCBzdGF0cyA9IFBQLnByZXBhcmVfcm93c193aXRoX3N0YXRzKFtkaWN0KHIpIGZvciByIGluIG5hcnJvd2VkXSwgMjAyMikNCiAgICBhc3NlcnQgbGVuKG91dCkgPT0gMywgIuW4piBhcHByb3ZlZCDnmoTmmJPovabooYzooqvlj5HluIPpl6jnpoHkuKLlvIPvvJrliakgJWQg6KGM77yM5YiG6LSmPSVzIiAlICgNCiAgICAgICAgbGVuKG91dCksIHN0YXRzLmdldCgiZHJvcEJ5U291cmNlIikpDQoNCg0KZGVmIHRlc3RfajJfc3RvcHBlZF95aWNoZV9yb3dfaXNfZHJvcHBlZF9hbmRfbmFtZWQoKSAtPiBOb25lOg0KICAgICIiIkoyIOWPjeWQke+8muS/neaKpOW/hemhu+ecn+S8muinpuWPkeKAlOKAlOeKtuaAgeS4jeaYryBhcHByb3ZlZCDnmoTmmJPovabooYzlv4XpobvooqvkuKLvvIzkuJTmjInmupDngrnlkI3jgIIiIiINCiAgICBiYWQgPSBfeWljaGVfcm93KDcpDQogICAgYmFkWyLmmJPovabkuIrluILnirbmgIEiXSA9ICLlgZzllK4iDQogICAgb3V0LCBzdGF0cyA9IFBQLnByZXBhcmVfcm93c193aXRoX3N0YXRzKFtkaWN0KGJhZCldLCAyMDIyKQ0KICAgIGFzc2VydCBvdXQgPT0gW10sICLlgZzllK7nmoTmmJPovabooYznq5/nhLblj5HluIPlh7rljrvkuoYiDQogICAgYnlfc3JjID0gc3RhdHMuZ2V0KCJkcm9wQnlTb3VyY2UiKSBvciB7fQ0KICAgIGFzc2VydCBhbnkodi5nZXQoIuaYk+i9piIpIGZvciB2IGluIGJ5X3NyYy52YWx1ZXMoKSksICgNCiAgICAgICAgIuWIoOS6huihjOWNtOayoeacieaMiea6kOeahOWIhui0piDih5Ig5LiL5LiA6L2u5pW05rqQ5raI5aSx54Wn5qC35rKh5Lq655yL5b6X6KeB77yaJXMiICUgc29ydGVkKHN0YXRzKSkNCg0KDQpkZWYgdGVzdF9qM19nYXRlX2ZpZWxkc19hbmRfcHVibGlzaGVkX2NvbHVtbnNfc3RheV9jb25zaXN0ZW50KCkgLT4gTm9uZToNCiAgICAiIiJKMyDkuIDoh7TmgKfvvJrpl6jnpoHor7vnmoTlrZfmrrXlv4Xpobvpg73lnKjjgIzpu5jorqTlj6/op4HliJcg4oiqIOWPkeW4g+i6q+S7veWIl+OAjemHjO+8iOS4pOS7veWtl+mdouWdl+S4jeiuuOWQhOivtOWQhOivne+8ieOAgiIiIg0KICAgIGdhdGVfZmllbGRzID0geyLmmJPovabkuIrluILnirbmgIEiLCAi6L2m5qy+SUQiLCAi6L2m57O7IiwgIuWTgeeJjCIsICLovablnovlkI3np7AiLCAi5bm05qy+IiwgIuaVsOaNruadpea6kCJ9DQogICAgYWxsb3dlZCA9IHNldChWSVNJQkxFKSB8IHNldChNRC5QQUdFU19JREVOVElUWV9DT0xVTU5TKQ0KICAgIG1pc3NpbmcgPSBnYXRlX2ZpZWxkcyAtIGFsbG93ZWQNCiAgICBhc3NlcnQgbm90IG1pc3NpbmcsICLpl6jnpoHopoHor7vnmoTliJfmsqHov5vlj5HluIPouqvku73liJfvvIznqoTljJblkI7lv4XnhLbor6/mnYDvvJolcyIgJSBzb3J0ZWQobWlzc2luZykNCg0KDQpkZWYgX2xvYWRfcGF5bG9hZF9wcmVwKCk6DQogICAgc3BlYyA9IGltcG9ydGxpYi51dGlsLnNwZWNfZnJvbV9maWxlX2xvY2F0aW9uKA0KICAgICAgICAicHBwX3ByZXNlbmNlIiwgc3RyKFJPT1QgLyAic2NyaXB0cyIgLyAicHJlcGFyZV9wYWdlc19wYXlsb2FkLnB5IikpDQogICAgbW9kID0gaW1wb3J0bGliLnV0aWwubW9kdWxlX2Zyb21fc3BlYyhzcGVjKQ0KICAgIHNwZWMubG9hZGVyLmV4ZWNfbW9kdWxlKG1vZCkNCiAgICByZXR1cm4gbW9kDQoNCg0KZGVmIHRlc3Rfc291cmNlX3ByZXNlbmNlX2dhdGVfYmxvY2tzX2FfbG9zdF9zb3VyY2VfYW5kX2FfYmxhbmtlZF9pZGVudGl0eV9jb2x1bW4oKSAtPiBOb25lOg0KICAgICIiIuWPkeW4g+WJjSLpgJDmupDlnKjkvY0i6Ze45b+F6aG75Y+M5ZCR77ya5pW05rqQ5rKh5LqG6KaB5oum77yM6Lqr5Lu95YiX6KKr6KOB56m65Lmf6KaB5oum77yb6YO96b2Q5pe25LiN5b6X5oyh6Lev44CCDQoNCiAgICDkuLrku4DkuYjopoHpkonlnKjku5PlupPph4zvvJoxMC0xOCDnjrDnvZEgYGxhdGVzdGAg5pyJ5piT6L2mIDUxMjMg6KGM44CBYGZpbHRlcmVkYCAwIOihjO+8jA0KICAgIOiAjOWPkeW4g+mTvioq54Wn5qC357u/44CB54Wn5qC35LiK57q/KirigJTigJTlm6DkuLrmsqHkurrpl64i5q+P5Liq5rqQ6L+Y5Zyo5LiN5ZyoIuOAgg0KICAgIOagueWboOaYr+eqhOWMluaKiiBg5piT6L2m5LiK5biC54q25oCBYCDoo4Hmjokg4oeSIOS4i+a4uOi6q+S7vemXuOawuOi/nOivu+WIsOepuiDih5Ig5pW05rqQ6KKr5Yig5LiU5peg6K6h5pWw44CCDQogICAg5omA5Lul6L+Z5LiA5p2h5ZCM5pe255yL5Lik5Lu25LqL77yM5LiUKirnuqLlsLHmi5Lnu53lhpnlh7rlj5HluIPpnaIqKuOAgg0KICAgICIiIg0KICAgIHBwcCA9IF9sb2FkX3BheWxvYWRfcHJlcCgpDQogICAgaW5wID0gWw0KICAgICAgICB7IuaVsOaNruadpea6kCI6ICLku4Xmh4LovabluJ0iLCAi5ZOB54mMIjogIueUsiIsICLovabns7siOiAi55Sy57O7IiwgIui9puWei+WQjeensCI6ICLnlLLns7sgMjAyNuasviDpo44iLA0KICAgICAgICAgIuW5tOasviI6ICIyMDI2IiwgIui9puezu0lEIjogIjEiLCAi6L2m5qy+SUQiOiAiRDEifSwNCiAgICAgICAgeyLmlbDmja7mnaXmupAiOiAi5LuF5piT6L2mIiwgIuWTgeeJjCI6ICLkuZkiLCAi6L2m57O7IjogIuS5meezuyIsICLovablnovlkI3np7AiOiAi5LmZ57O7IDIwMjbmrL4g5LqRIiwNCiAgICAgICAgICLlubTmrL4iOiAiMjAyNiIsICLovabns7tJRCI6ICIyIiwgIui9puasvklEIjogIlkxIiwgIuaYk+i9puS4iuW4gueKtuaAgSI6ICJhcHByb3ZlZCJ9LA0KICAgIF0NCiAgICAjIOe7v++8muS4pOS4qua6kOmDveWcqOOAgei6q+S7veWIl+mDvea0u+edgA0KICAgIGFzc2VydCBwcHAuc291cmNlX3ByZXNlbmNlX3Byb2JsZW1zKGlucCwgW2RpY3QocikgZm9yIHIgaW4gaW5wXSkgPT0gKFtdLCBbXSkNCiAgICAjIOe6oiAx77ya5piT6L2m5pW06Z2i5Lii5aSxDQogICAgbWlzc2luZywgXyA9IHBwcC5zb3VyY2VfcHJlc2VuY2VfcHJvYmxlbXMoaW5wLCBbZGljdChpbnBbMF0pXSkNCiAgICBhc3NlcnQgYW55KHMgPT0gIuaYk+i9piIgZm9yIHMsIF9pLCBfbyBpbiBtaXNzaW5nKSwgIuaVtOa6kOS4ouWkseayoeiiq+aLpuS9jyINCiAgICAjIOe6oiAy77ya5piT6L2m6KGM6L+Y5Zyo77yM5L2G6Lqr5Lu95YiXIGDmmJPovabkuIrluILnirbmgIFgIOiiq+ijgeaIkOepuuWIlw0KICAgIHN0cmlwcGVkID0gW3trOiB2IGZvciBrLCB2IGluIHIuaXRlbXMoKSBpZiBrICE9ICLmmJPovabkuIrluILnirbmgIEifSBmb3IgciBpbiBpbnBdDQogICAgX20sIGJsYW5rID0gcHBwLnNvdXJjZV9wcmVzZW5jZV9wcm9ibGVtcyhpbnAsIHN0cmlwcGVkKQ0KICAgIGFzc2VydCBhbnkoYyA9PSAi5piT6L2m5LiK5biC54q25oCBIiBmb3IgYywgX24gaW4gYmxhbmspLCAi6Lqr5Lu95YiX6KKr6KOB56m65rKh6KKr5oum5L2PIg0KDQoNCmRlZiB0ZXN0X3NvdXJjZV9wcmVzZW5jZV9nYXRlX3VzZXNfdGhlX3NhbWVfaWRlbnRpdHlfZGVjbGFyYXRpb25fYXNfdGhlX2ltcGwoKSAtPiBOb25lOg0KICAgICIiIumXuOeahCLouqvku73liJci5riF5Y2V5b+F6aG75Y+W6Ieq5a6e546w6YKj5Lu977yM5LiN6K645Zyo5rWL6K+V6YeM5Y+m5oqE5LiA5byg77yI5oqE5LqG5bCx5Lya6ZqP5a6e546w5ryC56e777yJ44CCIiIiDQogICAgcHBwID0gX2xvYWRfcGF5bG9hZF9wcmVwKCkNCiAgICBpbnAgPSBbe2NvbDogIngiIGZvciBjb2wgaW4gTUQuUEFHRVNfSURFTlRJVFlfQ09MVU1OU30gfCB7IuaVsOaNruadpea6kCI6ICLku4Xmh4LovabluJ0ifV0NCiAgICBvdXQgPSBbe2NvbDogIiIgZm9yIGNvbCBpbiBNRC5QQUdFU19JREVOVElUWV9DT0xVTU5TIGlmIGNvbCAhPSAi5pWw5o2u5p2l5rqQIn0NCiAgICAgICAgICAgfCB7IuaVsOaNruadpea6kCI6ICLku4Xmh4LovabluJ0ifV0NCiAgICBfbSwgYmxhbmsgPSBwcHAuc291cmNlX3ByZXNlbmNlX3Byb2JsZW1zKGlucCwgb3V0KQ0KICAgIGNvbHMgPSB7YyBmb3IgYywgX24gaW4gYmxhbmt9DQogICAgYXNzZXJ0IGNvbHMgPT0gc2V0KE1ELlBBR0VTX0lERU5USVRZX0NPTFVNTlMpIC0geyLmlbDmja7mnaXmupAifSwgKA0KICAgICAgICAi5Y+R5biD6Z2i5oqK6Lqr5Lu95YiX5YWo6KOB56m65Y205Y+q5oql5Ye6ICVzIOKHkiDpl7jmsqHot5/nnYDlrp7njrDnmoTpgqPku73muIXljZXotbAiICUgc29ydGVkKGNvbHMpKQ0K
+"""Pages 发布列窄化必须落在**真正喂发布面的那条路径**上（半修探测判据，当前在 main 上必须红）。
+
+**为什么有这一单（监工 2026-10-12 23:10 +08:00 实测，全部可复现）**：
+
+Issue #41 的 NPC 实现（本地分支 `npc/41-pages-columns-narrow`，实装提交 `6192c47`，
+判据 4 passed）在 `scripts/merge_data.py` 里加了 `resolve_pages_columns` / `narrow_pages_rows`，
+并把 `filtered_rows` 收窄后才写 `filtered_cars_${DATE}.json` —— 方向是对的，
+**但它只窄到了 merge_data 自己那个出口**：
+
+1. `.cnb.yml:396-403`（合并与发布数据阶段）紧接着跑
+   `python scripts/preserve_publish_baseline.py --filtered-json filtered_cars_${DATE}.json ...`；
+2. 该脚本 `write_publish_assets`（`scripts/preserve_publish_baseline.py:322-327`）里是：
+   ```python
+   filtered_rows = [row for row in rows if filter_car(row)]   # rows = merged 宽行
+   write_json(staged[filtered_json], filtered_rows)           # 无条件重写
+   write_csv(staged[filtered_csv], filtered_rows, header)     # 无条件重写
+   ```
+   ⇒ merge_data 写出的窄 filtered 文件被**宽行覆盖**；
+3. 之后 `:427-428` `prepare_pages_payload.py` 与 `:484` `prepare_cloudflare_payload.py`
+   才把 `filtered_cars_${DATE}.json` → `site/data/filtered.json` → 前端分片。
+
+⇒ **只在 merge_data 里窄化 = 被下游 preserve 覆盖 = 线上每行仍是 11574 B（实测值）**。
+本判据抓的就是这个"两份写出拷贝只改一份"的半修形状（同 [[feedback-root-cause-then-verify]]
+的"同一文件里的重复字面块只改一份=半修"，这里是跨文件的两份写出拷贝）。
+
+**口径（四条都要成立）**：
+  A. `merge_data.resolve_pages_columns(rows)` 存在，输出 ⊆ `defaultVisibleColumns ∪ 7 身份列`；
+  B. **`preserve_publish_baseline.write_publish_assets(...)` 写出的 `filtered_json` / `filtered_csv`
+     也必须是窄的**（这条才是发布面真口径；只做 A 不做 B = 半修，本判据存在的理由）；
+  C. 收窄不减少行集合（9 行宽夹具过 `filter_car` 后必须仍是 9 行）；
+  D. `merged_json` / `merged_csv`（latest 全量面）仍然带全部列——收列不许收掉全量产物。
+"""
+
+from __future__ import annotations
+
+import csv
+import importlib.util
+import json
+import pathlib
+import tempfile
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+CONFIG = json.loads((ROOT / "config" / "filter_conditions.json").read_text(encoding="utf-8"))
+VISIBLE = [str(c) for c in (CONFIG.get("defaultVisibleColumns") or [])]
+
+
+def test_identity_columns_are_declared_once() -> None:
+    """本判据的身份列必须就是实现的那一份（同源），且发布面的列集合不得越界。"""
+    from importlib import reload  # noqa: F401  (仅为可读性；不 reload)
+    assert IDENTITY == tuple(MD.PAGES_IDENTITY_COLUMNS), "判据里的身份列与实现不是同一份"
+    rows = _rows(3)
+    cols = set(MD.resolve_pages_columns(rows))
+    assert cols <= ALLOWED, "窄化后的列越界（不在 默认可见列 ∪ 身份列 里）：%s" % sorted(cols - ALLOWED)
+
+
+def _load(name: str, rel: str):
+    spec = importlib.util.spec_from_file_location(name, ROOT / rel)
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except SystemExit:  # 模块级 CLI 守卫
+        pass
+    return module
+
+
+MD = _load("merge_data", "scripts/merge_data.py")
+PPB = _load("preserve_publish_baseline", "scripts/preserve_publish_baseline.py")
+
+# 评审 S3：身份列**不许在本判据里另抄一份**（以前写死 7 列，实现加了第 8 列后判据就与实现脱钩，
+# 越界没人报）。必须等 MD 装载完再取，所以放在这里而不是文件顶部常量区。
+IDENTITY = tuple(MD.PAGES_IDENTITY_COLUMNS)
+ALLOWED = set(VISIBLE) | set(IDENTITY)
+
+
+def _wide_row(i: int) -> dict:
+    row = {
+        "品牌": "测试品牌", "车系": "测试车系%d" % i, "车型名称": "测试车型 %d" % i,
+        "年款": "2026", "车系ID": str(i), "数据来源": "仅汽车之家", "车款ID": str(1000 + i),
+        "能源类型": "纯电动", "官方指导价": "30.00万", "上市时间": "2026-03",
+    }
+    for n in range(400):
+        row["伪造属性列%d" % n] = "值%d" % (i % 7)
+    return row
+
+
+def _rows(n: int = 9) -> list:
+    return [_wide_row(i) for i in range(n)]
+
+
+def test_default_visible_set_is_declared_and_non_trivial() -> None:
+    assert len(VISIBLE) >= 20, (
+        "config/filter_conditions.json 的 defaultVisibleColumns 只有 %d 条 ⇒ 判『读不到』，"
+        "不许据此判列窄通过（清单被清空会让任何实现都『达标』）" % len(VISIBLE))
+
+
+def test_merge_data_resolver_exists() -> None:
+    assert hasattr(MD, "resolve_pages_columns"), (
+        "merge_data.py 里没有 resolve_pages_columns(rows)：发布列集合无处收敛，"
+        "现网实测 filtered 仍是 1205 列 / 每行 11574 B")
+
+
+def test_merge_data_resolver_stays_inside_declared_set() -> None:
+    if not hasattr(MD, "resolve_pages_columns"):
+        assert False, "merge_data.py 没有 resolve_pages_columns(rows)，无法核对发布列集合（见上一条）"
+    cols = list(MD.resolve_pages_columns(_rows(12)))
+    extra = [c for c in cols if c not in ALLOWED]
+    assert not extra, "发布列越出仓库声明的默认可见集合（+7 身份列）：越界 %d 个，例 %s" % (len(extra), extra[:6])
+    assert len(cols) <= len(VISIBLE) + 8, (
+        "发布列 %d 超过默认可见 %d + 容差 8 ⇒ 每行载荷会远超 1000 B 预算" % (len(cols), len(VISIBLE)))
+
+
+def test_preserve_write_publish_assets_output_is_narrow(tmp_path) -> None:
+    """B 条（本判据的核心）：preserve_publish_baseline 写出的 filtered 产物必须是窄的。
+
+    只改 merge_data 不改这里 = 被 :322-327 无条件重写 = 线上不变（半修）。
+    """
+    rows = _rows(9)
+    merged_json = tmp_path / "merged_20261012.json"
+    merged_csv = tmp_path / "merged_20261012.csv"
+    filtered_json = tmp_path / "filtered_cars_20261012.json"
+    filtered_csv = tmp_path / "filtered_cars_20261012.csv"
+    PPB.write_publish_assets(rows, merged_json, merged_csv, filtered_json, filtered_csv)
+
+    written = json.loads(filtered_json.read_text(encoding="utf-8"))
+    assert isinstance(written, list) and written, "preserve 写出的 filtered_json 不是非空行数组"
+    keys = set()
+    for row in written:
+        keys.update(str(k) for k in row.keys())
+    extra = sorted(keys - ALLOWED)
+    assert not extra, (
+        "preserve_publish_baseline.write_publish_assets 写出的 filtered_json 仍带 %d 个越界列"
+        "（例 %s）：这正是覆盖 merge_data 窄化、让线上每行保持 11574 B 的那一份写出拷贝"
+        % (len(extra), extra[:6]))
+
+    with filtered_csv.open("r", encoding="utf-8-sig", newline="") as fh:
+        header = next(csv.reader(fh))
+    csv_extra = [c for c in header if c not in ALLOWED]
+    assert not csv_extra, (
+        "preserve 写出的 filtered_csv 表头仍带越界列（例 %s）：前端/导出面与 JSON 分片会读到宽表"
+        % csv_extra[:6])
+
+
+def test_narrowing_does_not_drop_rows() -> None:
+    rows = _rows(9)
+    kept = [r for r in rows if MD.filter_car(dict(r))]
+    assert len(kept) == len(rows), (
+        "收窄列把行也吃掉了（%d→%d）：行全是 #32 的口径，列窄不许拿它交换" % (len(rows), len(kept)))
+
+
+def test_full_data_outputs_still_wide(tmp_path) -> None:
+    """D 条：merged（latest 全量面）仍然带全部列——收列不许收掉全量产物。"""
+    rows = _rows(3)
+    merged_json = tmp_path / "merged_20261012.json"
+    merged_csv = tmp_path / "merged_20261012.csv"
+    filtered_json = tmp_path / "filtered_cars_20261012.json"
+    filtered_csv = tmp_path / "filtered_cars_20261012.csv"
+    PPB.write_publish_assets(rows, merged_json, merged_csv, filtered_json, filtered_csv)
+    written = json.loads(merged_json.read_text(encoding="utf-8"))
+    keys = set()
+    for row in written:
+        keys.update(str(k) for k in row.keys())
+    assert len(keys) > len(ALLOWED), (
+        "merged_json 只剩 %d 列 ⇒ 全量面被一起收窄，那是丢数据不是收列" % len(keys))
+
+
+PP = _load("prepare_pages_payload", "scripts/prepare_pages_payload.py")
+
+
+def _yiche_row(i: int) -> dict:
+    row = _wide_row(i)
+    row["数据来源"] = "懂车帝+易车"
+    row["易车上市状态"] = "approved"
+    return row
+
+
+def test_j1_gate_read_columns_must_survive_narrowing() -> None:
+    """J1 不变式：发布门禁要读的列必须活过 `narrow_pages_rows`。
+
+    实测反例（监工 2026-10-16，现网发布面包裹 19382 行）：`易车上市状态` 在
+    `IDENTITY_ONLY_FIELDS`（merge_data.py:8185）里却不在 `PAGES_IDENTITY_COLUMNS`
+    （:15546）里 ⇒ 被窄掉后 `yiche_publish_identity_valid` 的 `status == "approved"`
+    恒假，**每一轮把 5069 条含易车标签的行整源删掉**，而 `stats` 里一个非零计数都没有
+    （那条 `continue` 没有计数器）。
+    """
+    assert "易车上市状态" in MD.PAGES_IDENTITY_COLUMNS, (
+        "发布门禁读的列没进身份列 ⇒ narrow 会把它裁掉，下游必然误杀整源")
+    rows = [_yiche_row(i) for i in range(3)]
+    narrowed = MD.narrow_pages_rows([dict(r) for r in rows])
+    for row in narrowed:
+        assert row.get("易车上市状态") == "approved", (
+            "narrow 之后状态列没了 ⇒ 门禁读不到只能判不合格：%r" % sorted(row.keys()))
+    out, stats = PP.prepare_rows_with_stats([dict(r) for r in narrowed], 2022)
+    assert len(out) == 3, "带 approved 的易车行被发布门禁丢弃：剩 %d 行，分账=%s" % (
+        len(out), stats.get("dropBySource"))
+
+
+def test_j2_stopped_yiche_row_is_dropped_and_named() -> None:
+    """J2 反向：保护必须真会触发——状态不是 approved 的易车行必须被丢，且按源点名。"""
+    bad = _yiche_row(7)
+    bad["易车上市状态"] = "停售"
+    out, stats = PP.prepare_rows_with_stats([dict(bad)], 2022)
+    assert out == [], "停售的易车行竟然发布出去了"
+    by_src = stats.get("dropBySource") or {}
+    assert any(v.get("易车") for v in by_src.values()), (
+        "删了行却没有按源的分账 ⇒ 下一轮整源消失照样没人看得见：%s" % sorted(stats))
+
+
+def test_j3_gate_fields_and_published_columns_stay_consistent() -> None:
+    """J3 一致性：门禁读的字段必须都在「默认可见列 ∪ 发布身份列」里（两份字面块不许各说各话）。"""
+    gate_fields = {"易车上市状态", "车款ID", "车系", "品牌", "车型名称", "年款", "数据来源"}
+    allowed = set(VISIBLE) | set(MD.PAGES_IDENTITY_COLUMNS)
+    missing = gate_fields - allowed
+    assert not missing, "门禁要读的列没进发布身份列，窄化后必然误杀：%s" % sorted(missing)
+
+
+def _load_payload_prep():
+    spec = importlib.util.spec_from_file_location(
+        "ppp_presence", str(ROOT / "scripts" / "prepare_pages_payload.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_source_presence_gate_blocks_a_lost_source_and_a_blanked_identity_column() -> None:
+    """发布前"逐源在位"闸必须双向：整源没了要拦，身份列被裁空也要拦；都齐时不得挡路。
+
+    为什么要钉在仓库里：10-18 现网 `latest` 有易车 5123 行、`filtered` 0 行，
+    而发布链**照样绿、照样上线**——因为没人问"每个源还在不在"。
+    根因是窄化把 `易车上市状态` 裁掉 ⇒ 下游身份闸永远读到空 ⇒ 整源被删且无计数。
+    所以这一条同时看两件事，且**红就拒绝写出发布面**。
+    """
+    ppp = _load_payload_prep()
+    inp = [
+        {"数据来源": "仅懂车帝", "品牌": "甲", "车系": "甲系", "车型名称": "甲系 2026款 风",
+         "年款": "2026", "车系ID": "1", "车款ID": "D1"},
+        {"数据来源": "仅易车", "品牌": "乙", "车系": "乙系", "车型名称": "乙系 2026款 云",
+         "年款": "2026", "车系ID": "2", "车款ID": "Y1", "易车上市状态": "approved"},
+    ]
+    # 绿：两个源都在、身份列都活着
+    assert ppp.source_presence_problems(inp, [dict(r) for r in inp]) == ([], [])
+    # 红 1：易车整面丢失
+    missing, _ = ppp.source_presence_problems(inp, [dict(inp[0])])
+    assert any(s == "易车" for s, _i, _o in missing), "整源丢失没被拦住"
+    # 红 2：易车行还在，但身份列 `易车上市状态` 被裁成空列
+    stripped = [{k: v for k, v in r.items() if k != "易车上市状态"} for r in inp]
+    _m, blank = ppp.source_presence_problems(inp, stripped)
+    assert any(c == "易车上市状态" for c, _n in blank), "身份列被裁空没被拦住"
+
+
+def test_source_presence_gate_uses_the_same_identity_declaration_as_the_impl() -> None:
+    """闸的"身份列"清单必须取自实现那份，不许在测试里另抄一张（抄了就会随实现漂移）。"""
+    ppp = _load_payload_prep()
+    inp = [{col: "x" for col in MD.PAGES_IDENTITY_COLUMNS} | {"数据来源": "仅懂车帝"}]
+    out = [{col: "" for col in MD.PAGES_IDENTITY_COLUMNS if col != "数据来源"}
+           | {"数据来源": "仅懂车帝"}]
+    _m, blank = ppp.source_presence_problems(inp, out)
+    cols = {c for c, _n in blank}
+    assert cols == set(MD.PAGES_IDENTITY_COLUMNS) - {"数据来源"}, (
+        "发布面把身份列全裁空却只报出 %s ⇒ 闸没跟着实现的那份清单走" % sorted(cols))
