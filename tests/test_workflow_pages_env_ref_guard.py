@@ -258,6 +258,38 @@ def triggers(text):
     return on or {}
 
 
+UNLISTED_EVENT = "未列事件"
+
+
+def ref_kind(ref):
+    """**前缀式**判 ref 形状：平台分配 github-pages 环境看的是 ref 的前缀，不是事件名。
+
+    `refs/heads/<分支>` / `refs/tags/<标签>` / `refs/pull/<n>/<merge|head>`；认不出前缀 ⇒ None
+    （None 一律按"可能不是默认分支"处理，不当成安全）。写成精确字符串比较的话，
+    队列 ref（`refs/heads/gh-readonly-queue/...`）与未来的新形状都会掉进"不等于 main ⇒ 违规"
+    或者"看着像 main ⇒ 放过"这两个错方向之一。
+    """
+    r = str(ref or "")
+    for pre, kind in (("refs/heads/", "heads"), ("refs/tags/", "tags"), ("refs/pull/", "pull")):
+        if r.startswith(pre):
+            return kind, r[len(pre):]
+    return None, r
+
+
+def is_default_branch_ref(ref, default="main"):
+    kind, tail = ref_kind(ref)
+    return kind == "heads" and tail == default
+
+
+PINNED_RE = (r"github\.ref\s*==\s*['\"]refs/heads/main['\"]|"
+             r"startsWith\(\s*github\.ref\s*,\s*['\"]refs/heads/main['\"]\s*\)")
+
+
+def is_ref_pinned_to_default(cond):
+    """条件里是否**按 ref 前缀钉死了默认分支**（这是唯一能覆盖未知触发口的合规写法）。"""
+    return bool(re.search(PINNED_RE, str(cond or "")))
+
+
 # 风险场景的**唯一清单**：`on:` 里的键 → 这个键真能把 run 放到的 ref 形状场景。
 # 两族评审连续两轮都栽在"我把不变量写在散文里，清单却是手抄的"（v2.3 漏 pull_request_review 系、
 # v2.3b 漏 workflow_call ⇒ 手抄的 8 格钉子恰好没盖住没修好的那一格）。
@@ -274,13 +306,44 @@ ON_TO_SCENARIOS = {
     # 选到 tag、或选/跟到一条非默认分支。只摆 tag 那一格是 v2.3b 被点名的窄门。
     "workflow_dispatch": ("dispatch_ref", "dispatch_branch"),
     "workflow_call": ("workflow_call_tag", "workflow_call_branch"),
+    # v2.4 补的四格：官方事件表里还有四个口的 ref 也不是默认分支，v2.3 的枚举没盖到。
+    "pull_request_target": ("pull_request_target",),
+    "deployment": ("deployment_ref",),
+    "deployment_status": ("deployment_status_ref",),
+    "check_run": ("check_run_ref",),
+    "check_suite": ("check_suite_ref",),
+    "delete": ("delete_ref",),
 }
+# 官方"能触发工作流的事件"全表（docs.github.com/en/actions/using-workflows/events-that-trigger-workflows，
+# 2026-10-22 联网取的 33 个名字）。这张表的用途不是"再列一遍风险口"，而是**闭集**：
+# `on:` 里出现不在表里的键 ⇒ 要么是新事件、要么是拼错，两种都不许被读成"没有风险口"。
+KNOWN_EVENTS = (
+    "branch_protection_rule", "check_run", "check_suite", "create", "delete", "deployment",
+    "deployment_status", "discussion", "discussion_comment", "fork", "gollum", "image_version",
+    "issue_comment", "issues", "label", "merge_group", "milestone", "page_build", "public",
+    "pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_target",
+    "push", "registry_package", "release", "repository_dispatch", "schedule", "status", "watch",
+    "workflow_call", "workflow_dispatch", "workflow_run",
+)
+# 这些口的 run 按官方语义就落在**默认分支** ref 上 ⇒ 不构成"非默认分支 ref"风险；
+# 但它们在 KNOWN_EVENTS 里，所以不会被上面那条"未列事件"规则误伤。
+DEFAULT_BRANCH_ONLY_EVENTS = (
+    "branch_protection_rule", "discussion", "discussion_comment", "fork", "gollum",
+    "image_version", "issue_comment", "issues", "label", "milestone", "page_build", "public",
+    "registry_package", "repository_dispatch", "schedule", "status", "watch", "workflow_run",
+)
+# 未建模 / 名字不认识的事件：不猜它的 ref，改成**只认"按 ref 钉死默认分支"这一种合规写法**（见下）。
 ALL_SCENARIOS = ("release", "create", "push_tag",
                  "dispatch_ref", "dispatch_branch",
                  "pull_request", "pull_request_review", "pull_request_review_comment",
-                 "merge_group", "workflow_call_tag", "workflow_call_branch")
-TAGISH = ("release", "create", "push_tag", "dispatch_ref", "workflow_call_tag")
-PULLISH = ("pull_request", "pull_request_review", "pull_request_review_comment")
+                 "pull_request_target", "merge_group", "workflow_call_tag", "workflow_call_branch",
+                 "deployment_ref", "deployment_status_ref", "check_run_ref", "check_suite_ref",
+                 "delete_ref", UNLISTED_EVENT)
+TAGISH = ("release", "create", "push_tag", "dispatch_ref", "workflow_call_tag",
+          "delete_ref", "deployment_ref", "deployment_status_ref",
+          "check_run_ref", "check_suite_ref")
+PULLISH = ("pull_request", "pull_request_review", "pull_request_review_comment",
+           "pull_request_target")
 OTHER_BRANCHISH = ("dispatch_branch", "workflow_call_branch")
 
 
@@ -313,7 +376,23 @@ def non_default_ref_events(text):
             only_main = bool(br) and sorted(str(x) for x in (br if isinstance(br, list) else [br])) == ["main"]
             if tags or p.get("branches-ignore") or p.get("tags-ignore") or not only_main:
                 ev.add("push_tag")
+    if unmodeled_triggers(text):
+        # fail-closed：不认识/没建模的口不许被读成"没有风险口"。这一格不猜 ref，
+        # 只要求 job 自己按 ref 钉死默认分支（见主判据里对 UNLISTED_EVENT 的特判）。
+        ev.add(UNLISTED_EVENT)
     return ev
+
+
+def unmodeled_triggers(text):
+    """`on:` 里既不在官方事件表、也没进风险清单/默认分支清单的键（拼错或新事件都算）。"""
+    on = triggers(text)
+    bad = []
+    for key in on:
+        k = str(key)
+        if k == "push" or k in ON_TO_SCENARIOS or k in DEFAULT_BRANCH_ONLY_EVENTS:
+            continue
+        bad.append(k if k in KNOWN_EVENTS else k + "（不在官方事件表里）")
+    return sorted(bad)
 
 
 def event_ctx(event, tag):
@@ -330,7 +409,9 @@ def event_ctx(event, tag):
     """
     tagish = event in TAGISH
     pullish = event in PULLISH
-    if tagish:
+    if event == UNLISTED_EVENT:
+        ref = UNKNOWN          # 没建模的口**不猜 ref**：未知 ⇒ 一律按"可能落在非默认分支"处理
+    elif tagish:
         ref = "refs/tags/" + tag
     elif pullish:
         ref = "refs/pull/7/merge"
@@ -349,7 +430,10 @@ def event_ctx(event, tag):
     gh = {
         "event_name": {"push_tag": "push",
                        "dispatch_ref": "workflow_dispatch", "dispatch_branch": "workflow_dispatch",
-                       "workflow_call_tag": "workflow_call", "workflow_call_branch": "workflow_call"
+                       "workflow_call_tag": "workflow_call", "workflow_call_branch": "workflow_call",
+                       "delete_ref": "delete", "deployment_ref": "deployment",
+                       "deployment_status_ref": "deployment_status",
+                       "check_run_ref": "check_run", "check_suite_ref": "check_suite",
                        }.get(event, event),
         "ref_type": "tag" if tagish else "branch",
         "ref": ref,
@@ -383,6 +467,18 @@ def job_runs_for_event(condition, event):
     return any(may_run(expr, event_ctx(event, tag)) for tag in RELEASE_TAGS)
 
 
+def event_offends(condition, event):
+    """某个触发口下，这个 Pages job 会不会在非默认分支 ref 上跑起来。
+
+    已建模的口：按 payload 求值。`未列事件`：**不猜 ref，只认合规写法**——
+    没把 job 的 ref 钉死到默认分支就是违规；钉死了就与"这个口会把 run 放到哪"无关。
+    这样 fail-closed 不会变成不可满足（现网三条链都已钉死 ⇒ 不会因为将来多一个新事件就永远红）。
+    """
+    if event == UNLISTED_EVENT:
+        return not is_ref_pinned_to_default(condition)
+    return job_runs_for_event(condition, event)
+
+
 @pytest.mark.parametrize("path", sorted(WORKFLOWS.glob("*.yml")))
 def test_no_github_pages_job_can_run_off_the_default_branch(path):
     text = path.read_text(encoding="utf-8")
@@ -393,12 +489,14 @@ def test_no_github_pages_job_can_run_off_the_default_branch(path):
         pytest.skip("该 workflow 的触发口不会产生非默认分支 ref：%s" % sorted(triggers(text)))
     offenders = {}
     for name, cond in pages_jobs(text):
-        bad = sorted(e for e in risky if job_runs_for_event(cond, e))
+        bad = sorted(e for e in risky if event_offends(cond, e))
         if bad:
             offenders[name] = bad
     assert not offenders, ("%s 的 job %s 在非默认分支 ref（tag/refs/pull）上仍会去 github-pages 环境部署；"
                            "该环境设了 branch_policy ⇒ 分配阶段即失败（0 步骤、无日志、无自愈票）"
-                           % (path.name, offenders))
+                           % (path.name, offenders)
+                           + ("｜未列/拼错的触发口=%s" % unmodeled_triggers(text)
+                              if UNLISTED_EVENT in risky else ""))
 
 
 TRIGGER_SAMPLES = {
@@ -460,7 +558,7 @@ def test_landed_pages_workflows_are_clean_under_the_widened_yard(fname):
     live = (WORKFLOWS / fname).read_text(encoding="utf-8")
     risky = non_default_ref_events(live)
     assert "dispatch_ref" in risky, "%s 可被 dispatch 到任意 ref，尺却没看见 ⇒ 放水" % fname
-    offenders = {n: [e for e in risky if job_runs_for_event(c, e)] for n, c in pages_jobs(live)}
+    offenders = {n: [e for e in risky if event_offends(c, e)] for n, c in pages_jobs(live)}
     assert not any(offenders.values()), "%s 的 job %s 仍会在 %s 上跑 Pages 部署" % (
         fname, sorted(offenders), sorted(risky))
 
@@ -472,9 +570,19 @@ TRIGGER_SAMPLES.update({
     "push_branches_multi": "on:" + NL + "  push:" + NL + "    branches: [main, 'feature/*']",
     "merge_group": "on:" + NL + "  merge_group",
     "workflow_call": "on:" + NL + "  workflow_call",
+    # v2.4 新增：pull_request_target 与 pull_request 同 refs/pull/N/merge（v2.3b 把它记进"安全口"是错的）；
+    # deployment / deployment_status / check_run / check_suite / delete 的 ref 由负载决定，同样不是默认分支。
+    "pull_request_target": "on:" + NL + "  pull_request_target:" + NL + "    types: [closed]",
+    "deployment_ref": "on:" + NL + "  deployment:",
+    "deployment_status_ref": "on:" + NL + "  deployment_status:",
+    "check_run_ref": "on:" + NL + "  check_run:" + NL + "    types: [requested_actions]",
+    "check_suite_ref": "on:" + NL + "  check_suite:" + NL + "    types: [completed]",
+    "delete_ref": "on:" + NL + "  delete:",
+    UNLISTED_EVENT: "on:" + NL + "  not_a_real_event:",
 })
-SAFE_SAMPLES["workflow_run"] = "on:" + NL + "  workflow_run:" + NL + "    workflows: ['x']" + NL + "    types: [completed]"
-SAFE_SAMPLES["pull_request_target"] = "on:" + NL + "  pull_request_target:" + NL + "    types: [closed]"
+SAFE_SAMPLES["workflow_run"] = ("on:" + NL + "  workflow_run:" + NL +
+                                "    workflows: ['x']" + NL + "    types: [completed]")
+SAFE_SAMPLES["schedule_only"] = "on:" + NL + "  schedule:" + NL + "    - cron: '7 3 * * *'"
 
 
 def test_every_added_trigger_class_is_caught():
@@ -498,7 +606,12 @@ def test_push_with_non_main_branches_is_also_off_default_ref():
 def test_workflow_run_is_not_counted_as_risk():
     """官方 GITHUB_REF=默认分支：把它算进风险口会造假红（hy4 票实测出来的"过"）。"""
     assert "workflow_run" not in non_default_ref_events(BODY % SAFE_SAMPLES["workflow_run"])
-    assert "pull_request_target" not in non_default_ref_events(BODY % SAFE_SAMPLES["pull_request_target"])
+    # v2.4 更正 v2.3b 的一格：`pull_request_target` 与 `pull_request` 一样跑在
+    # `refs/pull/N/merge` 上（GitHub 事件表：该口的 workflow 取自 base 默认分支，但 run 的 ref 是 PR 合并 ref），
+    # 记成"安全口"等于把 Pages job 放在一个必然过不了 branch_policy 的 ref 上。
+    ev = non_default_ref_events(BODY % TRIGGER_SAMPLES["pull_request_target"])
+    assert "pull_request_target" in ev, "pull_request_target 被当安全口 ⇒ 尺放水：%s" % sorted(ev)
+    assert event_ctx("pull_request_target", "v1")["github"]["ref"] == "refs/pull/7/merge"
 
 
 def test_unknown_payload_and_case_folding_do_not_turn_red_green():
@@ -624,8 +737,14 @@ def test_risk_scenario_list_is_derived_not_hand_copied():
     declared.append("    tags: ['**']")
     text = BODY % NL.join(declared)
     got = non_default_ref_events(text)
-    assert got == set(ALL_SCENARIOS), "表与派生出来的风险集合不一致 ⇒ 少了 %s / 多了 %s" % (
-        sorted(set(ALL_SCENARIOS) - got), sorted(got - set(ALL_SCENARIOS)))
+    want = set(ALL_SCENARIOS) - {UNLISTED_EVENT}   # 未列事件只能由"表外的键"派生，不能凭空出现
+    assert got == want, "表与派生出来的风险集合不一致 ⇒ 少了 %s / 多了 %s" % (
+        sorted(want - got), sorted(got - want))
+    # 反向那一半（v2.4 新增）：混进一个**不在官方事件表里**的键 ⇒ 必须恰好多出"未列事件"，
+    # 已建模的口一个都不许掉（不许因为来了新键就把旧的判据冲掉）。
+    got2 = non_default_ref_events(BODY % (NL.join(declared) + NL + "  not_a_real_event:"))
+    assert got2 == want | {UNLISTED_EVENT}, "未列事件没被 fail-closed，或把已建模的口冲掉了：%s" % sorted(got2)
+    assert unmodeled_triggers(BODY % (NL.join(declared) + NL + "  not_a_real_event:")) == ["not_a_real_event（不在官方事件表里）"]
 
 
 def test_every_risk_scenario_leaves_head_branch_unmodeled():
@@ -635,4 +754,35 @@ def test_every_risk_scenario_leaves_head_branch_unmodeled():
         assert "head_branch" not in gh, "%s 仍被填了具体 head_branch=%r ⇒ 假绿通道" % (
             event, gh.get("head_branch"))
         assert gh["ref"] != "refs/heads/main", "%s 的 ref 必须是某种**非默认**形状，否则这条判据不会咬" % event
+
+
+def test_unlisted_event_fails_closed_but_pinning_is_satisfiable():
+    """未列事件这一格必须**双向**：没按 ref 钉死 ⇒ 红；钉死默认分支 ⇒ 绿。
+
+    只写前一半会把守卫改成"将来一旦出现新事件就永远红"（不可满足的判据，本店犯过两次）；
+    只写后一半则这一格是空判据。
+    """
+    text = BODY % TRIGGER_SAMPLES[UNLISTED_EVENT]
+    assert UNLISTED_EVENT in non_default_ref_events(text)
+    assert [n for n, c in pages_jobs(text) if event_offends(c, UNLISTED_EVENT)] == ["deploy"], "未列事件没把闸闭上"
+    pin = "    if: ${{ github.ref == 'refs/heads/main' }}" + NL + "    runs-on: ubuntu-latest"
+    pinned = text.replace("    runs-on: ubuntu-latest", pin)
+    assert not [n for n, c in pages_jobs(pinned) if event_offends(c, UNLISTED_EVENT)], \
+        "已按 ref 钉死默认分支还判红 ⇒ 这条判据不可满足"
+    starts = ("    if: ${{ startsWith(github.ref, 'refs/heads/main') }}" + NL +
+              "    runs-on: ubuntu-latest")
+    assert not [n for n, c in pages_jobs(text.replace("    runs-on: ubuntu-latest", starts))
+                if event_offends(c, UNLISTED_EVENT)], "前缀式钉死也算合规"
+    wrong = ("    if: ${{ github.ref == 'refs/heads/main-release' }}" + NL +
+             "    runs-on: ubuntu-latest")
+    assert [n for n, c in pages_jobs(text.replace("    runs-on: ubuntu-latest", wrong))
+            if event_offends(c, UNLISTED_EVENT)] == ["deploy"], "钉到别的 ref 上不许算合规"
+    hb = "    if: ${{ github.head_branch == 'main' }}" + NL + "    runs-on: ubuntu-latest"
+    assert [n for n, c in pages_jobs(text.replace("    runs-on: ubuntu-latest", hb))
+            if event_offends(c, UNLISTED_EVENT)] == ["deploy"], "按 head_branch 挡不住未知 ref"
+    # 前缀式判据自身的双向：队列 ref / PR ref / tag 都不是默认分支；缺 refs/ 前缀的不认作分支
+    assert not is_default_branch_ref("refs/heads/gh-readonly-queue/main/pr-55-9c3a4f/feature")
+    assert not is_default_branch_ref("refs/pull/7/merge") and not is_default_branch_ref("refs/tags/v1")
+    assert is_default_branch_ref("refs/heads/main") and ref_kind("refs/heads/main") == ("heads", "main")
+    assert ref_kind("heads/main")[0] is None, "缺 refs/ 前缀的写法不许被读成分支 ref"
 

@@ -11,7 +11,7 @@ name: AI Auto Fix Monitor
 
 on:
   workflow_run:
-    workflows: ["重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示"]
+    workflows: ["重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示", "Markdown privacy (candidate)", "Runtime proxy cache guard"]
     types: [completed]
 
 permissions:
