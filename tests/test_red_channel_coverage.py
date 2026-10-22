@@ -227,18 +227,13 @@ def test_unreadable_survives_gbk_stdio(tmp_path):
 
 
 def test_snapshot_names_exist_as_declared_workflows() -> None:
-    """ACTIVE 快照里每个名字都必须真能在 `.github/workflows/*.yml` 的顶层 `name:` 找到。
+    """ACTIVE 快照里每个名字都必须真能在 `.github/workflows/*.yml` 的顶层 `name:` 找到（与覆盖判据共用 `_declared_workflow_names`，`*.yaml` 与行尾注释同口径）。
 
     这条钉的是"快照↔仓内声明"这一层：服务端状态读不到（不许联网），但**名字消失/被改名**
     是纯仓内事实，能判红。上一轮的实际事故是名单与快照不同批改 ⇒ 另一条不变式已经红过；
     这一条补的是另一半：快照里写了个仓里已经不存在的链名（那叫凑数覆盖）。
     """
-    declared = set()
-    for yml in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
-        for line in yml.read_text(encoding="utf-8", errors="replace").splitlines():
-            if line.startswith("name:"):          # 只认顶层 name（job 级的有缩进）
-                declared.add(line.split(":", 1)[1].strip().strip('"').strip("'"))
-                break
+    declared = _declared_workflow_names()
     missing = [n for n in ACTIVE + ["AI Auto Fix Monitor"] if n not in declared]
     assert missing == [], "快照点名了仓内并不存在的工作流名（凑数覆盖）：%s ｜ 仓内顶层 name=%s" % (
         missing, sorted(declared))
