@@ -1,5 +1,7 @@
 # 全局规则
 
+> **隐私占位符说明（候选文档）**：`<WINDOWS_USER_HOME>`、`<OTHER_WINDOWS_USER_HOME>`、`<WINDOWS_PROJECTS_ROOT>`、`<LINUX_USER_HOME>`、`<SERVER_A/B/C>`、`<PROFILE_A/B>`、`<CLOUDFLARE_ACCOUNT_ID>`、`<PRIVATE_OPENCODE_AGENTS_REFERENCE>`、`<PRIVATE_OPENCODE_CONFIG_SOURCE>`、`<PRIVATE_KILOCODE_CONFIG_SOURCE>`、`<PRIVATE_HERMES_CONFIG_SOURCE>`、`<PUBLIC_HERMES_SOURCE_REPO>`、`<CURRENT_PROJECT_REPO>` 都是本文的文字占位符，不是已存在的环境变量、配置键或文件。涉及这些占位符的示例不可直接执行。实际值必须从用户既有、已授权的私有配置或记录核对；无法核对时先询问，禁止猜测、扩大同步范围或创建新映射。本稿未创建或验证任何私有配置，也未修改实际脚本。
+
 ## 配置修改必须验证（关键）
 
 - **改任何软件配置后必须验证是否正确**，包括但不限于：OpenCode+OMO、Hermes-Agent、KiloCode、系统 cron、Git hooks 等
@@ -91,7 +93,7 @@
 - Codex/GPT 写代码时必须排除 ReviewGPT；GPT-5.4 与 GPT-5.5 同属 GPT 家族，不能作为两张独立票。
 - Codex 通过 OpenCode 非交互调用 ReviewGLM、ReviewKimi、ReviewDeepseek、ReviewQwen、ReviewMinimax 等国产角色。
 - OpenCode CLI 不能用 `--agent ReviewGLM` 直接选择 category；应读取 OMO 对应 ReviewXXX 的 `model` / `fallback_models`，用 `opencode run --model ... --format default --dir ...` 依次执行并保存真实结果。
-- 判断 OpenCode 不存在前，必须依次检查 `command -v opencode`、`~/.opencode/bin/opencode` 和 `find /root -name opencode -type f -not -path '*/.git/*'`；PATH 中找不到命令不等于未安装。
+- 判断 OpenCode 不存在前，必须依次检查 `command -v opencode`、`~/.opencode/bin/opencode` 和 `find "<LINUX_USER_HOME>" -name opencode -type f -not -path '*/.git/*'`；PATH 中找不到命令不等于未安装。
 - Codex 每次非交互调用 OpenCode 评审时，必须传入唯一临时 `--title`。评审结束后使用该次运行的精确 OpenCode session ID，把 `session.title` 改为 `评审任务-任务简称-Review角色-结果-时间`，并通过 `opencode db` SELECT 回读验证；PASS、FAIL、待核实、超时和调用失败都必须改名，禁止遗留会挤占交互会话列表的临时标题。
 - **给国产 ReviewXXX 的提示词必须尽可能详细**，至少包含：任务背景、修改目标、完整 diff 或准确文件路径、已验证事实与来源、范围约束、已知风险、预期行为和逐项验收标准；禁止只发送“帮我评审”或缺少变更上下文的短提示。
 - **国产 ReviewXXX 准备判定 FAIL 前必须先联网复核质疑点**：优先查官方文档、官方公告、源码仓库或其它一手来源。只有联网后仍确认当前变更与一手资料冲突，才允许返回 FAIL。
@@ -194,16 +196,16 @@
 - **全局要求必须同步**：AGENTS.md 中的全局要求修改后，立即同步到所有设备家目录 + GitHub 仓库
 - **仓库内配置必须对齐**：涉及 AI 调用的 git 仓库内如果有自己的 config/opencode.json/config/oh-my-openagent.json，必须与全局配置保持一致
 - **同步全局配置后必须同步所有项目目录**：如果某个项目目录有独立的 config/opencode.json，同步全局时必须一并更新，避免出现 TUI 中已禁用的 Provider 又出现
-- **同步全局 AGENTS.md 后必须同步所有项目目录**：`/root/crawl_cars`、`/root/.hermes` 等项目目录如果有自己的 AGENTS.md，用全局最新版本覆盖。同理 E:\Codes 下的所有 repo 也要同步
+- **同步全局 AGENTS.md 后必须同步所有项目目录**：原有授权部署目标中的项目目录（如 `<LINUX_USER_HOME>/crawl_cars`、`<LINUX_USER_HOME>/.hermes`）如果有自己的 AGENTS.md，用全局最新版本覆盖。同理 `<WINDOWS_PROJECTS_ROOT>` 下的所有 repo 也要同步
 - **项目级 AGENTS.md 不能直接覆盖**：先读取目标文件内容，有项目特有规则的部分保留，冲突处以全局为准或询问用户，无冲突处合并
-- **Windows 通过 SSH 运行 OpenCode 时，项目路径会被记录为 Windows 格式**：如 `O:/codes/billiards_tqt` 而非 Linux 路径，这些会话在 Linux 端 OpenCode 重启时会导致 Drizzle 查询错误。解决方案：定期清理 OpenCode 数据库中的无效路径会话，但不能直接删除整个数据库（违反"只改用户要求改的"规则）
+- **Windows 通过 SSH 运行 OpenCode 时，项目路径会被记录为 Windows 格式**：如 `<WINDOWS_PROJECTS_ROOT>/billiards_tqt` 而非 Linux 路径，这些会话在 Linux 端 OpenCode 重启时会导致 Drizzle 查询错误。解决方案：定期清理 OpenCode 数据库中的无效路径会话，但不能直接删除整个数据库（违反"只改用户要求改的"规则）
 
 ## 全局要求同步检查（关键）
 
-- **每个 git 仓库内的 OpenCode 会话，每天首次启动时必须检查远程 AGENTS.md 是否有更新**：对比本地与 GitHub `Fatty911/Personal_commonly_used/ai_tools/opencode/AGENTS.md` 的版本
+- **每个 git 仓库内的 OpenCode 会话，每天首次启动时必须检查远程 AGENTS.md 是否有更新**：对比本地与 `<PRIVATE_OPENCODE_AGENTS_REFERENCE>` 的版本；该占位符仅指原有唯一私有规则源，不得替换为未经授权的新来源。
 - **会话运行期间每半小时检查一次**：`git pull` 或 `webfetch` 远程 AGENTS.md，发现更新立即读取并合并到当前会话上下文
 - **发现远程规则变更立即应用**：不等到下次重启，当前会话内立即按照最新规则行事
-- **不只检查全局仓库**：当前 git 项目如果有自己的远程仓库（如 `Fatty911/crawl_cars`），也要同步检查其 AGENTS.md 是否有更新
+- **不只检查全局仓库**：当前 git 项目如果有自己的远程仓库（如 `<CURRENT_PROJECT_REPO>`），也要同步检查其 AGENTS.md 是否有更新
 
 ## 提交推送与运行监测（关键）
 
@@ -319,7 +321,7 @@
 > - 首批不足 2 张 PASS 时，按免费端点 → Plan → 便宜按量 → 中等按量 → 贵按量的顺序逐个补审；MiMo 按量必须早于 Qwen 按量
 > - 无需再次询问用户，直接执行懒启动评审
 >
-> ⚠️ **服务器资源限制**：当前生产服务器为 2核4G，首批只允许 2 个 Oracle 并行运行。
+> ⚠️ **服务器资源限制**：当前生产服务器的具体资源规格不在公共文档记录；保留原限制：首批只允许 2 个 Oracle 并行运行。
 
 ### 评审结果模型标注（强制）
 
@@ -333,7 +335,7 @@
 
 > **除了提示词层面的规则，Git 层面也强制要求评审：**
 
-**Hook 位置**: `C:\Users\Administrator\.git-hooks\pre-commit`
+**Hook 位置**: `<WINDOWS_USER_HOME>\.git-hooks\pre-commit`
 
 **工作机制**：
 1. 每次 `git commit` 前，hook 检查是否有代码修改（排除 `.md`/`.txt`/`.json` 纯文档）
@@ -356,17 +358,17 @@ SKIP_REVIEW=1 git commit -m "emergency fix"
 > ⚠️ **这是底层强制机制，即使模型忘记提示词规则，Git 也会阻止未评审的代码提交。**
 
 **适用范围**：
-- **Windows (E:\Codes\)**: AI_XR_Relay_familyai, aider, Auto_add_notes_to_WeChat_group_members, AutoBuild_OpenWrt_for_XiaoMi_R4, Badminton-court-management-system, billiards_tqt, crawl_cars, LibreChat, lobe-chat, opencode-stock, Personal_commonly_used, tabby, zbpack_tmp
-- **Windows (C:\Users\)**: Personal_commonly_used, hermes-agent
-- **racknerd**: hermes-agent, AutoBuild_OpenWrt, crawl_cars, LibreChat, lobe-chat, Badminton-court, opencode-stock, /root 主 repo
-- **jstq**: AutoBuild_OpenWrt, billiards_tqt
-- **dmit**: 无 repo，仅安装 mark-review-passed 到 PATH
+- **Windows（项目根目录）**：保持原有授权目标仓库集合不变；具体目录、仓库列表从用户既有的私有配置或记录核对，此处以 `<WINDOWS_PROJECTS_ROOT>` 标记。
+- **Windows（用户目录）**：保持原有授权目标仓库集合不变；具体目录和仓库列表从用户既有的私有配置或记录核对。
+- **`<SERVER_A>`**：保持原有授权目标仓库集合不变；具体仓库与部署目录映射从用户既有的私有配置或记录核对，包括该端用户家目录下的主仓库。
+- **`<SERVER_B>`**：保持原有授权目标仓库集合不变；具体仓库与部署目录映射从用户既有的私有配置或记录核对。
+- **`<SERVER_C>`**：无 repo，仅安装 mark-review-passed 到 PATH；真实主机身份从用户既有的私有配置或记录核对。
 
 ### Git Pre-push Hook 强制单元测试（底层强制）
 
 > **除了评审，Git 层面也强制要求单元测试通过：**
 
-**Hook 位置**: `C:\Users\Administrator\.git-hooks\pre-push`
+**Hook 位置**: `<WINDOWS_USER_HOME>\.git-hooks\pre-push`
 
 **工作机制**：
 1. 每次 `git push` 前，hook 检测项目类型（Node.js/Python/Go/Java）
@@ -403,10 +405,10 @@ SKIP_TESTS=1 git push
 
 | 防线 | 位置 | 强制内容 |
 |------|------|---------|
-| **OMO edit/write/multiedit 评审拦截** | `C:\Users\Administrator\node_modules\oh-my-openagent\dist\index.js` 本地补丁 | 代码文件修改前必须存在 10 分钟内的 `/tmp/.review_passed_*` 标记；`.md/.txt/.json` 豁免 |
+| **OMO edit/write/multiedit 评审拦截** | `<WINDOWS_USER_HOME>\node_modules\oh-my-openagent\dist\index.js` 本地补丁 | 代码文件修改前必须存在 10 分钟内的 `/tmp/.review_passed_*` 标记；`.md/.txt/.json` 豁免 |
 | **runtime_fallback 静默成功检测** | `oh-my-openagent` 本地补丁 + `config/oh-my-openagent.json` | DeepSeek 类 provider 如果 `finish=stop` 但无可见输出/0 output token，则转成 retryable failure 进入 fallback |
-| **pre-commit** | `C:\Users\Administrator\.git-hooks\pre-commit` | 代码提交前必须存在 5 分钟内的评审标记 |
-| **pre-push** | `C:\Users\Administrator\.git-hooks\pre-push` | 推送前运行项目测试 |
+| **pre-commit** | `<WINDOWS_USER_HOME>\.git-hooks\pre-commit` | 代码提交前必须存在 5 分钟内的评审标记 |
+| **pre-push** | `<WINDOWS_USER_HOME>\.git-hooks\pre-push` | 推送前运行项目测试 |
 
 ### 评审强制机制（edit/write 前硬阻断）
 
@@ -473,37 +475,37 @@ pre-commit hook 检查流程:
 
 只要涉及到配置模型，以下所有位置必须同步改写，无一例外：
 
-> ⚠️ **盘符规则**：Windows10 和 Windows11 双系统，各自启动后自己的系统盘都是 C:，另一个系统盘都是 D:。同步时始终用 C: → D:（当前系统推送到另一系统），无需关心当前是哪个系统。
+> ⚠️ **跨系统盘符规则**：按既有授权映射区分当前启动系统与另一系统；同步方向始终是当前系统 → 另一系统。真实盘符和系统版本不在公共文档记录；不得仅凭示例猜测目标。
 >
-> ⚠️ **使用习惯**：用户习惯右键点击开始菜单运行终端，终端默认运行在用户家目录（`C:\Users\Administrator`）。因此用户可能在任意一个 Windows 系统的 Administrator 目录下运行 OpenCode、配置 OpenCode+OMO。配置文件实际位置取决于当前启动的系统盘符。
+> ⚠️ **启动目录与配置定位**：终端当前目录可能是用户家目录，不能据此推断配置根目录；OpenCode、OpenCode+OMO 的配置位置应按当前启动系统的既有配置核对。本文不记录个人终端启动习惯或用户名。
 
-1. **本机 opencode 配置**: `C:\Users\Administrator\.config\opencode\config/opencode.json`
-2. **本机 OMO 插件配置**: `C:\Users\Administrator\.config\opencode\config/oh-my-openagent.json`
-3. **本机 auth 配置**: `C:\Users\Administrator\.local\share\opencode\auth.json`
-4. **另一系统 opencode 配置**: `D:\Users\Administrator\.config\opencode\config/opencode.json`
-5. **另一系统 OMO 插件配置**: `D:\Users\Administrator\.config\opencode\config/oh-my-openagent.json`
-6. **另一系统 auth 配置**: `D:\Users\Administrator\.local\share\opencode\auth.json`
-7. **本机 KiloCode 配置**: `C:\Users\Administrator\AppData\Roaming\kilo\kilo.json`
+1. **本机 opencode 配置**: `<WINDOWS_USER_HOME>\.config\opencode\config/opencode.json`
+2. **本机 OMO 插件配置**: `<WINDOWS_USER_HOME>\.config\opencode\config/oh-my-openagent.json`
+3. **本机 auth 配置**: `<WINDOWS_USER_HOME>\.local\share\opencode\auth.json`
+4. **另一系统 opencode 配置**: `<OTHER_WINDOWS_USER_HOME>\.config\opencode\config/opencode.json`
+5. **另一系统 OMO 插件配置**: `<OTHER_WINDOWS_USER_HOME>\.config\opencode\config/oh-my-openagent.json`
+6. **另一系统 auth 配置**: `<OTHER_WINDOWS_USER_HOME>\.local\share\opencode\auth.json`
+7. **本机 KiloCode 配置**: `<WINDOWS_USER_HOME>\AppData\Roaming\kilo\kilo.json`
 8. **GitHub 所有涉及 AI 调用的仓库**:
-   - `Fatty911/Personal_commonly_used/ai_tools/opencode/`
-   - `Fatty911/Personal_commonly_used/ai_tools/KiloCode/`
-   - `Fatty911/Personal_commonly_used/ai_tools/hermes-agent/`
+   - `<PRIVATE_OPENCODE_CONFIG_SOURCE>`
+   - `<PRIVATE_KILOCODE_CONFIG_SOURCE>`
+   - `<PRIVATE_HERMES_CONFIG_SOURCE>`
 
-> ⚠️ **Hermes 仓库边界**：`Fatty911/hermes-agent` 仅用于向上游提交源码 PR，禁止写入或同步任何个人 AGENT 配置、全局规则、认证或运行端配置。Hermes 个人配置的唯一 Git 版本源是私有仓库 `Fatty911/Personal_commonly_used/ai_tools/hermes-agent/`；运行端只部署到 `/root/.hermes/`，不得覆盖 `/root/.hermes/hermes-agent/` 源码 checkout 中的文件。
-9. **远程服务器 root@racknerd.jiucai.eu.org**:
-   - `/root/.config/opencode/config/opencode.json`
-   - `/root/.config/opencode/config/oh-my-openagent.json`
-   - `/root/.local/share/opencode/auth.json`
-   - `/root/.hermes/config.yaml`
-   - `/root/.hermes/auth.json`
-10. **远程服务器 root@jstq.com.cn**:
-    - `/root/.config/opencode/config/opencode.json`
-    - `/root/.config/opencode/config/oh-my-openagent.json`
-    - `/root/.local/share/opencode/auth.json`
-11. **远程服务器 root@dmit.jiucai.eu.org**:
-    - `/root/.config/opencode/config/opencode.json`
-    - `/root/.config/opencode/config/oh-my-openagent.json`
-    - `/root/.local/share/opencode/auth.json`
+> ⚠️ **Hermes 仓库边界**：`<PUBLIC_HERMES_SOURCE_REPO>` 仅用于向上游提交源码 PR，禁止写入或同步任何个人 AGENT 配置、全局规则、认证或运行端配置。Hermes 个人配置的唯一 Git 版本源仍是 `<PRIVATE_HERMES_CONFIG_SOURCE>`（原有私有配置基线中的 Hermes 配置源，禁止改换来源）；运行端只部署到 `<LINUX_USER_HOME>/.hermes/`，不得覆盖 `<LINUX_USER_HOME>/.hermes/hermes-agent/` 源码 checkout 中的文件。
+9. **远程服务器 `<SERVER_A>`**（登录目标从既有授权私有配置核对）:
+   - `<LINUX_USER_HOME>/.config/opencode/config/opencode.json`
+   - `<LINUX_USER_HOME>/.config/opencode/config/oh-my-openagent.json`
+   - `<LINUX_USER_HOME>/.local/share/opencode/auth.json`
+   - `<LINUX_USER_HOME>/.hermes/config.yaml`
+   - `<LINUX_USER_HOME>/.hermes/auth.json`
+10. **远程服务器 `<SERVER_B>`**（登录目标从既有授权私有配置核对）:
+    - `<LINUX_USER_HOME>/.config/opencode/config/opencode.json`
+    - `<LINUX_USER_HOME>/.config/opencode/config/oh-my-openagent.json`
+    - `<LINUX_USER_HOME>/.local/share/opencode/auth.json`
+11. **远程服务器 `<SERVER_C>`**（登录目标从既有授权私有配置核对）:
+    - `<LINUX_USER_HOME>/.config/opencode/config/opencode.json`
+    - `<LINUX_USER_HOME>/.config/opencode/config/oh-my-openagent.json`
+    - `<LINUX_USER_HOME>/.local/share/opencode/auth.json`
 
 改写时统一遵循以下原则：
 - 只保留最新代模型（如 DeepSeek V4、Kimi K2.6、GLM-5.1、Qwen 3.7）
@@ -514,7 +516,7 @@ pre-commit hook 检查流程:
 ## ⚠️ plugin 字段跨端差异（关键）
 
 - **Windows**：需要 `plugin: ["oh-my-openagent@latest"]` 手动声明（npm 自动检测不生效）
-- **Linux**（racknerd/jstq/dmit）：npm 自动检测 + 手动声明**都用 `oh-my-openagent@latest`** 格式，两者一致不会重复
+- **Linux**（`<SERVER_A>`/`<SERVER_B>`/`<SERVER_C>`）：npm 自动检测 + 手动声明**都用 `oh-my-openagent@latest`** 格式，两者一致不会重复
 - **同步后无需特殊处理**：`oh-my-openagent@latest` 在 Windows 和 Linux 端通用，不再需要同步后清空 plugin 字段
 - **禁止**：使用 `oh-my-openagent`（不带 `@latest`），会导致 Linux 端 OMO 重复注入被禁用
 
@@ -526,12 +528,12 @@ OpenCode 和 Hermes-Agent 的自动升级脚本分开管理，互不影响：
 
 | 脚本 | 位置 | 升级内容 | cron |
 |---|---|---|---|
-| **auto-upgrade-all.sh** | `/root/.config/opencode/scripts/` | OpenCode + OMO 插件 | `0 0,10,20 * * *` |
-| **auto-upgrade-hermes.sh** | `/root/.hermes/` | Hermes-Agent + Gateway | `0 0,10,20 * * *` |
+| **auto-upgrade-all.sh** | `<LINUX_USER_HOME>/.config/opencode/scripts/` | OpenCode + OMO 插件 | `0 0,10,20 * * *` |
+| **auto-upgrade-hermes.sh** | `<LINUX_USER_HOME>/.hermes/` | Hermes-Agent + Gateway | `0 0,10,20 * * *` |
 
 - 删除 Hermes-Agent 不会影响 OpenCode 升级
 - 日志分别存储在各自目录下
-- 脚本已同步到 racknerd 和 jstq
+- 脚本已同步到 `<SERVER_A>` 和 `<SERVER_B>`
 
 ### 1. OMO 重复注入被禁用
 - **现象**：OpenCode 启动时显示 "Duplicate OMO plugin entries detected"，TUI 只显示 Build 和 Plan
@@ -543,10 +545,10 @@ OpenCode 和 Hermes-Agent 的自动升级脚本分开管理，互不影响：
 - **现象**：自动升级脚本执行 `npm install -g oh-my-openagent@latest` 报 `ENOTEMPTY: directory not empty, rename`
 - **根因**：npm 升级时旧目录残留 `.oh-my-openagent-*` 临时目录，阻止重命名
 - **解决**：在 npm install 前加 `rm -rf /usr/lib/node_modules/.oh-my-openagent-*`
-- **已修复**：2026-06-12（racknerd + jstq 升级脚本已更新）
+- **已修复**：2026-06-12（`<SERVER_A>` + `<SERVER_B>` 升级脚本已更新）
 
 ### 3. OpenCode 版本过旧导致 OMO 不识别
-- **现象**：racknerd 上 OpenCode 1.14.41，OMO Agent 不显示
+- **现象**：`<SERVER_A>` 上 OpenCode 1.14.41，OMO Agent 不显示
 - **根因**：自动升级脚本用 `curl https://opencode.ai/install.sh`（URL 多了 `.sh`），404 静默失败
 - **解决**：修正为 `curl https://opencode.ai/install`，并加 npm 三重保险
 - **已修复**：2026-06-02
@@ -650,7 +652,7 @@ OpenCode 和 Hermes-Agent 的自动升级脚本分开管理，互不影响：
 | Qwen 3.7 Max | 1M | 阿里云官方 |
 
 ### 全端同步 ✅
-C: | D: | racknerd | jstq | dmit | GitHub | E:\Codes×12 全部同步
+原有授权同步目标全部同步（历史记录；具体设备、盘符、主机身份和项目数量不在公共文档列出）。
 
 ### 新增 Provider：七牛云 AI
 - baseURL: `https://api.qnaigc.com/v1`
@@ -662,8 +664,8 @@ C: | D: | racknerd | jstq | dmit | GitHub | E:\Codes×12 全部同步
 ### 7. OpenCode models.json 缓存导致配置不生效
 - **现象**：SCP 推送新配置后 `/models` TUI 仍显示旧 Provider、模型上下文仍为旧值
 - **根因**：OpenCode 将模型定义缓存在 `~/.cache/opencode/models.json`（2.3MB），改 config 不触发缓存重建
-- **解决**：改完配置推送后**必须删除远程服务器上的 models.json 缓存**：`rm -f /root/.cache/opencode/models.json`，下次启动自动重建
-- **注意**：Windows 端同理，位于 `C:\Users\<user>\.cache\opencode\models.json`
+- **解决**：改完配置推送后**必须删除远程服务器上的 models.json 缓存**；先核对授权目标，再清理 `<LINUX_USER_HOME>/.cache/opencode/models.json`，下次启动自动重建。此处是待实例化的动作说明，不是可直接执行的命令，也不代表清理已经完成。
+- **注意**：Windows 端同理，位于 `<WINDOWS_USER_HOME>\.cache\opencode\models.json`
 - **已识别**：2026-06-20
 
 ### 8. auth.json 有 key 但未登记的 Provider 仍会在 TUI 显示
@@ -742,7 +744,7 @@ C: | D: | racknerd | jstq | dmit | GitHub | E:\Codes×12 全部同步
 | Qwen 3.7 Max | 1M | 阿里云官方 |
 
 ### 全端同步 ✅
-C: | D: | racknerd | jstq | dmit | GitHub | E:\Codes×12 全部同步
+原有授权同步目标全部同步（历史记录；具体设备、盘符、主机身份和项目数量不在公共文档列出）。
 
 ## 本次会话完整改动（2026-06-20 续）
 
@@ -750,7 +752,7 @@ C: | D: | racknerd | jstq | dmit | GitHub | E:\Codes×12 全部同步
 | 修复项 | 旧值 | 新值 | 根因 |
 |---|---|---|---|
 | `approvals.mode` | `manual` | **`off`** | 之前写 `auto` 是无效值（Hermes 只认 manual/smart/off），被忽略后 fallback 到 manual |
-| `delegation.subagent_auto_approve` | `false` | **`true`** | 主配置 + me138 + me152 三个 profile 全部修复 |
+| `delegation.subagent_auto_approve` | `false` | **`true`** | 主配置 + `<PROFILE_A>` + `<PROFILE_B>` 三个 profile 全部修复 |
 | `auxiliary.approval.model` | `moonshotai/kimi-k2-instruct-0905` | **`moonshotai/kimi-k2.6`** | Kimi 平台 2026-05-25 退役旧模型 |
 | `auxiliary.compression.model` | `nvidia/nvidia-deepseek-v4-pro` | **`deepseek-ai/deepseek-v4-pro`** | NIM 上 DeepSeek 的 vendor namespace 是 `deepseek-ai/` 不是 `nvidia/` |
 | `auxiliary.session_search.model` | `moonshotai/kimi-k2-instruct-0905` | **`moonshotai/kimi-k2.6`** | 同 approval model |
@@ -764,7 +766,7 @@ C: | D: | racknerd | jstq | dmit | GitHub | E:\Codes×12 全部同步
 ### Cloudflare Workers AI 修复
 - **根因**：auth.json 从未配过 CF API key（git 历史确认）
 - **Token 类型**：`cfut_` 是 Gateway 专用（不认 Workers AI REST API），`cfat_` 是 Workers AI Token（有效）
-- **baseURL**：`https://api.cloudflare.com/client/v4/accounts/b3becce2da2399953658ed2a053e7c08/ai/v1`
+- **baseURL**：`https://api.cloudflare.com/client/v4/accounts/<CLOUDFLARE_ACCOUNT_ID>/ai/v1`（账户标识从既有授权私有配置核对）
 - **auth.json**：`cloudflare-workers-ai: { type: api, key: cfat_... }`
 - **验证**：curl 测试 kimi-k2.6 返回 200 + 正常 chat completion
 
@@ -831,7 +833,7 @@ C: | D: | racknerd | jstq | dmit | GitHub | E:\Codes×12 全部同步
 - **已修复**：2026-06-20
 
 ### 全端同步 ✅
-C: | D: | racknerd | jstq | dmit | GitHub
+原有授权设备与 GitHub 同步目标（具体设备、盘符和主机身份不在公共文档列出）。
 
 ## 国产 ReviewXXX 评审证据要求（关键）
 
@@ -841,11 +843,12 @@ C: | D: | racknerd | jstq | dmit | GitHub
 - FAIL 必须附来源 URL、核实日期、具体冲突文件/位置、官方依据摘要和可执行修正建议；缺少任一项的 FAIL 无阻断效力。
 
 
-## Git 提交作者身份规则（Fatty911 全局要求，2026-08-04）
+## Git 提交作者身份规则（用户全局要求，2026-08-04）
 
 本仓库所有 Git 提交必须遵守以下作者命名规则：
 
-1. **全局兜底身份**：`Fatty911 <xuerui911@gmail.com>`。禁止使用 `bot@users.noreply.github.com` 邮箱（该邮箱关联 GitHub 用户名 `bot`，网页端会显示纯 `bot`）。
+1. **全局兜底身份**：作者名和邮箱沿用用户已批准的私有 Git 身份配置，不在公共文档公开具体值，也不得擅自更改。禁止使用关联 GitHub 用户名 `bot` 的邮箱（网页端会显示纯 `bot`）。
 2. **Agent 工具显式提交**：使用动态格式 `<实际工具名>-<实际模型>`。工具名 = 实际执行提交的 Agent 工具（如 hermes-agent / codex / opencode / openclaw / mimocode / qoder）。模型名 = 本次实际处理会话的模型 ID 的小写紧凑写法（如 GLM-5.2 → `glm5.2`、GPT-5.6-Sol → `gpt5.6sol`、Kimi-K3 → `kimi-k3`、DeepSeek-V4-Flash → `deepseek-v4-flash`）。示例：`opencode-kimi-k3`、`hermes-agent-glm5.2`、`codex-gpt5.5`。
 3. 禁止纯 `bot` 名称或系统 bot 身份冒充源码/文档提交；`github-actions[bot]` 仅限数据/进度自动提交。
-4. 邮箱一律使用 `xuerui911@gmail.com`。
+4. 邮箱一律使用用户已批准的私有提交邮箱；执行前核对现有 Git 身份配置，不得擅自更改，也不得将实际邮箱写入公共文档。
+
