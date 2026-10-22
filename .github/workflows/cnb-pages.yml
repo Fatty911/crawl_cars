@@ -20,6 +20,11 @@ concurrency:
 
 jobs:
   deploy:
+    # 本链只有 workflow_dispatch 一个入口，而 dispatch 时**人选 ref**：选到 tag 或别的分支，
+    # github-pages 环境的 branch_policy（只允许 main）会在分配阶段就拒绝 ⇒ 0 步骤、无日志、必红，
+    # 且不产生 workflow_run 修复票。与 deploy-frontend 同一条轴：把部署钉死在默认分支 ref 上。
+    # 守卫见 tests/test_workflow_pages_env_ref_guard.py。
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
