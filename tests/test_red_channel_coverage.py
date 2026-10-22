@@ -18,8 +18,35 @@ MONITOR = ROOT / ".github/workflows/AI_Auto_Fix_Monitor.yml"
 # 这条快照**会漂**：10-22 的教训是监视名单补到 5 条而这里还停在 3 条 ⇒
 # `test_real_monitor_matches_current_active_chains` 当场判红并点名两条链——那是**这条不变式在正常工作**，
 # 补名单必须同批改这里，判据不许反过来迁就名单。
-ACTIVE = ["重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示",
-          "Markdown privacy (candidate)", "Runtime proxy cache guard"]
+# 服务端 workflow **整表**读数（14 条：active 5 + disabled_manually 9）。
+# 出处：`GET /repos/Fatty911/crawl_cars/actions/workflows?per_page=50`，2026-10-22T14:21+08:00。
+# 为什么是常量而不是现调 API：本套测试不许依赖网络与凭据（宿主事实会让判据在别的 OS 上假红）。
+# 为什么不再单独维护一份"active 名单"：10-22 的实测事故就是名单补到 5 条、测试里的快照还停在 3 条
+# ——两边各抄一份，必然有一边先漂。这里是**整表**（含 disabled 的 9 条），所以"漏列一条真 active 的链"
+# 与"混进一条停用链"两向都能判。刷新方式（机械动作，别手改 state）：
+#   gh api "repos/Fatty911/crawl_cars/actions/workflows?per_page=50" #     --jq '.workflows[]|{name,state}' | python -c "import json,sys;print({json.loads(l)[\"name\"]:json.loads(l)[\"state\"] for l in sys.stdin if l.strip()})"
+# 把输出贴进下面的 dict（并更新 read_at/source），再跑本文件。
+PLATFORM_READING = {
+    "read_at": "2026-10-22T14:21:00+08:00",
+    "source": "GET https://api.github.com/repos/Fatty911/crawl_cars/actions/workflows?per_page=50",
+    "states": {
+        "重合并并发布（不爬取）": "active",
+        "Deploy verified CNB Pages": "active",
+        "部署前端展示": "active",
+        "Markdown privacy (candidate)": "active",
+        "Runtime proxy cache guard": "active",
+        "AI Auto Fix Monitor": "disabled_manually",
+        "CI": "disabled_manually",
+        "PR 自动合并": "disabled_manually",
+        "懂车帝爬虫": "disabled_manually",
+        "易车爬虫": "disabled_manually",
+        "汽车之家爬虫": "disabled_manually",
+        "爬虫外部触发器": "disabled_manually",
+        "经销商报价增量爬虫": "disabled_manually",
+        "部署车型配置网页": "disabled_manually",
+    },
+}
+ACTIVE = [name for name, state in PLATFORM_READING["states"].items() if state == "active"]
 
 
 def _load():
@@ -181,3 +208,37 @@ def test_snapshot_names_exist_as_declared_workflows() -> None:
     missing = [n for n in ACTIVE + ["AI Auto Fix Monitor"] if n not in declared]
     assert missing == [], "快照点名了仓内并不存在的工作流名（凑数覆盖）：%s ｜ 仓内顶层 name=%s" % (
         missing, sorted(declared))
+
+
+def test_platform_reading_covers_every_declared_workflow() -> None:
+    """平台读数必须覆盖仓内**每一条**工作流（含 disabled 的）：少了谁，谁就能从判据的参考集合里消失。
+
+    这是"单向抓不到"那一格的补法：此前的 active 集合是从监视名单自己推出来的
+    （名单漏一条 active 链 ⇒ 判据两边一起漏 ⇒ 照样绿）。现在参考集合是**整表读数**，
+    与名单不是同一个来源；仓里新增/改名一条工作流而没人刷新读数 ⇒ 本条红。
+    """
+    declared = set()
+    for yml in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for line in yml.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("name:"):
+                declared.add(line.split(":", 1)[1].strip().strip('"').strip("'"))
+                break
+    missing = sorted(declared - set(PLATFORM_READING["states"]))
+    assert missing == [], (
+        "平台读数里缺了仓内声明的工作流（按文件顶部注释刷新 PLATFORM_READING）：%s" % missing)
+
+
+def test_full_platform_reading_is_checked_two_ways_against_the_monitor() -> None:
+    """拿**整表读数**（不只 active）过一遍判据：两条方向都必须成立。
+
+    第一向：读数里 state=active 的链，一条都不许缺席监视名单（旧缺口就在这一向）。
+    第二向：名单里不许出现读数说非 active 的名字（凑数覆盖）。
+    与 `test_real_monitor_matches_current_active_chains` 的差别：那条只喂 2 条 disabled 名字，
+    这条喂**全表**（9 条 disabled 全在），所以"名单里混进任何一条停用链"都会被抓到。
+    """
+    mod = _load()
+    states = [{"name": n, "state": s} for n, s in PLATFORM_READING["states"].items()]
+    errs, active, monitored = mod.check(MONITOR, states)
+    assert errs == [], errs
+    assert set(ACTIVE) <= monitored, "读数说 active 但名单里没有：%s" % sorted(set(ACTIVE) - monitored)
+
