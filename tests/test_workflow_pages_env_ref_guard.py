@@ -258,20 +258,52 @@ def triggers(text):
     return on or {}
 
 
+# 风险场景的**唯一清单**：`on:` 里的键 → 这个键真能把 run 放到的 ref 形状场景。
+# 两族评审连续两轮都栽在"我把不变量写在散文里，清单却是手抄的"（v2.3 漏 pull_request_review 系、
+# v2.3b 漏 workflow_call ⇒ 手抄的 8 格钉子恰好没盖住没修好的那一格）。
+# 因此 `non_default_ref_events`、`event_ctx` 与自校判据**全部从这张表派生**：
+# 加一类触发口只改这一处，判据和保守性自动跟着长。
+ON_TO_SCENARIOS = {
+    "release": ("release",),
+    "create": ("create",),
+    "pull_request": ("pull_request",),
+    "pull_request_review": ("pull_request_review",),
+    "pull_request_review_comment": ("pull_request_review_comment",),
+    "merge_group": ("merge_group",),
+    # workflow_dispatch 与 workflow_call 的 ref 由**发起人/调用方**决定 ⇒ 两种形状都要摆：
+    # 选到 tag、或选/跟到一条非默认分支。只摆 tag 那一格是 v2.3b 被点名的窄门。
+    "workflow_dispatch": ("dispatch_ref", "dispatch_branch"),
+    "workflow_call": ("workflow_call_tag", "workflow_call_branch"),
+}
+ALL_SCENARIOS = ("release", "create", "push_tag",
+                 "dispatch_ref", "dispatch_branch",
+                 "pull_request", "pull_request_review", "pull_request_review_comment",
+                 "merge_group", "workflow_call_tag", "workflow_call_branch")
+TAGISH = ("release", "create", "push_tag", "dispatch_ref", "workflow_call_tag")
+PULLISH = ("pull_request", "pull_request_review", "pull_request_review_comment")
+OTHER_BRANCHISH = ("dispatch_branch", "workflow_call_branch")
+
+
 def non_default_ref_events(text):
     """哪些触发口会把 run 放到**非默认分支 ref** 上（那种 ref 过不了 github-pages 的 branch_policy）。
 
     v1 只认 release ⇒ 两族评审都构造出 `on: push: tags:['**']` 与 `on: create` 样品证明会被跳过不判；
     `pull_request`（refs/pull/…）、`merge_group`（gh-readonly-queue ref）、`workflow_call`（跟调用方 ref）同理。 `workflow_run` 反过来：官方 GITHUB_REF=默认分支 ⇒ 不算风险口。
     `push` 只有在明确写了 `branches:` 过滤时才排除 tag push；没过滤或带 `tags:` 的都算。
+
+    v2.3 补的三格（都是"尺看不见"而不是"被测对象没有"）：
+    - `pull_request_review` / `pull_request_review_comment` 与 `pull_request` 同 ref（refs/pull/N/merge），v2.2 的枚举里没有它们；
+    - `workflow_dispatch` **不再整体豁免**：dispatch 时人选 ref，选到 tag/别的分支就是同一种必红形状，
+      原来记成"人工口豁免"等于把这一格永久关在尺的视野外（豁免人工口 ≠ 允许部署 job 在任何 ref 上都跑）；
+    - `merge_group` 的 ref 要建模成队列 ref（见 `event_ctx`），给它 `refs/heads/main` 会让"已钉死默认分支"
+      的合规 job 被反判成违规 ⇒ 那是假红方向。
     """
     on = triggers(text)
     ev = set()
     # workflow_run 不入集合：官方 GITHUB_REF = 默认分支，算进来会造假红。
-    # workflow_dispatch 不入集合：ref 由人选，收口会把人工修复通道一起禁掉 ⇒ 记为人工口豁免。
-    for key in ("release", "create", "pull_request", "merge_group", "workflow_call"):
+    for key, scenarios in ON_TO_SCENARIOS.items():
         if key in on:
-            ev.add(key)
+            ev.update(scenarios)
     if "push" in on:
         p = on.get("push")
         if not isinstance(p, dict):
@@ -285,25 +317,47 @@ def non_default_ref_events(text):
 
 
 def event_ctx(event, tag):
-    """只给该事件真实存在的 payload（一律塞 release.tag_name 会反向造假红，hy4 票实测）。"""
-    tagish = event in ("release", "create", "push_tag")
+    """只给该事件真实存在的 payload（一律塞 release.tag_name 会反向造假红，hy4 票实测）。
+
+    ref 形状逐项对齐平台真值（v2.3）：release/create/tag push/dispatch-on-tag ⇒ `refs/tags/*`；
+    pull_request 系三个口 ⇒ `refs/pull/N/merge`；merge_group ⇒ 队列分支 ref，**不是** main。
+
+    `head_branch` 对所有风险口一律**不建模**（两族评审实测出来的假绿通道，本文件曾自己开过）：
+    不建模 = UNKNOWN ⇒ 比较任一侧未知 ⇒ 保守判"可能跑"。反过来填一个"看着像"的具体值就是把闸放宽——
+    `"agent/probe-head"` 与 `hb = tag` 都属这一类：fork 的默认分支名常常**就叫 `main`**，
+    tag 也可以叫 `main`，所以 `if: github.head_branch == 'main'` 这种写法在真机上会放行 job，
+    而按猜的值会被判成"不跑"。只有 `github.ref` 是可以按官方表钉死的（平台按它分配环境）。
+    """
+    tagish = event in TAGISH
+    pullish = event in PULLISH
     if tagish:
         ref = "refs/tags/" + tag
-    elif event == "pull_request":
+    elif pullish:
         ref = "refs/pull/7/merge"
+    elif event == "merge_group":
+        ref = "refs/heads/gh-readonly-queue/main/pr-55-9c3a4f/feature"
+    elif event in OTHER_BRANCHISH:
+        ref = "refs/heads/feature-x"
     else:
         ref = "refs/heads/main"
+    hb = None if event in ALL_SCENARIOS else "main"
     payload = {}
     if event == "release":
         payload["release"] = {"tag_name": tag, "target_commitish": "main"}
     elif event == "pull_request":
         payload["pull_request"] = {"base_ref": "main"}
-    return _Ctx({"github": {
-        "event_name": "push" if event == "push_tag" else event,
+    gh = {
+        "event_name": {"push_tag": "push",
+                       "dispatch_ref": "workflow_dispatch", "dispatch_branch": "workflow_dispatch",
+                       "workflow_call_tag": "workflow_call", "workflow_call_branch": "workflow_call"
+                       }.get(event, event),
         "ref_type": "tag" if tagish else "branch",
         "ref": ref,
         "event": payload,
-        "repository": "Fatty911/crawl_cars"}})
+        "repository": "Fatty911/crawl_cars"}
+    if hb is not None:
+        gh["head_branch"] = hb
+    return _Ctx({"github": gh})
 
 
 def may_run(expr, ctx):
@@ -334,7 +388,8 @@ def test_no_github_pages_job_can_run_off_the_default_branch(path):
     text = path.read_text(encoding="utf-8")
     risky = non_default_ref_events(text)
     if not risky:
-        # 触发口只会把 run 放在默认分支上（workflow_dispatch/schedule/带 branches 过滤的 push）⇒ 无此风险
+        # 触发口只会把 run 放在默认分支上（schedule / workflow_run / 带 branches:[main] 过滤的 push）⇒ 无此风险
+        # 注意 workflow_dispatch 已从这份名单里去掉：它的 ref 由人选，见 non_default_ref_events 的 v2.3 说明。
         pytest.skip("该 workflow 的触发口不会产生非默认分支 ref：%s" % sorted(triggers(text)))
     offenders = {}
     for name, cond in pages_jobs(text):
@@ -350,12 +405,14 @@ TRIGGER_SAMPLES = {
     "release": "on:\n  release:\n    types: [published]",
     "create": "on:\n  create",
     "pull_request": "on:\n  pull_request",
+    "pull_request_review": "on:\n  pull_request_review:\n    types: [submitted]",
+    "pull_request_review_comment": "on:\n  pull_request_review_comment:\n    types: [created]",
+    "dispatch": "on:\n  workflow_dispatch",
     "push_tag": "on:\n  push:\n    tags: ['**']",
     "push_unfiltered": "on:\n  push",
 }
 
 SAFE_SAMPLES = {
-    "dispatch": "on:\n  workflow_dispatch",
     "schedule": "on:\n  schedule:\n    - cron: '17 4 * * *'",
     "push_branch_filtered": "on:\n  push:\n    branches: [main]",
 }
@@ -393,13 +450,19 @@ def test_yard_does_not_invent_red_on_branch_only_triggers():
     assert [n for n, c in pages_jobs(partial) if job_runs_for_event(c, "create")] == ["deploy"]
 
 
-def test_landed_deploy_frontend_is_clean_under_the_widened_yard():
-    live = (WORKFLOWS / "deploy-frontend.yml").read_text(encoding="utf-8")
+PAGES_LIVE = ["deploy-frontend.yml", "remerge-and-publish.yml", "cnb-pages.yml"]
+
+
+@pytest.mark.parametrize("fname", PAGES_LIVE)
+def test_landed_pages_workflows_are_clean_under_the_widened_yard(fname):
+    """三条真会部署 Pages 的链逐个量：尺必须**看得见** dispatch/tag 入口（否则"全绿"是空读数），
+    同时它们都已经把 job 钉死在默认分支上 ⇒ 不违规。"""
+    live = (WORKFLOWS / fname).read_text(encoding="utf-8")
     risky = non_default_ref_events(live)
-    assert "release" in risky, "deploy-frontend 仍应被认出有 release 入口（只是 job 已排除）"
+    assert "dispatch_ref" in risky, "%s 可被 dispatch 到任意 ref，尺却没看见 ⇒ 放水" % fname
     offenders = {n: [e for e in risky if job_runs_for_event(c, e)] for n, c in pages_jobs(live)}
-    assert not any(offenders.values()), "deploy-frontend.yml 的 job %s 仍会在 %s 上跑 Pages 部署" % (
-        sorted(offenders), sorted(risky))
+    assert not any(offenders.values()), "%s 的 job %s 仍会在 %s 上跑 Pages 部署" % (
+        fname, sorted(offenders), sorted(risky))
 
 NL = chr(10)
 TRIGGER_SAMPLES.update({
@@ -487,4 +550,89 @@ def test_dynamic_environment_name_is_still_counted():
     dyn = BODY % TRIGGER_SAMPLES["release"]
     dyn = dyn.replace("      name: github-pages", "      name: ${{ vars.PAGES_ENV }}")
     assert [nm for nm, c in pages_jobs(dyn) if job_runs_for_event(c, "release")] == ["deploy"]
+
+
+def test_dispatch_alone_is_now_a_risk_entry():
+    """v2.2 把 workflow_dispatch 记成"人工口豁免"⇒ 尺看不见"人把链 dispatch 到 tag/别的分支"。
+    v2.3 取消整体豁免：没有 ref 钉死的部署 job 在这种触发口下必须判违规。"""
+    text = BODY % TRIGGER_SAMPLES["dispatch"]
+    assert non_default_ref_events(text) == {"dispatch_ref", "dispatch_branch"}
+    bad = [nm for nm, c in pages_jobs(text) if job_runs_for_event(c, "dispatch_ref")]
+    assert bad == ["deploy"], "dispatch 到非默认分支 ref 的洞又被打开了：" + str(bad)
+
+
+def test_ref_pinned_job_is_clean_under_every_risky_event():
+    """正向（能绿）：把 job 钉死在 `refs/heads/main` 后，**所有**风险触发口都判它不跑。
+
+    这一条同时是 merge_group ref 建模的自校：merge_group 若被错建模成 refs/heads/main，
+    这里就会假红（尺自己错，不是被测对象错）。
+    """
+    gated = BODY % ("on:" + NL + "  workflow_dispatch:" + NL + "  release:" + NL +
+                    "    types: [published]" + NL + "  pull_request_review:" + NL +
+                    "    types: [submitted]" + NL + "  merge_group:")
+    gated = gated.replace("    runs-on: ubuntu-latest",
+                          "    if: ${{ github.ref == 'refs/heads/main' }}" + NL + "    runs-on: ubuntu-latest")
+    risky = non_default_ref_events(gated)
+    assert {"release", "pull_request_review", "merge_group", "dispatch_ref"} <= risky
+    bad = {nm: [e for e in risky if job_runs_for_event(c, e)] for nm, c in pages_jobs(gated)}
+    assert not any(bad.values()), "钉死默认分支的 job 不该在任何风险口上被判违规（假红）：%s" % bad
+
+
+def test_pull_request_review_family_and_merge_group_refs_are_modeled():
+    """ref 形状是这条守卫的全部依据：三个 pull 口共用 refs/pull/N/merge，merge_group 用队列分支 ref。"""
+    for ev in ("pull_request", "pull_request_review", "pull_request_review_comment"):
+        assert event_ctx(ev, "v1")["github"]["ref"] == "refs/pull/7/merge", ev
+        assert ev in non_default_ref_events(BODY % TRIGGER_SAMPLES[ev]), ev
+    mg = event_ctx("merge_group", "v1")["github"]
+    assert mg["ref"].startswith("refs/heads/gh-readonly-queue/"), mg["ref"]
+    assert mg["ref"] != "refs/heads/main", "merge_group 建模成 main ⇒ 把合规写法判成假红"
+    assert event_ctx("dispatch_ref", "v1")["github"]["event_name"] == "workflow_dispatch"
+
+
+# 第二族评审（space-bunny）实测到的**本单自己新开的假绿通道**：
+# 我给 tagish/pullish 填了具体 head_branch（`tag` / "agent/probe-head"），
+# 于是 `if: github.head_branch == 'main'` 从 base 尺的"红"变成 put 尺的"绿"。
+# 真机上这个写法是会跑 job 的：fork 的默认分支名通常就叫 main，tag 也可以叫 main。
+HEDGE_EVENTS = list(ALL_SCENARIOS)   # 派生，不手抄：加一类触发口就自动多一格钉子
+HEDGE_SAMPLE = {"dispatch_ref": "dispatch", "dispatch_branch": "dispatch",
+                "workflow_call_tag": "workflow_call", "workflow_call_branch": "workflow_call"}
+
+
+@pytest.mark.parametrize("event", HEDGE_EVENTS)
+def test_head_branch_is_never_modeled_for_risky_events(event):
+    """风险口的 head_branch 必须是未建模（UNKNOWN）⇒ 任何"照字面填值"都会把保守判据放宽。"""
+    gh = event_ctx(event, "main")["github"]
+    assert "head_branch" not in gh, "%s 把 head_branch 建模成了 %r ⇒ 假绿通道又开了" % (
+        event, gh.get("head_branch"))
+    gated = (BODY % TRIGGER_SAMPLES[HEDGE_SAMPLE.get(event, event)]).replace(
+        "    runs-on: ubuntu-latest",
+        "    if: ${{ github.head_branch == 'main' }}" + NL + "    runs-on: ubuntu-latest")
+    bad = [nm for nm, c in pages_jobs(gated) if job_runs_for_event(c, event)]
+    assert bad == ["deploy"], "%s 下按 head_branch 挡不住 tag/PR ref，必须判违规" % event
+
+
+def test_risk_scenario_list_is_derived_not_hand_copied():
+    """清单漂移是这两轮评审共同的根因 ⇒ 这一格把"表 = 现实"钉死，而不是再手抄一份名单。
+
+    声明了 `ON_TO_SCENARIOS` 全部键 + `push: tags` 的最大合成 workflow，`non_default_ref_events`
+    必须**一个不少**地给出 `ALL_SCENARIOS`；反向也要成立（不许有表外场景混进来）。
+    """
+    declared = ["on:"]
+    for key in ON_TO_SCENARIOS:
+        declared.append("  %s:" % key)
+    declared.append("  push:")
+    declared.append("    tags: ['**']")
+    text = BODY % NL.join(declared)
+    got = non_default_ref_events(text)
+    assert got == set(ALL_SCENARIOS), "表与派生出来的风险集合不一致 ⇒ 少了 %s / 多了 %s" % (
+        sorted(set(ALL_SCENARIOS) - got), sorted(got - set(ALL_SCENARIOS)))
+
+
+def test_every_risk_scenario_leaves_head_branch_unmodeled():
+    """`head_branch` 的保守性要按**整条轴**验，不许像 v2.3b 那样 9 个里只修 8 个。"""
+    for event in ALL_SCENARIOS:
+        gh = event_ctx(event, "main")["github"]
+        assert "head_branch" not in gh, "%s 仍被填了具体 head_branch=%r ⇒ 假绿通道" % (
+            event, gh.get("head_branch"))
+        assert gh["ref"] != "refs/heads/main", "%s 的 ref 必须是某种**非默认**形状，否则这条判据不会咬" % event
 
