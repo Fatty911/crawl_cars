@@ -46,7 +46,9 @@ jobs:
     #   2) 上游 CNB 链发布后自己 dispatch 本链。
     # 想做"release ⇒ 立刻以 main 重新 dispatch"的接力，必须先证明 GITHUB_TOKEN 能触发 workflow_dispatch（平台防递归规则），已另立单，不许先写了当已生效。
     # `-remerged-` 是本链产物，本来就永不接手（自我喂食/回声），语义不变。
-    if: ${{ github.event_name != 'release' }}
+    # v2.3：按事件名排除改成按 ref 钉死默认分支。tag ref 不止 release 一个来源（create、push tags、refs/pull/N/merge、gh-readonly-queue，以及**人把本链 dispatch 到某个 tag/别的分支**），
+    # 逐个事件名去列永远会漏一个；而 github-pages 环境的 branch_policy 拒绝依据本来就是 ref⇒ 判据与平台用同一根轴。schedule 与在 main 上的 dispatch 仍放行（release 事件必带 tag ref ⇒ 依旧跳过）。
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment:

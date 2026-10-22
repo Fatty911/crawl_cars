@@ -31,9 +31,10 @@ jobs:
   deploy-frontend:
     # release 事件的 run 跑在 **tag ref** 上，而本仓 github-pages 环境设了 branch_policy（GET /environments/github-pages → protection_rules=[branch_policy]）
     # ⇒ 环境在"分配阶段"就拒绝：job 0 步骤、无日志、3 秒判 failure，而且这种红不产生 workflow_run 修复票（监控还要求 head_branch=='main'）。实测 run 39619805892。
-    # 修法：release 一律跳过（ Pages 部署只走 push(docs/**) 与 workflow_dispatch，两者都在 main ref 上）。旧的按 tag 前缀排除的写法在这里是**或**式，
-    # 对外部 tag（如 v1.2.3）仍会放行 ⇒ 必红；守卫见 tests/test_workflow_pages_env_ref_guard.py。
-    if: ${{ github.event_name != 'release' }}
+    # v2.3 把"按事件名排除"换成"按 ref 钉死默认分支"：tag ref 不止 release 一个来源（create、push tags、refs/pull/N/merge、
+    # gh-readonly-queue，以及**人把本链 dispatch 到某个 tag/别的分支**），逐个事件名去列永远会漏一个；
+    # 而 branch_policy 拒绝的依据本来就是 ref，所以判据与平台用同一根轴。push(docs/**) 与在 main 上的 dispatch/schedule 仍然放行。
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
