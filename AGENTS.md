@@ -198,7 +198,7 @@
 - **同步全局配置后必须同步所有项目目录**：如果某个项目目录有独立的 config/opencode.json，同步全局时必须一并更新，避免出现 TUI 中已禁用的 Provider 又出现
 - **同步全局 AGENTS.md 后必须同步所有项目目录**：原有授权部署目标中的项目目录（如 `<LINUX_USER_HOME>/crawl_cars`、`<LINUX_USER_HOME>/.hermes`）如果有自己的 AGENTS.md，用全局最新版本覆盖。同理 `<WINDOWS_PROJECTS_ROOT>` 下的所有 repo 也要同步
 - **项目级 AGENTS.md 不能直接覆盖**：先读取目标文件内容，有项目特有规则的部分保留，冲突处以全局为准或询问用户，无冲突处合并
-- **Windows 通过 SSH 运行 OpenCode 时，项目路径会被记录为 Windows 格式**：如 `<WINDOWS_PROJECTS_ROOT>/billiards_tqt` 而非 Linux 路径，这些会话在 Linux 端 OpenCode 重启时会导致 Drizzle 查询错误。解决方案：定期清理 OpenCode 数据库中的无效路径会话，但不能直接删除整个数据库（违反"只改用户要求改的"规则）
+- **Windows 通过 SSH 运行 OpenCode 时，项目路径会被记录为 Windows 格式**：如 `<WINDOWS_PROJECTS_ROOT>/<PROJECT_NAME>` 而非 Linux 路径，这些会话在 Linux 端 OpenCode 重启时会导致 Drizzle 查询错误。解决方案：定期清理 OpenCode 数据库中的无效路径会话，但不能直接删除整个数据库（违反"只改用户要求改的"规则）
 
 ## 全局要求同步检查（关键）
 
