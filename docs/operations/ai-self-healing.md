@@ -154,7 +154,7 @@ record_id, bucket, rule_id, source, candidate_sha
 - 首次加载和恢复默认实际应用：百公里加速 ≤ 7 秒、最高车速 ≥ 180 km/h、纯电续航 ≥ 150 km 且无上限。
 - 抽样多源记录可通过页面筛选/搜索检索。
 
-浏览器和大数据验证在 GitHub Actions 或 Modal 中执行；RackNerd 宿主机只做编排、轻量检查和 CI 闭环监控。
+浏览器和大数据验证在 GitHub Actions 或 Modal 中执行；编排节点只做编排、轻量检查和 CI 闭环监控。
 
 ## 6. AI 修复安全边界
 
@@ -204,7 +204,7 @@ GitHub-hosted runner 是临时环境，因此模型不会天然跨 run 记住前
 | 单次证据 | Actions artifact | 审计 JSON、日志摘要、测试报告、diff hash | 否；设置明确 retention |
 | 可重建加速 | Actions cache | 依赖、浏览器和可重建下载 | 否；可能 miss/淘汰，禁止存密钥 |
 | Agent session | Codex/OpenCode/OMO session | 单次推理上下文 | 否，不能作为唯一记忆 |
-| 外部持久 Agent | RackNerd Hermes memory/skills | 跨 run 编排和程序性经验 | 辅助；不能覆盖仓库事实与审计结果 |
+| 外部持久 Agent | 自托管 Hermes memory/skills | 跨 run 编排和程序性经验 | 辅助；不能覆盖仓库事实与审计结果 |
 
 建议 incident Issue 至少保存：fingerprint、`rule_id`、candidate SHA、失败桶统计、最多两次修复 commit、测试/评审链接、last-known-good tag 和最终状态。这样即使换模型、换 Runner 或会话损坏，下一次 agent 仍可重建上下文。
 
@@ -228,7 +228,7 @@ GitHub cache 只用于依赖和可重建内容。GitHub 官方说明缓存不可
 
 不建议。每个 GitHub-hosted runner 都是临时机，安装 Hermes 只增加启动时间、依赖面和凭据面；如果不额外恢复状态，它的 memory/skills 同样不会凭空跨 run 持久化。
 
-若未来需要真正持久控制面，推荐把现有 RackNerd Hermes 作为可选 Phase 3：
+若未来需要真正持久控制面，推荐把现有自托管 Hermes 作为可选 Phase 3：
 
 - GitHub 通过 Hermes 官方 HMAC webhook，或 Hermes 定时轮询，发送 workflow/incident 事件；
 - Hermes 使用持久 memory/skills 汇总历史，将重型测试、浏览器和大 artifact 任务下发 Modal/GitHub Actions；
