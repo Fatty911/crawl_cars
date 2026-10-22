@@ -778,7 +778,7 @@
 - 继续检查懂车帝爬虫，确认 6 小时取消时是否没有保存 step2 进度，并修复导致进度无法提交的问题。
 
 ### 排查
-- Racknerd 机器 `/root/crawl_cars` 的 OpenCode 最新会话显示，汽车之家运行中出现过：
+- 历史诊断会话显示，汽车之家运行中出现过：
   - `classification=site_breakage`
   - `should_fix=true`
   - AI Provider 调用失败，包括 Zen SSL 证书错误、OpenRouter 403/SSL EOF、XAI 403、Minimax 401。
@@ -975,7 +975,7 @@
 - 如果工作流仍不符合“上午 9-12、下午 13:00-13:30、半月完成跳过”的预期，就继续修复、推送并监控。
 
 ### 排查
-- OpenCode 最新主会话为 `ses_179f955e3ffeV8j3F18P25pDAx`，主题是审查 GPT-5.5 的 `b32cf40` 备用 schedule 修复，并继续提交了 `e69f860`：上午动态缩短，目标是 12:30 前结束。
+- OpenCode 历史主会话审查了 GPT-5.5 的 `b32cf40` 备用 schedule 修复，并继续提交了 `e69f860`：上午动态缩短，目标是 12:30 前结束。
 - GitHub Actions 现状显示：
   - 懂车帝上午手动补跑 `26793433837` 仍在运行，它是在 `e69f860` 推送前启动的旧逻辑，不受动态缩短约束。
   - 下午懂车帝 schedule `26802472704` 处于 pending，因为顶层 `concurrency` 只按爬虫+分支分组，上午运行挡住了下午窗口。
