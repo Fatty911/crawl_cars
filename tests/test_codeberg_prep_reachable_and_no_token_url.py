@@ -1,24 +1,4 @@
-"""Codeberg 发布段的"重试"必须真的可达；全仓任何 push 都不许把令牌拼进 URL（判据，当前必须红）。
-
-**为什么单独钉这两条（Issue #52 的 bundle 已把推送/预检改成 3 次循环，但整段还没闭环）**：
-监工 10-13 22:35 +08:00 在 bundle 分支（`0dfb093`，基于 `ea2a67c`）里逐行读出 Codeberg 段的形状：
-
-     1| set -e
-    19| python scripts/setup_proxy_runtime.py --github-env /tmp/codeberg-proxy.env --test-url https://codeberg.org
-    26| CB_ATTEMPT=1
-    28| while [ "$CB_ATTEMPT" -le "$CB_MAX_ATTEMPTS" ]; do   ← 第一个重试循环从这里才开始
-
-⇒ 代理准备（第 19 行）本身就是那条会因 TLS/代理抖动失败的网络命令，它在 `set -e` 下**裸跑**，
-一抖就整段退出，后面的 curl 预检循环与 push 循环**一次都轮不到**。
-"重试已实现"与"重试可达"是两件事——本判据钉后者。
-
-**第二条**：`#40/#52` 只改了三处回推的凭据形状，第四处仍在把令牌拼进 URL：
-NPC 自修复链的 `git push "https://${CNB_TOKEN_USER_NAME:-cnb}:${CNB_TOKEN}@cnb.cool/…/crawl_cars.git" HEAD:refs/heads/diag`。
-本仓规则是"凭据只走 GIT_ASKPASS/临时配置，不入 URL/进程表/被跟踪文件"，且本仓已经发生过一次
-公开构建日志凭据外泄 ⇒ 这一处必须一起收口（判据按**全文所有链所有段**扫，不留"这处不属本单"的死角）。
-
-两条都配反空壳守卫：不许用"删掉诊断回推段"或"删掉代理准备段"来让扫描变绿。
-"""
+"""Codeberg retries stay reachable; push URLs contain no token; failure diagnostics stay local."""
 
 from __future__ import annotations
 
@@ -120,18 +100,17 @@ def test_no_token_in_any_push_url():
         "凭据面违规（令牌进 URL ⇒ 进进程表与公开构建日志）：%s" % offenders)
 
 
-def test_diag_pushback_still_exists_and_uses_askpass():
-    """反空壳：第四处收口不能靠删掉诊断回推段。"""
+def test_failure_diagnostics_stay_local_without_git_publication():
+    """Retain local failure context without a branch, artifact, or log upload."""
     hits = []
     for key, stage in _all_stages():
-        lines = _live(_script(stage))
-        text = "\n".join(lines)
-        if "refs/heads/diag" in text and "git push" in text:
-            hits.append((key, stage, text, lines))
-    assert hits, (
-        "全仓找不到了 `HEAD:refs/heads/diag` 的诊断回推：不许用删段让上一条判据变绿（失败诊断归档还要能回推证据）")
-    bad = []
-    for key, stage, text, lines in hits:
-        if "GIT_ASKPASS" not in text and "askpass" not in text:
-            bad.append("%s / %s：diag 回推没走 GIT_ASKPASS" % (key, stage.get("name")))
-    assert not bad, "诊断回推凭据形状不合规：%s" % bad
+        text = "\n".join(_live(_script(stage)))
+        assert "refs/heads/diag" not in text, "diagnostic branch publication must stay disabled"
+        if stage.get("name") == "失败诊断保留":
+            hits.append((key, stage, text))
+    assert hits, "local failure diagnostics stage must remain present"
+    for key, stage, text in hits:
+        assert stage.get("if") == "failure()"
+        assert "/tmp/dealer.log" in text and "set -e" in text
+        assert not re.search(r"\bgit\s+(?:add|commit|push)\b", text)
+        assert not re.search(r"\b(?:curl|wget|scp|rsync|upload-artifact|mkdir|cp)\b", text)

@@ -72,7 +72,6 @@ class PushbackWhitelistTests(unittest.TestCase):
             "data/dealer_prices.json",
             "data/progress.json",
             "data/dongchedi_series_list.json",
-            "data/proxies.json",
             "crawl_state",
             "docs/analysis",
             "pages-audit-report.json",

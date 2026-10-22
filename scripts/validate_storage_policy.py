@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import argparse
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -12,16 +14,40 @@ ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_DATA = {
     "data/dealer_prices.json",
     "data/diff_20260706.csv",
-    "data/dongchedi_20260302.json",
     "data/dongchedi_series_list.json",
-    "data/filtered_cars_20260622.csv",
-    "data/filtered_cars_20260622.json",
-    "data/merged_20260622.csv",
-    "data/merged_20260622.json",
     "data/progress.json",
-    "data/proxies.json",
 }
 RUNTIME_ONLY_PATHS = ("crawl_state/autohome", "step1_done", "dcd_step2_done")
+
+
+# These two paths are runtime credential caches, never public source artifacts.
+PUBLIC_PROXY_CACHE_PATHS = frozenset({"proxies.json", "data/proxies.json"})
+
+
+def git_index_or_tree_paths(root: Path, source: str, args: list[str]) -> set[str]:
+    # Metadata inspection is offline and must not invoke configured fsmonitor hooks.
+    env = dict(os.environ, GIT_NO_LAZY_FETCH="1", GIT_ALLOW_PROTOCOL="")
+    try:
+        output = subprocess.run(
+            ["git", "--no-replace-objects", "-c", "core.fsmonitor=false", *args],
+            cwd=root, env=env, capture_output=True, check=True, timeout=15,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise SystemExit(f"cannot inspect Git {source}; refusing proxy-cache publication") from exc
+    return set(output.decode("utf-8", errors="surrogateescape").split("\0")) - {""}
+
+
+def validate_proxy_cache(root: Path = ROOT, *, check_head: bool = False) -> None:
+    """Check raw Git object/index names, never credential contents or replaced trees."""
+    queries = [("index", ["ls-files", "--cached", "-z"])]
+    if check_head:
+        queries.append(("HEAD", ["ls-tree", "-r", "-z", "--name-only", "HEAD"]))
+    for source, args in queries:
+        blocked = sorted(git_index_or_tree_paths(root, source, args) & PUBLIC_PROXY_CACHE_PATHS)
+        if blocked:
+            raise SystemExit(
+                f"runtime proxy cache must not enter public Git ({source}): {', '.join(blocked)}"
+            )
 
 
 def stages_runtime_only_path(text: str) -> bool:
@@ -51,12 +77,16 @@ done"""
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--proxy-cache-only", action="store_true")
+    parser.add_argument("--check-head", action="store_true", help="also reject caches in the commit being published")
+    args = parser.parse_args()
+    validate_proxy_cache(check_head=args.check_head)
+    if args.proxy_cache_only:
+        print("runtime proxy cache is not tracked")
+        return
     validate_detector()
-    tracked = set(
-        subprocess.run(
-            ["git", "ls-files", "data"], cwd=ROOT, text=True, capture_output=True, check=True
-        ).stdout.splitlines()
-    )
+    tracked = git_index_or_tree_paths(ROOT, "data index", ["ls-files", "--cached", "-z", "--", "data"])
     if tracked != ALLOWED_DATA:
         raise SystemExit(
             f"tracked data allowlist drift: added={sorted(tracked - ALLOWED_DATA)}, "

@@ -195,4 +195,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Test proxy cache publication guard with isolated Git fixtures
+        run: python -m unittest discover -s tests -p "test_proxy_cache_privacy.py"
+      - name: Reject runtime proxy cache in index and published commit
+        run: python scripts/validate_storage_policy.py --proxy-cache-only --check-head
       - run: python scripts/validate_storage_policy.py

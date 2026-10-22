@@ -423,7 +423,7 @@ main:
             git config user.email "xuerui911@gmail.com"
             git config user.name "Fatty911"
             # **显式白名单**，不是 `git add data`。
-            # 原因（实测）：data/ 里已跟踪了 8.4MB 的 dongchedi_20260302.json、
+            # 原因（实测）：data/ 历史曾跟踪 8.4MB 的 dongchedi_20260302.json、
             # 8.1MB 的 merged_20260622.json 等历史产物；.gitignore 里虽然写了
             # data/merged_*.json 等规则，但**对已跟踪文件无效**（Git 基本行为）。
             # 于是每轮回推都会把这类 MB 级文件重新提交，仓库体积不可逆地膨胀。
@@ -436,7 +436,6 @@ main:
             git add -f data/dealer_prices.json 2>/dev/null || true
             git add -f data/progress.json 2>/dev/null || true
             git add -f data/dongchedi_series_list.json 2>/dev/null || true
-            git add -f data/proxies.json 2>/dev/null || true
             [ -d crawl_state ] && git add -f crawl_state || true
             # `-f` 无视 .gitignore：把字节码从暂存区摘出去，断点 json 仍留在暂存区。
             # 重生无害（.gitignore 已覆盖），缺陷只在“被提交进仓库”这一环。
@@ -456,6 +455,8 @@ main:
               echo "$BIG"
               echo "$BIG" | while read -r f; do git reset -q HEAD -- "$f" 2>/dev/null || true; done
             fi
+            # Runtime auth caches must never be committed, even after force-add.
+            python scripts/validate_storage_policy.py --proxy-cache-only
             if git diff --cached --quiet; then
               echo "无增量变更"
             else
@@ -488,6 +489,8 @@ main:
               if [ -n "$(git ls-files -u)" ]; then
                 echo "PUSHBACK-FAIL reason=unmerged-after-rebase"; exit 1
               fi
+              # Recheck the rebased commit as well as the index before publication.
+              python scripts/validate_storage_policy.py --proxy-cache-only --check-head
               GIT_ASKPASS=/tmp/pb-askpass.sh git push https://cnb.cool/xuerui911-mirror/crawl_cars.git HEAD:main
               rm -f /tmp/pb-askpass.sh
             fi
@@ -813,7 +816,10 @@ main:
             userPrompt: '只读审核修复diff及实际测试报告，唯一写入 _review_result_.md，首行严格 VERDICT: PASS 或 VERDICT: FAIL。'
         - name: 最终门禁-仅提交已验证已审核修复并固定SHA重跑
           if: '[ "$NPC_BUDGET_STATE" = "RUN" ]'
-          script: python /tmp/cars-npc-guard.py finalize
+          script: |
+            set -e
+            python scripts/validate_storage_policy.py --proxy-cache-only --check-head
+            python /tmp/cars-npc-guard.py finalize
 
   "crontab: 5 8 1,16 * *":
     # 半月增量爬取（每月 1/16 日 08:05 Asia/Shanghai，落在人类作息窗口 08:00-12:30 内；对齐负责人半月增量本意，撤销 09-20 移植期错峰 5/20）
@@ -1110,7 +1116,7 @@ main:
             git config user.email "xuerui911@gmail.com"
             git config user.name "Fatty911"
             # **显式白名单**，不是 `git add data`。
-            # 原因（实测）：data/ 里已跟踪了 8.4MB 的 dongchedi_20260302.json、
+            # 原因（实测）：data/ 历史曾跟踪 8.4MB 的 dongchedi_20260302.json、
             # 8.1MB 的 merged_20260622.json 等历史产物；.gitignore 里虽然写了
             # data/merged_*.json 等规则，但**对已跟踪文件无效**（Git 基本行为）。
             # 于是每轮回推都会把这类 MB 级文件重新提交，仓库体积不可逆地膨胀。
@@ -1123,7 +1129,6 @@ main:
             git add -f data/dealer_prices.json 2>/dev/null || true
             git add -f data/progress.json 2>/dev/null || true
             git add -f data/dongchedi_series_list.json 2>/dev/null || true
-            git add -f data/proxies.json 2>/dev/null || true
             [ -d crawl_state ] && git add -f crawl_state || true
             # `-f` 无视 .gitignore：把字节码从暂存区摘出去，断点 json 仍留在暂存区。
             # 重生无害（.gitignore 已覆盖），缺陷只在“被提交进仓库”这一环。
@@ -1143,6 +1148,8 @@ main:
               echo "$BIG"
               echo "$BIG" | while read -r f; do git reset -q HEAD -- "$f" 2>/dev/null || true; done
             fi
+            # Runtime auth caches must never be committed, even after force-add.
+            python scripts/validate_storage_policy.py --proxy-cache-only
             if git diff --cached --quiet; then
               echo "无增量变更"
             else
@@ -1175,6 +1182,8 @@ main:
               if [ -n "$(git ls-files -u)" ]; then
                 echo "PUSHBACK-FAIL reason=unmerged-after-rebase"; exit 1
               fi
+              # Recheck the rebased commit as well as the index before publication.
+              python scripts/validate_storage_policy.py --proxy-cache-only --check-head
               GIT_ASKPASS=/tmp/pb-askpass.sh git push https://cnb.cool/xuerui911-mirror/crawl_cars.git HEAD:main
               rm -f /tmp/pb-askpass.sh
             fi
@@ -1532,6 +1541,8 @@ main:
               git config user.name "Fatty911"
               # 只回推报价文件（3.5MB 级）；发布数据走 CF/Codeberg，不进仓
               git add data/dealer_prices.json
+              # Runtime auth caches must never be committed, even after force-add.
+              python scripts/validate_storage_policy.py --proxy-cache-only
               if git diff --cached --quiet; then
                 echo "报价无变化"
               else
@@ -1564,6 +1575,8 @@ main:
                 if [ -n "$(git ls-files -u)" ]; then
                   echo "PUSHBACK-FAIL reason=unmerged-after-rebase"; exit 1
                 fi
+                # Recheck the rebased commit as well as the index before publication.
+                python scripts/validate_storage_policy.py --proxy-cache-only --check-head
                 GIT_ASKPASS=/tmp/dl-askpass.sh git push https://cnb.cool/xuerui911-mirror/crawl_cars.git HEAD:main
                 rm -f /tmp/dl-askpass.sh
                 echo "✅ 报价已回推；下一轮基础属性链会用它覆盖 Pages 上的陈旧经销商参考价"
@@ -1588,28 +1601,11 @@ main:
                 echo "⚠️ 触发主链失败 rc=$rc（不影响报价入库，下轮自动生效）"
               fi
               exit 0
-          - name: 失败诊断归档
+          - name: 失败诊断保留
             if: failure()
             script: |
-              # 失败现场推 diag 分支；**绝不自动重跑**——
-              # 报价是「锦上添花」，反复重跑只占带宽并可能与基础属性链抢带宽。
-              mkdir -p diag
-              [ -f /tmp/dealer.log ] && cp -pf /tmp/dealer.log diag/ || true
-              git config user.email "xuerui911@gmail.com"
-              git config user.name "cnb-diag"
-              git add diag
-              git commit -m "chore: 报价链失败诊断" || echo "diag 无新增"
-              cat > /tmp/cnb-askpass.sh <<'CNAPOP'
-              #!/bin/sh
-              case "$1" in
-                *sername*) echo "${CNB_TOKEN_USER_NAME:-cnb}" ;;
-                *) printf '%s' "$CNB_TOKEN" ;;
-              esac
-              CNAPOP
-              chmod 700 /tmp/cnb-askpass.sh
-              GIT_ASKPASS=/tmp/cnb-askpass.sh git push -f "https://cnb.cool/xuerui911-mirror/crawl_cars.git" HEAD:refs/heads/diag \
-                || echo "diag 推送失败（不阻断）"
-              rm -f /tmp/cnb-askpass.sh
+              set -e
+              printf '%s\n' '报价链失败：保留本次作业现有日志及 /tmp/dealer.log；不提交或发布诊断分支。'
       # 自愈入口：报价链报错时同样触发 NPC 修复（本链只加 failStages，不动 stages 与顺序）。
       failStages:
         - name: 诊断-收集失败上下文
