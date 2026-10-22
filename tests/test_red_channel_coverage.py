@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import datetime as _dt
 import importlib.util
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -29,6 +31,7 @@ MONITOR = ROOT / ".github/workflows/AI_Auto_Fix_Monitor.yml"
 PLATFORM_READING = {
     "read_at": "2026-10-22T14:21:00+08:00",
     "source": "GET https://api.github.com/repos/Fatty911/crawl_cars/actions/workflows?per_page=50",
+    "total_count": 14,
     "states": {
         "重合并并发布（不爬取）": "active",
         "Deploy verified CNB Pages": "active",
@@ -47,6 +50,37 @@ PLATFORM_READING = {
     },
 }
 ACTIVE = [name for name, state in PLATFORM_READING["states"].items() if state == "active"]
+# 读数最多能当多久的"现状"：超过这个天数就判红，逼下一个人刷新（v2.7 评审票点名的那条加固）。
+# 这不是"自动同步"——没有任何东西会自己跑 gh；它只是把"漂了没人发现"变成"漂了最多 N 天必响"。
+MAX_READING_AGE_DAYS = 14
+
+
+def _reading_age_days(read_at=None, now=None) -> float:
+    """读数距今多少天。`read_at` 不带时区时按本机时区补；未来时间返回负数（调用方按过期处理）。"""
+    when = _dt.datetime.fromisoformat(read_at or PLATFORM_READING["read_at"])
+    now = now or _dt.datetime.now().astimezone()
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=now.tzinfo)
+    return (now - when).total_seconds() / 86400.0
+
+
+def _declared_workflow_names() -> set:
+    """仓内声明的全部工作流名（`.yml` 与 `.yaml` 都算；剥行尾 YAML 注释）。
+
+    为什么还要剥注释：`name: CI  # 主链` 这种写法下，不剥就会把一个**存在**的名字读成不存在，
+    于是这条判据会对着一条真实工作流假红（v2.7 评审票点名的假红面）。
+    """
+    names = set()
+    wf_dir = ROOT / ".github" / "workflows"
+    for yml in sorted(list(wf_dir.glob("*.yml")) + list(wf_dir.glob("*.yaml"))):
+        for line in yml.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("name:"):
+                raw = line.split(":", 1)[1]
+                raw = re.split(r"\s+#", raw, maxsplit=1)[0]   # YAML 注释：`#` 前必须有权空白
+                names.add(raw.strip().strip('"').strip("'"))
+                break
+    return names
+
 
 
 def _load():
@@ -211,21 +245,21 @@ def test_snapshot_names_exist_as_declared_workflows() -> None:
 
 
 def test_platform_reading_covers_every_declared_workflow() -> None:
-    """平台读数必须覆盖仓内**每一条**工作流（含 disabled 的）：少了谁，谁就能从判据的参考集合里消失。
+    """读数与仓内声明必须**双向**对齐：每个声明的工作流都在读数里，读数里也没有幽灵名。
 
     这是"单向抓不到"那一格的补法：此前的 active 集合是从监视名单自己推出来的
     （名单漏一条 active 链 ⇒ 判据两边一起漏 ⇒ 照样绿）。现在参考集合是**整表读数**，
-    与名单不是同一个来源；仓里新增/改名一条工作流而没人刷新读数 ⇒ 本条红。
+    与名单不是同一个来源；仓里新增/改名/删除一条工作流而没人刷新读数 ⇒ 本条红（两个方向都红）。
+    `.yaml` 也算（GitHub 认这个后缀），行尾 YAML 注释会被剥掉（见 `_declared_workflow_names`）。
     """
-    declared = set()
-    for yml in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
-        for line in yml.read_text(encoding="utf-8", errors="replace").splitlines():
-            if line.startswith("name:"):
-                declared.add(line.split(":", 1)[1].strip().strip('"').strip("'"))
-                break
-    missing = sorted(declared - set(PLATFORM_READING["states"]))
+    declared = _declared_workflow_names()
+    states = set(PLATFORM_READING["states"])
+    missing = sorted(declared - states)
     assert missing == [], (
         "平台读数里缺了仓内声明的工作流（按文件顶部注释刷新 PLATFORM_READING）：%s" % missing)
+    ghost = sorted(states - declared)
+    assert ghost == [], (
+        "读数里有点名了但仓内并不存在的工作流（改名/删除后没刷新，属幽灵名）：%s" % ghost)
 
 
 def test_full_platform_reading_is_checked_two_ways_against_the_monitor() -> None:
@@ -242,3 +276,28 @@ def test_full_platform_reading_is_checked_two_ways_against_the_monitor() -> None
     assert errs == [], errs
     assert set(ACTIVE) <= monitored, "读数说 active 但名单里没有：%s" % sorted(set(ACTIVE) - monitored)
 
+
+def test_platform_reading_is_fresh_enough_to_be_trusted() -> None:
+    """读数过期就判红：超过 `MAX_READING_AGE_DAYS` 天不再能代表服务端现状。
+
+    这不是"自动同步"（没有任何东西会自己跑 gh），而是把"漂了没人发现"变成"漂了最多 N 天必响"。
+    反方向也判：`read_at` 写成将来 ⇒ 戳写错了，按过期处理（不给自己留"时间倒流"的口子）。
+    """
+    age = _reading_age_days()
+    assert age <= MAX_READING_AGE_DAYS, (
+        "平台读数已经 %.1f 天（> %d 天）⇒ 按文件顶部的 gh 命令刷新 PLATFORM_READING（现 read_at=%s）"
+        % (age, MAX_READING_AGE_DAYS, PLATFORM_READING["read_at"]))
+    assert age >= -1, "read_at 在将来（%s，距今 %.1f 天）⇒ 戳写错了，按过期处理" % (
+        PLATFORM_READING["read_at"], age)
+
+
+def test_platform_reading_is_not_silently_truncated() -> None:
+    """读数条数必须等于平台自报的 `total_count`：手抄漏行、或 `per_page` 不够导致截断，都判红。
+
+    为什么要有这一格：`per_page=50` 时工作流一旦超过 50 条，API 只会返回前 50 条 ⇒
+    手抄会静默少几条，而"少的那几条"正好可以永远不进监视名单。这一格零网络成本。
+    """
+    n = len(PLATFORM_READING["states"])
+    assert PLATFORM_READING.get("total_count") == n, (
+        "读数条数 %d ≠ 平台 total_count=%r ⇒ per_page 截断或手抄漏行"
+        % (n, PLATFORM_READING.get("total_count")))
