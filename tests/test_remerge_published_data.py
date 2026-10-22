@@ -280,13 +280,15 @@ def test_k3_identity_key_carries_year_and_price() -> None:
     rebuilt = [_row("93001", "2026款 在管甲", "甲车系", "2026", "12.00万", "仅懂车帝", "100")]
     inherited_old_year = _row("93001", "2025款 老甲", "甲车系", "2025", "11.00万",
                               "仅懂车帝", "100")
-    out = RM.union_filtered([inherited_old_year], rebuilt)
+    # 第三腿 = 折前基准（`build_filtered(未折叠的宽面行)`）。这里传空 = "折前重算里也没有这一行"，
+    # 正是本例要的形状（2025 那行今日门禁会拒），所以它考的还是身份键粒度，不是 V8 那条对齐判据。
+    out = RM.union_filtered([inherited_old_year], rebuilt, [])
     years = sorted({str(r.get("年款")) for r in out if str(r.get("车款ID")) == "93001"})
     assert years == ["2025", "2026"], "同 ID 不同年款的已发布行被当作重复丢掉了：%s" % years
 
     # 反向：同 ID 同年款同价、只差名称写法 ⇒ 不许再补回来（评审 B4 的那 96 行假补回）
     same_identity = _row("93001", "在管甲 26款", "甲车系", "2026", "12.00万", "仅懂车帝", "100")
-    out2 = RM.union_filtered([same_identity], rebuilt)
+    out2 = RM.union_filtered([same_identity], rebuilt, [])
     assert len(out2) == 1, "同一身份只换了名称写法就被再补一行：%r" % [
         r.get("车型名称") for r in out2]
 
@@ -294,10 +296,72 @@ def test_k3_identity_key_carries_year_and_price() -> None:
     # 同 (车系,年款,名称) 而价不同的已发布行会被文本键判成"已经有了"而漏保。
     price_only = _row("", "在管乙", "乙车系", "2026", "13.00万", "仅懂车帝", "200")
     rebuilt_b = [_row("", "在管乙", "乙车系", "2026", "12.00万", "仅懂车帝", "200")]
-    out3 = RM.union_filtered([price_only], rebuilt_b)
+    out3 = RM.union_filtered([price_only], rebuilt_b, [])
     prices = sorted({str(r.get("官方指导价")) for r in out3 if str(r.get("车系")) == "乙车系"})
     assert prices == ["12.00万", "13.00万"], (
         "同名称不同价的已发布行被文本键吞掉了：%s" % prices)
+
+
+def test_v81_display_face_must_not_reinherit_what_the_wide_face_folded() -> None:
+    """V8-1（终验闸 V8 红的形状，r39755657893 实测）：宽面已经把这一行折进同簇的另一行 ⇒ 展示面不许再补回。
+
+    现网读数：`现口径重算 17244 行 ｜ 从已发布面补回 155 行` ⇒ 展示面 17399、宽面 17244，
+    差的 155 行全是**无 车款ID** 的懂车帝行（捷途旅行者 2025 `1.5TD 探索` 这类：同车系同年款同价，
+    宽面上已经并进带 ID 的那一行了，展示面又把它单独摆回来 = 用户看到同一款两行）。
+    旧写法把 `seen` 只建在**折后**的 rebuilt 上 ⇒ "被折掉"和"被重算丢掉"长得一模一样，无从区分。
+    """
+    wide_twin = _row("95001", "丁车系 2026款 尊享版", "丁车系", "2026", "20.00万", "懂车帝+汽车之家", "300")
+    no_id_dup = _row("", "2026款 尊享版", "丁车系", "2026", "20.00万", "仅懂车帝", "300")
+    out = RM.union_filtered([no_id_dup], [], [wide_twin, no_id_dup])
+    assert out == [], "宽面折掉的重复又被补回展示面（两面对不上，V8 应红）：%r" % [
+        r.get("车型名称") for r in out]
+
+
+def test_v82_row_the_recompute_actually_lost_is_still_inherited() -> None:
+    """V8-2（守门样，不是红样）：折前重算里**根本没有**的行仍要补回——旧写法在这一格本来就是绿的。
+
+    收紧继承判据不能把"发布防缩小"那半也一起收紧掉：道朗格 YUKON育空 70672/70687/72803
+    是在 `autohome_publish_identity_valid` 之前发布的，今日重算（折前折后都没有）会悄悄缩小发布面。
+    与 V8-1 同一批行、只把折前基准换成空 ⇒ 必须补回，否则这条闸就是单向的。
+    """
+    no_id_dup = _row("", "2026款 尊享版", "丁车系", "2026", "20.00万", "仅懂车帝", "300")
+    out = RM.union_filtered([no_id_dup], [], [])
+    assert len(out) == 1, "重算真丢的已发布行没被补回（发布防缩小被自己收紧掉了）：%r" % out
+
+
+def test_v83_main_feeds_the_union_the_prefold_recompute(tmp_path, monkeypatch) -> None:
+    """V8-3 接线：`main()` 必须把**折前**的 filtered 重算当第三腿交给 union_filtered。
+
+    函数级判据对、调用点没接 ⇒ 现网那 155 行照旧（尺子在、读数不在）。
+    用一对同 车款ID 同价同年款的行做钩子：折叠必定并掉一行 ⇒ 折前基准比分结果多 1 行。
+    """
+    calls = []
+    real = RM.union_filtered
+
+    def spy(inherited, rebuilt, raw_rebuilt):
+        calls.append((len(inherited), len(rebuilt), len(raw_rebuilt)))
+        return real(inherited, rebuilt, raw_rebuilt)
+
+    monkeypatch.setattr(RM, "union_filtered", spy)
+    rows = _pad([
+        _row("96001", "重复甲", "戊车系", "2026", "21.00万", "仅懂车帝", "400"),
+        _row("96001", "戊车系 2026款 重复甲", "戊车系", "2026", "21.00万", "仅汽车之家", "401"),
+    ])
+    merged = tmp_path / "merged_20261022.json"
+    merged.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    old_face = _pad([_row("", "戊车系 2026款 重复甲", "戊车系", "2026", "21.00万", "懂车帝", "400")])
+    filt = tmp_path / "filtered_cars_20261022.json"
+    filt.write_text(json.dumps(old_face, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["remerge_published_data.py", "--merged", str(merged),
+                                      "--filtered", str(filt), "--date", "20261022",
+                                      "--outdir", str(tmp_path)])
+    assert RM.main() == 0
+    assert calls, "main() 没调用 union_filtered ⇒ 第三腿无从生效"
+    _inh, reb, raw = calls[0]
+    assert raw - reb == 1, "第三腿不是折前重算（折前 %d 行 vs 折后 %d 行，应差 1）" % (raw, reb)
+    out_face = json.loads((tmp_path / "filtered_cars_20261022.json").read_text(encoding="utf-8"))
+    assert sum(1 for r in out_face if str(r.get("车系")) == "戊车系") == 1, (
+        "展示面还留着宽面已折掉的那一行（戊车系应只剩 1 行）")
 
 
 WORKFLOW = ROOT / ".github" / "workflows" / "remerge-and-publish.yml"

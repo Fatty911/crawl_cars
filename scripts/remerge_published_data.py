@@ -137,7 +137,7 @@ def _identity_keys(row: dict) -> tuple:
     return tuple(keys)
 
 
-def union_filtered(inherited: list, rebuilt: list) -> list:
+def union_filtered(inherited: list, rebuilt: list, raw_rebuilt: list) -> list:
     """发布面 filtered 的重建 = **现口径重算 ∪ 已发布行**，一个已发布身份都不许丢。
 
     为什么要并集而不是二选一（监工 2026-10-16 实测）：
@@ -148,20 +148,41 @@ def union_filtered(inherited: list, rebuilt: list) -> list:
       拒掉（它们是在那道闸之前发布的），重算会**悄悄缩小发布面**，违反本流水线自己的
       "发布防缩小"原则。
     ⇒ 重算负责"把被误删的整源找回来"，inherited 负责"已发布身份一个不丢"。
+
+    "一个不丢"必须按**折前的行集**判，不能按折后的判（10-22 r39755657893 实测：
+    `现口径重算 17244 行 ｜ 从已发布面补回 155 行` ⇒ 宽面 17244、展示面 17399，
+    差的 155 行全是无 车款ID 的懂车帝行，终验闸 V8 因此红）。`seen` 只吃 `rebuilt`（折后）时，
+    "宽面已经把这一行折进了同簇的另一行"和"重算把这一行丢了"两件事长得一模一样，
+    于是宽面刚判完的重复又被原样补回用户面。
+    ⇒ 判据是 `raw_rebuilt`：同一套 `filter_car`+`narrow_pages_rows`、但**没跑折叠**的行集。
+      折前就在 ⇒ 那是折叠的结果，不补回；折前就不在 ⇒ 那是筛选/身份闸的结果，补回。
+
+    为什么不是"并集之后再折一遍窄面"（同轮实测）：对 17399 行的窄面补跑
+    `dedupe_merged_rows` 折掉 258 行 = 该折的 155 继承行 + **103 行宽面刻意分开的行**
+    （`narrow_pages_rows` 裁掉了冲突闸要看的列 ⇒ 同一把尺在窄面上是瞎的）。
+    那一改会少 103 行真不同款，是把两个面对齐的代价换成把用户面折错。
     """
     out = list(rebuilt)
     seen = set()
     for row in rebuilt:
         seen.update(_identity_keys(row))
-    kept = 0
+    pre_fold = set()
+    for row in raw_rebuilt:
+        pre_fold.update(_identity_keys(row))
+    kept = folded_away = 0
     for row in inherited:
         keys = _identity_keys(row)
-        if keys and all(k not in seen for k in keys):
-            out.append(row)
-            seen.update(keys)
-            kept += 1
-    print("   filtered 重建：现口径重算 %d 行 ｜ 从已发布面补回 %d 行（合计 %d 行）"
-          % (len(rebuilt), kept, len(out)), file=sys.stderr)
+        if not keys or any(k in seen for k in keys):
+            continue
+        if any(k in pre_fold for k in keys):
+            folded_away += 1        # 宽面已把它折进同簇行：补回来就是给用户面制造重复
+            continue
+        out.append(row)
+        seen.update(keys)
+        kept += 1
+    print("   filtered 重建：现口径重算 %d 行 ｜ 补回 %d 行（折前就没有=筛选/身份闸丢的）"
+          "｜ 不补回 %d 行（折前就有=宽面已折进同簇行）｜ 合计 %d 行"
+          % (len(rebuilt), kept, folded_away, len(out)), file=sys.stderr)
     return out
 
 
@@ -201,7 +222,9 @@ def main() -> int:
         f_before_groups, _ = dup_id_groups(old_filtered)
         inherited = remerge(old_filtered, args.max_drop_pct)
         rebuilt = build_filtered(merged)
-        filtered = union_filtered(inherited, rebuilt)
+        # 折前基准：同一套 filter+narrow，但没跑折叠——用来分清"被宽面折掉"与"被重算丢掉"。
+        raw_rebuilt = build_filtered(rows)
+        filtered = union_filtered(inherited, rebuilt, raw_rebuilt)
         lost = sku_ids(inherited) - sku_ids(filtered)
         if lost:
             raise SystemExit("❌ 重建后的 filtered 丢了已发布身份 %d 个（样例 %s），拒绝发布"
@@ -209,9 +232,21 @@ def main() -> int:
         gained = sku_ids(rebuilt) - sku_ids(inherited)
         print("   filtered 身份：已发布 %d 个全保住 ｜ 重算找回 %d 个（被误删的整源）"
               % (len(sku_ids(inherited)), len(gained)), file=sys.stderr)
+        # 两面对齐读数（终验闸 V8 的链内侧对照；这里只报数，判定在 V8 那把独立的尺上）：
+        # 展示面里没有任何一行是宽面**折前**行集里没有的身份 ⇒ 展示面不再带宽面已判过的重复。
+        pre_keys = set()
+        for row in rows:
+            pre_keys.update(_identity_keys(row))
+        orphan = [row for row in filtered if not any(k in pre_keys for k in _identity_keys(row))]
+        print("   两面对齐：展示面 %d 行 ｜ 其中身份在宽面折前行集里找不到的 = %d 行%s"
+              % (len(filtered), len(orphan),
+                 "" if not orphan else "（样例 %s）" % [str(r.get("车型名称"))[:20] for r in orphan[:3]]),
+              file=sys.stderr)
+        face_orphans = len(orphan)
     else:
         filtered = build_filtered(merged)
         f_before_groups = None
+        face_orphans = None
     f_after_groups, _ = dup_id_groups(filtered)
 
     args.outdir.mkdir(parents=True, exist_ok=True)
@@ -231,6 +266,7 @@ def main() -> int:
         "filtered_rows_after": len(filtered),
         "filtered_dup_sku_groups_before": f_before_groups,
         "filtered_dup_sku_groups_after": f_after_groups,
+        "filtered_rows_not_in_wide_prefold": face_orphans,
         "dup_sku_groups_before": before_groups,
         "dup_sku_groups_after": after_groups,
         "dup_sku_rows_before": before_rows,
