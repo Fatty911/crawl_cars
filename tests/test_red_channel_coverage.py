@@ -11,7 +11,15 @@ import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MONITOR = ROOT / ".github/workflows/AI_Auto_Fix_Monitor.yml"
-ACTIVE = ["重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示"]
+# 服务端 state=active 的**旁路（不爬取）链**快照。出处：`GET /repos/Fatty911/crawl_cars/actions/workflows`
+# 于 2026-10-22T14:21+08:00 的逐条读数——5 条 active 的正是 `部署车型配置网页/懂车帝爬虫/CI` 等
+# disabled_manually 之外的那 5 条；其余 9 条 state=disabled_manually（爬虫类与 PR 自动合并）不参与"全部成功"。
+# 为什么这里是快照而不是现调 API：本套测试不许依赖网络与凭据（夹具里的本机事实会让判据在别的 OS 上假红）。
+# 这条快照**会漂**：10-22 的教训是监视名单补到 5 条而这里还停在 3 条 ⇒
+# `test_real_monitor_matches_current_active_chains` 当场判红并点名两条链——那是**这条不变式在正常工作**，
+# 补名单必须同批改这里，判据不许反过来迁就名单。
+ACTIVE = ["重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示",
+          "Markdown privacy (candidate)", "Runtime proxy cache guard"]
 
 
 def _load():
@@ -137,7 +145,9 @@ def test_unreadable_states_exits_third_state(monkeypatch, capsys):
 def test_states_fixture_roundtrip(tmp_path):
     p = tmp_path / "states.json"
     p.write_text(json.dumps({"workflows": _states()}), encoding="utf-8")
-    assert len(_load().load_states(str(p), "x/y")) == 6
+    # 原来这里手抄的是 6。名单从 3 条补到 5 条时它必然跟着红——而红的不是判据，是**抄来的常数**。
+    # 换成由夹具自己推：写进去几条，读出来就该是几条（这才是 roundtrip 要钉的东西）。
+    assert len(_load().load_states(str(p), "x/y")) == len(_states())
 
 
 def test_unreadable_survives_gbk_stdio(tmp_path):
@@ -153,3 +163,21 @@ def test_unreadable_survives_gbk_stdio(tmp_path):
     blob = p.stdout + p.stderr
     assert p.returncode == 2, blob[-2000:]
     assert b"COVERAGE_UNREADABLE" in blob
+
+
+def test_snapshot_names_exist_as_declared_workflows() -> None:
+    """ACTIVE 快照里每个名字都必须真能在 `.github/workflows/*.yml` 的顶层 `name:` 找到。
+
+    这条钉的是"快照↔仓内声明"这一层：服务端状态读不到（不许联网），但**名字消失/被改名**
+    是纯仓内事实，能判红。上一轮的实际事故是名单与快照不同批改 ⇒ 另一条不变式已经红过；
+    这一条补的是另一半：快照里写了个仓里已经不存在的链名（那叫凑数覆盖）。
+    """
+    declared = set()
+    for yml in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for line in yml.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("name:"):          # 只认顶层 name（job 级的有缩进）
+                declared.add(line.split(":", 1)[1].strip().strip('"').strip("'"))
+                break
+    missing = [n for n in ACTIVE + ["AI Auto Fix Monitor"] if n not in declared]
+    assert missing == [], "快照点名了仓内并不存在的工作流名（凑数覆盖）：%s ｜ 仓内顶层 name=%s" % (
+        missing, sorted(declared))
