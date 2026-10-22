@@ -333,18 +333,16 @@ DEFAULT_BRANCH_ONLY_EVENTS = (
     "registry_package", "repository_dispatch", "schedule", "status", "watch", "workflow_run",
 )
 # 未建模 / 名字不认识的事件：不猜它的 ref，改成**只认"按 ref 钉死默认分支"这一种合规写法**（见下）。
-ALL_SCENARIOS = ("release", "create", "push_tag",
-                 "dispatch_ref", "dispatch_branch",
-                 "pull_request", "pull_request_review", "pull_request_review_comment",
-                 "pull_request_target", "merge_group", "workflow_call_tag", "workflow_call_branch",
-                 "deployment_ref", "deployment_status_ref", "check_run_ref", "check_suite_ref",
-                 "delete_ref", UNLISTED_EVENT)
-TAGISH = ("release", "create", "push_tag", "dispatch_ref", "workflow_call_tag",
-          "delete_ref", "deployment_ref", "deployment_status_ref",
-          "check_run_ref", "check_suite_ref")
-PULLISH = ("pull_request", "pull_request_review", "pull_request_review_comment",
-           "pull_request_target")
-OTHER_BRANCHISH = ("dispatch_branch", "workflow_call_branch")
+# 下面四张表**全部从 `ON_TO_SCENARIOS` 派生**，不再手抄（v2.5 评审票点名的"弱钉"）：
+# 手抄的表在加触发口时会漏改，而漏改的方向是静默的（新口的 ref 没被建模 ⇒ 该红判绿）。
+# 派生规则按 ref 形状命名：`*_ref`/tag 口、`pull_request*` 口、`*_branch` 口、队列口（merge_group）。
+_SCENARIOS = tuple(sc for scenarios in ON_TO_SCENARIOS.values() for sc in scenarios)
+ALL_SCENARIOS = _SCENARIOS + ("push_tag", UNLISTED_EVENT)
+TAGISH = tuple(s for s in ALL_SCENARIOS
+               if s.endswith("_ref") or s in ("release", "create", "push_tag", "workflow_call_tag"))
+PULLISH = tuple(s for s in ALL_SCENARIOS if s.startswith("pull_request"))
+OTHER_BRANCHISH = tuple(s for s in ALL_SCENARIOS if s.endswith("_branch"))
+QUEUEISH = tuple(s for s in ALL_SCENARIOS if s == "merge_group")
 
 
 def non_default_ref_events(text):
@@ -785,4 +783,31 @@ def test_unlisted_event_fails_closed_but_pinning_is_satisfiable():
     assert not is_default_branch_ref("refs/pull/7/merge") and not is_default_branch_ref("refs/tags/v1")
     assert is_default_branch_ref("refs/heads/main") and ref_kind("refs/heads/main") == ("heads", "main")
     assert ref_kind("heads/main")[0] is None, "缺 refs/ 前缀的写法不许被读成分支 ref"
+
+
+def test_ref_shape_tables_are_derived_and_cover_every_scenario() -> None:
+    """四张 ref 形状表必须**盖满** `ON_TO_SCENARIOS` 派生的每一格，且互不重叠。
+
+    这条把 v2.5 评审票点名的"弱钉"钉死：手抄的表在加触发口时会漏改，漏改的方向是
+    **静默变绿**（新口的 ref 没被建模 ⇒ 它永远不会被判成风险口）。现在三张表都由命名规则派生，
+    再加一条"盖满且不重叠"的判据 ⇒ 谁往 `ON_TO_SCENARIOS` 里加一格而命名不落在这几条规则上，
+    本条当场红（红样：加 `"foo": ("foo_misc",)`）。
+    另判 `ON_TO_SCENARIOS` 自身不许把同一场景写两遍（重复会让 `ALL_SCENARIOS` 里出现同名两格，
+    集合判据被"凑数"撑满）。
+    """
+    assert len(_SCENARIOS) == len(set(_SCENARIOS)), "ON_TO_SCENARIOS 里同一场景被写了两次：%s" % (
+        sorted({s for s in _SCENARIOS if _SCENARIOS.count(s) > 1}),)
+    buckets = (set(TAGISH), set(PULLISH), set(OTHER_BRANCHISH), set(QUEUEISH))
+    for i in range(len(buckets)):
+        for j in range(i + 1, len(buckets)):
+            assert not (buckets[i] & buckets[j]), "同一个场景被分进两类 ref 形状：%s" % (
+                sorted(buckets[i] & buckets[j]),)
+    covered = set().union(*buckets)
+    want = set(ALL_SCENARIOS) - {UNLISTED_EVENT}
+    assert covered == want, (
+        "触发口没被任何 ref 形状覆盖（会给新口判绿）：漏=%s ｜ 多=%s"
+        % (sorted(want - covered), sorted(covered - want)))
+    # 派生表不许出现"表外场景"：ALL_SCENARIOS 的每一格都必须来自 ON_TO_SCENARIOS 或这两个显式补口
+    assert set(ALL_SCENARIOS) == set(_SCENARIOS) | {"push_tag", UNLISTED_EVENT}
+
 
