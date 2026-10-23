@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "purpose": "Only reconcile saved model names against three directly read official spec identities; no network access in backup workflows and no changes to year, price, configuration or row membership. Raw responses are preserved in the task evidence; selected facts are explicitly excerpts, not raw responses.",
+  "entries": [
+    {
+      "spec_id": "72741",
+      "series_id": "7759",
+      "brand": "兰博基尼",
+      "series": "Temerario",
+      "declared_year": "2026",
+      "previous_name": "Temerario 2025款 标准版",
+      "source": {
+        "kind": "autohome-api-spec",
+        "url": "https://car-web-api.autohome.com.cn/car/param/getParamConf?mode=1&site=1&seriesid=7759&specid=72741",
+        "http_status": 200,
+        "fetched_at_utc": "2026-10-20T07:47:09.156738+00:00",
+        "raw_response_sha256": "a419199db1cb46ff7746a8a4d395b28fb85153c40d7debe7ff6a017eb0773553",
+        "selected_excerpt": {
+          "specid": 72741,
+          "specname": "2026款 标准版",
+          "condition": [
+            "4.0T",
+            "湿式双离合",
+            "国VI",
+            "硬顶跑车",
+            "2",
+            "插电混动",
+            "2026"
+          ],
+          "param_name": "Temerario 2026款 标准版"
+        },
+        "excerpt_sha256": "2a83470f9813ce3a93271a14f53680c245741e67aa4acde54fd80a627cb27323"
+      }
+    },
+    {
+      "spec_id": "72435",
+      "brand": "捷途山海",
+      "series": "捷途山海L9",
+      "declared_year": "2024",
+      "previous_name": "捷途山海L9 2025款 1.5TD 2DHT 行政版 5座",
+      "source": {
+        "kind": "autohome-spec-page",
+        "url": "https://car.autohome.com.cn/config/spec/72435.html",
+        "http_status": 200,
+        "fetched_at_utc": "2026-10-20T07:49:13.901739+00:00",
+        "raw_response_sha256": "e3386e7f281a10f22c6ddff947f981973ddd165c9c374e037d547b41369c0955",
+        "selected_excerpt": {
+          "title": "【捷途山海L9 2024款 1.5TD 2DHT 行政版 5座参数配置表】价格单_捷途山海_汽车之家",
+          "exact_spec_anchor_text": "2024款 1.5TD 2DHT 行政版 5座"
+        },
+        "excerpt_sha256": "1ca8eca21deb779d8e29b38fcb4d126678610c91b49212c8521a3e8c9bc13477"
+      }
+    },
+    {
+      "spec_id": "72436",
+      "brand": "捷途山海",
+      "series": "捷途山海L9",
+      "declared_year": "2024",
+      "previous_name": "捷途山海L9 2025款 1.5TD 2DHT 行政版 7座",
+      "source": {
+        "kind": "autohome-spec-page",
+        "url": "https://car.autohome.com.cn/config/spec/72436.html",
+        "http_status": 200,
+        "fetched_at_utc": "2026-10-20T07:49:14.726248+00:00",
+        "raw_response_sha256": "5a63b2e5da3068c4c74cc8af10f8a949911a03254653c253f42f2d88aa5ab0b4",
+        "selected_excerpt": {
+          "title": "【捷途山海L9 2024款 1.5TD 2DHT 行政版 7座参数配置表】价格单_捷途山海_汽车之家",
+          "exact_spec_anchor_text": "2024款 1.5TD 2DHT 行政版 7座"
+        },
+        "excerpt_sha256": "cb5b1b7e70e215ed122b9505fbd7a6d6e952fbec4384153225ca3531c56b51a1"
+      }
+    }
+  ]
+}
