@@ -17280,7 +17280,7 @@ def _backfill_candidate(v):
     return (not _cell_blank(s)) or s in _EXPLICIT_NEG
 
 
-def dedupe_merged_rows(rows):
+def dedupe_merged_rows(rows, *, _observe_merge=None):
     if not isinstance(rows, list):
         return rows
     # 登记簿按 id 索引，跨调用会踩到回收后的 id（虽有 `is` 核身，仍会白白涨内存）。
@@ -17371,20 +17371,20 @@ def dedupe_merged_rows(rows):
         # 无锚 ⇒ 与冲突闸同一个严格度（取值集合必须相同），只是**取值来源**统一成 `_row_seat_values`
         return not _seat_sets_conflict([_row_seat_values(r) for r in group], anchored=False)
 
-    rows = _collapse(rows, _id_key)
-    rows = _collapse(rows, _attr_key)
+    rows = _collapse(rows, _id_key, _observe_merge=_observe_merge)
+    rows = _collapse(rows, _attr_key, _observe_merge=_observe_merge)
     # 第三遍要**跑到不动点**：车系写法归一发生在每一遍的末尾，
     # 所以"物理身份相同、只是车系写法不同"的两行要到归一之后才会落进同一个簇。
     # 实测一轮会留下 12 个这样的簇。
     for _ in range(3):
         before = len(rows)
-        rows = _collapse(rows, _phys_key, _physical_cluster_ok)
+        rows = _collapse(rows, _phys_key, _physical_cluster_ok, _observe_merge=_observe_merge)
         if len(rows) == before:
             break
     return rows
 
 
-def _collapse(rows: list, key_fn, accept=None) -> list:
+def _collapse(rows: list, key_fn, accept=None, *, _observe_merge=None) -> list:
     """按 key_fn 对**它收到的这批行**分簇收敛：同簇且无明确冲突才合并成一行。
     行不是 dict 或 key_fn 返回 None ⇒ 原样带走，不参与本遍折叠。
     accept(cluster) 返回假 ⇒ 整簇放弃折叠（用于"归属有歧义就不折"的场合）。"""
@@ -17430,6 +17430,19 @@ def _collapse(rows: list, key_fn, accept=None) -> list:
             _BACKFILLED[id(base)] = (base, set(_ent[1]))
         name_candidates = [str(row.get('车型名称', '') or '').strip() for row in group
                            if str(row.get('车型名称', '') or '').strip()]
+        # Exclude explicit year contradictions when a compatible observed name
+        # exists. Names without a year still carry real trim/battery/drive facts.
+        # Only a single explicit field year can contradict an observed name.
+        # Missing/ambiguous field years retain the legacy observed-year evidence.
+        declared_years = set(re.findall(
+            r'(?<![0-9])(20[0-9]{2})(?![0-9])', str(base.get('年款', '') or '')))
+        if len(declared_years) == 1:
+            compatible_names = [name for name in name_candidates
+                                if not (named_years := set(re.findall(
+                                    r'(?<![0-9])(20[0-9]{2})\s*款', name)))
+                                or named_years == declared_years]
+            if compatible_names:
+                name_candidates = compatible_names
         if name_candidates:
             # 先比"身份词有多少"、再比长度：光比长度会让**长而空**的名字盖掉短而富的名字，
             # 把电池/驱动这类只写在名字里的信息整块丢掉（实测 阿维塔07 74558 丢 39.05kWh 后驱）。
@@ -17510,6 +17523,8 @@ def _collapse(rows: list, key_fn, accept=None) -> list:
         # 单原子回到 '仅X'）。否则 '汽车之家+懂车帝(车系级)' 与 '懂车帝+汽车之家'
         # 会按到达顺序并存，覆盖与双源核验计数随写法漂移。
         _dedupe_source_labels(base)
+        if _observe_merge is not None:
+            _observe_merge(group, base)
         return base
 
     for group in groups.values():

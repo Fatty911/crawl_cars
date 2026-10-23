@@ -19,6 +19,8 @@ from typing import Any
 
 DIR = Path(__file__).resolve().parents[1]
 
+from publish_value_domains import clean_vehicle_level
+
 try:
     from publish_identity import (
         autohome_publish_identity_valid,
@@ -2209,6 +2211,7 @@ def prepare_rows_with_stats(
         "droppedMissingListingTime": 0,
         "droppedFutureListingTime": 0,
         "droppedInvalidYear": 0,
+        "vehicleLevelRemovedSegments": 0,
         "droppedIdentityMissing": 0,
         "droppedAutohomeIdentity": 0,
         "droppedOutOfBoundary": 0,
@@ -2276,6 +2279,10 @@ def prepare_rows_with_stats(
         normalize_publish_official_price(prepared_row)
         prepared_row["品牌"] = brand
         prepared_row["车型名称"] = model
+        level, removed = clean_vehicle_level(prepared_row.get("级别"))
+        if removed:
+            prepared_row["级别"] = level
+            stats["vehicleLevelRemovedSegments"] += len(removed)
         prepared.append(prepared_row)
     prepared, component_stats = annotate_safe_visible_components(
         prepared,
@@ -2419,6 +2426,7 @@ def main() -> int:
                     or key.startswith("fieldSource")
                     or key.startswith("retiredField")
                     or key.startswith("capability")
+                    or key.startswith("vehicleLevel")
                 },
             },
             ensure_ascii=False,
