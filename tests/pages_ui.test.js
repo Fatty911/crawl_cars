@@ -138,6 +138,10 @@ test("chunked full JSON download uses unmodified published rows instead of norma
 });
 
 
+function descendants(element) {
+  return [element].concat(...(element.children || []).map(descendants));
+}
+
 class FakeElement {
   constructor(tagName = "div") {
     this.children = [];
@@ -248,6 +252,11 @@ function loadAppForTest() {
       activateMobileCategory: activateMobileCategory,
       restoreDefaultFilters: restoreDefaultFilters,
       formatDataTimestamp: formatDataTimestamp,
+      conditionTagLabel: conditionTagLabel,
+      normEnumValue: normEnumValue,
+      renderTableBody: renderTableBody,
+      exportCurrentCsv: exportCurrentCsv,
+      exportCurrentJson: exportCurrentJson,
       state: state
     };
   }());`
@@ -1104,7 +1113,7 @@ test("Pages first load renders and applies acceleration, speed, and EV range def
   hooks.renderEverything();
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.getFilteredRows().map((item) => item["车型名称"]))), ["全部通过"]);
   const tags = elements.get("selectedTags").children.map((tag) => tag.textContent);
-  assert.ok(tags.includes("百公里加速 ≤7 ≥0"));
+  assert.ok(tags.includes("百公里加速 ≤7"));
   assert.ok(tags.includes("最高车速 ≥180"));
   assert.ok(tags.includes("纯电续航 ≥150"));
   const values = {};
@@ -1162,7 +1171,7 @@ test("series card: common attrs in one meta line, differing attrs per model row"
   assert.ok(snapshots.length === 1, "一个车系一张卡片");
   assert.ok(snapshots[0].meta.indexOf("品牌: 甲") !== -1, "卡片 meta 含共性属性品牌（单值一行）");
   assert.ok(snapshots[0].meta.indexOf("级别: 中型SUV") !== -1, "卡片 meta 含共性属性级别（单值一行）");
-  assert.ok(snapshots[0].meta.indexOf("能源类型: 纯电动/增程") !== -1, "能源类型有差异 -> 汇总枚举（同义词已归一）");
+  assert.ok(snapshots[0].meta.indexOf("能源类型: 纯电动|增程式") !== -1, "能源类型有差异 -> 汇总枚举（同义词已归一）");
   assert.ok(snapshots[0].meta.indexOf("官方指导价: 20-30万") !== -1, "价格有差异 -> 范围");
   assert.ok(snapshots[0].meta.indexOf("百公里加速(s): 5.5-6") !== -1, "加速有差异 -> 范围");
   assert.ok(snapshots[0].meta.indexOf("纯电续航(km): 200-600") !== -1, "续航有差异 -> 范围");
@@ -1302,4 +1311,74 @@ test("SKU display merge does not chain conflicting SKUs through a bridging row",
   const prices = rows.map((r) => String(r["官方指导价"] || "")).join(" | ");
   assert.ok(prices.includes("62.98万"), "2.4L 那一档的价格必须仍在面上");
   assert.ok(prices.includes("58.98万"), "2.0T 那一档的价格必须仍在面上");
+});
+
+test("energy and exact decimal prices agree in cards, table and current exports without erasing conflicts", async () => {
+  const {hooks,elements,downloads} = loadAppForTest();
+  hooks.state.config = {conditions:[], hiddenByDefault:[],dropIfUniformPositive:[],defaultVisibleColumns:["车型名称","能源类型","官方指导价"]};
+  const raw = [
+    Object.assign(row("汽车之家",2026,"等价值"), {"车系":"等价值","能源类型":"纯电动|易车:纯电","官方指导价":"35.80万|35.8万|358000元"}),
+    Object.assign(row("汽车之家",2026,"冲突值"), {"车系":"冲突值","能源类型":"汽车之家:纯电动|易车:增程式纯电动","官方指导价":"汽车之家:33.80万|33.8万|易车:35.80万"}),
+    Object.assign(row("汽车之家",2026,"精确值"), {"车系":"精确值","官方指导价":"35.8万|35.800000000000001万"})
+  ];
+  const before = JSON.stringify(raw);
+  assert.equal(hooks.normEnumValue("纯电动|易车:纯电"),"纯电动","existing one-argument deployment-checker call remains compatible");
+  hooks.initializeRows(raw);
+  const equal = hooks.state.rows.find(r=>r["车系"]==="等价值");
+  const conflict = hooks.state.rows.find(r=>r["车系"]==="冲突值");
+  assert.equal(equal["能源类型"],"纯电动");
+  assert.equal(equal["官方指导价"],"35.8万");
+  assert.match(conflict["能源类型"],/纯电动/);
+  assert.match(conflict["能源类型"],/增程式/);
+  assert.match(conflict["官方指导价"],/汽车之家:33\.8万\|易车:35\.8万/);
+  assert.match(hooks.state.rows.find(r=>r["车系"]==="精确值")["官方指导价"],/35\.800000000000001万/);
+  const cards = hooks.renderCards(hooks.groupRowsBySeries(hooks.state.rows));
+  const conflictCard = cards.find(c=>c.meta.includes("增程式"));
+  assert.ok(conflictCard && conflictCard.meta.includes("纯电动"), "summary must not reduce a conflict to the dominant energy family");
+  hooks.state.mode="table";
+  hooks.renderTableBody(hooks.state.rows);
+  const text = descendants(elements.get("tableBody")).map(e=>e.textContent).join(" ");
+  assert.ok(text.includes("纯电动") && text.includes("增程式") && !text.includes("35.80万"));
+  hooks.exportCurrentJson();
+  const exported=JSON.parse(await downloads[0].text());
+  assert.equal(exported.find(r=>r["车系"]==="等价值")["官方指导价"],"35.8万");
+  hooks.exportCurrentCsv();
+  const csv=await downloads[1].text();
+  assert.ok(csv.includes("纯电动") && csv.includes("增程式") && !csv.includes("35.80万"));
+  assert.equal(JSON.stringify(raw),before);
+});
+
+test("range tags omit zero lower bound but preserve meaningful positive or negative bounds", () => {
+  const {hooks}=loadAppForTest();
+  const condition={id:"zero_to_hundred",type:"range",label:"百公里加速"};
+  hooks.state.rangeFilters.zero_to_hundred={min:"0.00",max:"7"};
+  assert.equal(hooks.conditionTagLabel(condition),"百公里加速 ≤7");
+  for(const min of ["2","-1"]) {
+    hooks.state.rangeFilters.zero_to_hundred={min,max:"7"};
+    assert.ok(hooks.conditionTagLabel(condition).includes("≥"+min));
+    assert.ok(hooks.conditionTagLabel(condition).includes("≤7"));
+  }
+});
+
+test("non-energy summary normalization removes only known source prefixes and preserves measurement cycles", () => {
+  const {hooks}=loadAppForTest();
+  assert.equal(hooks.normEnumValue("汽车之家:多连杆独立悬架","后悬挂形式"),"多连杆独立悬架");
+  assert.equal(hooks.normEnumValue("易车:CLTC:643","纯电续航(km)"),"CLTC:643");
+  assert.equal(hooks.normEnumValue("CLTC:643","纯电续航(km)"),"CLTC:643");
+  assert.equal(hooks.normEnumValue("WLTC:643","纯电续航(km)"),"WLTC:643");
+  assert.equal(hooks.normEnumValue("自定义:真实值","真实属性"),"自定义:真实值");
+});
+
+test("custom energy ordering distinguishes HEV from PHEV and retains mixed-energy observations", () => {
+  const {hooks}=loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("易车",2026,"A-PHEV"),{"能源类型":"插电式混合动力"}),
+    Object.assign(row("易车",2026,"Z-HEV"),{"能源类型":"油电混合"}),
+    Object.assign(row("易车",2026,"B-BEV"),{"能源类型":"纯电动"}),
+    Object.assign(row("易车",2026,"C-mixed"),{"能源类型":"纯电动|增程式"})
+  ]);
+  hooks.state.sortLevels=[{field:"能源类型",dir:"asc",customOrder:"油电混合,插电式混合动力,纯电,增程"}];
+  assert.deepEqual(Array.from(hooks.getFilteredRows(),r=>r["车型名称"]),["Z-HEV","A-PHEV","B-BEV","C-mixed"]);
+  hooks.state.sortLevels=[{field:"能源类型",dir:"asc",customOrder:"增程,纯电,插混,油电"}];
+  assert.deepEqual(Array.from(hooks.getFilteredRows(),r=>r["车型名称"]),["B-BEV","A-PHEV","Z-HEV","C-mixed"]);
 });

@@ -298,6 +298,125 @@
     });
   }
 
+  var ENERGY_CLASS_RULES = [
+    { pattern: /增程/, cls: "erev" },
+    { pattern: /插电|插混/, cls: "phev" },
+    { pattern: /油电|混动/, cls: "hev" },
+    { pattern: /纯电/, cls: "bev" },
+    { pattern: /汽油|燃油/, cls: "ice" }
+  ];
+
+  function energyClassOf(text) {
+    var value = String(text == null ? "" : text);
+    for (var i = 0; i < ENERGY_CLASS_RULES.length; i += 1) {
+      if (ENERGY_CLASS_RULES[i].pattern.test(value)) { return ENERGY_CLASS_RULES[i].cls; }
+    }
+    return "";
+  }
+
+  function splitDisplaySegments(value) {
+    return String(value == null ? "" : value).split("|").map(function (part) {
+      return part.trim();
+    }).filter(Boolean);
+  }
+
+  function stripSourceSegmentPrefix(part) {
+    return String(part == null ? "" : part).replace(/^\s*(?:汽车之家|懂车帝|易车)\s*[:：]\s*/, "").trim();
+  }
+
+  function canonicalEnergyValue(text) {
+    var stripped = stripSourceSegmentPrefix(text);
+    var synonyms = {
+      "纯电": "纯电动", "增程": "增程式", "增程式纯电动": "增程式",
+      "插混": "插电式混合动力", "插电混合": "插电式混合动力",
+      "油混": "油电混合", "油电混合动力": "油电混合"
+    };
+    return synonyms[stripped] || stripped;
+  }
+
+  function normalizeEnergyText(value) {
+    var seen = new Set();
+    var items = [];
+    String(value == null ? "" : value).split(/[|/]/).forEach(function (part) {
+      var canonical = canonicalEnergyValue(part);
+      if (!canonical || seen.has(canonical)) { return; }
+      seen.add(canonical);
+      var prefix = part.trim().match(/^(汽车之家|懂车帝|易车)\s*[:：]/);
+      items.push({ value: canonical, source: prefix ? prefix[1] + ":" : "" });
+    });
+    if (items.length === 1) { return items[0].value; }
+    return items.length ? items.map(function (item) { return item.source + item.value; }).join("|") : value;
+  }
+
+  function canonicalDecimal(value) {
+    var parts = String(value).split(".");
+    var integer = parts[0].replace(/^0+(?=\d)/, "");
+    var decimal = (parts[1] || "").replace(/0+$/, "");
+    return integer + (decimal ? "." + decimal : "");
+  }
+
+  function priceSegment(part) {
+    var stripped = stripSourceSegmentPrefix(part);
+    var match = stripped.match(/^(\d+(?:\.\d+)?)\s*(万元|万|元)?$/);
+    if (!match) { return null; }
+    var amount = match[1];
+    if (match[2] === "元") {
+      // Exact decimal shift; no floating-point rounding when deciding equality.
+      var pieces = amount.split(".");
+      var integer = pieces[0].padStart(5, "0");
+      amount = integer.slice(0, -4) + "." + integer.slice(-4) + (pieces[1] || "");
+    }
+    return canonicalDecimal(amount);
+  }
+
+  function normalizePriceText(value) {
+    var seen = new Set();
+    var items = [];
+    splitDisplaySegments(value).forEach(function (part) {
+      var number = priceSegment(part);
+      var text = number === null ? part : (number === "0" ? "未提供" : number + "万");
+      var key = number === null ? part : "price:" + number;
+      if (seen.has(key)) { return; }
+      seen.add(key);
+      var prefix = part.match(/^(汽车之家|懂车帝|易车)\s*[:：]/);
+      items.push({value: text, source: number !== null && prefix ? prefix[1] + ":" : ""});
+    });
+    if (items.length === 1) { return items[0].value; }
+    return items.length ? items.map(function (item) { return item.source + item.value; }).join("|") : value;
+  }
+
+  function normalizeDisplayValues(rows) {
+    // 只在展示行上做：`publishedRawRows` 的完整 JSON/CSV 下载仍是原始值，不进这里。
+    return rows.map(function (row) {
+      var next = Object.assign({}, row);
+      if (next["能源类型"] != null) { next["能源类型"] = normalizeEnergyText(next["能源类型"]); }
+      if (next["官方指导价"] != null) { next["官方指导价"] = normalizePriceText(next["官方指导价"]); }
+      return next;
+    });
+  }
+
+  function customOrderToken(value, field) {
+    var text = normalizeText(value);
+    if (field === "能源类型") {
+      var classes = [];
+      splitDisplaySegments(text).forEach(function (part) {
+        var token = energyClassOf(part) || stripSourceSegmentPrefix(part);
+        if (token && classes.indexOf(token) === -1) { classes.push(token); }
+      });
+      return classes.sort().join("|");
+    }
+    return text;
+  }
+
+  function rangeBoundText(value) {
+    return String(value == null ? "" : value).trim();
+  }
+
+  function isZeroBound(value) {
+    var text = rangeBoundText(value);
+    return text !== "" && Number(text) === 0;
+  }
+
   function isDimensionColumn(column) {
     var text = String(column || "").replace(/\s/g, "");
     return text.indexOf("长宽高") !== -1 ||
@@ -894,11 +1013,13 @@
     return String(text || "").split(/[\n,，]+/).map(function (item) { return normalizeText(item.trim()); }).filter(Boolean);
   }
 
-  function customOrderIndex(value, orderText) {
-    var valueText = normalizeText(value);
+  function customOrderIndex(value, orderText, field) {
+    var valueText = customOrderToken(value, field);
     var order = parseCustomOrder(orderText);
     for (var i = 0; i < order.length; i += 1) {
-      if (valueText.indexOf(order[i]) !== -1) {
+      var keyword = field === "能源类型" ? customOrderToken(order[i], field) : order[i];
+      // Energy classes are exact identities: "hev" is not a substring match for "phev".
+      if (field === "能源类型" ? valueText === keyword : valueText.indexOf(keyword) !== -1) {
         return i;
       }
     }
@@ -923,7 +1044,7 @@
       return level.dir === "desc" ? -result : result;
     }
     if (order.length) {
-      result = customOrderIndex(av, level.customOrder) - customOrderIndex(bv, level.customOrder);
+      result = customOrderIndex(av, level.customOrder, level.field) - customOrderIndex(bv, level.customOrder, level.field);
       if (result === 0) {
         result = String(av || "").localeCompare(String(bv || ""), "zh-Hans", { numeric: true });
       }
@@ -1770,14 +1891,21 @@
       return condition.label;
     }
     var filter = state.rangeFilters[condition.id] || {};
-    var parts = [];
-    if (filter.max !== "" && filter.max != null) {
-      parts.push("≤" + filter.max);
+    var min = rangeBoundText(filter.min);
+    var max = rangeBoundText(filter.max);
+    // 下限 0 是没有信息量的边界（"≥0" 恒真），不往标签上写；上限 0 是真条件，照旧显示。
+    if (isZeroBound(min)) { min = ""; }
+    if (min && max) {
+      // 正下限 + 上限：两边都写，语义与改动前一致，只是不再出现 `≥0`。
+      return condition.label + " ≥" + min + " ≤" + max;
     }
-    if (filter.min !== "" && filter.min != null) {
-      parts.push("≥" + filter.min);
+    if (max) {
+      return condition.label + " ≤" + max;
     }
-    return condition.label + (parts.length ? " " + parts.join(" ") : "");
+    if (min) {
+      return condition.label + " ≥" + min;
+    }
+    return condition.label;
   }
 
   function renderSelectedTags() {
@@ -1802,7 +1930,7 @@
       if (row[field] && row[field] !== "-") {
         var value = row[field];
         if (field === "能源类型") {
-          value = normEnumValue(String(value));
+          value = normEnumValue(String(value), field);
         }
         var chip = document.createElement("span");
         chip.textContent = field + ": " + value;
@@ -1910,11 +2038,10 @@
     "插电混合": "插电式混合动力",
     "纯电": "纯电动"
   };
-  function normEnumValue(s) {
-    // 剥离来源前缀（懂车帝:xxx / 易车:xxx）
-    var stripped = s.replace(/^[^:：]+[:：]/, "");
-    stripped = stripped.trim();
-    return ENERGY_NORM[stripped] || stripped;
+  function normEnumValue(s, field) {
+    if (field == null || field === "能源类型") { return normalizeEnergyText(s); }
+    // A provider prefix is metadata; CLTC/WLTC and unknown labels carry real meaning.
+    return stripSourceSegmentPrefix(String(s == null ? "" : s));
   }
   // 动态共性/差异汇总：全一致 -> 单值一行；数值差异 -> min-max 范围；枚举差异 -> 去重 join。
   function appendCardSummary(container, rows, fields) {
@@ -1932,7 +2059,9 @@
       values.forEach(function (v) { if (uniq.indexOf(v) === -1) { uniq.push(v); } });
       var allNumeric = values.every(function (v) { return /^-?[\d.]+/.test(v); });
       var text;
-      if (allNumeric && uniq.length > 1) {
+      if (field === "能源类型") {
+        text = normalizeEnergyText(values.join("|"));
+      } else if (allNumeric && uniq.length > 1) {
         // 管道/斜杠多值拆分（230|163|230|163、420|315|315/202|165/汽车之家:420|315）：取数字集，
         // 去重、排除 999 占位，再求 min-max；后缀取首个非空（如 万）。
         var nums = [];
@@ -1956,13 +2085,13 @@
         var max = Math.max.apply(null, nums);
         text = min === max ? String(min) + suffix : min + "-" + max + suffix;
       } else if (uniq.length === 1) {
-        text = normEnumValue(uniq[0]);
+        text = normEnumValue(uniq[0], field);
       } else {
         // 枚举多值：逐值归一 + 去重
         var normalized = [];
         uniq.forEach(function (v) {
           String(v).split(/[|/]/).forEach(function (part) {
-            var nv = normEnumValue(part);
+            var nv = normEnumValue(part, field);
             if (nv && normalized.indexOf(nv) === -1) { normalized.push(nv); }
           });
         });
@@ -2780,6 +2909,7 @@
     });
     state.rows = withDerivedDimensions(displayRows);
     state.rows = normalizeRowColumns(state.rows);
+    state.rows = normalizeDisplayValues(state.rows);
     state.expandedSeries.clear();
     state.seriesViewSignature = "";
     state.cardLimit = 24;
