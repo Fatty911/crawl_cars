@@ -62,8 +62,8 @@ jobs:
         uses: actions/checkout@main
         with:
           # release 事件默认检出的是 tag 的树，而 clean tag 可能早于本工作流的最新脚本；
-          # 数据和脚本必须分开：脚本永远用 main，release 只当数据输入。
-          ref: main
+          # 数据和脚本分开：仅 main ref 可运行，代码固定到本轮 github.sha；release 只当数据输入。
+          ref: ${{ github.sha }}
 
       - name: 设置 Python
         uses: actions/setup-python@main
@@ -71,7 +71,27 @@ jobs:
           python-version: '3.12'
 
       - name: 安装依赖
-        run: pip install requests beautifulsoup4 lxml pyyaml
+        run: pip install requests beautifulsoup4 lxml pyyaml pytest
+
+      - name: 校验不爬源后处理及发布门禁回归
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            tests/test_publish_observation_lineage.py \
+            tests/test_publish_model_year.py \
+            tests/test_publish_vehicle_level.py \
+            tests/test_source_identity_evidence.py \
+            tests/test_sku_dedupe_by_id.py \
+            tests/test_pages_payload_audit.py \
+            tests/test_pages_asset_readback.py \
+            tests/test_scan_pages_columns.py \
+            tests/test_remerge_published_data.py \
+            tests/test_remerge_final_csv.py \
+            tests/test_remerge_failure_propagation.py \
+            --junitxml=postprocess-regressions.xml
+
 
       - name: 红线通道覆盖断言（active 数据链必须都在监视名单里）
         run: python scripts/check_red_channel_coverage.py
@@ -106,16 +126,36 @@ jobs:
           echo "filtered=$FILT" >> "$GITHUB_OUTPUT"
           echo "src=$SRC filtered=$FILT"
 
-      - name: 重合并（用修好的归并逻辑，不重新爬取）
-        id: remerge
+      - name: 合并前按已保存来源证据校正原始副本（不联网）
+        id: correct_source_identities
         env:
           SRC: ${{ steps.fetch.outputs.src }}
           FILT: ${{ steps.fetch.outputs.filtered }}
+        run: |
+          set -euo pipefail
+          # src-data stays byte-for-byte immutable for provenance and both audits.
+          mkdir -p corrected-inputs
+          CORRECTED_SRC="corrected-inputs/$(basename "$SRC")"
+          CORRECTED_FILT="corrected-inputs/$(basename "$FILT")"
+          python scripts/reconcile_source_identities.py \
+            --input "$SRC" --output "$CORRECTED_SRC" \
+            --evidence config/source_identity_evidence.json --report source-identity-latest.json
+          python scripts/reconcile_source_identities.py \
+            --input "$FILT" --output "$CORRECTED_FILT" \
+            --evidence config/source_identity_evidence.json --report source-identity-filtered.json
+          echo "src=$CORRECTED_SRC" >> "$GITHUB_OUTPUT"
+          echo "filtered=$CORRECTED_FILT" >> "$GITHUB_OUTPUT"
+
+      - name: 重合并（用修好的归并逻辑，不重新爬取）
+        id: remerge
+        env:
+          SRC: ${{ steps.correct_source_identities.outputs.src }}
+          FILT: ${{ steps.correct_source_identities.outputs.filtered }}
           DATE: ${{ github.event.inputs.date }}
           DROP: ${{ github.event.inputs.max_drop_pct || '15' }}
         run: |
           set -euo pipefail
-          ARGS=(--merged "$SRC")
+          ARGS=(--merged "$SRC" --source-identity-evidence config/source_identity_evidence.json)
           # filtered 也只做去重：保住现网发布行集不变，只折叠重复 SKU
           if [ -n "$FILT" ] && [ -f "$FILT" ]; then ARGS+=(--filtered "$FILT"); fi
           if [ -n "$DATE" ]; then ARGS+=(--date "$DATE"); fi
@@ -136,13 +176,17 @@ jobs:
           # 基线 = 上一轮发布数据本身；verify_publish_superset 会先对基线做同一套
           # SKU 归并再比对，因此"被折叠掉的重复行"不会被误判成丢数据。
           cp "${{ steps.fetch.outputs.src }}" "baseline-${DATE}.json"
+          cp "${{ steps.fetch.outputs.filtered }}" "baseline-filtered-${DATE}.json"
           python scripts/verify_publish_superset.py \
             --baseline "baseline-${DATE}.json" \
-            --candidate "out/merged_${DATE}.json"
+            --candidate "out/merged_${DATE}.json" --strict-identities \
+            --source-identity-evidence config/source_identity_evidence.json
 
       - name: 组装发布站点
         env:
           DATE: ${{ steps.remerge.outputs.date }}
+          INPUT_RELEASE: ${{ steps.fetch.outputs.tag }}
+          RAW_WIDE: ${{ steps.fetch.outputs.src }}
         run: |
           set -euo pipefail
           rm -rf site
@@ -153,19 +197,51 @@ jobs:
           cp "out/filtered_cars_${DATE}.json" site/data/filtered.json
           python scripts/prepare_pages_payload.py --input site/data/latest.json --output site/data/latest.json --min-year 2022 --refresh-dealer-prices
           python scripts/prepare_pages_payload.py --input site/data/filtered.json --output site/data/filtered.json --min-year 2022
+          python scripts/verify_publish_superset.py \
+            --baseline "baseline-filtered-${DATE}.json" \
+            --candidate site/data/filtered.json --strict-identities \
+            --wide-baseline "$RAW_WIDE" \
+            --source-identity-evidence config/source_identity_evidence.json
           python scripts/audit_pages_payload.py \
             --baseline "baseline-${DATE}.json" \
             --candidate site/data/latest.json \
             --report pages-audit-report.json \
-            --head-sha "$GITHUB_SHA" || echo "审计报告非致命，继续"
-          cp "out/merged_${DATE}.csv" "site/data/merged_${DATE}.csv"
-          cp "out/filtered_cars_${DATE}.csv" "site/data/filtered_cars_${DATE}.csv"
+            --head-sha "$GITHUB_SHA" --full-validation \
+            --source-identity-evidence config/source_identity_evidence.json
+          python scripts/audit_pages_payload.py \
+            --baseline "baseline-filtered-${DATE}.json" \
+            --candidate site/data/filtered.json \
+            --report pages-filtered-audit-report.json \
+            --head-sha "$GITHUB_SHA" --full-validation \
+            --wide-baseline "$RAW_WIDE" \
+            --source-identity-evidence config/source_identity_evidence.json
           python - "$DATE" <<'PY'
-          import json, shutil, sys
+          import hashlib, json, os, shutil, sys
           from datetime import datetime, timezone
+          from pathlib import Path
+          sys.path.insert(0, "scripts")
+          from merge_data import collect_fields, write_csv
+          from prepare_cnb_pages import asset_digest
           date = sys.argv[1]
           latest = json.load(open("site/data/latest.json", encoding="utf-8"))
           filtered = json.load(open("site/data/filtered.json", encoding="utf-8"))
+          write_csv(f"site/data/merged_{date}.csv", latest, collect_fields(latest))
+          write_csv(f"site/data/filtered_cars_{date}.csv", filtered, collect_fields(filtered))
+          # Release 与 Pages 必须来自同一最终数据，而非 prepare 前的中间 CSV/JSON。
+          Path("out").mkdir(exist_ok=True)
+          for source, target in [("latest.json", f"merged_{date}.json"),
+                                 ("filtered.json", f"filtered_cars_{date}.json"),
+                                 (f"merged_{date}.csv", f"merged_{date}.csv"),
+                                 (f"filtered_cars_{date}.csv", f"filtered_cars_{date}.csv")]:
+              shutil.copy(Path("site/data") / source, Path("out") / target)
+          evidence_files = [Path("config/source_identity_evidence.json"),
+                            Path("source-identity-latest.json"), Path("source-identity-filtered.json"),
+                            Path("pages-audit-report.json"), Path("pages-filtered-audit-report.json"),
+                            Path("remerge-stats.json")]
+          evidence_hashes = {}
+          for path in evidence_files:
+              evidence_hashes[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+              shutil.copy(path, Path("site/data") / path.name)
           stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
           shutil.copy("site/data/latest.json", f"site/data/latest_{stamp}.json")
           shutil.copy("site/data/filtered.json", f"site/data/filtered_{stamp}.json")
@@ -182,12 +258,30 @@ jobs:
               _blob = open("site/" + _rel, "rb").read()
               chunks.append({"path": _rel, "sha256": hashlib.sha256(_blob).hexdigest(),
                              "rowCount": len(_part), "size": len(_blob)})
+          # Bind every published JSON/CSV, including aliases and provenance sidecars.
+          published_assets = []
+          for path in sorted(Path("site").rglob("*")):
+              if (path.is_file() and path.suffix.lower() in {".json", ".csv"}
+                      and path != Path("site/data/manifest.json")):
+                  digest, size = asset_digest(path)
+                  published_assets.append({"path": path.relative_to("site").as_posix(),
+                                           "sha256": digest, "size": size})
           manifest = {
               "date": date,
               "updatedAt": datetime.now(timezone.utc).isoformat(),
               "rowCount": len(latest),
               "filteredRowCount": len(filtered),
+              "provenance": {
+                  "codeCommit": os.environ["GITHUB_SHA"],
+                  "inputRelease": os.environ["INPUT_RELEASE"],
+                  "inputSha256": {
+                      path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                      for path in sorted(Path("src-data").glob("*.json"))
+                  },
+                  "sourceIdentityEvidenceSha256": evidence_hashes,
+              },
               "files": {
+                  "additionalDataAssets": published_assets,
                   "latestJson": f"data/latest_{stamp}.json",
                   "latestJsonChunks": chunks,
                   "filteredJson": f"data/filtered_{stamp}.json",
@@ -199,6 +293,12 @@ jobs:
                     ensure_ascii=False, indent=2)
           print(manifest)
           PY
+          if [ -f src-data/column-scan-history.json ]; then
+            cp src-data/column-scan-history.json column-scan-history.json
+          fi
+          node scripts/scan_pages_columns.js --no-browser --require-data \
+            --data site/data/latest.json --repo-root . \
+            --history column-scan-history.json --out column-scan-report.json
           touch site/.nojekyll
 
       - name: 配置 GitHub Pages
@@ -219,24 +319,7 @@ jobs:
           DATE: ${{ steps.remerge.outputs.date }}
         run: |
           set -euo pipefail
-          # 原来这一句是 `python ... || true` ⇒ 读不到、跑崩、数据真红，三种情况在日志里都是绿的。
-          # 现在按**三类**分开：rc=0 通过；输出里有 Traceback/FileNotFoundError 记为"读不到"（第三态），
-          # 其余非 0 记为"校验判红"并点名。是否把"判红"升级成阻断本轮发布，交给跨家族评审裁定，
-          # 监工侧不自取（把它直接改成失败会让这条链在环境问题上永久红，那是不可满足的判据）。
-          set +e
-          python scripts/prepare_cnb_pages.py --site site --verify-url "$PAGE_URL" > verify-url.log 2>&1
-          VRC=$?
-          set -e
-          echo "verify-url rc=$VRC"
-          if [ "$VRC" = "0" ]; then
-            echo "线上清单校验=通过"
-          elif grep -qE "Traceback|FileNotFoundError|URLError|HTTP Error" verify-url.log; then
-            echo "线上清单校验=读不到（第三态，不算通过也不算缺陷）"
-            tail -5 verify-url.log
-          else
-            echo "线上清单校验=判红（下面的原文要进评审证据）"
-            tail -20 verify-url.log
-          fi
+          python scripts/prepare_cnb_pages.py --site site --verify-url "$PAGE_URL" --verify-data
           echo "--- 重合并读数 ---"
           cat remerge-stats.json
 
@@ -335,6 +418,7 @@ jobs:
           echo "✅ 展示层（filtered）验收真跑且通过"
 
       - name: 上传数据产物
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: remerged-data-${{ steps.remerge.outputs.date }}-${{ github.run_id }}
@@ -344,8 +428,16 @@ jobs:
             out/filtered_cars_${{ steps.remerge.outputs.date }}.json
             out/filtered_cars_${{ steps.remerge.outputs.date }}.csv
             remerge-stats.json
+            postprocess-regressions.xml
             pages-audit-report.json
-          retention-days: 3
+            pages-filtered-audit-report.json
+            source-identity-latest.json
+            source-identity-filtered.json
+            config/source_identity_evidence.json
+            column-scan-report.json
+            column-scan-history.json
+            site/data/manifest.json
+          retention-days: 7
 
       # tag 以 cnb-data- 开头 ⇒ deploy-frontend.yml 会按规矩跳过，不会用旧站点覆盖本次部署
       - name: 创建数据发布
@@ -355,6 +447,7 @@ jobs:
           set -euo pipefail
           TAG="cnb-data-${DATE}-remerged-r${{ github.run_id }}"
           gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
             --repo "$GITHUB_REPOSITORY" \
             --title "重合并数据 ${DATE}（去重后）" \
             --notes "由 重合并并发布 工作流 r${{ github.run_id }} 生成：用修好的 SKU 归并逻辑重跑上一轮合并产物，不重新爬取。" \
@@ -381,5 +474,5 @@ jobs:
           # complete_release 会选中它（含 manifest.json + verified-site.zip）→ 前端推送重发同一面。
           # tag 带 run_attempt：同一 run 重跑时会拿到新 tag，不会撞上上次残留的 draft（publish() 拒绝已存在 tag）。
           TAG="cnb-data-${DATE}-remerged-verified-r${{ github.run_id }}a${{ github.run_attempt }}"
-          python scripts/publish_github_release.py --site-dir site --repo "$GITHUB_REPOSITORY" --tag "$TAG" --ref main
+          python scripts/publish_github_release.py --site-dir site --repo "$GITHUB_REPOSITORY" --tag "$TAG" --ref "$GITHUB_SHA"
           echo "✅ verified 面已发布 $TAG"
