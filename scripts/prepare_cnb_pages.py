@@ -1,5 +1,6 @@
 """Deploy the verified CNB archive without rebuilding or rewriting its payload."""
 import argparse
+import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import shutil
@@ -60,6 +61,55 @@ def reference_checksums(value, found=None):
     return found
 
 
+def manifest_assets(files):
+    """Support both path-keyed inventories and named paths/chunk descriptors."""
+    if isinstance(files, dict) and files and all(
+        isinstance(item, dict) and "sha256" in item and "path" not in item
+        for item in files.values()
+    ):
+        yield from files.items()
+    elif isinstance(files, str):
+        yield files, {}
+    elif isinstance(files, dict):
+        if "path" in files:
+            yield files["path"], files
+        else:
+            for item in files.values():
+                yield from manifest_assets(item)
+    elif isinstance(files, list):
+        for item in files:
+            yield from manifest_assets(item)
+    else:
+        raise ValueError("invalid manifest file descriptor")
+
+
+def asset_digest(path):
+    digest = hashlib.sha256()
+    size = 0
+    with path.open("rb") as source:
+        while block := source.read(1024 * 1024):
+            digest.update(block)
+            size += len(block)
+    return digest.hexdigest(), size
+
+
+def checked_assets(site, manifest):
+    assets = {}
+    for reference, metadata in manifest_assets(manifest.get("files", {})):
+        target = Path(site).joinpath(*safe_path(reference).parts)
+        if not target.is_file():
+            raise ValueError(f"manifest references missing file: {reference}")
+        digest, size = asset_digest(target)
+        if "sha256" in metadata and metadata["sha256"] != digest:
+            raise ValueError(f"manifest checksum mismatch: {reference}")
+        if "size" in metadata and metadata["size"] != size:
+            raise ValueError(f"manifest size mismatch: {reference}")
+        assets[reference] = (digest, size)
+    if not assets:
+        raise ValueError("manifest has no data files")
+    return assets
+
+
 def prepare(archive, expected_manifest, site):
     site = Path(site)
     if site.exists():
@@ -93,32 +143,13 @@ def prepare(archive, expected_manifest, site):
         raise ValueError("manifest must be a JSON object")
     if not (site / "index.html").is_file():
         raise ValueError("site index.html is missing")
-    files = manifest.get("files", {})
-    inventory = isinstance(files, dict) and bool(files) and all(
-        isinstance(metadata, dict) and "sha256" in metadata
-        for metadata in files.values()
-    )
-    references = list(files) if inventory else list(file_references(files))
-    if not references and not any(path.name != "manifest.json" for path in (site / "data").glob("*.json")):
-        raise ValueError("manifest has no data files")
-    # 校验口径分两层：清单式（files 值都是 {"sha256": ...}）与分片式（latestJsonChunks 每条带 sha256），
-    # 都做内容校验；纯字符串引用只查存在性（历史契约保持）。
-    checksums = ({reference: files[reference]["sha256"] for reference in files} if inventory
-                 else {reference: sha for reference, sha in reference_checksums(files).items()
-                       if reference in set(references)})
-    for reference in references:
-        target = site.joinpath(*safe_path(reference).parts)
-        if not target.is_file():
-            raise ValueError(f"manifest references missing file: {reference}")
-        if reference in checksums:
-            import hashlib
-            if hashlib.sha256(target.read_bytes()).hexdigest() != checksums[reference]:
-                raise ValueError(f"manifest checksum mismatch: {reference}")
-    print(f"verified CNB site: {len(members)} archive members, {len(references)} references")
+    assets = checked_assets(site, manifest)
+    print(f"verified CNB site: {len(members)} archive members, {len(assets)} references")
 
 
-def verify(site, page_url, attempts=12, interval=10):
+def verify(site, page_url, attempts=12, interval=10, verify_data=False):
     expected = (Path(site) / "data" / "manifest.json").read_bytes()
+    assets = checked_assets(site, json.loads(expected)) if verify_data else {}
     url = urllib.parse.urljoin(page_url.rstrip("/") + "/", "data/manifest.json")
     for attempt in range(1, attempts + 1):
         separator = "&" if "?" in url else "?"
@@ -131,6 +162,23 @@ def verify(site, page_url, attempts=12, interval=10):
             with urllib.request.urlopen(request, timeout=30) as response:
                 actual = response.read()
             if actual == expected:
+                for reference, (digest, size) in assets.items():
+                    asset_url = urllib.parse.urljoin(page_url.rstrip("/") + "/", reference)
+                    asset_request = urllib.request.Request(
+                        asset_url + "?" + urllib.parse.urlencode({"cnb_verify": time.time_ns()}),
+                        headers={"User-Agent": "Mozilla/5.0 CNB-Pages-Verification", "Cache-Control": "no-cache"},
+                    )
+                    actual_hash = hashlib.sha256()
+                    actual_size = 0
+                    with urllib.request.urlopen(asset_request, timeout=30) as response:
+                        while block := response.read(1024 * 1024):
+                            actual_hash.update(block)
+                            actual_size += len(block)
+                    if actual_size != size or actual_hash.hexdigest() != digest:
+                        raise ValueError(f"deployed asset mismatch: {reference}")
+                    print(f"verified deployed asset: {reference} sha256={digest} bytes={size}")
+                if assets:
+                    print(f"all {len(assets)} deployed data assets match local SHA-256 and size")
                 print("deployed manifest matches verified CNB payload byte-for-byte")
                 return
             print(f"manifest mismatch on attempt {attempt}/{attempts}")
@@ -138,7 +186,7 @@ def verify(site, page_url, attempts=12, interval=10):
             print(f"manifest readback attempt {attempt}/{attempts}: {exc}")
         if attempt < attempts:
             time.sleep(interval)
-    raise ValueError("deployed manifest did not match verified CNB payload")
+    raise ValueError("deployed manifest or data assets did not match verified CNB payload")
 
 
 def main():
@@ -147,9 +195,10 @@ def main():
     parser.add_argument("--archive")
     parser.add_argument("--manifest")
     parser.add_argument("--verify-url")
+    parser.add_argument("--verify-data", action="store_true")
     args = parser.parse_args()
     if args.verify_url:
-        verify(args.site, args.verify_url)
+        verify(args.site, args.verify_url, verify_data=args.verify_data)
     elif args.archive and args.manifest:
         prepare(args.archive, args.manifest, args.site)
     else:

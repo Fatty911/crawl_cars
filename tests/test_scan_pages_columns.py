@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -40,6 +41,7 @@ def _run_scan(data_path: Path, history_path: Path, repo_root: Path, out_path: Pa
             "node",
             str(SCAN_SCRIPT),
             "--no-browser",
+            "--require-data",
             "--data",
             str(data_path),
             "--history",
@@ -51,6 +53,7 @@ def _run_scan(data_path: Path, history_path: Path, repo_root: Path, out_path: Pa
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=120,
     )
     assert proc.returncode == 0, f"scan 退出码 {proc.returncode}: {proc.stderr}"
@@ -117,6 +120,37 @@ def test_second_scan_reports_zero_new(scan_env, tmp_path: Path) -> None:
     out2 = tmp_path / "r2.json"
     r2 = _run_scan(scan_env["data"], hist, scan_env["repo"], out2)
     assert r2["newColumnsTotal"] == 0
+    assert r2["unmappedCount"] == 5
+    assert r2["mappedCount"] == 2
+    assert "16扬Flyme音响(限时赠送)_1" in r2["unmapped"]
+    assert len(json.loads(hist.read_text(encoding="utf-8"))["unmappedColumns"]) == 5
+
+
+def test_only_explicit_mapping_resolves_a_seen_unknown(scan_env, tmp_path: Path) -> None:
+    hist = tmp_path / "hist.json"
+    _run_scan(scan_env["data"], hist, scan_env["repo"], tmp_path / "before.json")
+    alias = scan_env["repo"] / "config/column_header_aliases.json"
+    knowledge = json.loads(alias.read_text(encoding="utf-8"))
+    knowledge["aliases"].append({"column": "16扬Flyme音响(限时赠送)_1", "canonical": "音响配置"})
+    alias.write_text(json.dumps(knowledge, ensure_ascii=False), encoding="utf-8")
+    report = _run_scan(scan_env["data"], hist, scan_env["repo"], tmp_path / "after.json")
+    assert report["newColumnsTotal"] == 0
+    assert report["unmappedCount"] == 4
+    assert any(item["canonical"] == "音响配置" for item in report["aliasHits"])
+    assert "16扬Flyme音响(限时赠送)_1" not in json.loads(hist.read_text(encoding="utf-8"))["unmappedColumns"]
+
+
+@pytest.mark.parametrize("content", [None, "[]", "{broken", '[{"品牌":"测试"},null]', '[{"品牌":"测试"},[]]'])
+def test_strict_local_scan_fails_for_missing_empty_or_broken_data(tmp_path, content):
+    data = tmp_path / "input.json"
+    if content is not None:
+        data.write_text(content, encoding="utf-8")
+    result = subprocess.run(
+        ["node", str(SCAN_SCRIPT), "--no-browser", "--require-data", "--data", str(data)],
+        capture_output=True, text=True, encoding="utf-8", timeout=30,
+    )
+    assert result.returncode == 1
+    assert "--require-data" in result.stderr
 
 
 def test_new_column_in_first_row_is_detected(scan_env, tmp_path: Path) -> None:
@@ -162,3 +196,47 @@ def test_no_browser_mode_falls_back_to_data_only(scan_env, tmp_path: Path) -> No
     assert r["browserUsed"] is None
     assert r["headerCount"] == 0
     assert r["dataColumnCount"] >= 7
+
+
+def test_strict_local_mode_does_not_resolve_remote_pages(scan_env, tmp_path):
+    marker = tmp_path / "network-attempt.txt"
+    hook = tmp_path / "network-trap.js"
+    hook.write_text(
+        'require("node:child_process").execFileSync = function () {'
+        'require("node:fs").writeFileSync(process.env.SCAN_NETWORK_MARKER, "attempted");'
+        'throw new Error("unexpected external command");};', encoding="utf-8",
+    )
+    env = dict(os.environ, GITHUB_REPOSITORY="test/forbidden-network",
+               NODE_OPTIONS='--require "' + hook.as_posix() + '"', SCAN_NETWORK_MARKER=str(marker))
+    result = subprocess.run(
+        ["node", str(SCAN_SCRIPT), "--no-browser", "--require-data", "--data", str(scan_env["data"]),
+         "--repo-root", str(scan_env["repo"]), "--history", str(tmp_path / "history.json")],
+        env=env, capture_output=True, text=True, encoding="utf-8", timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["url"] == ""
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize("fault", ["invalid_json", "directory", "blocked_parent"])
+def test_strict_history_failure_cannot_report_success(scan_env, tmp_path, fault):
+    history = tmp_path / "history.json"
+    if fault == "invalid_json":
+        history.write_text("{broken", encoding="utf-8")
+    elif fault == "directory":
+        history.mkdir()
+    else:
+        parent = tmp_path / "parent-file"
+        parent.write_text("keep this existing file", encoding="utf-8")
+        history = parent / "history.json"
+    result = subprocess.run(
+        ["node", str(SCAN_SCRIPT), "--no-browser", "--require-data", "--data", str(scan_env["data"]),
+         "--repo-root", str(scan_env["repo"]), "--history", str(history)],
+        capture_output=True, text=True, encoding="utf-8", timeout=30,
+    )
+    assert result.returncode == 1, result.stderr
+    assert "--require-data" in result.stderr
+    if fault == "invalid_json":
+        assert history.read_text(encoding="utf-8") == "{broken"
+    if fault == "blocked_parent":
+        assert parent.read_text(encoding="utf-8") == "keep this existing file"

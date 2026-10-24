@@ -12,9 +12,9 @@
  *   3. 对每个扫描到的列名执行归并：
  *        - 命中别名映射（config/column_header_aliases.json column→canonical，
  *          docs/filter_conditions.json columnAliases canonical→[alias]）→ alias→canonical
- *        - 命中规范列/历史记录 → 已归并
+ *        - 命中显式声明的规范列 → 已归并；历史仅用于首次通知去重
  *        - 未命中 → 新增待归并（输出到报告，供 AI 修复链自发现新列名/未归并列名）
- *   4. 输出 JSON 报告（stdout + 可选文件），exit 0 不阻断部署（只采集不阻断）。
+ *   4. 输出 JSON 报告（stdout + 可选文件）；严格模式下数据或历史读写失败阻断部署。
  *   5. Pages URL 不写死：--url 显式指定，否则依次取 env PAGES_URL/GITHUB_PAGES_URL、
  *      GitHub API（repos/{owner}/{repo}/pages html_url）、{owner}.github.io/{repo}/ 推导。
  *
@@ -22,6 +22,7 @@
  *   node scripts/scan_pages_columns.js [--url https://<pages-domain>/]
  *       [--data /path/to/latest.json] [--out /path/to/scan-report.json]
  *       [--repo-root .] [--history /path/to/history.json] [--no-browser]
+ *       [--require-data] 本地数据缺失、损坏、空或历史读写失败时退出 1，禁止回退其它数据
  *
  * 环境变量: CHROME_PATH 浏览器可执行文件；PAGES_URL / GITHUB_PAGES_URL 线上 Pages 根 URL；
  *           GITHUB_REPOSITORY（owner/repo）用于 API 查询/推导 Pages 域名。
@@ -41,6 +42,7 @@ const OUT_PATH = argValue("--out", "");
 const REPO_ROOT = argValue("--repo-root", ".");
 const HISTORY_PATH = argValue("--history", "");
 const NO_BROWSER = args.includes("--no-browser");
+const REQUIRE_DATA = args.includes("--require-data");
 
 // ---- Pages URL 动态解析（不写死域名）----
 // 优先级：--url 参数 > env PAGES_URL/GITHUB_PAGES_URL > GitHub API html_url > github.io 推导
@@ -152,7 +154,7 @@ function extractHeadersFromDom(dom) {
 function loadMergeKnowledge(repoRoot, historyPath) {
   const kb = {
     aliasToCanonical: new Map(), // 别名列 -> 规范列
-    knownColumns: new Set(),     // 历史出现过的全部列名（canonical + 别名）
+    knownColumns: new Set(),     // 显式知识库中的规范列与别名
     rawCanonicals: [],           // 知识库中声明的规范列（不含常规列骨架）
     staleCandidates: [],         // 别名条目（column, canonical, evidence）
     raw: null,
@@ -194,14 +196,7 @@ function loadMergeKnowledge(repoRoot, historyPath) {
       console.error(`[scan] 读取 ${fcPath} 失败: ${e.message}`);
     }
   }
-  // 3. 历史扫描记录（跨轮次持续归并：上次未归并的列名视为已知，避免重复报告）
-  if (historyPath && fs.existsSync(historyPath)) {
-    try {
-      const hist = JSON.parse(fs.readFileSync(historyPath, "utf8"));
-      const cols = hist.seenColumns || [];
-      for (const c of cols) kb.knownColumns.add(c);
-    } catch (_) { /* ignore */ }
-  }
+  // 见过的列不代表已完成映射；历史去重在 newColumns 计算时单独执行。
   return kb;
 }
 
@@ -209,9 +204,8 @@ function loadMergeKnowledge(repoRoot, historyPath) {
 // regularColumns = 首行键（发布规范列骨架）；kb = 归并知识库（canonical + alias）
 // 规则（按优先级）：
 //   1. 列名 ∈ 知识库别名 → 归并命中（alias → canonical）
-//   2. 列名 ∈ 知识库 canonical ∪ 常规列骨架 且 历史/知识库见过 → 规范命中（已归并）
-//   3. 历史见过（跨轮次已收录）→ 历史命中（不重复报告）
-//   4. 否则 → 待归并新列名（首次出现，无论常规列还是稀疏列，都报告）
+//   2. 列名 ∈ 显式知识库 → 规范命中（已归并）
+//   3. 否则 → 仍待归并；历史只决定是否首次通知
 function mergeScan(columnNames, regularColumns, kb, historyKnown) {
   const canonicalSet = new Set([...regularColumns, ...kb.rawCanonicals]);
   const canonicalHits = [];
@@ -220,9 +214,9 @@ function mergeScan(columnNames, regularColumns, kb, historyKnown) {
   for (const col of columnNames) {
     if (kb.aliasToCanonical.has(col)) {
       aliasHits.push({ column: col, canonical: kb.aliasToCanonical.get(col) });
-    } else if (canonicalSet.has(col) && (kb.knownColumns.has(col) || historyKnown.has(col))) {
+    } else if (canonicalSet.has(col) && kb.knownColumns.has(col)) {
       canonicalHits.push(col);
-    } else if (kb.knownColumns.has(col) || historyKnown.has(col)) {
+    } else if (kb.knownColumns.has(col)) {
       canonicalHits.push(col);
     } else {
       unmapped.push(col);
@@ -236,8 +230,11 @@ function mergeScan(columnNames, regularColumns, kb, historyKnown) {
 
 // ---- 主流程 ----
 async function main() {
+  if (REQUIRE_DATA && (!DATA_PATH || !fs.existsSync(DATA_PATH))) {
+    throw new Error("--require-data needs an existing local --data file");
+  }
   const startedAt = new Date().toISOString();
-  const pagesUrl = resolvePagesUrl();
+  const pagesUrl = REQUIRE_DATA ? "" : resolvePagesUrl();
   const kb = loadMergeKnowledge(REPO_ROOT, HISTORY_PATH);
   let dom = null;
   let browserUsed = null;
@@ -280,6 +277,10 @@ async function main() {
     try {
       const d = JSON.parse(fs.readFileSync(DATA_PATH, "utf8"));
       const rows = Array.isArray(d) ? d : d.rows || d.data || [];
+      if (REQUIRE_DATA && (!Array.isArray(rows) || rows.some((row) =>
+        !row || typeof row !== "object" || Array.isArray(row)))) {
+        throw new Error("--require-data needs an array of row objects");
+      }
       rowCount = rows.length;
       if (rows.length > 0) {
         regularColumns = Object.keys(rows[0]);
@@ -289,6 +290,9 @@ async function main() {
     } catch (e) {
       console.error(`[scan] 读取 ${DATA_PATH} 失败: ${e.message}`);
     }
+  }
+  if (REQUIRE_DATA && dataColumns.length === 0) {
+    throw new Error("--require-data needs a valid nonempty local row dataset");
   }
   if (dataColumns.length === 0 && pagesUrl) {
     try {
@@ -315,14 +319,16 @@ async function main() {
   const domHeaders = dom ? extractHeadersFromDom(dom) : [];
   const scanColumns = [...new Set([...domHeaders, ...dataColumns])];
 
-  // 历史记录（持续归并：未归列名进入历史后不再重复报告；新列名首次出现时报告）
+  // 历史只抑制重复首次通知，不能批准未知列。
   const histPath = HISTORY_PATH || path.join(REPO_ROOT, "site", "data", "column_scan_history.json");
   let historyKnown = new Set();
   if (fs.existsSync(histPath)) {
     try {
       const hist = JSON.parse(fs.readFileSync(histPath, "utf8"));
       historyKnown = new Set(hist.seenColumns || []);
-    } catch (_) { /* ignore */ }
+    } catch (e) {
+      if (REQUIRE_DATA) throw new Error(`--require-data: 读取历史记录失败: ${e.message}`);
+    }
   }
   const result = mergeScan(scanColumns, regularColumns, kb, historyKnown);
   const newColumns = result.unmapped.filter((c) => !historyKnown.has(c));
@@ -333,6 +339,7 @@ async function main() {
     const hist = {
       updatedAt: startedAt,
       seenColumns: seen,
+      unmappedColumns: result.unmapped,
       lastScan: {
         totalScanned: scanColumns.length,
         mappedCount: result.canonicalHits.length + result.aliasHits.length,
@@ -342,6 +349,7 @@ async function main() {
     fs.mkdirSync(path.dirname(histPath), { recursive: true });
     fs.writeFileSync(histPath, JSON.stringify(hist, null, 2), "utf8");
   } catch (e) {
+    if (REQUIRE_DATA) throw new Error(`--require-data: 写历史记录失败: ${e.message}`);
     console.error(`[scan] 写历史记录失败: ${e.message}`);
   }
 
@@ -361,7 +369,7 @@ async function main() {
     newColumns: newColumns.slice(0, 200),     // 本次新出现的未归并列名（持续扫描的核心产出，限长）
     newColumnsTotal: newColumns.length,
     unmappedCount: result.unmapped.length,
-    unmapped: result.unmapped.slice(0, 200),  // 知识库+历史均未覆盖的列名
+    unmapped: result.unmapped.slice(0, 200),  // 未被显式知识库覆盖；完整集合保存在历史文件
     aliasHits: result.aliasHits,              // 命中别名映射的归并记录
     foldedAliases: result.folded,             // 知识库中已不在数据列出现的别名（已被 publish 折叠，可清理）
     domHeadersOnly: domHeaders.filter((c) => !dataColumns.includes(c)),
