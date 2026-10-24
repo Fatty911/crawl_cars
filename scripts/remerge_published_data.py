@@ -162,7 +162,38 @@ def union_filtered(inherited: list, rebuilt: list, raw_rebuilt: list) -> list:
     （`narrow_pages_rows` 裁掉了冲突闸要看的列 ⇒ 同一把尺在窄面上是瞎的）。
     那一改会少 103 行真不同款，是把两个面对齐的代价换成把用户面折错。
     """
-    out = list(rebuilt)
+    from copy import deepcopy
+    from publish_observation_lineage import filtered_fact_identity
+
+    # Preserve observed configured facts only for one exact same identity/SKU/
+    # year/price/source target. Never overwrite a current value or guess among
+    # conflicting observations. Work on copied rows; caller inputs stay intact.
+    out = [dict(row) for row in rebuilt]
+    by_identity = defaultdict(list)
+    for index, row in enumerate(out):
+        identity = filtered_fact_identity(row)
+        if identity is not None:
+            by_identity[identity].append(index)
+    proposals = {}
+    for original in inherited:
+        identity = filtered_fact_identity(original)
+        targets = by_identity.get(identity, [])
+        if not targets:
+            continue
+        for field in MD.resolve_pages_columns([original]):
+            if field not in original or all(field in out[index] for index in targets):
+                continue
+            if len(targets) != 1:
+                raise ValueError("ambiguous target for a retained configured fact")
+            index = targets[0]
+            encoded = json.dumps(original[field], ensure_ascii=False, sort_keys=True,
+                                 separators=(",", ":"), allow_nan=False)
+            key = (index, field)
+            if key in proposals and proposals[key][0] != encoded:
+                raise ValueError("conflicting retained configured fact values")
+            proposals[key] = (encoded, deepcopy(original[field]))
+    for (index, field), (_, value) in proposals.items():
+        out[index][field] = value
     seen = set()
     for row in rebuilt:
         seen.update(_identity_keys(row))
@@ -195,7 +226,14 @@ def main() -> int:
     ap.add_argument("--date", default="", help="输出文件名里的日期；留空则从文件名里认")
     ap.add_argument("--outdir", default=".", type=Path)
     ap.add_argument("--max-drop-pct", type=float, default=MAX_DROP_PCT)
+    ap.add_argument("--source-identity-evidence", type=Path,
+                    help="Retained exact source excerpts; reconcile raw identities before dedupe without network access")
     args = ap.parse_args()
+    identity_evidence = None
+    identity_changes = {"merged": 0, "filtered": 0}
+    if args.source_identity_evidence:
+        from reconcile_source_identities import reconcile
+        identity_evidence = json.loads(args.source_identity_evidence.read_bytes())
 
     date = args.date or ""
     if not date:
@@ -211,6 +249,9 @@ def main() -> int:
         raise SystemExit("❌ 输入 %s 只有 %d 行（< %d），拒绝重合并"
                          % (args.merged, len(rows) if isinstance(rows, list) else 0, MIN_ROWS))
 
+    if identity_evidence is not None:
+        rows, changes = reconcile(rows, identity_evidence)
+        identity_changes["merged"] = len(changes)
     before_groups, before_rows = dup_id_groups(rows)
     merged = remerge(rows, args.max_drop_pct)
     after_groups, after_rows = dup_id_groups(merged)
@@ -219,6 +260,9 @@ def main() -> int:
         # 重建 = 现口径重算 ∪ 已发布行（两个职责各管一半，见 union_filtered 的注释）。
         with args.filtered.open(encoding="utf-8") as handle:
             old_filtered = json.load(handle)
+        if identity_evidence is not None:
+            old_filtered, changes = reconcile(old_filtered, identity_evidence)
+            identity_changes["filtered"] = len(changes)
         f_before_groups, _ = dup_id_groups(old_filtered)
         inherited = remerge(old_filtered, args.max_drop_pct)
         rebuilt = build_filtered(merged)
@@ -259,6 +303,7 @@ def main() -> int:
 
     print(json.dumps({
         "date": date,
+        "premerge_source_identity_changes": identity_changes,
         "merged_rows_before": len(rows),
         "merged_rows_after": len(merged),
         "removed_by_sku_dedupe": len(rows) - len(merged),

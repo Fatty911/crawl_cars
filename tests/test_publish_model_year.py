@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from audit_pages_payload import audit_payload
 from publish_value_domains import model_year_conflicts
 from merge_data import dedupe_merged_rows
 
@@ -27,6 +28,20 @@ def test_only_explicit_year_evidence(name, year, bad):
     assert rows == original
 
 
+def test_full_audit_blocks_shared_bad_baseline_without_mutating_rows():
+    rows = [{"品牌": "比亚迪", "车系": "汉", "车系ID": "100", "车款ID": "123",
+             "车型名称": "汉 2025款 尊贵型", "年款": "2026", "数据来源": "汽车之家",
+             "官方指导价": "12.34万", "级别": "中大型车"}]
+    original = copy.deepcopy(rows)
+    report = audit_payload(rows, copy.deepcopy(rows), head_sha="test", full_validation=True)
+    assert report["status"] == "blocked"
+    violation = next(v for v in report["violations"] if v["code"] == "model_year_conflict")
+    assert violation["count"] == 1
+    assert len(violation["identity_hashes"][0]) == 64
+    assert "尊贵型" not in str(report)
+    assert rows == original
+    regression = audit_payload(rows, rows, head_sha="test")
+    assert not any(v["code"] == "model_year_conflict" for v in regression["violations"])
 
 
 @pytest.mark.parametrize("reverse", [False, True])

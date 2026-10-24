@@ -12,6 +12,9 @@ from typing import Iterable
 
 from merge_data import dedupe_merged_rows, atomic_source_names, partition_publishable_rows, series_year_key
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
+from publish_value_domains import model_year_conflicts, vehicle_level_residual
+from reconcile_source_identities import reconcile
+from publish_observation_lineage import filtered_observation_coverage
 from prepare_pages_payload import (
     VISIBLE_COMPONENT_EVIDENCE,
     VISIBLE_COMPONENT_ID,
@@ -78,12 +81,32 @@ def _annotation_violations(rows: list[dict]) -> tuple[list[dict], set[object], s
     return expected_rows, missing_annotations, unsafe_annotations, evidence_mismatches, stats
 
 
-def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head_sha: str) -> dict:
+def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head_sha: str,
+                  full_validation: bool = False, identity_evidence: dict | None = None,
+                  wide_baseline_rows: list[dict] | None = None) -> dict:
+    """Audit the supplied final payload without correcting candidate facts.
+
+    Full validation and its residual counters cover every supplied row, even
+    when the comparison view excludes it. Evidence reconciles only historical
+    baseline identities; callers must supply the already reconciled candidate.
+    """
+    original_candidate_rows = candidate_rows
+    coverage = None
+    if wide_baseline_rows is not None:
+        if not full_validation:
+            raise ValueError("original wide context requires full payload validation")
+        coverage = filtered_observation_coverage(
+            baseline_rows, wide_baseline_rows, candidate_rows, identity_evidence=identity_evidence)
     baseline_rows, baseline_publish_stats = partition_publishable_rows(baseline_rows)
+    transitions = []
+    if identity_evidence is not None:
+        baseline_rows, transitions = reconcile(baseline_rows, identity_evidence)
     baseline_rows = dedupe_merged_rows(baseline_rows)
     candidate_rows, candidate_publish_stats = partition_publishable_rows(candidate_rows)
     baseline_rows, invalid_baseline = filter_valid_identity_rows(baseline_rows)
     candidate_rows, invalid_candidate = filter_valid_identity_rows(candidate_rows)
+    audited_capability_residual = capability_value_residual(
+        original_candidate_rows if full_validation else candidate_rows)
     baseline = _index(baseline_rows)
     candidate = _index(candidate_rows)
     baseline_buckets = {identity_key(row): series_year_key(row) for row in baseline_rows}
@@ -107,8 +130,20 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
         violations.append({"code": "invalid_baseline_identity", "count": len(invalid_baseline), "identity_hashes": []})
     if invalid_candidate:
         violations.append({"code": "invalid_candidate_identity", "count": len(invalid_candidate), "identity_hashes": []})
+    if full_validation:
+        add("vehicle_level_foreign_value", vehicle_level_residual(original_candidate_rows))
+        add("model_year_conflict", model_year_conflicts(original_candidate_rows))
+        if audited_capability_residual:
+            violations.append({"code": "capability_value_residual", "count": sum(audited_capability_residual.values()), "identity_hashes": []})
+    if coverage is not None and not coverage.fact_rows_equal:
+        violations.append({"code": "canonical_fact_row_difference",
+                           "count": coverage.report["missing_or_modified_fact_rows"] + coverage.report["added_or_modified_fact_rows"]
+                                    + coverage.report.get("missing_retained_configured_fact_rows", 0),
+                           "identity_hashes": []})
 
     missing = set(baseline) - set(candidate)
+    verified_changes = missing & coverage.allowed_identity_changes if coverage is not None else set()
+    missing -= verified_changes
     add("missing_identity", missing)
     source_regressions = []
     intentional_source_retirements = 0
@@ -137,9 +172,9 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
         candidate_evidence_mismatches,
         component_stats,
     ) = _annotation_violations(candidate_rows)
-    add("missing_visible_component_annotation", candidate_missing_annotations - baseline_missing_annotations)
-    add("unsafe_visible_component_annotation", candidate_unsafe_annotations - baseline_unsafe_annotations)
-    add("visible_component_evidence_mismatch", candidate_evidence_mismatches - baseline_evidence_mismatches)
+    add("missing_visible_component_annotation", candidate_missing_annotations if full_validation else candidate_missing_annotations - baseline_missing_annotations)
+    add("unsafe_visible_component_annotation", candidate_unsafe_annotations if full_validation else candidate_unsafe_annotations - baseline_unsafe_annotations)
+    add("visible_component_evidence_mismatch", candidate_evidence_mismatches if full_validation else candidate_evidence_mismatches - baseline_evidence_mismatches)
     provenance_rows = []
     for actual, expected in zip(candidate_rows, expected_candidate_rows):
         normalized = dict(actual)
@@ -163,7 +198,7 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
         "missing_visible_component_annotation": 5,
         "unsafe_visible_component_annotation": 50,
     }
-    soft_ok = all(v["count"] <= _soft_thresholds.get(v["code"], 0) for v in soft)
+    soft_ok = not full_validation and all(v["count"] <= _soft_thresholds.get(v["code"], 0) for v in soft)
     if soft and soft_ok:
         for v in soft:
             _thr = _soft_thresholds.get(v["code"], "?")
@@ -183,11 +218,13 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
     fingerprint = hashlib.sha256(
         json.dumps(fingerprint_input, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
-    return {
+    result = {
         "schema_version": SCHEMA_VERSION,
-        "audit_scope": "regression-only",
+        "audit_scope": "regression-and-value-domains" if full_validation else "regression-only",
         "status": "blocked" if violations else "pass",
         "head_sha": head_sha,
+        "baseline_identity_transitions": transitions,
+        "tolerated_violations": soft if soft and soft_ok else [],
         "fingerprint": fingerprint,
         "stats": {
             "baseline_rows": len(baseline_rows),
@@ -209,12 +246,16 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
             "candidate_visible_rate": candidate_visible["visible_rate"],
             "visible_multi_delta": candidate_visible["visible_multi"] - baseline_visible["visible_multi"],
             "field_source_contradictions": len(provenance_contradictions),
-            # 能力列取值域守卫的观测读数（只进制品，不参与 blocked/pass 判定）
-            "capabilityValueResidual": capability_value_residual(candidate_rows),
+            # 默认保留观测；full_validation 时残留同时进入硬失败判据。
+            "capabilityValueResidual": audited_capability_residual,
             **component_stats,
         },
         "violations": violations,
     }
+    if coverage is not None:
+        result["observation_lineage"] = coverage.report
+        result["stats"]["verified_display_identity_changes"] = len(verified_changes)
+    return result
 
 
 def main() -> int:
@@ -223,15 +264,26 @@ def main() -> int:
     parser.add_argument("--candidate", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--head-sha", required=True)
+    parser.add_argument("--full-validation", action="store_true")
+    parser.add_argument("--source-identity-evidence", type=Path)
+    parser.add_argument("--wide-baseline", type=Path,
+                        help="Original immutable wide release input for strict filtered observation lineage")
     args = parser.parse_args()
     try:
-        report = audit_payload(load_json_rows(args.baseline), load_json_rows(args.candidate), head_sha=args.head_sha)
+        evidence = json.loads(args.source_identity_evidence.read_bytes()) if args.source_identity_evidence else None
+        report = audit_payload(load_json_rows(args.baseline), load_json_rows(args.candidate), head_sha=args.head_sha,
+                               full_validation=args.full_validation, identity_evidence=evidence,
+                               wide_baseline_rows=load_json_rows(args.wide_baseline) if args.wide_baseline else None)
+        if args.source_identity_evidence:
+            report["source_identity_evidence_sha256"] = _sha256(args.source_identity_evidence)
         report["baseline_sha256"] = _sha256(args.baseline)
         report["candidate_sha256"] = _sha256(args.candidate)
+        if args.wide_baseline:
+            report["wide_baseline_sha256"] = _sha256(args.wide_baseline)
     except Exception as exc:
         report = {
             "schema_version": SCHEMA_VERSION,
-            "audit_scope": "regression-only",
+            "audit_scope": "regression-and-value-domains" if args.full_validation else "regression-only",
             "status": "blocked",
             "head_sha": args.head_sha,
             "fingerprint": hashlib.sha256(f"{SCHEMA_VERSION}:audit_error".encode()).hexdigest(),

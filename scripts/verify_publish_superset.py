@@ -10,6 +10,8 @@ from pathlib import Path
 
 from merge_data import dedupe_merged_rows, keep_pages_year, partition_publishable_rows
 from prepare_debug_merge_inputs import filter_valid_identity_rows, identity_key, load_json_rows
+from reconcile_source_identities import reconcile
+from publish_observation_lineage import filtered_observation_coverage
 
 
 
@@ -27,8 +29,21 @@ def _identity_safe_rows(rows):
     return valid
 
 
-def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> dict[str, int]:
+def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict], *,
+                    strict_identities: bool = False, identity_evidence: dict | None = None,
+                    wide_baseline_rows: list[dict] | None = None) -> dict:
+    coverage = None
+    if wide_baseline_rows is not None:
+        if not strict_identities:
+            raise ValueError("original wide context requires strict identity validation")
+        coverage = filtered_observation_coverage(
+            baseline_rows, wide_baseline_rows, candidate_rows, identity_evidence=identity_evidence)
+        if not coverage.fact_rows_equal:
+            raise ValueError("candidate differs from the complete canonical source-fact row multiset")
     baseline_rows = [row for row in baseline_rows if keep_pages_year(row)]
+    transitions = []
+    if identity_evidence is not None:
+        baseline_rows, transitions = reconcile(baseline_rows, identity_evidence)
     baseline_rows = dedupe_merged_rows(baseline_rows)
     # Dedupe can merge rows with different source identity completeness;
     # filter before building identity keys to avoid identity_key() raising.
@@ -39,6 +54,8 @@ def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> di
     baseline_keys = {identity_key(row) for row in baseline_rows}
     candidate_keys = {identity_key(row) for row in candidate_rows}
     missing = baseline_keys - candidate_keys
+    verified_changes = missing & coverage.allowed_identity_changes if coverage is not None else set()
+    missing -= verified_changes
 
     # 守卫一：**候选行数下降**必须 fail closed。
     # 这是最直接的「数据丢了」信号，且与身份数学无关——旧实现完全没有这道闸，
@@ -58,7 +75,7 @@ def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> di
     # 这道闸等于形同虚设（实测 2 行基线缺 1 行即被静默容忍）。
     # 现在下限去掉——容忍度只按基线规模的比例给，2 行基线的容忍度就是 0。
     missing_tolerance = int(len(baseline_keys) * 0.02)
-    if missing and len(missing) <= missing_tolerance:
+    if missing and not strict_identities and len(missing) <= missing_tolerance:
         print(
             f"WARNING: candidate missing {len(missing)} baseline identities "
             f"(<=2% data evolution): {sorted(missing)[:5]}"
@@ -71,27 +88,42 @@ def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict]) -> di
             )
         sample = sorted(missing)[:5]
         raise ValueError(f"candidate is missing {len(missing)} baseline identities: {sample}")
-    return {
+    result = {
         "baseline_rows": len(baseline_rows),
         "candidate_rows": len(candidate_rows),
-        "retained_rows": len(baseline_keys),
+        "retained_rows": len(baseline_keys) - len(missing),
         "added_rows": len(candidate_keys - baseline_keys),
-        "missing_rows": 0,
+        "missing_rows": len(missing),
+        "evidenced_name_transitions": len(transitions),
     }
+    if coverage is not None:
+        result["verified_display_identity_changes"] = len(verified_changes)
+        result["observation_lineage"] = coverage.report
+    return result
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--baseline", type=Path, required=True)
     parser.add_argument("--candidate", type=Path, required=True)
+    parser.add_argument("--strict-identities", action="store_true")
+    parser.add_argument("--source-identity-evidence", type=Path)
+    parser.add_argument("--wide-baseline", type=Path,
+                        help="Original immutable wide release input for strict filtered observation lineage")
     args = parser.parse_args()
     try:
-        baseline_rows = [row for row in load_json_rows(args.baseline) if keep_pages_year(row)]
+        original_baseline_rows = load_json_rows(args.baseline)
+        original_candidate_rows = load_json_rows(args.candidate)
+        baseline_rows = [row for row in original_baseline_rows if keep_pages_year(row)]
         baseline_rows, baseline_publish_stats = partition_publishable_rows(baseline_rows)
         baseline_rows, invalid_baseline_rows = filter_valid_identity_rows(baseline_rows)
-        candidate_rows, candidate_publish_stats = partition_publishable_rows(load_json_rows(args.candidate))
+        candidate_rows, candidate_publish_stats = partition_publishable_rows(original_candidate_rows)
         candidate_rows, invalid_candidate_rows = filter_valid_identity_rows(candidate_rows)
-        stats = verify_superset(baseline_rows, candidate_rows)
+        evidence = json.loads(args.source_identity_evidence.read_bytes()) if args.source_identity_evidence else None
+        stats = verify_superset(original_baseline_rows if args.wide_baseline else baseline_rows,
+                                original_candidate_rows if args.wide_baseline else candidate_rows,
+                                strict_identities=args.strict_identities, identity_evidence=evidence,
+                                wide_baseline_rows=load_json_rows(args.wide_baseline) if args.wide_baseline else None)
         if invalid_baseline_rows:
             stats["baseline_invalid_identity_dropped"] = len(invalid_baseline_rows)
             print(f"warning: dropped {len(invalid_baseline_rows)} published baseline rows without a verifiable identity")

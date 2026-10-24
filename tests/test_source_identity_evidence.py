@@ -93,6 +93,78 @@ def test_real_cli_in_place_binds_input_output_and_source_evidence(tmp_path):
     assert proof["source_http_requests"] == 0
     assert [row["车型名称"] for row in json.loads(data.read_bytes())] == list(EXPECTED.values())
 
+
+def test_strict_identity_comparison_accounts_for_exact_source_supported_renames():
+    document, baseline = fixture()
+    candidate, _ = reconcile(baseline, document)
+    stats = verify_superset(baseline, candidate, strict_identities=True, identity_evidence=document)
+    assert stats["retained_rows"] == 3 and stats["evidenced_name_transitions"] == 3
+    assert stats["missing_rows"] == stats["added_rows"] == 0
+    report = audit_payload(baseline, candidate, head_sha="fixture", full_validation=True,
+                           identity_evidence=document)
+    assert report["status"] == "pass", report
+    assert len(report["baseline_identity_transitions"]) == 3
+    assert report["tolerated_violations"] == []
+    with pytest.raises(ValueError, match="missing"):
+        verify_superset(baseline, candidate, strict_identities=True)
+
+
+def test_strict_modes_reject_one_unexplained_identity_loss_even_below_two_percent():
+    baseline = [{"品牌":"比亚迪", "车系":"汉", "车系ID":"100", "车型名称":f"2026款 EV {i} 尊贵型",
+                 "年款":"2026", "车款ID":str(1000+i), "数据来源":"汽车之家", "官方指导价":"12.34万",
+                 "易车上市状态":"approved", "上市时间":"2026.01"}
+                for i in range(100)]
+    # Keep the same row count by adding a different SKU; percentage tolerance must not hide the loss.
+    candidate = copy.deepcopy(baseline)
+    candidate[0]["车型名称"] = "2026款 EV 新身份"
+    candidate[0]["车款ID"] = "999999"
+    with pytest.raises(ValueError, match="missing"):
+        verify_superset(baseline, candidate, strict_identities=True)
+    report = audit_payload(baseline, candidate, head_sha="fixture", full_validation=True)
+    assert report["status"] == "blocked"
+    assert any(v["code"] == "missing_identity" and v["count"] == 1 for v in report["violations"])
+    assert report["tolerated_violations"] == []
+
+
+def test_audit_requires_reconciled_candidate_and_never_rewrites_it():
+    document, rows = fixture()
+    before = copy.deepcopy(rows)
+    report = audit_payload(rows, rows, head_sha="fixture", full_validation=True,
+                           identity_evidence=document)
+    assert rows == before
+    assert report["status"] == "blocked"
+    assert len(report["baseline_identity_transitions"]) == 3
+    assert any(value["code"] == "missing_identity" and value["count"] == 3
+               for value in report["violations"])
+
+
+def test_raw_evidence_is_applied_before_merge_can_choose_a_yearless_name(tmp_path, monkeypatch):
+    import remerge_published_data as pipeline
+    from merge_data import dedupe_merged_rows
+    document, all_rows = fixture()
+    original = all_rows[1]
+    raw = [original, dict(original, 车型名称="1.5TD 行政版", 数据来源="懂车帝")]
+    before = copy.deepcopy(raw)
+    # Reproduce the real failure: after merging the erroneous old name, the
+    # retained exact-source validator rightly refuses the new short name.
+    with pytest.raises(ValueError, match="differs from reviewed evidence"):
+        reconcile(dedupe_merged_rows(copy.deepcopy(raw)), document)
+    source = tmp_path / "original.json"
+    source.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    original_bytes = source.read_bytes()
+    out = tmp_path / "out"
+    monkeypatch.setattr(pipeline, "MIN_ROWS", 1)
+    monkeypatch.setattr(sys, "argv", ["remerge", "--merged", str(source), "--filtered", str(source),
+        "--date", "20261015", "--outdir", str(out), "--max-drop-pct", "100",
+        "--source-identity-evidence", str(EVIDENCE)])
+    assert pipeline.main() == 0
+    candidate = json.loads((out / "merged_20261015.json").read_bytes())
+    assert len(candidate) == 1 and candidate[0]["车型名称"] == EXPECTED["72435"]
+    assert source.read_bytes() == original_bytes and raw == before
+    verify_superset(raw, candidate, strict_identities=True, identity_evidence=document)
+    assert audit_payload(raw, candidate, head_sha="test", full_validation=True,
+                         identity_evidence=document)["status"] == "pass"
+
 @pytest.mark.parametrize("query", [
     "specid=72741",
     "mode=1&site=1&seriesid=9999&specid=72741",

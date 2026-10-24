@@ -78,6 +78,72 @@ def changed_source_representation():
     return baseline, wide, candidate
 
 
+def test_true_observed_source_identity_change_needs_full_original_context():
+    baseline, wide, candidate = changed_source_representation()
+    before = deepcopy([baseline, wide, candidate])
+    with pytest.raises(ValueError, match="missing|identity"):
+        verify_superset(baseline, candidate, strict_identities=True)
+    result = filtered_observation_coverage(baseline, wide, candidate)
+    assert result.fact_rows_equal and len(result.allowed_identity_changes) == 1
+    verified = verify_superset(baseline, candidate, strict_identities=True, wide_baseline_rows=wide)
+    assert verified["missing_rows"] == 0
+    assert verified["verified_display_identity_changes"] == 1
+    report = audit_payload(baseline, candidate, head_sha="test", full_validation=True,
+                           wide_baseline_rows=wide)
+    assert report["status"] == "pass", report["violations"]
+    assert [baseline, wide, candidate] == before
+
+
+@pytest.mark.parametrize("damage", ["remove", "add", "duplicate", "change_value", "drop_field", "change_type"])
+def test_context_cannot_waive_missing_extra_modified_or_missing_field_rows(damage):
+    baseline, wide, candidate = changed_source_representation()
+    broken = deepcopy(candidate)
+    if damage == "remove":
+        broken = []
+    elif damage in {"add", "duplicate"}:
+        broken.append(dict(candidate[0]))
+        if damage == "add":
+            broken[-1]["车型名称"] = "虚构的另一款"
+    elif damage == "change_value":
+        broken[0]["级别"] = "大型SUV"
+    elif damage == "drop_field":
+        broken[0].pop("级别")
+    else:
+        broken[0]["年款"] = 2026
+    with pytest.raises(ValueError, match="canonical|nonempty|empty"):
+        verify_superset(baseline, broken, strict_identities=True, wide_baseline_rows=wide)
+    if broken:
+        report = audit_payload(baseline, broken, head_sha="test", full_validation=True,
+                               wide_baseline_rows=wide)
+        assert report["status"] == "blocked"
+        assert any(v["code"] == "canonical_fact_row_difference" for v in report["violations"])
+
+
+def test_unseen_original_fact_cannot_be_explained_by_a_similar_display_key():
+    baseline, wide, candidate = changed_source_representation()
+    baseline[0]["未核实的历史事实"] = "不能猜测或删除"
+    coverage = filtered_observation_coverage(baseline, wide, candidate)
+    assert not coverage.allowed_identity_changes
+    with pytest.raises(ValueError, match="missing|identity"):
+        verify_superset(baseline, candidate, strict_identities=True, wide_baseline_rows=wide)
+
+
+def test_context_requires_strict_identity_and_full_audit_modes():
+    baseline, wide, candidate = changed_source_representation()
+    with pytest.raises(ValueError, match="requires strict"):
+        verify_superset(baseline, candidate, wide_baseline_rows=wide)
+    with pytest.raises(ValueError, match="requires full"):
+        audit_payload(baseline, candidate, head_sha="test", wide_baseline_rows=wide)
+
+
+def test_full_audit_does_not_inherit_a_shared_bad_component_annotation():
+    _, _, candidate = changed_source_representation()
+    bad = [dict(candidate[0], 跨源归并ID="forged")]
+    report = audit_payload(bad, deepcopy(bad), head_sha="test", full_validation=True)
+    assert report["status"] == "blocked"
+    assert any(v["code"] == "unsafe_visible_component_annotation" for v in report["violations"])
+
+
 @pytest.mark.parametrize("field,value", [("能源类型", "纯电"), ("电池组质保", "八年")])
 def test_configured_original_field_cannot_disappear_for_same_exact_identity(field, value):
     from publish_observation_lineage import filtered_fact_identity
@@ -101,6 +167,58 @@ def test_retained_fact_identity_never_crosses_sku_year_price_or_source(field, va
     original = row(sku="65052", **{"车系ID": "900"})
     other = dict(original, **{field: value})
     assert filtered_fact_identity(original) != filtered_fact_identity(other)
+
+
+def test_exact_union_retains_missing_configured_fact_without_mutating_inputs():
+    _, wide, candidate = changed_source_representation()
+    inherited = deepcopy(candidate)
+    inherited[0]["能源类型"] = "纯电"
+    before = deepcopy([inherited, candidate, wide])
+    result = union_filtered(inherited, candidate, build_filtered(deepcopy(wide)))
+    assert len(result) == len(candidate) and result[0]["能源类型"] == "纯电"
+    assert [inherited, candidate, wide] == before
+    coverage = filtered_observation_coverage(inherited, wide, result)
+    assert coverage.fact_rows_equal
+    assert verify_superset(inherited, result, strict_identities=True, wide_baseline_rows=wide)["missing_rows"] == 0
+    assert audit_payload(inherited, result, head_sha="test", full_validation=True,
+                         wide_baseline_rows=wide)["status"] == "pass"
+    broken = deepcopy(result)
+    broken[0].pop("能源类型")
+    with pytest.raises(ValueError, match="canonical"):
+        verify_superset(inherited, broken, strict_identities=True, wide_baseline_rows=wide)
+    report = audit_payload(inherited, broken, head_sha="test", full_validation=True, wide_baseline_rows=wide)
+    assert report["status"] == "blocked"
+    assert all(item["count"] > 0 for item in report["violations"])
+
+
+def test_exact_union_never_overwrites_a_current_source_fact():
+    _, wide, candidate = changed_source_representation()
+    inherited = deepcopy(candidate)
+    inherited[0]["能源类型"] = "纯电"
+    candidate[0]["能源类型"] = "汽油"
+    result = union_filtered(inherited, candidate, build_filtered(deepcopy(wide)))
+    assert result[0]["能源类型"] == "汽油"
+
+
+def test_exact_union_refuses_conflicting_or_ambiguous_retained_facts():
+    _, wide, candidate = changed_source_representation()
+    first = deepcopy(candidate[0])
+    first["能源类型"] = "纯电"
+    second = dict(first, **{"能源类型": "汽油"})
+    with pytest.raises(ValueError, match="conflicting"):
+        union_filtered([first, second], candidate, build_filtered(deepcopy(wide)))
+    with pytest.raises(ValueError, match="ambiguous"):
+        union_filtered([first], candidate + deepcopy(candidate), build_filtered(deepcopy(wide)))
+
+
+def test_exact_union_does_not_copy_facts_between_distinct_skus():
+    _, wide, candidate = changed_source_representation()
+    inherited = deepcopy(candidate)
+    inherited[0]["车款ID"] = "65053"
+    inherited[0]["能源类型"] = "纯电"
+    result = union_filtered(inherited, candidate, build_filtered(deepcopy(wide)))
+    original_target = next(row for row in result if row.get("车款ID") == candidate[0].get("车款ID"))
+    assert "能源类型" not in original_target
 
 
 @pytest.mark.parametrize("spaced_part", ["year", "trim"])
