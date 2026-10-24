@@ -2,11 +2,16 @@
 """Copy a verified site and shard its complete JSON payload for Cloudflare Pages."""
 
 import argparse
+import gzip
 import hashlib
 import json
 import shutil
+import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from prepare_cnb_pages import checked_assets, safe_path
 
 
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024
@@ -16,7 +21,11 @@ CLOUDFLARE_MAX_BYTES = 25 * 1024 * 1024
 def local_path(root, value):
     if not isinstance(value, str) or not value or Path(value).is_absolute():
         raise ValueError(f"invalid local manifest path: {value!r}")
-    path = (root / value).resolve()
+    try:
+        parts = safe_path(value).parts
+    except ValueError as exc:
+        raise ValueError(f"manifest path escapes site or is invalid: {value!r}") from exc
+    path = root.joinpath(*parts).resolve()
     if not path.is_relative_to(root.resolve()):
         raise ValueError(f"manifest path escapes site: {value!r}")
     return path
@@ -80,8 +89,53 @@ def verify_chunks(root, descriptors, expected_rows, max_bytes):
         if not isinstance(rows, list) or len(rows) != descriptor["rowCount"]:
             raise ValueError("chunk row count mismatch")
         rebuilt.extend(rows)
-    if rebuilt != expected_rows:
+    canonical = lambda rows: json.dumps(rows, ensure_ascii=False, sort_keys=True,
+                                        separators=(",", ":"), allow_nan=False)
+    if canonical(rebuilt) != canonical(expected_rows):
         raise ValueError("reconstructed dataset differs in rows, identity, facts or order")
+
+
+def digest_file(path, opener=open):
+    digest = hashlib.sha256()
+    size = 0
+    with opener(path, "rb") as stream:
+        while block := stream.read(1024 * 1024):
+            digest.update(block)
+            size += len(block)
+    return digest.hexdigest(), size
+
+
+def compress_exact_download(path, staging):
+    """Preserve every original byte, including CSV columns/order/quoting/BOM."""
+    original_sha, original_size = digest_file(path)
+    target = path.with_name(path.name + ".gz")
+    with path.open("rb") as source, target.open("xb") as raw:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, compresslevel=1, mtime=0) as zipped:
+            shutil.copyfileobj(source, zipped, 1024 * 1024)
+    if digest_file(target, gzip.open) != (original_sha, original_size):
+        raise ValueError("compressed download differs from its complete original")
+    sha, size = digest_file(target)
+    if size > CLOUDFLARE_MAX_BYTES:
+        raise ValueError("complete compressed download exceeds Cloudflare asset limit")
+    descriptor = {"path": target.relative_to(staging).as_posix(), "sha256": sha, "size": size,
+                  "compression": "gzip", "originalPath": path.relative_to(staging).as_posix(),
+                  "originalSha256": original_sha, "originalSize": original_size}
+    path.unlink()  # Only the staging copy, after complete-byte equivalence is proved.
+    return descriptor
+
+
+def rewrite_references(value, compressed):
+    if isinstance(value, str):
+        replacement = compressed.get(safe_path(value).as_posix())
+        return replacement["path"] if replacement else value
+    if isinstance(value, list):
+        return [rewrite_references(item, compressed) for item in value]
+    if isinstance(value, dict):
+        if isinstance(value.get("path"), str):
+            replacement = compressed.get(safe_path(value["path"]).as_posix())
+            return dict(value, **replacement) if replacement else dict(value)
+        return {key: rewrite_references(item, compressed) for key, item in value.items()}
+    raise ValueError("unsupported manifest file reference")
 
 
 def prepare_payload(source, output, max_bytes=DEFAULT_MAX_BYTES):
@@ -94,6 +148,9 @@ def prepare_payload(source, output, max_bytes=DEFAULT_MAX_BYTES):
         raise ValueError("output already exists; choose a new output directory")
     manifest = json.loads((source / "data/manifest.json").read_text(encoding="utf-8"))
     files = manifest["files"]
+    if any(path.is_symlink() for path in source.rglob("*")):
+        raise ValueError("input site must contain only regular files and directories")
+    checked_assets(source, manifest)
     latest = load_rows(local_path(source, files.get("latestJson", "data/latest.json")))
     if manifest.get("rowCount") != len(latest):
         raise ValueError("manifest rowCount does not match the complete latest dataset")
@@ -105,14 +162,19 @@ def prepare_payload(source, output, max_bytes=DEFAULT_MAX_BYTES):
     with tempfile.TemporaryDirectory(prefix=f".{output.name}-", dir=output.parent) as temporary:
         staging = Path(temporary) / "site"
         shutil.copytree(source, staging)
-        files["latestJsonChunks"] = write_chunks(latest, staging, "latest", max_bytes)
-        latest_ref = files.pop("latestJson", "data/latest.json")
-        removed = {latest_ref}
-        omitted = []
+        if files.get("latestJsonChunks"):
+            verify_chunks(staging, files["latestJsonChunks"], latest, CLOUDFLARE_MAX_BYTES)
+        if not files.get("latestJsonChunks") or any(item["size"] > max_bytes for item in files["latestJsonChunks"]):
+            files["latestJsonChunks"] = write_chunks(latest, staging, "latest", max_bytes)
+        latest_ref = files.get("latestJson", "data/latest.json")
+        compressed = {}
+        if files.get("filteredJsonChunks"):
+            if filtered is None:
+                raise ValueError("filtered chunks require a complete filtered dataset")
+            verify_chunks(staging, files["filteredJsonChunks"], filtered, CLOUDFLARE_MAX_BYTES)
         if filtered_ref and local_path(staging, filtered_ref).stat().st_size > max_bytes:
-            files["filteredJsonChunks"] = write_chunks(filtered, staging, "filtered", max_bytes)
-            files.pop("filteredJson")
-            removed.add(filtered_ref)
+            if not files.get("filteredJsonChunks") or any(item["size"] > max_bytes for item in files["filteredJsonChunks"]):
+                files["filteredJsonChunks"] = write_chunks(filtered, staging, "filtered", max_bytes)
         for path in list(staging.rglob("*")):
             if not path.is_file():
                 continue
@@ -121,29 +183,26 @@ def prepare_payload(source, output, max_bytes=DEFAULT_MAX_BYTES):
                 path.name == "latest.json" or path.name.startswith("latest_")
                 or path.name == "filtered.json" or path.name.startswith("filtered_"))
             size = path.stat().st_size
-            if relative in removed or (data_snapshot and size > max_bytes and path.suffix == ".json"):
-                path.unlink()
-                removed.add(relative)
-            elif path.suffix.lower() == ".csv" and size > max_bytes:
-                path.unlink()
-                removed.add(relative)
-                omitted.append({"path": relative, "size": size,
-                                "reason": "download exceeds Cloudflare payload byte cap; complete JSON remains in shards"})
+            if size > max_bytes and (path.suffix.lower() == ".csv" or (
+                    path.suffix == ".json" and (data_snapshot or relative in {latest_ref, filtered_ref}))):
+                compressed[relative] = compress_exact_download(path, staging)
             elif size > CLOUDFLARE_MAX_BYTES:
                 raise ValueError(f"unsupported oversized asset: {relative}")
-        for key, value in list(files.items()):
-            if isinstance(value, str):
-                if value in removed:
-                    files.pop(key)
-                elif not local_path(staging, value).is_file():
-                    raise ValueError(f"manifest refers to missing file: {value}")
-            elif isinstance(value, list):
-                for descriptor in value:
-                    if not isinstance(descriptor, dict) or not local_path(staging, descriptor.get("path")).is_file():
-                        raise ValueError(f"manifest refers to missing chunk: {descriptor}")
-            else:
-                raise ValueError(f"unsupported manifest file reference: {key}")
-        manifest["omittedDownloads"] = omitted
+        files = rewrite_references(files, compressed)
+        descriptors = {item["path"]: dict(item) for item in files.get("additionalDataAssets", [])}
+        for path in staging.rglob("*"):
+            if path.is_file() and path.name != "manifest.json" and path.suffix.lower() in {".json", ".csv", ".gz"}:
+                relative = path.relative_to(staging).as_posix()
+                sha, size = digest_file(path)
+                entry = descriptors.setdefault(relative, {"path": relative})
+                entry.update(sha256=sha, size=size)
+        for item in compressed.values():
+            descriptors[item["path"]].update(item)
+        files["additionalDataAssets"] = list(descriptors.values())
+        manifest["files"] = files
+        manifest["compressedDownloads"] = list(compressed.values())
+        manifest["omittedDownloads"] = []
+        checked_assets(staging, manifest)
         (staging / "data/manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
         for path in staging.rglob("*"):

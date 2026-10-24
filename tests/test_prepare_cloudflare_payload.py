@@ -1,4 +1,5 @@
 import hashlib
+import gzip
 import importlib.util
 import json
 import tempfile
@@ -39,6 +40,56 @@ class CloudflarePayloadTests(unittest.TestCase):
                         "latestCsv": "data/full.csv", "filteredCsv": "data/filtered.csv"}}
         (self.source / "data/manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
+    def test_small_filtered_rejects_self_consistent_stale_chunks(self):
+        self.setup_site([{"id": 1}], [{"id": 1}])
+        manifest_path = self.source / "data/manifest.json"
+        for wrong in ([{"id": 999}], [{"id": True}]):
+            with self.subTest(wrong=wrong):
+                raw = json.dumps(wrong).encode("utf-8")
+                (self.source / "data/retained-filtered.json").write_bytes(raw)
+                manifest = json.loads(manifest_path.read_bytes())
+                manifest["files"]["filteredJsonChunks"] = [{
+                    "path": "data/retained-filtered.json", "sha256": hashlib.sha256(raw).hexdigest(),
+                    "size": len(raw), "rowCount": 1}]
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                before = {p.relative_to(self.source): p.read_bytes()
+                          for p in self.source.rglob("*") if p.is_file()}
+                with self.assertRaisesRegex(ValueError, "reconstructed dataset differs"):
+                    payload.prepare_payload(self.source, self.output, 1024)
+                self.assertFalse(self.output.exists())
+                self.assertEqual(before, {p.relative_to(self.source): p.read_bytes()
+                                         for p in self.source.rglob("*") if p.is_file()})
+
+    def test_small_filtered_valid_chunks_remain_verified_and_reused(self):
+        self.setup_site([{"id": 1}], [{"id": 1}])
+        path = self.source / "data/retained-filtered.json"
+        path.write_bytes(b'[{"id":1}]')
+        descriptor = {"path": "data/retained-filtered.json",
+                      "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                      "size": path.stat().st_size, "rowCount": 1}
+        manifest_path = self.source / "data/manifest.json"
+        manifest = json.loads(manifest_path.read_bytes())
+        manifest["files"]["filteredJsonChunks"] = [descriptor]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        result = payload.prepare_payload(self.source, self.output, 1024)
+        self.assertEqual(result["files"]["filteredJsonChunks"], [descriptor])
+        self.assertEqual((self.output / descriptor["path"]).read_bytes(), path.read_bytes())
+
+    def test_filtered_chunks_without_complete_filtered_source_are_rejected(self):
+        self.setup_site([{"id": 1}], [{"id": 1}])
+        manifest_path = self.source / "data/manifest.json"
+        manifest = json.loads(manifest_path.read_bytes())
+        del manifest["files"]["filteredJson"]
+        raw = b'[{"id":1}]'
+        (self.source / "data/retained-filtered.json").write_bytes(raw)
+        manifest["files"]["filteredJsonChunks"] = [{
+            "path": "data/retained-filtered.json", "sha256": hashlib.sha256(raw).hexdigest(),
+            "size": len(raw), "rowCount": 1}]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "require a complete filtered dataset"):
+            payload.prepare_payload(self.source, self.output, 1024)
+        self.assertFalse(self.output.exists())
+
     def rows(self):
         return [{"id": i, "车型": "易车汉字🚗" * 5, "来源": "易车"} for i in range(5)]
 
@@ -61,11 +112,15 @@ class CloudflarePayloadTests(unittest.TestCase):
         self.assertEqual([row["id"] for row in rebuilt], list(range(5)))
         self.assertEqual(manifest["rowCount"], len(rows))
         self.assertEqual(manifest["files"]["filteredJson"], "data/filtered_stamp.json")
-        self.assertNotIn("latestJson", manifest["files"])
-        self.assertNotIn("latestCsv", manifest["files"])
+        self.assertTrue(manifest["files"]["latestJson"].endswith(".json.gz"))
+        self.assertTrue(manifest["files"]["latestCsv"].endswith(".csv.gz"))
+        with gzip.open(self.output / manifest["files"]["latestJson"], "rb") as stream:
+            self.assertEqual(stream.read(), before[Path("data/latest_stamp.json")])
+        with gzip.open(self.output / manifest["files"]["latestCsv"], "rb") as stream:
+            self.assertEqual(stream.read(), before[Path("data/full.csv")])
         self.assertFalse((self.output / "data/latest.json").exists())
         self.assertFalse((self.output / "data/latest_stamp.json").exists())
-        self.assertEqual(manifest["omittedDownloads"][0]["path"], "data/full.csv")
+        self.assertEqual(manifest["omittedDownloads"], [])
         self.assertEqual(before, {p.relative_to(self.source): p.read_bytes()
                                  for p in self.source.rglob("*") if p.is_file()})
         for value in manifest["files"].values():
@@ -102,7 +157,7 @@ class CloudflarePayloadTests(unittest.TestCase):
         rows = self.rows()
         self.setup_site(rows, rows[:3])
         manifest = payload.prepare_payload(self.source, self.output, 140)
-        self.assertNotIn("filteredJson", manifest["files"])
+        self.assertTrue(manifest["files"]["filteredJson"].endswith(".json.gz"))
         payload.verify_chunks(self.output, manifest["files"]["filteredJsonChunks"], rows[:3], 140)
         self.assertEqual(manifest["filteredRowCount"], 3)
 
@@ -163,9 +218,81 @@ class CloudflarePayloadTests(unittest.TestCase):
         manifest = json.loads(manifest_path.read_text())
         manifest["files"]["latestJson"] = "../outside.json"
         manifest_path.write_text(json.dumps(manifest))
-        with self.assertRaisesRegex(ValueError, "escapes site"):
+        with self.assertRaisesRegex(ValueError, "escapes site|path traversal"):
             payload.prepare_payload(self.source, self.output)
         self.assertFalse(self.output.exists())
+
+
+    def test_complete_inventory_references_compressed_assets_not_deleted_csv(self):
+        self.setup_site(self.rows())
+        path = self.source / "data/manifest.json"
+        manifest = json.loads(path.read_bytes())
+        old = self.source / "data/full.csv"
+        original = old.read_bytes()
+        manifest["files"]["additionalDataAssets"] = [{"path": "data/full.csv",
+            "sha256": hashlib.sha256(original).hexdigest(), "size": len(original), "role": "full-original-csv"}]
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        actual = payload.prepare_payload(self.source, self.output, 140)
+        item = next(item for item in actual["files"]["additionalDataAssets"] if item["path"] == "data/full.csv.gz")
+        self.assertEqual(item["role"], "full-original-csv")
+        self.assertEqual(item["originalSha256"], hashlib.sha256(original).hexdigest())
+        self.assertEqual(item["originalSize"], len(original))
+        self.assertEqual(item["sha256"], hashlib.sha256((self.output / item["path"]).read_bytes()).hexdigest())
+        self.assertEqual(old.read_bytes(), original)
+        from prepare_cnb_pages import checked_assets
+        self.assertIn("data/full.csv.gz", checked_assets(self.output, actual))
+
+    def test_original_inventory_digest_must_pass_before_transform(self):
+        self.setup_site(self.rows())
+        path = self.source / "data/manifest.json"
+        manifest = json.loads(path.read_bytes())
+        manifest["files"]["additionalDataAssets"] = [{"path": "data/full.csv", "sha256": "0" * 64}]
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "checksum mismatch"):
+            payload.prepare_payload(self.source, self.output, 140)
+        self.assertFalse(self.output.exists())
+        self.assertEqual((self.source / "data/full.csv").read_bytes(), b"x" * 400)
+
+    def test_gzip_name_collision_preserves_both_original_input_files(self):
+        self.setup_site(self.rows())
+        collision = self.source / "data/full.csv.gz"
+        collision.write_bytes(b"existing unique artifact")
+        with self.assertRaises(FileExistsError):
+            payload.prepare_payload(self.source, self.output, 140)
+        self.assertEqual(collision.read_bytes(), b"existing unique artifact")
+        self.assertEqual((self.source / "data/full.csv").read_bytes(), b"x" * 400)
+        self.assertFalse(self.output.exists())
+
+    def test_same_value_different_json_type_cannot_pass_existing_chunk_verification(self):
+        chunks = payload.write_chunks([{"id": 1, "flag": True}], self.source, "typed", 200)
+        with self.assertRaisesRegex(ValueError, "differs in rows"):
+            payload.verify_chunks(self.source, chunks, [{"id": 1, "flag": 1}], 200)
+
+    def test_valid_existing_complete_chunks_are_reused_without_duplicate_row_files(self):
+        rows = self.rows()
+        self.setup_site(rows)
+        path = self.source / "data/manifest.json"
+        manifest = json.loads(path.read_bytes())
+        original_chunks = payload.write_chunks(rows, self.source, "original", 140)
+        manifest["files"]["latestJsonChunks"] = original_chunks
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        actual = payload.prepare_payload(self.source, self.output, 140)
+        self.assertEqual(actual["files"]["latestJsonChunks"], original_chunks)
+        self.assertFalse((self.output / "data/latest_chunks").exists())
+
+    def test_valid_larger_input_chunks_are_verified_then_repacked_without_losing_originals(self):
+        rows = self.rows()
+        self.setup_site(rows)
+        path = self.source / "data/manifest.json"
+        manifest = json.loads(path.read_bytes())
+        original_chunks = payload.write_chunks(rows, self.source, "oldlarger", 500)
+        self.assertTrue(any(item["size"] > 140 for item in original_chunks))
+        manifest["files"]["latestJsonChunks"] = original_chunks
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        actual = payload.prepare_payload(self.source, self.output, 140)
+        payload.verify_chunks(self.output, actual["files"]["latestJsonChunks"], rows, 140)
+        for item in original_chunks:
+            self.assertEqual((self.output / item["path"]).read_bytes(), (self.source / item["path"]).read_bytes())
 
 
 class CloudflareWorkflowTests(unittest.TestCase):

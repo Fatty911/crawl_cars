@@ -1410,11 +1410,11 @@
       }
       var anchor = document.createElement("a");
       anchor.href = item[1];
-      anchor.textContent = item[0];
+      anchor.textContent = item[0] + (/\.gz$/.test(item[1]) ? "（GZIP）" : "");
       anchor.download = "";
       els.downloadList.appendChild(anchor);
     });
-    if (files.latestJsonChunks && state.publishedRawRows) {
+    if (files.latestJsonChunks && !files.latestJson && state.publishedRawRows) {
       var fullJson = document.createElement("a");
       fullJson.href = "#";
       fullJson.textContent = "完整 JSON";
@@ -1424,7 +1424,7 @@
       });
       els.downloadList.appendChild(fullJson);
     }
-    if (files.filteredJsonChunks) {
+    if (files.filteredJsonChunks && !files.filteredJson) {
       var filteredJson = document.createElement("a");
       filteredJson.href = "#";
       filteredJson.textContent = "默认筛选 JSON";
