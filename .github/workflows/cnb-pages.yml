@@ -1,6 +1,9 @@
 name: Deploy verified CNB Pages
 
 on:
+  workflow_run:
+    workflows: ["重合并并发布（不爬取）"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -11,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -24,9 +28,9 @@ jobs:
     # github-pages 环境的 branch_policy（只允许 main）会在分配阶段就拒绝 ⇒ 0 步骤、无日志、必红，
     # 且不产生 workflow_run 修复票。与 deploy-frontend 同一条轴：把部署钉死在默认分支 ref 上。
     # 守卫见 tests/test_workflow_pages_env_ref_guard.py。
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -35,20 +39,39 @@ jobs:
     steps:
       - name: Checkout deployment helpers
         uses: actions/checkout@main
+        with:
+          ref: ${{ github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@main
         with:
           python-version: "3.12"
 
+      - name: Set up Node for existing Cloudflare upload
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check saved-artifact publication and existing storage contracts
+        run: |
+          set -euo pipefail
+          python -m pip install requests pyyaml pytest
+          python -m pytest -q tests/test_download_verified_release.py tests/test_prepare_cloudflare_payload.py tests/test_pages_asset_readback.py tests/test_workflow_pages_env_ref_guard.py tests/test_cloudflare_saved_workflow.py
+          node --check docs/app.js
+          python scripts/check_red_channel_coverage.py
+          python -B -I scripts/validate_storage_policy.py --check-head
+
       - name: Download exact verified CNB site
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --dir release
+          python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --dir release --no-legacy
 
       - name: Validate and extract verified payload
         run: python scripts/prepare_cnb_pages.py --archive release/verified-site.zip --manifest release/manifest.json --site cnb-site
+
+      - name: Use reviewed frontend while retaining the complete verified data
+        run: cp docs/app.js cnb-site/app.js
 
       - name: Configure Pages
         uses: actions/configure-pages@main
@@ -65,4 +88,64 @@ jobs:
       - name: Verify deployed manifest
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-        run: python scripts/prepare_cnb_pages.py --site cnb-site --verify-url "$PAGE_URL"
+        run: python scripts/prepare_cnb_pages.py --site cnb-site --verify-url "$PAGE_URL" --verify-data
+
+      - name: 保留数据原件并无损封装Cloudflare发布面
+        run: |
+          set -euo pipefail
+          cp docs/app.js cnb-site/app.js
+          python scripts/prepare_cloudflare_payload.py --input cnb-site --output cf-site
+          python - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from prepare_cnb_pages import checked_assets
+          manifest_path = Path('cf-site/data/manifest.json')
+          manifest = json.loads(manifest_path.read_bytes())
+          manifest['publication'] = {
+              'platform': 'cloudflare-pages',
+              'project': 'crawl-cars',
+              'postprocessCodeCommit': os.environ['GITHUB_SHA'],
+              'sourceVerifiedRelease': Path('release/selected-release.txt').read_text().strip(),
+              'sourceManifestSha256': hashlib.sha256(Path('release/manifest.json').read_bytes()).hexdigest(),
+              'frontendAppSha256': hashlib.sha256(Path('cf-site/app.js').read_bytes()).hexdigest(),
+          }
+          checked_assets(Path('cf-site'), manifest)
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
+      - name: 发布到既有crawl-cars生产项目
+        working-directory: ${{ runner.temp }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          python - <<'PY'
+          import os, requests
+          account = os.environ['CLOUDFLARE_ACCOUNT_ID']
+          response = requests.get(
+              'https://api.cloudflare.com/client/v4/accounts/' + account + '/pages/projects/crawl-cars',
+              headers={'Authorization': 'Bearer ' + os.environ['CLOUDFLARE_API_TOKEN']}, timeout=30)
+          assert response.status_code == 200, 'Cloudflare project metadata could not be verified'
+          data = response.json()
+          assert data.get('success') is True, 'Cloudflare project metadata rejected'
+          project = data['result']
+          assert project['name'] == 'crawl-cars' and project['production_branch'] == 'main'
+          assert 'cars2.jiucai.eu.org' in project.get('domains', []), 'Wrong Cloudflare target domain'
+          print('Verified existing crawl-cars production main and exact cars2 domain')
+          PY
+          npx --yes wrangler@4 pages deploy "$GITHUB_WORKSPACE/cf-site" --project-name crawl-cars --branch main --commit-hash "$GITHUB_SHA"
+      - name: 全量回读cars2清单和全部实际资产
+        run: |
+          set -euo pipefail
+          python scripts/prepare_cnb_pages.py --site cf-site --verify-url https://cars2.jiucai.eu.org/ --verify-data
+      - name: 保留本轮完整Cloudflare发布制品
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-saved-${{ github.run_id }}
+          path: cf-site/
+          if-no-files-found: error
+          retention-days: 3

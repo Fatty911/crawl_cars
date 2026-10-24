@@ -437,7 +437,7 @@ jobs:
             column-scan-report.json
             column-scan-history.json
             site/data/manifest.json
-          retention-days: 7
+          retention-days: 3
 
       # tag 以 cnb-data- 开头 ⇒ deploy-frontend.yml 会按规矩跳过，不会用旧站点覆盖本次部署
       - name: 创建数据发布
