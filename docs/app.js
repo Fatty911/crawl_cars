@@ -306,6 +306,14 @@
     { pattern: /汽油|燃油/, cls: "ice" }
   ];
 
+  var SKU_ATOM_WORDS = [
+    "激光雷达", "双电机", "三电机", "四电机", "超长续航", "长续航", "高性能",
+    "增程", "纯电", "智驾", "猎装", "骑士", "性能", "豪华", "尊贵", "旗舰",
+    "卓越", "超越", "领先", "探索", "标准", "舒适", "运动"
+  ];
+
+  var SKU_ATOM_SUFFIX = /[版型款]+$/g;
+
   function energyClassOf(text) {
     var value = String(text == null ? "" : text);
     for (var i = 0; i < ENERGY_CLASS_RULES.length; i += 1) {
@@ -393,6 +401,49 @@
       if (next["官方指导价"] != null) { next["官方指导价"] = normalizePriceText(next["官方指导价"]); }
       return next;
     });
+  }
+
+  function skuCjkAtoms(run, out) {
+    // 已知词优先切分，其余连续汉字作为一个原子；`版/型/款`只作后缀，不进键。
+    var index = 0;
+    var buffer = "";
+    while (index < run.length) {
+      var word = "";
+      for (var i = 0; i < SKU_ATOM_WORDS.length; i += 1) {
+        if (run.substr(index, SKU_ATOM_WORDS[i].length) === SKU_ATOM_WORDS[i]) { word = SKU_ATOM_WORDS[i]; break; }
+      }
+      if (word) {
+        if (buffer) { out.push(buffer); buffer = ""; }
+        out.push(word);
+        index += word.length;
+      } else {
+        buffer += run.charAt(index);
+        index += 1;
+      }
+    }
+    if (buffer) { out.push(buffer); }
+  }
+
+  function skuNameAtoms(text) {
+    var atoms = [];
+    var pattern = /[A-Za-z0-9][A-Za-z0-9+._-]*|[\u4e00-\u9fa5]+/g;
+    var match;
+    while ((match = pattern.exec(String(text == null ? "" : text)))) {
+      var token = match[0];
+      if (/^[A-Za-z0-9]/.test(token)) { atoms.push(token.toLowerCase()); continue; }
+      skuCjkAtoms(token, atoms);
+    }
+    return atoms.map(function (atom) {
+      return atom.replace(SKU_ATOM_SUFFIX, "");
+    }).filter(Boolean).sort();
+  }
+
+  function skuEngineCompatible(a, b) {
+    var ea = skuEngineParts(a), eb = skuEngineParts(b);
+    if (!ea || !eb) { return true; }
+    if (ea.size !== eb.size) { return false; }
+    if (ea.letter && eb.letter && ea.letter !== eb.letter) { return false; }
+    return true;
   }
 
   function customOrderToken(value, field) {
@@ -562,32 +613,40 @@
     return trimmed || cleanModelText(row["车型名称"]);
   }
 
-  function skuEngine(row) {
+  function skuEngineParts(row) {
+    // 排量/进气字母分开记：跨源常一边只有 `排量(L)=1.5`、另一边 `发动机=1.5T`。
+    // 合并时"1.5"与"1.5t"其实是同一台增程器，字母差异是缺值产物，不算真实动力冲突；
+    // 数字(1.5 vs 2.4)与两边都写明的字母(2.4L vs 2.4T)仍必须一致。
     var fields = [row["发动机"], row["排量(L)"], row["排量"]];
     for (var i = 0; i < fields.length; i += 1) {
       var text = String(fields[i] == null ? "" : fields[i]);
       var match = SKU_ENGINE_FIND.exec(text);
-      if (match) { return match[1] + match[2].toLowerCase(); }
+      if (match) { return { size: match[1], letter: match[2].toLowerCase() }; }
       if (i > 0) {
         var number = text.match(/\d+(?:\.\d+)?/);
-        if (number) { return number[0] + "l"; }
+        if (number) { return { size: number[0], letter: "" }; }
       }
     }
     var name = SKU_ENGINE_FIND.exec(String(row["车型名称"] || ""));
-    return name ? name[1] + name[2].toLowerCase() : "";
+    return name ? { size: name[1], letter: name[2].toLowerCase() } : null;
   }
 
   function skuPriceSet(row) {
-    // 现网一根价格串会带多源值（`懂车帝:10.89万|易车:11.98万`，实测 车款ID 171437 的线上行）。
-    // 只取第一个数字会把聚合行读成 10.89，跟另一行的 11.98 判成互斥 ⇒ 同 ID 同名两行合不上
-    // （线上验收不变式直接红）。按**值集合**比（与仓里 merge_data 的"集合不相交才算冲突"同口径）。
-    var text = String(row["官方指导价"] == null ? "" : row["官方指导价"]);
-    var numbers = text.match(/\d+(?:\.\d+)?/g);
-    return numbers ? numbers.map(Number).filter(function (n) { return Number.isFinite(n) && n > 0; }) : [];
+    var values = [];
+    splitDisplaySegments(row["官方指导价"]).forEach(function (part) {
+      var value = priceSegment(part);
+      if (value === null && /[0-9]/.test(part)) {
+        // An interval, starting price or numeric annotation is evidence, not an absent price.
+        // Preserve it exactly and conservatively refuse equivalence with a different observation.
+        value = "unparsed:" + stripSourceSegmentPrefix(part);
+      }
+      if (value !== null && (value.indexOf("unparsed:") === 0 || Number(value) > 0) && values.indexOf(value) === -1) { values.push(value); }
+    });
+    return values;
   }
 
   function skuPrice(row) {
-    var values = skuPriceSet(row);
+    var values = skuPriceSet(row).map(Number).filter(function (value) { return Number.isFinite(value) && value > 0; });
     return values.length ? Math.min.apply(null, values) : null;
   }
 
@@ -603,13 +662,12 @@
   }
 
   function skuEnergy(row) {
-    var text = normalizeText(row["能源类型"]);
-    if (/插电|插混/.test(text)) { return "phev"; }
-    if (/增程/.test(text)) { return "erev"; }
-    if (/纯电/.test(text)) { return "bev"; }
-    if (/油电|混动/.test(text)) { return "hev"; }
-    if (/汽油/.test(text)) { return "ice"; }
-    return text;
+    var values = [];
+    String(row["能源类型"] || "").split(/[|/]/).forEach(function (part) {
+      var value = canonicalEnergyValue(part);
+      if (value && values.indexOf(value) === -1) { values.push(value); }
+    });
+    return values.sort().join("/");
   }
 
   function skuIdNameKey(row) {
@@ -621,12 +679,31 @@
   }
 
   function skuCoarseKey(row) {
-    return [cleanText(row["车系"]), modelYear(row), skuEnergy(row), skuTrim(row)].join("|");
+    // 键用**原子集合**（排序后），这样 `Max纯电版` 与 `纯电版 650km 后驱Max`、`Pro版` 与 `Pro`、
+    // `激光雷达 型` 与 `激光雷达型` 落在同一组；是否真合并交给 skuCompatible（价格/续航/动力/驱动）。
+    // 原子是集合比较，仍然区分 `智驾版 550km 卓越型`（智驾+卓越）与 `550km 卓越型`（卓越），
+    // 不会因为同价同续航把智驾/非智驾并掉。
+    return [cleanText(row["车系"]), modelYear(row), skuEnergy(row), skuNameAtoms(skuTrim(row)).join("|")].join("|");
   }
 
   function skuCompatible(a, b) {
-    var ea = skuEngine(a), eb = skuEngine(b);
-    if (ea && eb && ea !== eb) { return false; }
+    if (!skuEngineCompatible(a, b)) { return false; }
+    // Known conflicting hardware must not be swallowed by a name-only equivalence.
+    var hardware = [
+      ["电池容量(kWh)", "电池能量(kWh)"], ["电动机总功率(kW)"],
+      ["激光雷达数量", "激光雷达数量(个)"], ["驱动电机数"]
+    ];
+    for (var h = 0; h < hardware.length; h += 1) {
+      var values = [a, b].map(function (row) {
+        var out = [];
+        hardware[h].forEach(function (field) {
+          var found = String(row[field] == null ? "" : row[field]).match(/\d+(?:\.\d+)?/g) || [];
+          found.map(Number).forEach(function (n) { if ((h >= 2 ? n >= 0 : n > 0) && out.indexOf(n) === -1) { out.push(n); } });
+        });
+        return out;
+      });
+      if (values[0].length && values[1].length && !values[0].some(function (v) { return values[1].indexOf(v) !== -1; })) { return false; }
+    }
     var pa = skuPriceSet(a), pb = skuPriceSet(b);
     if (pa.length && pb.length) {
       var samePrice = pa.some(function (value) { return pb.indexOf(value) !== -1; });
@@ -688,7 +765,15 @@
     items.forEach(function (row) {
       atomicSources(row["数据来源"]).forEach(function (source) { sources.add(source); });
       Object.keys(row).forEach(function (column) {
-        if (!hasPositiveValue(merged[column]) && hasPositiveValue(row[column])) {
+        if (["易车上市状态", "销售状态", "在售状态", "激光雷达数量", "激光雷达数量(个)", "驱动电机数"].indexOf(column) !== -1) {
+          // Negative statuses and numeric zero counts are evidence, not missing values.
+          var status = String(row[column] == null ? "" : row[column]).trim();
+          var observed = String(merged[column] == null ? "" : merged[column]).split("|").filter(Boolean);
+          if (status && status !== "-" && observed.indexOf(status) === -1) { observed.push(status); }
+          if (observed.length) { merged[column] = observed.join("|"); }
+        } else if ((column === "能源类型" || column === "官方指导价") && hasPositiveValue(row[column])) {
+          merged[column] = mergeDistinctColumnValues(merged[column], row[column]);
+        } else if (!hasPositiveValue(merged[column]) && hasPositiveValue(row[column])) {
           merged[column] = row[column];
         }
       });

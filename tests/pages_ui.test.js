@@ -257,6 +257,7 @@ function loadAppForTest() {
       renderTableBody: renderTableBody,
       exportCurrentCsv: exportCurrentCsv,
       exportCurrentJson: exportCurrentJson,
+      skuPrice: skuPrice,
       state: state
     };
   }());`
@@ -1313,6 +1314,54 @@ test("SKU display merge does not chain conflicting SKUs through a bridging row",
   assert.ok(prices.includes("58.98万"), "2.0T 那一档的价格必须仍在面上");
 });
 
+test("current saved Song L, Avatr 06 and YU7 records merge equivalent names before any visibility filter", () => {
+  const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/user_sku_current_records.json"), "utf8"));
+  assert.equal(fixture.source_sha256, "28d606eda93a7f7ff246586931dd9a4721bca1fbf02238662956a89d3cdee6c8");
+  const {hooks} = loadAppForTest();
+  const original = JSON.stringify(fixture.rows);
+  hooks.initializeRows(fixture.rows);
+  hooks.state.saleScope = "all";
+  hooks.state.rangeFilters = {};
+  hooks.state.featureFilters = {};
+  const pairs = [
+    ["阿维塔06 2025款 Max纯电版", "25款 纯电版 650km 后驱Max"],
+    ["阿维塔06 2025款 Pro纯电版", "25款 纯电版 650km 后驱Pro"],
+    ["阿维塔06 2025款 Elite纯电版", "25款 纯电版 650km 后驱Elite"],
+    ["阿维塔06 2025款 Max增程版", "25款 增程版 230km 后驱Max"],
+    ["阿维塔06 2025款 Pro增程版", "25款 增程版 230km 后驱Pro"],
+    ["阿维塔06 2025款 Ultra增程版", "25款 增程版 330km 后驱Ultra"],
+    ["小米YU7 2025款 四驱Pro版", "25款 770km 四驱Pro"],
+    ["小米YU7 2025款 四驱Max版", "25款 760km 四驱Max"],
+    ["宋L EV 2025款 智驾版 602km 激光雷达四驱型", "25款 智驾版 602km 四驱激光雷达型"]
+  ];
+  for (const names of pairs) {
+    assert.ok(names.every(name => fixture.rows.some(r => r["车型名称"] === name)));
+    const merged = hooks.state.rows.filter(r => names.every(name => String(r["源车型名称"]).split(" / ").includes(name)));
+    assert.equal(merged.length, 1, names.join(" versus "));
+  }
+  assert.equal(JSON.stringify(fixture.rows), original, "raw observations are immutable");
+  for (const energy of ["纯电动", "增程式"]) {
+    assert.ok(hooks.state.rows.some(r => r["车系"] === "阿维塔06" && /Max/.test(r["车型名称"]) && r["能源类型"] === energy));
+  }
+  assert.ok(hooks.state.rows.some(r => r["车系"] === "小米YU7" && /38.99/.test(r["官方指导价"])), "over-budget GT is retained before filtering");
+});
+
+test("semantic SKU equivalence retains known battery, motor, sensor, drive and intelligent-driving differences", () => {
+  const {hooks} = loadAppForTest();
+  const base = Object.assign(row("汽车之家", 2026, "测试车系 Pro版"), {"能源类型":"纯电动", "纯电续航(km)":"600", "驱动方式":"后驱"});
+  for (const [field, a, b] of [["电池容量(kWh)","70","80"], ["电动机总功率(kW)","200","250"], ["激光雷达数量","0","1"], ["激光雷达数量",0,"1个"], ["激光雷达数量",0,1], ["驱动电机数",0,1], ["驱动方式","后驱","四驱"]]) {
+    hooks.initializeRows([Object.assign({},base,{[field]:a}), Object.assign({},base,{"车型名称":"测试车系 Pro",[field]:b})]);
+    assert.equal(hooks.state.rows.length, 2, field);
+    if (a === 0) { assert.equal(hooks.state.rows[0][field], "0", "known numeric zero count survives display merging"); }
+  }
+  hooks.initializeRows([Object.assign({},base,{"官方指导价":"35.8万"}), Object.assign({},base,{"车型名称":"测试车系 Pro", "官方指导价":"35.800000000000001万"})]);
+  assert.equal(hooks.state.rows.length,2,"identity price comparison must not round distinct decimal observations");
+  hooks.initializeRows([Object.assign({},base,{"官方指导价":"35.8万"}), Object.assign({},base,{"车型名称":"测试车系 Pro", "官方指导价":"358000元"})]);
+  assert.equal(hooks.state.rows.length,1,"equivalent monetary units remain the same observed price");
+  hooks.initializeRows([base, Object.assign({},base,{"车型名称":"测试车系 智驾Pro版"})]);
+  assert.equal(hooks.state.rows.length, 2, "same-price intelligent-driving variant remains distinct");
+});
+
 test("energy and exact decimal prices agree in cards, table and current exports without erasing conflicts", async () => {
   const {hooks,elements,downloads} = loadAppForTest();
   hooks.state.config = {conditions:[], hiddenByDefault:[],dropIfUniformPositive:[],defaultVisibleColumns:["车型名称","能源类型","官方指导价"]};
@@ -1360,6 +1409,18 @@ test("range tags omit zero lower bound but preserve meaningful positive or negat
   }
 });
 
+test("annotated or interval MSRP observations cannot silently disable the SKU price-conflict guard", () => {
+  const {hooks}=loadAppForTest();
+  for (const [first, second] of [["15.98万起","12.98万"],["12.98-15.98万","13.98万"],["15.98万(共3款)","16.98万"]]) {
+    hooks.initializeRows([
+      Object.assign(row("汽车之家",2026,"后驱 Pro"),{"官方指导价":first}),
+      Object.assign(row("易车",2026,"Pro版 后驱"),{"官方指导价":second})
+    ]);
+    assert.equal(hooks.state.rows.length,2,first+" cannot become missing price evidence");
+    assert.ok(hooks.state.rows.some(r=>r["官方指导价"]===first),"retained observation must not be guessed into a precise price");
+  }
+});
+
 test("non-energy summary normalization removes only known source prefixes and preserves measurement cycles", () => {
   const {hooks}=loadAppForTest();
   assert.equal(hooks.normEnumValue("汽车之家:多连杆独立悬架","后悬挂形式"),"多连杆独立悬架");
@@ -1367,6 +1428,13 @@ test("non-energy summary normalization removes only known source prefixes and pr
   assert.equal(hooks.normEnumValue("CLTC:643","纯电续航(km)"),"CLTC:643");
   assert.equal(hooks.normEnumValue("WLTC:643","纯电续航(km)"),"WLTC:643");
   assert.equal(hooks.normEnumValue("自定义:真实值","真实属性"),"自定义:真实值");
+});
+
+test("noncanonical equality-guard price keys never become NaN numeric representative prices", () => {
+  const {hooks}=loadAppForTest();
+  assert.equal(hooks.skuPrice({"官方指导价":"12.98-15.98万"}),null);
+  assert.equal(hooks.skuPrice({"官方指导价":"15.98万(共3款)|16.98万"}),16.98);
+  assert.equal(hooks.skuPrice({"官方指导价":"35.80万|358000元"}),35.8);
 });
 
 test("custom energy ordering distinguishes HEV from PHEV and retains mixed-energy observations", () => {
