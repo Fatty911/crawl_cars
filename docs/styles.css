@@ -308,7 +308,6 @@ thead th {
 }
 
 thead tr.filter-row th {
-  top: 38px;
   padding: 6px;
   background: #f8fbfc;
 }
@@ -965,9 +964,6 @@ tbody tr:hover td {
     font-size: 16px;
   }
 
-  thead tr.filter-row th {
-    top: 61px;
-  }
 }
 
 
@@ -1212,3 +1208,23 @@ tbody tr:hover td {
     outline-offset: 4px;
   }
 }
+
+
+/* One taxonomy: category / section / property, shared with the filter centre. */
+.scope-note { color: #61717c; font-size: 12px; line-height: 1.5; margin: 10px 0 0; }
+.condition-major-group > h3 { font-size: 15px; margin: 0 0 10px; }
+.condition-minor-group { border-top: 1px solid #e2e9ed; padding: 8px 0; }
+.condition-minor-group > h4 { color: #526875; font-size: 13px; margin: 0 0 6px; }
+.column-list { display: block; }
+.column-major-group { border-bottom: 1px solid #e1e9ed; padding-bottom: 10px; }
+.column-major-group > h3 { font-size: 14px; color: #243d4a; margin: 12px 0 6px; }
+.column-minor-group > summary { color: #526875; font-size: 12px; cursor: pointer; padding: 6px 0; }
+.column-minor-group label { padding-left: 10px; }
+thead .table-major-row th, thead .table-minor-row th { height: 28px; padding: 4px 10px; white-space: nowrap; left: auto; }
+thead .table-major-row th { background: #dce9ef; }
+thead .table-minor-row th { background: #e8f0f4; }
+thead .table-column-row th { height: 42px; background: #eef4f6; }
+/* Before layout measurement, ordinary table flow remains readable without sticky overlap. */
+#tableHead:not([data-measured="true"]) th { position: static; }
+#pageSize { width: 94px; }
+#tableRenderStatus { font-size: 12px; color: #61717c; }

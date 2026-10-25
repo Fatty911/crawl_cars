@@ -80,6 +80,10 @@
     mobileCategoryId: "",
     page: 1,
     pageSize: 100,
+    pageSizeDraft: null,
+    tableDisplayMode: "paged",
+    tableRenderEpoch: 0,
+    lastResultSignature: "",
     columnSearch: "",
     composing: false,
     saleScope: "onSale",
@@ -105,6 +109,9 @@
     brandFilter: document.getElementById("brandFilter"),
     seriesFilter: document.getElementById("seriesFilter"),
     pageSize: document.getElementById("pageSize"),
+    tableDisplayMode: document.getElementById("tableDisplayMode"),
+    applyPageSize: document.getElementById("applyPageSize"),
+    tableRenderStatus: document.getElementById("tableRenderStatus"),
     tableHead: document.getElementById("tableHead"),
     tableBody: document.getElementById("tableBody"),
     emptyState: document.getElementById("emptyState"),
@@ -299,6 +306,12 @@
     });
   }
 
+  // ---- 可见值规范化（分来源段解析） ----
+  // 一根线上值会带多源写法：`懂车帝:纯电动|易车:纯电`、`35.8万|35.80万`。
+  // 逐段剥来源前缀后再按语义去重，只去掉"同一件事换写法"，不去掉"真的不同"。
+  // 顺序即优先级：`增程式纯电动` 先命中增程，绝不能被后面的纯电规则读成 BEV。
+  // 归属（class）用来判"是不是同一种能源"；显示写法保留源里那条（除 `纯电` 统一写 `纯电动`），
+  // 所以 增程/增程式、插混/插电式混合动力 各自去重，但油混/插混/增程三者永不互并。
   var ENERGY_CLASS_RULES = [
     { pattern: /增程/, cls: "erev" },
     { pattern: /插电|插混/, cls: "phev" },
@@ -306,15 +319,6 @@
     { pattern: /纯电/, cls: "bev" },
     { pattern: /汽油|燃油/, cls: "ice" }
   ];
-
-  var SKU_ATOM_WORDS = [
-    "激光雷达", "双电机", "三电机", "四电机", "超长续航", "长续航", "高性能",
-    "增程", "纯电", "智驾", "猎装", "骑士", "性能", "豪华", "尊贵", "旗舰",
-    "卓越", "超越", "领先", "探索", "标准", "舒适", "运动"
-  ];
-
-  var SKU_ATOM_SUFFIX = /[版型款]+$/g;
-
   function energyClassOf(text) {
     var value = String(text == null ? "" : text);
     for (var i = 0; i < ENERGY_CLASS_RULES.length; i += 1) {
@@ -402,71 +406,6 @@
       if (next["官方指导价"] != null) { next["官方指导价"] = normalizePriceText(next["官方指导价"]); }
       return next;
     });
-  }
-
-  function skuCjkAtoms(run, out) {
-    // 已知词优先切分，其余连续汉字作为一个原子；`版/型/款`只作后缀，不进键。
-    var index = 0;
-    var buffer = "";
-    while (index < run.length) {
-      var word = "";
-      for (var i = 0; i < SKU_ATOM_WORDS.length; i += 1) {
-        if (run.substr(index, SKU_ATOM_WORDS[i].length) === SKU_ATOM_WORDS[i]) { word = SKU_ATOM_WORDS[i]; break; }
-      }
-      if (word) {
-        if (buffer) { out.push(buffer); buffer = ""; }
-        out.push(word);
-        index += word.length;
-      } else {
-        buffer += run.charAt(index);
-        index += 1;
-      }
-    }
-    if (buffer) { out.push(buffer); }
-  }
-
-  function skuNameAtoms(text) {
-    var atoms = [];
-    var pattern = /[A-Za-z0-9][A-Za-z0-9+._-]*|[\u4e00-\u9fa5]+/g;
-    var match;
-    while ((match = pattern.exec(String(text == null ? "" : text)))) {
-      var token = match[0];
-      if (/^[A-Za-z0-9]/.test(token)) { atoms.push(token.toLowerCase()); continue; }
-      skuCjkAtoms(token, atoms);
-    }
-    return atoms.map(function (atom) {
-      return atom.replace(SKU_ATOM_SUFFIX, "");
-    }).filter(Boolean).sort();
-  }
-
-  function skuEngineCompatible(a, b) {
-    var ea = skuEngineParts(a), eb = skuEngineParts(b);
-    if (!ea || !eb) { return true; }
-    if (ea.size !== eb.size) { return false; }
-    if (ea.letter && eb.letter && ea.letter !== eb.letter) { return false; }
-    return true;
-  }
-
-  function customOrderToken(value, field) {
-    var text = normalizeText(value);
-    if (field === "能源类型") {
-      var classes = [];
-      splitDisplaySegments(text).forEach(function (part) {
-        var token = energyClassOf(part) || stripSourceSegmentPrefix(part);
-        if (token && classes.indexOf(token) === -1) { classes.push(token); }
-      });
-      return classes.sort().join("|");
-    }
-    return text;
-  }
-
-  function rangeBoundText(value) {
-    return String(value == null ? "" : value).trim();
-  }
-
-  function isZeroBound(value) {
-    var text = rangeBoundText(value);
-    return text !== "" && Number(text) === 0;
   }
 
   function isDimensionColumn(column) {
@@ -679,12 +618,62 @@
     return name ? id + "\u0000" + name : "";
   }
 
+  var SKU_ATOM_WORDS = [
+    "激光雷达", "双电机", "三电机", "四电机", "超长续航", "长续航", "高性能",
+    "增程", "纯电", "智驾", "猎装", "骑士", "性能", "豪华", "尊贵", "旗舰",
+    "卓越", "超越", "领先", "探索", "标准", "舒适", "运动"
+  ];
+  var SKU_ATOM_SUFFIX = /[版型款]+$/g;
+
+  function skuCjkAtoms(run, out) {
+    // 已知词优先切分，其余连续汉字作为一个原子；`版/型/款`只作后缀，不进键。
+    var index = 0;
+    var buffer = "";
+    while (index < run.length) {
+      var word = "";
+      for (var i = 0; i < SKU_ATOM_WORDS.length; i += 1) {
+        if (run.substr(index, SKU_ATOM_WORDS[i].length) === SKU_ATOM_WORDS[i]) { word = SKU_ATOM_WORDS[i]; break; }
+      }
+      if (word) {
+        if (buffer) { out.push(buffer); buffer = ""; }
+        out.push(word);
+        index += word.length;
+      } else {
+        buffer += run.charAt(index);
+        index += 1;
+      }
+    }
+    if (buffer) { out.push(buffer); }
+  }
+
+  function skuNameAtoms(text) {
+    var atoms = [];
+    var pattern = /[A-Za-z0-9][A-Za-z0-9+._-]*|[\u4e00-\u9fa5]+/g;
+    var match;
+    while ((match = pattern.exec(String(text == null ? "" : text)))) {
+      var token = match[0];
+      if (/^[A-Za-z0-9]/.test(token)) { atoms.push(token.toLowerCase()); continue; }
+      skuCjkAtoms(token, atoms);
+    }
+    return atoms.map(function (atom) {
+      return atom.replace(SKU_ATOM_SUFFIX, "");
+    }).filter(Boolean).sort();
+  }
+
   function skuCoarseKey(row) {
     // 键用**原子集合**（排序后），这样 `Max纯电版` 与 `纯电版 650km 后驱Max`、`Pro版` 与 `Pro`、
     // `激光雷达 型` 与 `激光雷达型` 落在同一组；是否真合并交给 skuCompatible（价格/续航/动力/驱动）。
     // 原子是集合比较，仍然区分 `智驾版 550km 卓越型`（智驾+卓越）与 `550km 卓越型`（卓越），
     // 不会因为同价同续航把智驾/非智驾并掉。
     return [cleanText(row["车系"]), modelYear(row), skuEnergy(row), skuNameAtoms(skuTrim(row)).join("|")].join("|");
+  }
+
+  function skuEngineCompatible(a, b) {
+    var ea = skuEngineParts(a), eb = skuEngineParts(b);
+    if (!ea || !eb) { return true; }
+    if (ea.size !== eb.size) { return false; }
+    if (ea.letter && eb.letter && ea.letter !== eb.letter) { return false; }
+    return true;
   }
 
   function skuCompatible(a, b) {
@@ -1110,6 +1099,19 @@
     return String(text || "").split(/[\n,，]+/).map(function (item) { return normalizeText(item.trim()); }).filter(Boolean);
   }
 
+  function customOrderToken(value, field) {
+    var text = normalizeText(value);
+    if (field === "能源类型") {
+      var classes = [];
+      splitDisplaySegments(text).forEach(function (part) {
+        var token = energyClassOf(part) || stripSourceSegmentPrefix(part);
+        if (token && classes.indexOf(token) === -1) { classes.push(token); }
+      });
+      return classes.sort().join("|");
+    }
+    return text;
+  }
+
   function customOrderIndex(value, orderText, field) {
     var valueText = customOrderToken(value, field);
     var order = parseCustomOrder(orderText);
@@ -1297,7 +1299,8 @@
       featureFilters: state.featureFilters,
       sortField: state.sortField,
       sortDir: state.sortDir,
-      sortLevels: state.sortLevels
+      sortLevels: state.sortLevels,
+      saleScope: state.saleScope
     });
   }
 
@@ -1395,6 +1398,69 @@
     });
   }
 
+  var columnPaths = new Map();
+
+  function columnPath(column) {
+    if (columnPaths.has(column)) { return columnPaths.get(column); }
+    var found = null;
+    var suspect = /^(?:\d+(?:\.\d+)?(?:\s*(?:英寸|寸|km\b|kW\b|W\b|L\b|°|个|点|座|幅|款)|$)|支持$|不支持$|标配$|选配$|黑色$|白色$)|(?:选装包|套件|套装)/i.test(column);
+    getFilterTaxonomy().some(function (category, major) {
+      return (category.sections || []).some(function (section, minor) {
+        var fields = (section.columns || []).slice();
+        (state.config.conditions || []).forEach(function (condition) {
+          if ((section.conditionIds || []).indexOf(condition.id) !== -1) {
+            fields = fields.concat(condition.fields || [], condition.field || []);
+          }
+        });
+        var matches = fields.indexOf(column) !== -1 || !suspect && (section.columnPatterns || []).some(function (pattern) {
+          return new RegExp(pattern).test(column);
+        });
+        if (matches) {
+          found = {major: category.label, minor: section.label, rank: [major, minor], id: category.id + "/" + section.id};
+        }
+        return Boolean(found);
+      });
+    });
+    if (!found) {
+      found = {major: "未分类/待确认", minor: suspect ? "疑似属性值 · 字段待核验" : "属性待归类",
+        rank: [10000, suspect ? 1 : 0], id: "unclassified/" + (suspect ? "suspect" : "unknown")};
+    }
+    columnPaths.set(column, found);
+    return found;
+  }
+
+  function orderedColumns(columns) {
+    return columns.map(function (name, index) { return {name: name, path: columnPath(name), index: index}; })
+      .sort(function (a, b) { return a.path.rank[0] - b.path.rank[0] || a.path.rank[1] - b.path.rank[1] || a.index - b.index; })
+      .map(function (entry) { return entry.name; });
+  }
+
+  function columnGroups(columns) {
+    var groups = [];
+    orderedColumns(columns).forEach(function (column) {
+      var path = columnPath(column);
+      var group = groups[groups.length - 1];
+      if (!group || group.id !== path.id) { group = {id: path.id, path: path, columns: []}; groups.push(group); }
+      group.columns.push(column);
+    });
+    return groups;
+  }
+
+  function appendColumnOptions(select, columns) {
+    select.textContent = "";
+    columnGroups(columns).forEach(function (group) {
+      var optgroup = document.createElement("optgroup");
+      optgroup.label = group.path.major + " / " + group.path.minor;
+      group.columns.forEach(function (column) {
+        var option = document.createElement("option");
+        option.value = column;
+        option.textContent = column;
+        optgroup.appendChild(option);
+      });
+      select.appendChild(optgroup);
+    });
+  }
+
   function renderFilters() {
     if (els.brandFilter && els.seriesFilter) {
       renderOptions(els.brandFilter, uniqueValues(state.rows, "品牌"), "品牌");
@@ -1405,13 +1471,7 @@
       els.seriesFilter.value = state.series;
     }
 
-    els.fieldSelect.textContent = "";
-    state.columns.forEach(function (column) {
-      var option = document.createElement("option");
-      option.value = column;
-      option.textContent = column;
-      els.fieldSelect.appendChild(option);
-    });
+    appendColumnOptions(els.fieldSelect, state.columns);
   }
 
   function renderConditions() {
@@ -1477,18 +1537,61 @@
     return state.sortDir === "asc" ? "↑" : "↓";
   }
 
+  function syncTableHeaderOffsets() {
+    var rows = Array.from(els.tableHead.children);
+    var heights = rows.map(function (row) {
+      return typeof row.getBoundingClientRect === "function" ? row.getBoundingClientRect().height : 0;
+    });
+    // Hidden table rows have no layout. Keep the last valid offsets until shown.
+    if (!rows.length || heights.some(function (height) { return !(height > 0); })) { return; }
+    var top = 0;
+    rows.forEach(function (row, index) {
+      Array.from(row.children).forEach(function (cell) { cell.style.top = top + "px"; });
+      top += heights[index];
+    });
+    els.tableHead.setAttribute("data-measured", "true");
+  }
+
   function renderTableHead() {
     var visibleColumns = state.columns.filter(function (column) { return state.visibleColumns.has(column); });
+    els.tableHead.setAttribute("data-measured", "false");
     els.tableHead.textContent = "";
 
+    var groups = columnGroups(visibleColumns);
+    var majorRow = document.createElement("tr");
+    majorRow.className = "table-major-row";
+    var minorRow = document.createElement("tr");
+    minorRow.className = "table-minor-row";
+    var majorCell = null;
+    var previousMajor = "";
+    groups.forEach(function (group) {
+      if (previousMajor !== group.path.major) {
+        majorCell = document.createElement("th");
+        majorCell.scope = "colgroup";
+        majorCell.colSpan = 0;
+        majorCell.textContent = group.path.major;
+        majorRow.appendChild(majorCell);
+        previousMajor = group.path.major;
+      }
+      majorCell.colSpan += group.columns.length;
+      var minorCell = document.createElement("th");
+      minorCell.scope = "colgroup";
+      minorCell.colSpan = group.columns.length;
+      minorCell.textContent = group.path.minor;
+      minorRow.appendChild(minorCell);
+    });
+    els.tableHead.appendChild(majorRow);
+    els.tableHead.appendChild(minorRow);
     var titleRow = document.createElement("tr");
+    titleRow.className = "table-column-row";
     visibleColumns.forEach(function (column) {
       var th = document.createElement("th");
       var button = document.createElement("button");
       button.type = "button";
       button.className = "sort-button";
       button.dataset.column = column;
-      button.title = "按 " + column + " 排序";
+      th.scope = "col";
+      button.title = columnPath(column).major + " / " + columnPath(column).minor + " / " + column + " · 点击排序";
       var name = document.createElement("span");
       name.textContent = column;
       var mark = document.createElement("span");
@@ -1507,29 +1610,51 @@
       input.className = "filter-input";
       input.dataset.column = column;
       input.value = state.columnFilters[column] ? state.columnFilters[column].value : "";
-      input.placeholder = "输入或点侧栏筛选";
+      input.placeholder = "筛选 " + column;
+      input.setAttribute("aria-label", columnPath(column).major + " / " + columnPath(column).minor + " / " + column);
       th.appendChild(input);
       filterRow.appendChild(th);
     });
     els.tableHead.appendChild(titleRow);
     els.tableHead.appendChild(filterRow);
+    syncTableHeaderOffsets();
   }
 
   function renderTableBody(rows) {
+    var epoch = ++state.tableRenderEpoch;
     var visibleColumns = state.columns.filter(function (column) { return state.visibleColumns.has(column); });
-    var start = (state.page - 1) * state.pageSize;
-    var pageRows = rows.slice(start, start + state.pageSize);
+    var all = state.tableDisplayMode === "all";
+    var start = all ? 0 : (state.page - 1) * state.pageSize;
+    var pageRows = all ? rows : rows.slice(start, start + state.pageSize);
+    var offset = 0;
     els.tableBody.textContent = "";
-    pageRows.forEach(function (row) {
-      var tr = document.createElement("tr");
-      visibleColumns.forEach(function (column) {
-        var td = document.createElement("td");
-        td.textContent = row[column] == null || row[column] === "" ? "-" : row[column];
-        tr.appendChild(td);
-      });
-      els.tableBody.appendChild(tr);
-    });
     els.emptyState.hidden = rows.length !== 0;
+    if (all && state.mode !== "table") {
+      els.tableBody.setAttribute("aria-busy", "false");
+      if (els.tableRenderStatus) { els.tableRenderStatus.textContent = "进入数据表后显示全部匹配 SKU"; }
+      return;
+    }
+    function appendBatch() {
+      if (epoch !== state.tableRenderEpoch) { return; }
+      var end = Math.min(pageRows.length, offset + Math.max(1, Math.min(100, Math.floor(1500 / Math.max(1, visibleColumns.length)))));
+      for (; offset < end; offset += 1) {
+        var row = pageRows[offset];
+        var tr = document.createElement("tr");
+        visibleColumns.forEach(function (column) {
+          var td = document.createElement("td");
+          td.textContent = row[column] == null || row[column] === "" ? "-" : row[column];
+          tr.appendChild(td);
+        });
+        els.tableBody.appendChild(tr);
+      }
+      els.tableBody.setAttribute("aria-busy", offset < pageRows.length ? "true" : "false");
+      if (els.tableRenderStatus) { els.tableRenderStatus.textContent = "已显示 " + offset + " / " + pageRows.length + " 条 SKU"; }
+      if (offset < pageRows.length) {
+        if (typeof window.requestAnimationFrame === "function") { window.requestAnimationFrame(appendBatch); }
+        else { setTimeout(appendBatch, 0); }
+      }
+    }
+    appendBatch();
   }
 
   function classifySkuColumns(columns, rows) {
@@ -1551,37 +1676,39 @@
 
   function renderColumnList() {
     var query = normalizeText(state.columnSearch);
-    var fragment = document.createDocumentFragment();
     els.columnList.textContent = "";
-    function matches(column) {
-      return !query || normalizeText(column).indexOf(query) !== -1;
-    }
-    function appendLabel(container, column) {
-      var label = document.createElement("label");
-      var checkbox = document.createElement("input");
-      var text = document.createElement("span");
-      checkbox.type = "checkbox";
-      checkbox.checked = state.visibleColumns.has(column);
-      checkbox.dataset.column = column;
-      text.textContent = column;
-      label.appendChild(checkbox);
-      label.appendChild(text);
-      container.appendChild(label);
-    }
-    var groups = classifySkuColumns(state.columns.filter(matches), state.rows);
-    groups.attribute.forEach(function (column) { appendLabel(fragment, column); });
-    if (groups.option.length) {
-      // 低频/源特有列不再和属性平铺：它们多是选装包、外观套件、特定款式的值。
-      // 仍可选（展开即可），但默认收在 details 里，避免把"值"当"属性"读。
-      var details = document.createElement("details");
-      details.className = "column-option-group";
+    var previousMajor = "";
+    var major = null;
+    columnGroups(state.columns.filter(function (column) { return !query || normalizeText(column).indexOf(query) !== -1; })).forEach(function (group) {
+      if (previousMajor !== group.path.major) {
+        major = document.createElement("section");
+        major.className = "column-major-group";
+        var heading = document.createElement("h3");
+        heading.textContent = group.path.major;
+        major.appendChild(heading);
+        els.columnList.appendChild(major);
+        previousMajor = group.path.major;
+      }
+      var minor = document.createElement("details");
+      minor.className = "column-minor-group";
+      minor.open = true;
       var summary = document.createElement("summary");
-      summary.textContent = "源特有/低频列（" + groups.option.length + "）· 多为选装/特定款式的值，不是通用属性";
-      details.appendChild(summary);
-      groups.option.forEach(function (column) { appendLabel(details, column); });
-      fragment.appendChild(details);
-    }
-    els.columnList.appendChild(fragment);
+      summary.textContent = group.path.minor + "（" + group.columns.length + "）";
+      minor.appendChild(summary);
+      group.columns.forEach(function (column) {
+        var label = document.createElement("label");
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = state.visibleColumns.has(column);
+        checkbox.dataset.column = column;
+        var text = document.createElement("span");
+        text.textContent = column;
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        minor.appendChild(label);
+      });
+      major.appendChild(minor);
+    });
   }
 
   function filterLabel(column, filter) {
@@ -1901,6 +2028,12 @@
     els.centerConditionList.appendChild(layout);
   }
 
+  function sectionHasResolvableCondition(section, conditions) {
+    return (section.conditionIds || []).some(function (id) {
+      return conditions.some(function (condition) { return condition.id === id; });
+    });
+  }
+
   function renderCenterFilters() {
     if (els.centerBrandFilter && els.centerSeriesFilter) {
       renderOptions(els.centerBrandFilter, uniqueValues(state.rows, "品牌"), "品牌");
@@ -1910,25 +2043,41 @@
     }
     els.centerConditionList.textContent = "";
     var conditions = state.config.conditions || [];
-    var taxonomy = getFilterTaxonomy();
+    var taxonomy = getFilterTaxonomy().filter(function (category) {
+      return (category.sections || []).some(function (section) {
+        return sectionHasResolvableCondition(section, conditions);
+      });
+    }).map(function (category) {
+      return Object.assign({}, category, {sections: (category.sections || []).filter(function (section) {
+        return sectionHasResolvableCondition(section, conditions);
+      })});
+    });
     if (mobileFilterLayoutMatches() && taxonomy.length) {
       renderMobileFilterCenter(conditions, taxonomy);
       return;
     }
-    var groups = desktopConditionGroups();
-    if (groups.length) {
-      groups.forEach(function (group) {
-        var groupEl = document.createElement("div");
-        groupEl.className = "center-condition-group";
-        var groupTitle = document.createElement("h4");
-        groupTitle.className = "center-group-title";
-        groupTitle.textContent = group.label;
-        groupEl.appendChild(groupTitle);
-        (group.conditionIds || []).forEach(function (conditionId) {
-          var condition = conditions.find(function (item) { return item.id === conditionId; });
-          if (condition) { groupEl.appendChild(buildCenterConditionItem(condition)); }
+    if (taxonomy.length) {
+      taxonomy.forEach(function (category) {
+        var sections = (category.sections || []).filter(function (section) { return sectionHasResolvableCondition(section, conditions); });
+        if (!sections.length) { return; }
+        var major = document.createElement("section");
+        major.className = "condition-major-group";
+        var heading = document.createElement("h3");
+        heading.textContent = category.label;
+        major.appendChild(heading);
+        sections.forEach(function (section) {
+          var minor = document.createElement("div");
+          minor.className = "condition-minor-group";
+          var subheading = document.createElement("h4");
+          subheading.textContent = section.label;
+          minor.appendChild(subheading);
+          (section.conditionIds || []).forEach(function (id) {
+            var condition = conditions.find(function (item) { return item.id === id; });
+            if (condition) { minor.appendChild(buildCenterConditionItem(condition)); }
+          });
+          major.appendChild(minor);
         });
-        els.centerConditionList.appendChild(groupEl);
+        els.centerConditionList.appendChild(major);
       });
     } else {
       conditions.forEach(function (condition) { els.centerConditionList.appendChild(buildCenterConditionItem(condition)); });
@@ -1977,6 +2126,15 @@
       wrapper.appendChild(label2);
     }
     return wrapper;
+  }
+
+  function rangeBoundText(value) {
+    return String(value == null ? "" : value).trim();
+  }
+
+  function isZeroBound(value) {
+    var text = rangeBoundText(value);
+    return text !== "" && Number(text) === 0;
   }
 
   function conditionTagLabel(condition) {
@@ -2067,22 +2225,6 @@
     return approved && !rejected && (key === null || key <= cutoffKey);
   }
 
-  function saleScopeSupported() {
-    // 只有面上**真有区分信号**才出现这个开关：
-    //  · 存在 `易车上市状态` 且值不是 `approved`（停售/即将上市这类负值），或
-    //  · 存在上市时间在未来的行。
-    // 「有这一列」不算信号：发布面上该列现在恒为 `approved`（爬取阶段
-    // `approve_rows_from_sale_page` 只放进售车款），2026-10-16 用真发布面在浏览器里实测
-    // 切换前后都是 99 车系 / 470 行 —— 按了没反应的空开关。
-    var cutoff = currentYearMonthKey();
-    return state.rows.some(function (row) {
-      var status = String(row["易车上市状态"] || "").trim();
-      if (status && status !== "-" && status !== "approved") { return true; }
-      var key = listingYearMonth(row["上市时间"]);
-      return key != null && key > cutoff;
-    });
-  }
-
   function cardSortValue(row, level) {
     if (!level) { return null; }
     if (level.field === "数据来源") { return sourceCount(row); }
@@ -2129,17 +2271,14 @@
     });
   }
 
-  // 枚举值同义词归一（跨源写法差异）
-  var ENERGY_NORM = {
-    "插电混合": "插电式混合动力",
-    "纯电": "纯电动"
-  };
+  // Only energy fields use energy aliases; unrelated fields keep their actual values.
   function normEnumValue(s, field) {
     if (field == null || field === "能源类型") { return normalizeEnergyText(s); }
     // A provider prefix is metadata; CLTC/WLTC and unknown labels carry real meaning.
     return stripSourceSegmentPrefix(String(s == null ? "" : s));
   }
-  // 动态共性/差异汇总：全一致 -> 单值一行；数值差异 -> min-max 范围；枚举差异 -> 去重 join。
+  // Summaries and individual cards use the same semantic values.
+
   function appendCardSummary(container, rows, fields) {
     fields.forEach(function (field) {
       var values = [];
@@ -2287,7 +2426,7 @@
       row.innerHTML = '<label>字段<select data-role="field"></select></label><label>方向<select data-role="dir"><option value="asc">升序</option><option value="desc">降序</option></select></label><label>自定义关键字顺序<textarea data-role="customOrder" placeholder="插混, 纯电, 增程"></textarea></label><button type="button" data-role="up">上移</button><button type="button" data-role="down">下移</button><button type="button" data-role="remove">删除</button>';
       var select = row.querySelectorAll ? row.querySelectorAll('select[data-role="field"]')[0] : null;
       if (select) {
-        state.columns.forEach(function (column) { var option = document.createElement("option"); option.value = column; option.textContent = column; select.appendChild(option); });
+        appendColumnOptions(select, state.columns);
         select.value = level.field || "";
       }
       var dir = row.querySelectorAll ? row.querySelectorAll('select[data-role="dir"]')[0] : null;
@@ -2302,7 +2441,10 @@
     syncSeriesViewState();
     var filtered = getFilteredRows();
     var seriesGroups = sortSeriesGroups(groupRowsBySeries(filtered));
-    var pageCount = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+    var signature = currentSeriesViewSignature();
+    if (state.lastResultSignature !== signature) { state.page = 1; state.lastResultSignature = signature; }
+    var allRows = state.tableDisplayMode === "all";
+    var pageCount = allRows ? 1 : Math.max(1, Math.ceil(filtered.length / state.pageSize));
     if (state.page > pageCount) {
       state.page = pageCount;
     }
@@ -2313,11 +2455,17 @@
     els.dongchediCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "懂车帝"); }).length);
     els.autohomeCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "汽车之家"); }).length);
     els.yicheCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "易车"); }).length);
-    els.pageInfo.textContent = "第 " + state.page + " / " + pageCount + " 页";
+    els.pageInfo.textContent = allRows ? "单页全部 · " + filtered.length + " 条 SKU" : "第 " + state.page + " / " + pageCount + " 页";
+    if (els.tableDisplayMode) { els.tableDisplayMode.value = state.tableDisplayMode; }
+    els.pageSize.disabled = allRows;
+    if (els.applyPageSize) { els.applyPageSize.disabled = allRows; }
+    if (state.pageSizeDraft == null) { els.pageSize.value = String(state.pageSize); }
+    els.pageJump.disabled = allRows;
+    els.goPage.disabled = allRows;
     els.pageJump.max = String(pageCount);
     els.pageJump.value = String(state.page);
-    els.prevPage.disabled = state.page <= 1;
-    els.nextPage.disabled = state.page >= pageCount;
+    els.prevPage.disabled = allRows || state.page <= 1;
+    els.nextPage.disabled = allRows || state.page >= pageCount;
     els.centerVisibleCount.textContent = String(seriesGroups.length);
     if (els.mobileResultCount) { els.mobileResultCount.textContent = String(seriesGroups.length); }
     renderCards(seriesGroups);
@@ -2384,6 +2532,8 @@
       sortLevels: state.sortLevels,
       mode: state.mode,
       saleScope: state.saleScope,
+      tableDisplayMode: state.tableDisplayMode,
+      pageSize: state.pageSize,
       visibleColumns: Array.from(state.visibleColumns)
     };
   }
@@ -2400,6 +2550,9 @@
     state.sortLevels = Array.isArray(snapshot.sortLevels) ? snapshot.sortLevels : [];
     state.mode = snapshot.mode || state.mode || "center";
     state.saleScope = snapshot.saleScope === "all" ? "all" : "onSale";
+    state.tableDisplayMode = snapshot.tableDisplayMode === "all" ? "all" : "paged";
+    state.pageSize = Number.isSafeInteger(snapshot.pageSize) && snapshot.pageSize > 0 ? snapshot.pageSize : 100;
+    state.pageSizeDraft = null;
     if (Array.isArray(snapshot.visibleColumns)) {
       state.visibleColumns = new Set(snapshot.visibleColumns.filter(function (column) {
         return state.columns.indexOf(column) !== -1;
@@ -2780,11 +2933,31 @@
       });
     }
 
-    els.pageSize.addEventListener("change", function (event) {
-      state.pageSize = Number(event.target.value);
+    function applyPageSize() {
+      var requested = Number(els.pageSize.value);
+      state.pageSizeDraft = null;
+      if (!Number.isSafeInteger(requested) || requested < 1) { els.pageSize.value = String(state.pageSize); return; }
+      state.pageSize = requested;
       state.page = 1;
       renderResultsOnly();
+    }
+    els.pageSize.addEventListener("input", function (event) {
+      var draft = String(event.target.value == null ? "" : event.target.value);
+      state.pageSizeDraft = draft === String(state.pageSize) ? null : draft;
     });
+    els.pageSize.addEventListener("change", applyPageSize);
+    els.pageSize.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") { event.preventDefault(); applyPageSize(); }
+    });
+    if (els.applyPageSize) { els.applyPageSize.addEventListener("click", applyPageSize); }
+
+    if (els.tableDisplayMode) {
+      els.tableDisplayMode.addEventListener("change", function (event) {
+        state.tableDisplayMode = event.target.value === "all" ? "all" : "paged";
+        state.page = 1;
+        renderResultsOnly();
+      });
+    }
 
     els.tableHead.addEventListener("click", function (event) {
       var button = event.target.closest(".sort-button");
@@ -2940,7 +3113,7 @@
     });
 
     function jumpToPage() {
-      var pageCount = Math.max(1, Math.ceil(getFilteredRows().length / state.pageSize));
+      var pageCount = state.tableDisplayMode === "all" ? 1 : Math.max(1, Math.ceil(getFilteredRows().length / state.pageSize));
       var rawValue = els.pageJump.value.trim();
       var requested = Number(rawValue);
       if (!rawValue || !Number.isInteger(requested)) {
@@ -3015,7 +3188,8 @@
     state.cardLimit = 24;
     state.rangeFilters = cloneDefaultRangeFilters();
     state.featureFilters = cloneDefaultFeatureFilters();
-    state.columns = buildColumns(state.rows);
+    columnPaths.clear();
+    state.columns = orderedColumns(buildColumns(state.rows));
     state.visibleColumns = new Set();
     (state.config.defaultVisibleColumns || []).forEach(function (column) {
       if (state.columns.indexOf(column) !== -1) {
@@ -3075,6 +3249,11 @@
   }
 
   bindEvents();
+  if (typeof window.addEventListener === "function") { window.addEventListener("resize", syncTableHeaderOffsets); }
+  if (typeof window.ResizeObserver === "function") {
+    var tableHeaderObserver = new window.ResizeObserver(syncTableHeaderOffsets);
+    tableHeaderObserver.observe(els.tableHead);
+  }
   if (typeof window.matchMedia === "function") {
     var mobileFilterMedia = window.matchMedia("(max-width: 720px)");
     if (typeof mobileFilterMedia.addEventListener === "function") {

@@ -114,14 +114,19 @@
         <section class="table-region" id="tableRegion" aria-label="车型配置数据表">
           <div class="quick-filters" aria-label="快速筛选">
             <label>
-              <span>每页</span>
-              <select id="pageSize">
-                <option value="50">50</option>
-                <option value="100" selected>100</option>
-                <option value="200">200</option>
-                <option value="500">500</option>
+              <span>SKU 显示方式</span>
+              <select id="tableDisplayMode" aria-label="SKU 显示方式">
+                <option value="paged" selected>分页显示</option>
+                <option value="all">单页全部</option>
               </select>
             </label>
+            <label>
+              <span>每页条数</span>
+              <input id="pageSize" type="number" min="1" step="1" value="100" list="pageSizeOptions" aria-label="每页 SKU 条数">
+              <datalist id="pageSizeOptions"><option value="20"><option value="50"><option value="100"><option value="200"><option value="500"><option value="1000"></datalist>
+            </label>
+            <button id="applyPageSize" type="button" class="text-button">应用每页条数</button>
+            <span id="tableRenderStatus" role="status" aria-live="polite"></span>
           </div>
 
           <div class="custom-sort-panel" id="customSortPanel">
@@ -224,6 +229,7 @@
               <span>查找列</span>
               <input id="columnSearch" type="search" placeholder="配置名称">
             </label>
+            <p class="scope-note">按类别查找；“待确认”保留原字段，方便核对属性与属性值。</p>
             <div class="column-list" id="columnList"></div>
           </section>
 

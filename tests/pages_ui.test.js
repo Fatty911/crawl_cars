@@ -155,6 +155,7 @@ class FakeElement {
     this.value = "";
     this.validity = { valid: true };
     this.attributes = {};
+    this.style = {};
     this.parentNode = null;
     this.tagName = String(tagName).toUpperCase();
   }
@@ -194,6 +195,7 @@ class FakeElement {
 function loadAppForTest() {
   const elements = new Map();
   const downloads = [];
+  const frames = [];
   const document = {
     body: new FakeElement(),
     createDocumentFragment: () => new FakeElement(),
@@ -219,7 +221,7 @@ function loadAppForTest() {
     fetch: () => new Promise(() => {}),
     localStorage: { getItem: () => null, removeItem() {}, setItem() {} },
     navigator: { clipboard: { writeText: () => Promise.resolve() } },
-    window: {}
+    window: { requestAnimationFrame: (fn) => frames.push(fn) }
   };
   context.window.window = context.window;
   context.window.crypto = crypto;
@@ -252,9 +254,15 @@ function loadAppForTest() {
       activateMobileCategory: activateMobileCategory,
       restoreDefaultFilters: restoreDefaultFilters,
       formatDataTimestamp: formatDataTimestamp,
+      renderTableBody: renderTableBody,
+      renderTableHead: renderTableHead,
+      syncTableHeaderOffsets: syncTableHeaderOffsets,
+      renderColumnList: renderColumnList,
+      renderFilters: renderFilters,
+      renderCenterFilters: renderCenterFilters,
+      columnPath: columnPath,
       conditionTagLabel: conditionTagLabel,
       normEnumValue: normEnumValue,
-      renderTableBody: renderTableBody,
       exportCurrentCsv: exportCurrentCsv,
       exportCurrentJson: exportCurrentJson,
       skuPrice: skuPrice,
@@ -265,7 +273,10 @@ function loadAppForTest() {
   vm.runInNewContext(source, context, { filename: appPath });
   return { elements, hooks: context.window.CARS_TEST_HOOKS, downloads,
     setFetch(fn) { context.fetch = fn; },
-    setCrypto(value) { context.window.crypto = value; }
+    setCrypto(value) { context.window.crypto = value; },
+    setMatchMedia(matches) { context.window.matchMedia = () => ({ matches, addEventListener() {} }); },
+    flushFrames() { let count = 0; while (frames.length) { assert.ok(++count < 10000); frames.shift()(); } },
+    pendingFrames() { return frames.length; }
   };
 }
 
@@ -675,10 +686,26 @@ test("Side panels collapse independently and the filter bar survives the mode sw
   assert.equal(elements.get("centerHero").hidden, false);
 });
 
-
-
-
-
+test("Sale scope is always visible, defaults to evidenced in-sale, and preserves all recorded scope", () => {
+  const {elements, hooks} = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("汽车之家+易车", 2026, "已上市在售"), {"上市时间":"2025.09"}),
+    Object.assign(row("易车", 2026, "未来上市"), {"上市时间":"2099.03"}),
+    Object.assign(row("懂车帝", 2026, "状态未知"), {"易车上市状态":"", "上市时间":"2025.01"}),
+    Object.assign(row("易车", 2026, "已停售"), {"易车上市状态":"停售", "上市时间":"2025.01"})
+  ]);
+  assert.equal(elements.get("saleScopeSection").hidden, false);
+  assert.equal(hooks.state.saleScope, "onSale");
+  assert.equal(hooks.getFilteredRows().map(r => r["车型名称"]).join(","), "已上市在售");
+  elements.get("saleScopeAll").dispatch("click");
+  assert.equal(hooks.getFilteredRows().length, 4);
+  assert.equal(elements.get("saleScopeAll").className, "segment active");
+  elements.get("saleScopeOnSale").dispatch("click");
+  assert.equal(hooks.getFilteredRows().length, 1);
+  hooks.initializeRows([row("易车", 2026, "唯一在售")]);
+  assert.equal(elements.get("saleScopeSection").hidden, false, "constant approval must not hide the user control");
+  assert.equal(hooks.state.saleScope, "onSale");
+});
 
 
 test("Pages enables the eleven core filters by default and after reset", () => {
@@ -732,11 +759,8 @@ test("Pages enables the eleven core filters by default and after reset", () => {
   assert.equal(elements.get("selectedTags").children.map((tag) => tag.textContent).join("|"), "百公里加速|纯电续航|NOA城市领航|远程启动|手机远程控制|蓝牙/数字钥匙|座椅记忆|外后视镜记忆|手机APP远程控制|雨量感应式雨刷|自动头灯");
   // All conditions are in centerConditionGroups, so sidebar conditionList fragment has no items
   assert.equal(elements.get("conditionList").children[0].children.length, 0);
-  // centerConditionList renders 3 group divs; collect condition items across groups
-  const centerItems = [];
-  elements.get("centerConditionList").children.forEach((group) => {
-    group.children.forEach((child) => { if (child.className === "center-condition-item") { centerItems.push(child); } });
-  });
+  // Queries follow property nodes through the new category/section/property hierarchy.
+  const centerItems = descendants(elements.get("centerConditionList")).filter(item => item.className === "center-condition-item");
   assert.equal(centerItems.length, 11);
   assert.equal(centerItems.filter((item) => item.children[0] && item.children[0].children[0] && item.children[0].children[0].checked).length, 11);
 
@@ -746,10 +770,7 @@ test("Pages enables the eleven core filters by default and after reset", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: "" }, ev_range: { min: "", max: "" } });
   assert.equal(Object.keys(hooks.state.featureFilters).length, 9);
   assert.equal(elements.get("conditionList").children[0].children.length, 0);
-  const centerItemsAfterReset = [];
-  elements.get("centerConditionList").children.forEach((group) => {
-    group.children.forEach((child) => { if (child.className === "center-condition-item") { centerItemsAfterReset.push(child); } });
-  });
+  const centerItemsAfterReset = descendants(elements.get("centerConditionList")).filter(item => item.className === "center-condition-item");
   assert.equal(centerItemsAfterReset.filter((item) => item.children[0] && item.children[0].children[0] && item.children[0].children[0].checked).length, 11);
 });
 
@@ -953,7 +974,7 @@ test("Pages mobile filter center exposes a config-driven major/minor taxonomy", 
   assert.ok(Array.isArray(config.filterTaxonomy));
   assert.ok(Array.isArray(config.desktopConditionGroups));
   assert.deepEqual(config.filterTaxonomy.map((category) => category.label), [
-    "基本信息", "动力参数", "辅助/操控", "外部/防盗", "座椅", "灯光", "玻璃/后视镜", "智能硬件"
+    "基本信息", "动力参数", "辅助/操控", "外部/防盗", "座椅", "灯光", "玻璃/后视镜", "智能硬件", "底盘与操控", "内饰与舒适"
   ]);
   const assignments = [];
   config.filterTaxonomy.forEach((category) => {
@@ -963,8 +984,9 @@ test("Pages mobile filter center exposes a config-driven major/minor taxonomy", 
     category.sections.forEach((section) => {
       assert.ok(section.id);
       assert.ok(section.label);
-      assert.ok(section.desktopGroupId);
-      assert.ok(Array.isArray(section.conditionIds) && section.conditionIds.length > 0);
+      assert.ok(Array.isArray(section.conditionIds));
+      if (section.conditionIds.length) { assert.ok(section.desktopGroupId); }
+      else { assert.ok((section.columns || section.columnPatterns || []).length > 0); }
       section.conditionIds.forEach((id) => assignments.push(id));
     });
   });
@@ -1072,12 +1094,9 @@ test("Pages first load renders and applies acceleration, speed, and EV range def
   assert.ok(tags.includes("最高车速 ≥180"));
   assert.ok(tags.includes("纯电续航 ≥150"));
   const values = {};
-  elements.get("centerConditionList").children.forEach((group) => group.children.forEach((item) => {
-    if (item.className !== "center-condition-item") return;
-    item.children.forEach((child) => child.children && child.children.forEach((input) => {
-      if (input.dataset && input.dataset.side) values[input.dataset.conditionId + ":" + input.dataset.side] = input.value;
-    }));
-  }));
+  descendants(elements.get("centerConditionList")).forEach((input) => {
+    if (input.dataset && input.dataset.side) values[input.dataset.conditionId + ":" + input.dataset.side] = input.value;
+  });
   assert.equal(values["zero_to_hundred:max"], "7");
   assert.equal(values["top_speed:min"], "180");
   assert.equal(values["ev_range:min"], "150");
@@ -1268,6 +1287,7 @@ test("SKU display merge does not chain conflicting SKUs through a bridging row",
   assert.ok(prices.includes("58.98万"), "2.0T 那一档的价格必须仍在面上");
 });
 
+
 test("current saved Song L, Avatr 06 and YU7 records merge equivalent names before any visibility filter", () => {
   const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/user_sku_current_records.json"), "utf8"));
   assert.equal(fixture.source_sha256, "28d606eda93a7f7ff246586931dd9a4721bca1fbf02238662956a89d3cdee6c8");
@@ -1351,41 +1371,6 @@ test("energy and exact decimal prices agree in cards, table and current exports 
   assert.equal(JSON.stringify(raw),before);
 });
 
-test("range tags omit zero lower bound but preserve meaningful positive or negative bounds", () => {
-  const {hooks}=loadAppForTest();
-  const condition={id:"zero_to_hundred",type:"range",label:"百公里加速"};
-  hooks.state.rangeFilters.zero_to_hundred={min:"0.00",max:"7"};
-  assert.equal(hooks.conditionTagLabel(condition),"百公里加速 ≤7");
-  for(const min of ["2","-1"]) {
-    hooks.state.rangeFilters.zero_to_hundred={min,max:"7"};
-    assert.ok(hooks.conditionTagLabel(condition).includes("≥"+min));
-    assert.ok(hooks.conditionTagLabel(condition).includes("≤7"));
-  }
-});
-
-
-test("Sale scope is always visible, defaults to evidenced in-sale, and preserves all recorded scope", () => {
-  const {elements, hooks} = loadAppForTest();
-  hooks.initializeRows([
-    Object.assign(row("汽车之家+易车", 2026, "已上市在售"), {"上市时间":"2025.09"}),
-    Object.assign(row("易车", 2026, "未来上市"), {"上市时间":"2099.03"}),
-    Object.assign(row("懂车帝", 2026, "状态未知"), {"易车上市状态":"", "上市时间":"2025.01"}),
-    Object.assign(row("易车", 2026, "已停售"), {"易车上市状态":"停售", "上市时间":"2025.01"})
-  ]);
-  assert.equal(elements.get("saleScopeSection").hidden, false);
-  assert.equal(hooks.state.saleScope, "onSale");
-  assert.equal(hooks.getFilteredRows().map(r => r["车型名称"]).join(","), "已上市在售");
-  elements.get("saleScopeAll").dispatch("click");
-  assert.equal(hooks.getFilteredRows().length, 4);
-  assert.equal(elements.get("saleScopeAll").className, "segment active");
-  elements.get("saleScopeOnSale").dispatch("click");
-  assert.equal(hooks.getFilteredRows().length, 1);
-  hooks.initializeRows([row("易车", 2026, "唯一在售")]);
-  assert.equal(elements.get("saleScopeSection").hidden, false, "constant approval must not hide the user control");
-  assert.equal(hooks.state.saleScope, "onSale");
-});
-
-
 test("default price is an adjustable SKU filter, excludes unknown and conflicting above-budget observations, and resets honestly", () => {
   const {hooks,elements}=loadAppForTest();
   const config=JSON.parse(fs.readFileSync(path.join(__dirname,"../config/filter_conditions.json"),"utf8"));
@@ -1412,13 +1397,89 @@ test("default price is an adjustable SKU filter, excludes unknown and conflictin
   assert.equal(hooks.getFilteredRows().length,0);
 });
 
-
 test("recent-five-year lower bound rolls with the current year instead of freezing 2022", () => {
   const {hooks}=loadAppForTest();
   const year=new Date().getFullYear();
   hooks.initializeRows([row("汽车之家",year-5,"更早"),row("汽车之家",year-4,"下界"),row("汽车之家",year,"当年")]);
   assert.equal(hooks.state.rows.length,2);
   assert.ok(!hooks.state.rows.some(r=>r["车型名称"]==="更早"));
+});
+
+test("SKU table supports arbitrary positive page size and untruncated all mode, cancels stale batches and keeps snapshots", () => {
+  const app=loadAppForTest(); const {hooks,elements}=app;
+  hooks.initializeRows(Array.from({length:1207},(_,i)=>row("易车",2026,"SKU "+String(i).padStart(4,"0"))));
+  hooks.state.mode="table";
+  elements.get("pageSize").value="37";
+  elements.get("applyPageSize").dispatch("click");
+  assert.equal(hooks.state.pageSize,37);
+  assert.equal(elements.get("tableBody").children.length,37);
+  assert.equal(elements.get("pageInfo").textContent,"第 1 / 33 页");
+  for (const bad of ["0","-1","2.5","NaN",""]) {
+    elements.get("pageSize").value=bad;
+    elements.get("pageSize").dispatch("change");
+  }
+  assert.equal(hooks.state.pageSize,37);
+  elements.get("tableDisplayMode").dispatch("change",{target:{value:"all"}});
+  assert.ok(app.pendingFrames()>0,"large single-page rendering yields to the browser");
+  assert.equal(elements.get("pageJump").disabled,true);
+  app.flushFrames();
+  assert.equal(elements.get("tableBody").children.length,1207,"no fixed 500-row truncation");
+  assert.equal(elements.get("tableBody").getAttribute("aria-busy"),"false");
+  hooks.renderResultsOnly();
+  assert.ok(app.pendingFrames()>0);
+  hooks.state.search="SKU 0000";
+  hooks.renderResultsOnly();
+  app.flushFrames();
+  assert.equal(elements.get("tableBody").children.length,1,"cancelled old frames cannot append stale results");
+  const saved=hooks.snapshotFilters();
+  assert.equal(saved.tableDisplayMode,"all");
+  assert.equal(saved.pageSize,37);
+  hooks.applySnapshot(saved);
+  app.flushFrames();
+  assert.equal(hooks.state.tableDisplayMode,"all");
+  elements.get("tableDisplayMode").dispatch("change",{target:{value:"paged"}});
+  assert.equal(hooks.state.page,1);
+  assert.equal(elements.get("pageSize").disabled,false);
+});
+
+test("all table headers, column chooser and field filters share category/section/property order including unknown fields", () => {
+  const {hooks,elements}=loadAppForTest();
+  hooks.state.config=JSON.parse(fs.readFileSync(path.join(__dirname,"../config/filter_conditions.json"),"utf8"));
+  hooks.initializeRows([Object.assign(row("易车",2026,"分类验证"),{"能源类型":"纯电动","电池容量(kWh)":"80","某陌生配置列":"证据","580km尊贵型":"支持","__custom_equipment":"保留","6万公里保养总成本预估":"4200元","4G/5G网络":"5G"})]);
+  hooks.state.visibleColumns=new Set(hooks.state.columns);
+  hooks.renderTableHead(); hooks.renderColumnList(); hooks.renderFilters(); hooks.state.mode="table"; hooks.renderTableBody(hooks.state.rows);
+  const header=elements.get("tableHead").children;
+  assert.equal(header[0].className,"table-major-row");
+  assert.equal(header[1].className,"table-minor-row");
+  assert.equal(header[2].className,"table-column-row");
+  assert.equal(header[2].children.length,hooks.state.columns.length);
+  assert.equal(header[0].children.reduce((n,c)=>n+c.colSpan,0),hooks.state.columns.length);
+  assert.equal(header[1].children.reduce((n,c)=>n+c.colSpan,0),hooks.state.columns.length);
+  assert.deepEqual(header[2].children.map(c=>c.children[0].children[0].textContent),Array.from(hooks.state.columns));
+  const options=descendants(elements.get("fieldSelect")).filter(e=>e.tagName==="OPTION");
+  assert.deepEqual(options.map(e=>e.value),Array.from(hooks.state.columns));
+  const checkboxes=descendants(elements.get("columnList")).filter(e=>e.tagName==="INPUT");
+  assert.deepEqual(checkboxes.map(e=>e.dataset.column),Array.from(hooks.state.columns));
+  const cells=elements.get("tableBody").children[0].children;
+  hooks.state.columns.forEach((column,i)=>assert.equal(cells[i].textContent,String(hooks.state.rows[0][column] == null ? "-" : hooks.state.rows[0][column])));
+  assert.equal(hooks.columnPath("某陌生配置列").major,"未分类/待确认");
+  assert.match(hooks.columnPath("580km尊贵型").minor,/疑似属性值/);
+  assert.equal(hooks.columnPath("6万公里保养总成本预估").major,"基本信息");
+  assert.equal(hooks.columnPath("4G/5G网络").major,"智能硬件");
+  assert.doesNotMatch(hooks.columnPath("4G/5G网络").minor,/疑似|待确认/);
+  assert.ok(hooks.state.columns.includes("__custom_equipment"));
+});
+
+test("range tags omit zero lower bound but preserve meaningful positive or negative bounds", () => {
+  const {hooks}=loadAppForTest();
+  const condition={id:"zero_to_hundred",type:"range",label:"百公里加速"};
+  hooks.state.rangeFilters.zero_to_hundred={min:"0.00",max:"7"};
+  assert.equal(hooks.conditionTagLabel(condition),"百公里加速 ≤7");
+  for(const min of ["2","-1"]) {
+    hooks.state.rangeFilters.zero_to_hundred={min,max:"7"};
+    assert.ok(hooks.conditionTagLabel(condition).includes("≥"+min));
+    assert.ok(hooks.conditionTagLabel(condition).includes("≤7"));
+  }
 });
 
 
@@ -1441,6 +1502,29 @@ test("merged sale status preserves negative and unknown evidence in both source 
   }
   hooks.initializeRows([base,Object.assign({},base,{"易车上市状态":""})]);
   assert.equal(hooks.getFilteredRows().length,1,"absent observation does not contradict a recorded approval");
+});
+
+
+test("sticky header offsets follow measured row heights including mobile buttons, fractional heights and hidden tables", () => {
+  const {hooks,elements}=loadAppForTest();
+  hooks.initializeRows([row("易车",2026,"表头高度")]);
+  hooks.renderTableHead();
+  assert.equal(elements.get("tableHead").getAttribute("data-measured"),"false","unmeasured fallback is ordinary table flow");
+  const rows=elements.get("tableHead").children;
+  const heights=[28.59375,28.59375,61,57];
+  rows.forEach((row,i)=>row.getBoundingClientRect=()=>({height:heights[i]}));
+  hooks.syncTableHeaderOffsets();
+  assert.equal(elements.get("tableHead").getAttribute("data-measured"),"true");
+  assert.equal(rows[0].children[0].style.top,"0px");
+  assert.equal(rows[1].children[0].style.top,"28.59375px");
+  assert.equal(rows[2].children[0].style.top,"57.1875px");
+  assert.equal(rows[3].children[0].style.top,"118.1875px","mobile filter row cannot overlap a 61px title row");
+  heights[2]=42;
+  hooks.syncTableHeaderOffsets();
+  assert.equal(rows[3].children[0].style.top,"99.1875px","viewport/font changes update offsets");
+  heights[0]=0;
+  hooks.syncTableHeaderOffsets();
+  assert.equal(rows[3].children[0].style.top,"99.1875px","hidden rows cannot overwrite a valid offset with zero");
 });
 
 test("annotated or interval MSRP observations cannot silently disable the SKU price-conflict guard", () => {
@@ -1483,4 +1567,119 @@ test("custom energy ordering distinguishes HEV from PHEV and retains mixed-energ
   assert.deepEqual(Array.from(hooks.getFilteredRows(),r=>r["车型名称"]),["Z-HEV","A-PHEV","B-BEV","C-mixed"]);
   hooks.state.sortLevels=[{field:"能源类型",dir:"asc",customOrder:"增程,纯电,插混,油电"}];
   assert.deepEqual(Array.from(hooks.getFilteredRows(),r=>r["车型名称"]),["B-BEV","A-PHEV","Z-HEV","C-mixed"]);
+});
+
+test("Pages maps every configured default-visible column into a real category instead of the pending bucket", () => {
+  const { hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  const pending = config.defaultVisibleColumns.filter((column) => hooks.columnPath(column).major === "未分类/待确认");
+  assert.deepEqual(pending, [], "规范列名必须落进现存主/次分类，不得整批落进待确认桶");
+  config.defaultVisibleColumns.forEach((column) => {
+    assert.doesNotMatch(hooks.columnPath(column).minor, /待核验|待归类/, column);
+  });
+  assert.equal(hooks.columnPath("长(mm)").major, "外部/防盗");
+  assert.equal(hooks.columnPath("宽(mm)").major, "外部/防盗");
+  assert.equal(hooks.columnPath("高(mm)").major, "外部/防盗");
+  assert.equal(hooks.columnPath("换挡形式").major, "底盘与操控");
+  assert.equal(hooks.columnPath("最小转弯半径").major, "底盘与操控");
+  assert.equal(hooks.columnPath("最大快充功率(kw)").major, "动力参数");
+  assert.equal(hooks.columnPath("VTOL最大对外放电功率").major, "动力参数");
+  assert.equal(hooks.columnPath("零整比").major, "基本信息");
+  // 陌生列和疑似属性值列仍须留在待确认桶，不能靠硬塞已知类达标
+  assert.equal(hooks.columnPath("某陌生配置列").major, "未分类/待确认");
+  assert.equal(hooks.columnPath("580km尊贵型").minor.indexOf("疑似属性值"), 0);
+});
+
+test("mobile filter center never receives a section whose condition ids all fail to resolve", () => {
+  const { elements, hooks, setMatchMedia } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  hooks.state.config = JSON.parse(JSON.stringify(config));
+  const power = hooks.state.config.filterTaxonomy.find((category) => category.id === "power");
+  power.sections.push({ id: "ghost", label: "幽灵小节", conditionIds: ["ghost_condition"], columnPatterns: ["幽灵"] });
+  const mixed = hooks.state.config.filterTaxonomy.find((category) => category.id === "assist");
+  mixed.sections[0].conditionIds = mixed.sections[0].conditionIds.concat(["ghost_sibling"]);
+  const realConditions = hooks.state.config.conditions.map((condition) => condition.id);
+  setMatchMedia(true);
+  hooks.initializeRows([Object.assign(row("易车", 2026, "移动端分类"), { "百公里加速(s)": "6.5", "最高车速(km/h)": "200", "纯电续航(km)": "500" })]);
+  hooks.renderCenterFilters();
+  const list = elements.get("centerConditionList");
+  assert.ok(descendants(list).some((node) => node.className === "mobile-filter-layout"), "应走移动端分类布局");
+  const sections = descendants(list).filter((node) => node.className === "mobile-minor-section");
+  assert.ok(sections.length > 0, "移动端至少渲染一个真实小节");
+  sections.forEach((section) => {
+    const items = descendants(section).filter((node) => node.className === "center-condition-item");
+    assert.ok(items.length > 0, "全悬空小节不得进入移动端：" + section.children[0].textContent);
+    items.forEach((item) => assert.ok(realConditions.includes(item.dataset.conditionId), "渲染出的条件必须真实可解析"));
+  });
+  const titles = sections.map((section) => section.children[0].textContent);
+  assert.equal(titles.includes("幽灵小节"), false);
+  const assistSection = sections.find((section) => section.children[0].textContent === mixed.sections[0].label);
+  assert.ok(assistSection, "同一大类里还有可解析条件的小节必须保留");
+  const assistItems = descendants(assistSection).filter((node) => node.className === "center-condition-item");
+  assert.deepEqual(assistItems.map((item) => item.dataset.conditionId), mixed.sections[0].conditionIds.filter((id) => realConditions.includes(id)));
+});
+
+test("unsubmitted page size draft survives search, column and async renders until the user submits", () => {
+  const { elements, hooks } = loadAppForTest();
+  hooks.initializeRows(Array.from({ length: 260 }, (_, index) => row("易车", 2026, "草稿 " + index)));
+  hooks.state.mode = "table";
+  hooks.renderResultsOnly();
+  const input = elements.get("pageSize");
+  assert.equal(input.value, "100");
+  // 用户键入先改的是真实 DOM 值；应用若登记了草稿会收到 input 事件，没登记也要能守住这个值
+  input.value = "37";
+  if (typeof input.listeners.input === "function") { input.dispatch("input"); }
+  elements.get("globalSearch").dispatch("input", { target: { value: "草稿" } });
+  assert.equal(input.value, "37", "搜索渲染不得抹掉未提交的每页条数草稿");
+  assert.equal(hooks.state.pageSize, 100, "草稿未提交前生效的仍是旧页大小");
+  elements.get("columnList").dispatch("change", { target: { tagName: "INPUT", checked: true, dataset: { column: "品牌" } } });
+  assert.equal(input.value, "37", "列勾选渲染不得抹掉草稿");
+  hooks.renderResultsOnly();
+  assert.equal(input.value, "37", "异步刷新渲染不得抹掉草稿");
+  input.dispatch("keydown", { key: "Enter" });
+  assert.equal(hooks.state.pageSize, 37);
+  assert.equal(input.value, "37");
+  input.value = "0";
+  input.dispatch("change");
+  assert.equal(hooks.state.pageSize, 37, "非法值仍按原逻辑回退");
+  assert.equal(input.value, "37");
+  hooks.renderResultsOnly();
+  assert.equal(input.value, "37", "提交后渲染回写当前页大小");
+});
+
+test("live saved dataset classifies canonical schema columns instead of the pending bucket", { skip: !liveDataPath }, () => {
+  const { hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  const raw = JSON.parse(fs.readFileSync(liveDataPath, "utf8"));
+  const rows = Array.isArray(raw) ? raw : raw.rows;
+  const normalized = hooks.normalizeRowColumns(rows);
+  const columns = new Set();
+  normalized.forEach((item) => Object.keys(item).forEach((column) => columns.add(column)));
+  const pending = Array.from(columns).filter((column) => hooks.columnPath(column).major === "未分类/待确认");
+  config.defaultVisibleColumns.filter((column) => columns.has(column)).forEach((column) => {
+    assert.equal(hooks.columnPath(column).major === "未分类/待确认", false, "真实数据里的默认展示列落入待确认：" + column);
+  });
+  ["长(mm)", "宽(mm)", "高(mm)", "换挡形式", "最小转弯半径", "最大快充功率(kw)", "VTOL最大对外放电功率", "零整比"].forEach((column) => {
+    assert.ok(columns.has(column), "真实数据里应有该规范列：" + column);
+    assert.equal(hooks.columnPath(column).major === "未分类/待确认", false, column);
+  });
+  assert.equal(hooks.columnPath("可拓展生态设备：副驾50W无线风冷快充").major, "未分类/待确认",
+    "真正陌生的选装包/属性值列仍须留在待确认桶");
+  assert.ok(pending.length < columns.size, "整批列不得全部落进待确认桶");
+  process.stdout.write(`分类面：真实 ${columns.size} 列，其中待确认 ${pending.length} 列\n`);
+});
+
+test("canonical category patterns reject appended values while retaining real unit-bearing properties", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
+  ["长(mm)加长版", "电子式换挡", "最小转弯半径4.8m", "最大快充功率250kW",
+    "VTOL最大对外放电功率6kW", "零整比经济适用", "141L电动前备箱", "高性能版", "某陌生配置列"]
+    .forEach((column) => assert.equal(hooks.columnPath(column).major, "未分类/待确认",
+      "属性值式或陌生标题必须可见待确认，不能被新放宽的模式冒认为属性：" + column));
+  ["长(mm)", "宽(mm)", "高(mm)", "换挡形式", "最小转弯半径", "最小转弯半径(m)",
+    "最大快充功率(kw)", "最大快充功率(kW)", "VTOL最大对外放电功率", "VTOL最大对外放电功率(kW)", "零整比"]
+    .forEach((column) => assert.notEqual(hooks.columnPath(column).major, "未分类/待确认",
+      "收紧边界不能丢掉规范属性或明确单位：" + column));
 });

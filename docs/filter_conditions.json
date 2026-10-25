@@ -381,11 +381,47 @@
       "label": "基本信息",
       "sections": [
         {
+          "id": "identity",
+          "label": "车型身份",
+          "conditionIds": [],
+          "columns": [
+            "品牌",
+            "车系",
+            "车型名称",
+            "年款",
+            "级别",
+            "车款ID",
+            "车系ID"
+          ]
+        },
+        {
           "id": "budget",
           "label": "价格与销售",
           "desktopGroupId": "performance",
           "conditionIds": [
             "msrp"
+          ],
+          "columnPatterns": [
+            "指导价|售价|报价|上市|销售状态|在售状态"
+          ]
+        },
+        {
+          "id": "source",
+          "label": "来源与核验",
+          "conditionIds": [],
+          "columnPatterns": [
+            "来源|核验|归并|源车型名称|车型ID$|车系ID$"
+          ]
+        },
+        {
+          "id": "ownership",
+          "label": "保养与使用成本",
+          "conditionIds": [],
+          "columns": [
+            "6万公里保养总成本预估"
+          ],
+          "columnPatterns": [
+            "保养|保险|车船税|用车成本|总成本|^零整比(?:\\(%\\))?$"
           ]
         }
       ]
@@ -400,6 +436,9 @@
           "desktopGroupId": "performance",
           "conditionIds": [
             "zero_to_hundred"
+          ],
+          "columnPatterns": [
+            "加速|制动距离|实测性能"
           ]
         },
         {
@@ -408,6 +447,9 @@
           "desktopGroupId": "performance",
           "conditionIds": [
             "ev_range"
+          ],
+          "columnPatterns": [
+            "续航|油耗|电耗|燃料消耗|油箱|荷电状态"
           ]
         },
         {
@@ -416,6 +458,25 @@
           "desktopGroupId": "performance",
           "conditionIds": [
             "top_speed"
+          ],
+          "columnPatterns": [
+            "^最高车速"
+          ]
+        },
+        {
+          "id": "energy",
+          "label": "动力与能源",
+          "conditionIds": [],
+          "columnPatterns": [
+            "^能源类型$|^燃料种类$|^发动机|^排量|进气|^气缸|燃油标号|压缩比|^最大马力|^电动机|^电机|^系统综合|^电驱|^总功率|^总扭矩"
+          ]
+        },
+        {
+          "id": "battery",
+          "label": "电池与补能",
+          "conditionIds": [],
+          "columnPatterns": [
+            "^电池|^充电|^快充|^慢充|^电芯|^换电|^对外放电|^能量回收|^补能|^最大快充功率(?:\\((?:kw|kW)\\))?$|^VTOL最大对外放电功率(?:\\((?:kw|kW)\\))?$"
           ]
         }
       ]
@@ -430,6 +491,17 @@
           "desktopGroupId": "smart",
           "conditionIds": [
             "city_navigation"
+          ],
+          "columnPatterns": [
+            "^辅助驾驶|领航|^NOA|^NOP|巡航|^自动泊车|^遥控泊车|^记忆泊车|车道|并线辅助|^导航辅助|^智驾"
+          ]
+        },
+        {
+          "id": "safety",
+          "label": "安全与制动辅助",
+          "conditionIds": [],
+          "columnPatterns": [
+            "气囊|气帘|安全带|碰撞|预警|主动刹车|^ABS|防抱死|制动力分配|制动辅助|牵引力控制|车身稳定|胎压|儿童座椅|疲劳|哨兵"
           ]
         }
       ]
@@ -446,6 +518,17 @@
             "remote_start",
             "remote_control",
             "bluetooth_key"
+          ],
+          "columnPatterns": [
+            "远程|钥匙|防盗|^无钥匙|^寻车"
+          ]
+        },
+        {
+          "id": "body",
+          "label": "车身与外部配置",
+          "conditionIds": [],
+          "columnPatterns": [
+            "^长[×*x宽]|^长度|^宽度|^高度|^车长|^车宽|^车高|^轴距|^车身|^车门|^车窗|^车顶|^后备|^后尾|^天窗|^行李|^整备|^满载|^最大载|^风阻|^接近角|^离去角|^通过角|^离地|^涉水|^车重|^整车质量|^(?:长|宽|高)\\(mm\\)$"
           ]
         }
       ]
@@ -460,6 +543,17 @@
           "desktopGroupId": "smart",
           "conditionIds": [
             "seat_memory"
+          ],
+          "columnPatterns": [
+            "座椅.*记忆"
+          ]
+        },
+        {
+          "id": "seating",
+          "label": "座椅与空间",
+          "conditionIds": [],
+          "columnPatterns": [
+            "座椅|座位|^座位数|头枕|扶手|座垫|腿托"
           ]
         }
       ]
@@ -474,6 +568,9 @@
           "desktopGroupId": "comfort",
           "conditionIds": [
             "auto_headlight"
+          ],
+          "columnPatterns": [
+            "灯|照明|^光源"
           ]
         }
       ]
@@ -488,6 +585,9 @@
           "desktopGroupId": "smart",
           "conditionIds": [
             "mirror_memory"
+          ],
+          "columnPatterns": [
+            "后视镜|遮阳板"
           ]
         },
         {
@@ -496,6 +596,17 @@
           "desktopGroupId": "comfort",
           "conditionIds": [
             "rain_sensor_wiper"
+          ],
+          "columnPatterns": [
+            "雨刷|雨刮|雨量感应"
+          ]
+        },
+        {
+          "id": "glazing",
+          "label": "玻璃功能",
+          "conditionIds": [],
+          "columnPatterns": [
+            "玻璃|除霜|除雾"
           ]
         }
       ]
@@ -510,6 +621,64 @@
           "desktopGroupId": "comfort",
           "conditionIds": [
             "app_remote_control"
+          ],
+          "columnPatterns": [
+            "手机|APP|CarPlay|CarLife|HiCar|Android Auto"
+          ],
+          "columns": [
+            "4G/5G网络"
+          ]
+        },
+        {
+          "id": "sensors",
+          "label": "感知硬件",
+          "conditionIds": [],
+          "columnPatterns": [
+            "雷达|摄像头|传感器|^芯片|^算力|^激光"
+          ]
+        },
+        {
+          "id": "cockpit",
+          "label": "座舱与多媒体",
+          "conditionIds": [],
+          "columnPatterns": [
+            "屏幕|^中控|^仪表|^车机|^HUD|抬头显示|^OTA|^语音|^扬声器|音响|音频|^USB|^Type.C|^车联网|^蓝牙|^导航|^Wi.Fi|^热点|^网络|^内置行车|^车载"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chassis",
+      "label": "底盘与操控",
+      "sections": [
+        {
+          "id": "running",
+          "label": "行驶与制动",
+          "conditionIds": [],
+          "columnPatterns": [
+            "悬挂|悬架|驱动方式|驱动形式|驱动电机数|^变速|^挡位|^转向|^方向盘|^轮胎|^轮毂|^备胎|制动器|差速|^底盘|^四驱|^后轮|^前轮|^换挡形式$|^最小转弯半径(?:\\(m\\))?$"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "interior",
+      "label": "内饰与舒适",
+      "sections": [
+        {
+          "id": "climate",
+          "label": "空调与空气",
+          "conditionIds": [],
+          "columnPatterns": [
+            "空调|空气|^热泵|温区|出风口|^香氛|负离子|PM2"
+          ]
+        },
+        {
+          "id": "convenience",
+          "label": "内饰与便利",
+          "conditionIds": [],
+          "columnPatterns": [
+            "内饰|材质|氛围|^踏板|杯架|手套箱|^无线充电|冰箱|电源|^后排娱乐|^主动降噪|^健康|^电动吸合"
           ]
         }
       ]
