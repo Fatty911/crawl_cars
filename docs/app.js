@@ -29,6 +29,7 @@
   ];
 
   var DEFAULT_RANGE_FILTERS = {
+    msrp: { min: "", max: "35" },
     zero_to_hundred: { min: "0", max: "7" },
     top_speed: { min: "180", max: "" },
     ev_range: { min: "150", max: "" }
@@ -81,7 +82,7 @@
     pageSize: 100,
     columnSearch: "",
     composing: false,
-    saleScope: "all",
+    saleScope: "onSale",
     syncId: "",
     githubToken: "",
     histories: []
@@ -535,7 +536,7 @@
     if (!year) {
       return rowAllowsMissingYear(row);
     }
-    return Number(year) >= 2022;
+    return Number(year) >= new Date().getFullYear() - 4;
   }
 
   function canonicalModelName(row) {
@@ -1004,6 +1005,17 @@
   function conditionMatches(row, condition) {
     if (condition.type === "range") {
       var filter = state.rangeFilters[condition.id] || {};
+      var hasMin = filter.min !== "" && filter.min != null;
+      var hasMax = filter.max !== "" && filter.max != null;
+      if (!hasMin && !hasMax) { return true; }
+      if (condition.field === "官方指导价") {
+        // A conflicting cheaper observation cannot mask another observation above the budget.
+        var prices = splitDisplaySegments(row[condition.field]).map(priceSegment);
+        return prices.length > 0 && prices.every(function (value) {
+          if (value === null || !(Number(value) > 0)) { return false; }
+          return (!hasMin || Number(value) >= Number(filter.min)) && (!hasMax || Number(value) <= Number(filter.max));
+        });
+      }
       var rowValue = firstNumber(row[condition.field]);
       if (rowValue == null) {
         return false;
@@ -1304,11 +1316,7 @@
     // 默认隐藏越野车/货车/皮卡/大客车等用户配置的车型分类
     rows = rows.filter(rowMatchesDefaultRowType);
 
-    // 负责人 10-16 新增：只看在售（已上市）/ 看近五年全部车型的切换。
-    // 判据只用 上市时间 这一列（有源可查），不用 年款：面上有 554 行是 2027 款而尚未上市。
-    // 诚实边界：**"停售"这一档现在做不出来**——停售车款在爬取阶段就被
-    // `approve_rows_from_sale_page` 挡在库外，发布面里根本没有停售行，
-    // 所以这里能区分的只有"已上市 / 未来上市"。
+    // Saved sale-page approval is evidence of sale scope; missing status is not.
     if (state.saleScope === "onSale") {
       var onSaleCutoff = currentYearMonthKey();
       rows = rows.filter(function (row) { return rowIsOnSale(row, onSaleCutoff); });
@@ -2045,15 +2053,18 @@
   }
 
   function rowIsOnSale(row, cutoffKey) {
-    // 先看状态：面上写了非 `approved`（停售/即将上市这类）就不是在售。
-    // 只看上市时间是不够的——2026-10-16 用真发布面在浏览器里验过：
-    // 那样这个开关对所有行都判"在售"，等于没做。
-    var status = String(row["易车上市状态"] || "").trim();
-    if (status && status !== "-" && status !== "approved") { return false; }
+    var statuses = [row["易车上市状态"], row["销售状态"], row["在售状态"]];
+    var approved = false;
+    var rejected = false;
+    statuses.forEach(function (value) {
+      splitDisplaySegments(value).forEach(function (part) {
+        var status = stripSourceSegmentPrefix(part);
+        if (/^(approved|在售|销售中)$/.test(status)) { approved = true; }
+        else if (status && status !== "-") { rejected = true; }
+      });
+    });
     var key = listingYearMonth(row["上市时间"]);
-    // 没有可解析的上市时间 ⇒ 不据此断定它未上市（缺数据 ≠ 差异）
-    if (key == null) { return true; }
-    return key <= cutoffKey;
+    return approved && !rejected && (key === null || key <= cutoffKey);
   }
 
   function saleScopeSupported() {
@@ -2316,6 +2327,7 @@
   }
 
   function renderEverything() {
+    applySaleScopeButtons();
     renderMode();
     renderFilters();
     renderCenterFilters();
@@ -2371,6 +2383,7 @@
       sortDir: state.sortDir,
       sortLevels: state.sortLevels,
       mode: state.mode,
+      saleScope: state.saleScope,
       visibleColumns: Array.from(state.visibleColumns)
     };
   }
@@ -2386,6 +2399,7 @@
     state.sortDir = snapshot.sortDir || "asc";
     state.sortLevels = Array.isArray(snapshot.sortLevels) ? snapshot.sortLevels : [];
     state.mode = snapshot.mode || state.mode || "center";
+    state.saleScope = snapshot.saleScope === "all" ? "all" : "onSale";
     if (Array.isArray(snapshot.visibleColumns)) {
       state.visibleColumns = new Set(snapshot.visibleColumns.filter(function (column) {
         return state.columns.indexOf(column) !== -1;
@@ -2636,6 +2650,7 @@
     state.sortLevels = [];
     state.cardLimit = 24;
     state.page = 1;
+    state.saleScope = "onSale";
     els.globalSearch.value = "";
     renderEverything();
   }
@@ -3010,15 +3025,8 @@
     if (!state.visibleColumns.size) {
       state.visibleColumns = new Set(state.columns.slice(0, Math.min(18, state.columns.length)));
     }
-    // 数据不支持就隐藏"在售范围"切换并固定在全部档（不给空开关）
-    if (els.saleScopeSection) {
-      var supported = saleScopeSupported();
-      els.saleScopeSection.hidden = !supported;
-      if (!supported) {
-        state.saleScope = "all";
-        applySaleScopeButtons();
-      }
-    }
+    if (els.saleScopeSection) { els.saleScopeSection.hidden = false; }
+    applySaleScopeButtons();
   }
 
   function formatDataTimestamp(iso) {

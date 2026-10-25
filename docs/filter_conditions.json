@@ -163,6 +163,15 @@
   ],
   "conditions": [
     {
+      "id": "msrp",
+      "label": "官方指导价",
+      "type": "range",
+      "field": "官方指导价",
+      "unit": "万元",
+      "defaultMin": "",
+      "defaultMax": "35"
+    },
+    {
       "id": "zero_to_hundred",
       "label": "百公里加速",
       "type": "range",
@@ -367,6 +376,20 @@
     }
   ],
   "filterTaxonomy": [
+    {
+      "id": "basic",
+      "label": "基本信息",
+      "sections": [
+        {
+          "id": "budget",
+          "label": "价格与销售",
+          "desktopGroupId": "performance",
+          "conditionIds": [
+            "msrp"
+          ]
+        }
+      ]
+    },
     {
       "id": "power",
       "label": "动力参数",

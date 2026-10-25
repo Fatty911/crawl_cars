@@ -156,3 +156,9 @@ def test_per_source_retention_is_not_systematically_skewed():
     worst, best = min(rates.values()), max(rates.values())
     assert best == 0 or worst >= 0.6 * best, "各源保留率系统性偏斜 %s（最差/最好=%.2f < 0.6）" % (
         rates, worst / best if best else 0)
+
+
+def test_user_price_default_is_never_a_saved_data_deletion_rule():
+    for price in ("35.8万", "80万", "0", "-"):
+        record = dict(FULLY_GOOD_EV, 官方指导价=price)
+        assert MD.filter_car(record) is True, "UI price budget cannot remove source records"

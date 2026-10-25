@@ -305,6 +305,9 @@ function row(source, year, name) {
     "品牌": "测试品牌",
     "车系": "测试车系",
     "车型名称": name,
+    // Explicit synthetic evidence: generic filter fixtures are known in-sale and priced.
+    "易车上市状态": "approved",
+    "官方指导价": "20万",
     "年款": String(year)
   };
 }
@@ -362,7 +365,9 @@ test("Pages only uses the deduplicated 2022+ display set for source coverage and
     ["懂车帝", "汽车之家", "易车"].sort()
   );
 
-  assert.equal(elements.get("visibleCount").textContent, "5");
+  assert.equal(elements.get("visibleCount").textContent, "4", "unknown sale status is excluded only from the default scope");
+  hooks.state.saleScope = "all";
+  assert.equal(hooks.getFilteredRows().length, 5, "all recorded rows remain available");
   assert.equal(elements.get("totalCount").textContent, "5");
   assert.equal(elements.get("verifiedCount").textContent, "3");
   assert.equal(elements.get("dongchediCount").textContent, "4");
@@ -670,63 +675,10 @@ test("Side panels collapse independently and the filter bar survives the mode sw
   assert.equal(elements.get("centerHero").hidden, false);
 });
 
-test("On-sale scope switch drops future-listing models and toggles back", () => {
-  const { elements, hooks } = loadAppForTest();
-  hooks.initializeRows([
-    Object.assign(row("汽车之家+懂车帝", 2026, "已上市款"), { "品牌": "A", "车系": "S1", "上市时间": "2025.09" }),
-    Object.assign(row("仅懂车帝", 2026, "未来上市款"), { "品牌": "A", "车系": "S2", "上市时间": "2027.03" }),
-    Object.assign(row("仅懂车帝", 2026, "缺上市时间款"), { "品牌": "A", "车系": "S3", "上市时间": "-" })
-  ]);
-  hooks.renderResultsOnly();
-  assert.equal(elements.get("saleScopeSection").hidden, false, "数据能区分（有未来上市行）时开关必须出现");
-  const all = hooks.getFilteredRows().map((item) => item["车型名称"]);
-  assert.equal(all.length, 3, `默认档（全部车型）不该改变结果集：${all}`);
-
-  elements.get("saleScopeOnSale").dispatch("click");
-  assert.equal(hooks.getFilteredRows().map((item) => item["车型名称"]).join(","), "已上市款,缺上市时间款");
-  assert.equal(elements.get("saleScopeOnSale").className, "segment active");
-  assert.equal(elements.get("saleScopeAll").className, "segment");
-
-  elements.get("saleScopeAll").dispatch("click");
-  assert.equal(hooks.getFilteredRows().length, 3);
-  assert.equal(elements.get("saleScopeAll").className, "segment active");
-
-  // 数据区分不出来时（现网就是这样：没有在售状态列、也没有未来上市时间的行）
-  // 必须**隐藏**这个开关，而不是给用户一个按了没反应的空控件。
-  const bare = loadAppForTest();
-  bare.hooks.initializeRows([
-    Object.assign(row("仅懂车帝", 2026, "已上市款"), { "品牌": "A", "车系": "S1", "上市时间": "2025.09" })
-  ]);
-  assert.equal(bare.elements.get("saleScopeSection").hidden, true);
-  assert.equal(bare.hooks.state.saleScope, "all");
-});
 
 
-test("Sale-scope switch needs real discrimination, not merely the status column", () => {
-  // 2026-10-16 浏览器实测：修好"发布身份列被裁掉"之后，面上有了 `易车上市状态` 列，
-  // 但爬取阶段只放进售车款 ⇒ 该列恒为 `approved`。当时的开关按下去 99 车系 / 470 行一模一样，
-  // 又变回"按了没反应的空控件"。所以判据要认的是**值有区分度**，不是列的存在。
-  const constant = loadAppForTest();
-  constant.hooks.initializeRows([
-    Object.assign(row("懂车帝+易车", 2026, "在售款甲"), { "品牌": "A", "车系": "S1", "上市时间": "2025.09", "易车上市状态": "approved" }),
-    Object.assign(row("仅易车", 2026, "在售款乙"), { "品牌": "A", "车系": "S2", "上市时间": "2024.05", "易车上市状态": "approved" })
-  ]);
-  constant.hooks.renderResultsOnly();
-  assert.equal(constant.elements.get("saleScopeSection").hidden, true,
-    "状态列恒为 approved（=没有负值）时不许出现开关");
 
-  const discriminating = loadAppForTest();
-  discriminating.hooks.initializeRows([
-    Object.assign(row("懂车帝+易车", 2026, "在售款甲"), { "品牌": "A", "车系": "S1", "上市时间": "2025.09", "易车上市状态": "approved" }),
-    Object.assign(row("仅易车", 2026, "停售款乙"), { "品牌": "A", "车系": "S2", "上市时间": "2024.05", "易车上市状态": "停售" })
-  ]);
-  discriminating.hooks.renderResultsOnly();
-  assert.equal(discriminating.elements.get("saleScopeSection").hidden, false,
-    "面上出现非 approved 的状态值时开关必须出现");
-  discriminating.elements.get("saleScopeOnSale").dispatch("click");
-  assert.equal(discriminating.hooks.getFilteredRows().map((item) => item["车型名称"]).join(","), "在售款甲",
-    "只看在售必须把带负值的行滤掉");
-});
+
 
 
 test("Pages enables the eleven core filters by default and after reset", () => {
@@ -823,6 +775,7 @@ test("Pages range defaults keep acceleration at most 7, speed at least 180, and 
 
   const { hooks } = loadAppForTest();
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.defaultRangeFilters)), {
+    msrp: { min: "", max: "35" },
     zero_to_hundred: { min: "0", max: "7" },
     top_speed: { min: "180", max: "" },
     ev_range: { min: "150", max: "" }
@@ -1000,7 +953,7 @@ test("Pages mobile filter center exposes a config-driven major/minor taxonomy", 
   assert.ok(Array.isArray(config.filterTaxonomy));
   assert.ok(Array.isArray(config.desktopConditionGroups));
   assert.deepEqual(config.filterTaxonomy.map((category) => category.label), [
-    "动力参数", "辅助/操控", "外部/防盗", "座椅", "灯光", "玻璃/后视镜", "智能硬件"
+    "基本信息", "动力参数", "辅助/操控", "外部/防盗", "座椅", "灯光", "玻璃/后视镜", "智能硬件"
   ]);
   const assignments = [];
   config.filterTaxonomy.forEach((category) => {
@@ -1081,6 +1034,7 @@ test("Pages restore-default semantics are schema-driven and preserve the three r
   assert.equal(typeof hooks.restoreDefaultFilters, "function");
   hooks.restoreDefaultFilters();
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), {
+    msrp: { min: "", max: "35" },
     zero_to_hundred: { min: "0", max: "7" },
     ev_range: { min: "150", max: "" },
     top_speed: { min: "180", max: "" }
@@ -1407,6 +1361,86 @@ test("range tags omit zero lower bound but preserve meaningful positive or negat
     assert.ok(hooks.conditionTagLabel(condition).includes("≥"+min));
     assert.ok(hooks.conditionTagLabel(condition).includes("≤7"));
   }
+});
+
+
+test("Sale scope is always visible, defaults to evidenced in-sale, and preserves all recorded scope", () => {
+  const {elements, hooks} = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("汽车之家+易车", 2026, "已上市在售"), {"上市时间":"2025.09"}),
+    Object.assign(row("易车", 2026, "未来上市"), {"上市时间":"2099.03"}),
+    Object.assign(row("懂车帝", 2026, "状态未知"), {"易车上市状态":"", "上市时间":"2025.01"}),
+    Object.assign(row("易车", 2026, "已停售"), {"易车上市状态":"停售", "上市时间":"2025.01"})
+  ]);
+  assert.equal(elements.get("saleScopeSection").hidden, false);
+  assert.equal(hooks.state.saleScope, "onSale");
+  assert.equal(hooks.getFilteredRows().map(r => r["车型名称"]).join(","), "已上市在售");
+  elements.get("saleScopeAll").dispatch("click");
+  assert.equal(hooks.getFilteredRows().length, 4);
+  assert.equal(elements.get("saleScopeAll").className, "segment active");
+  elements.get("saleScopeOnSale").dispatch("click");
+  assert.equal(hooks.getFilteredRows().length, 1);
+  hooks.initializeRows([row("易车", 2026, "唯一在售")]);
+  assert.equal(elements.get("saleScopeSection").hidden, false, "constant approval must not hide the user control");
+  assert.equal(hooks.state.saleScope, "onSale");
+});
+
+
+test("default price is an adjustable SKU filter, excludes unknown and conflicting above-budget observations, and resets honestly", () => {
+  const {hooks,elements}=loadAppForTest();
+  const config=JSON.parse(fs.readFileSync(path.join(__dirname,"../config/filter_conditions.json"),"utf8"));
+  hooks.state.config=Object.assign({},config,{conditions:config.conditions.filter(c=>c.id==="msrp"),defaultAllowedLevels:null});
+  const prices=["34.9万","35万","35.01万","0","-","31万|36万","350000元"];
+  hooks.initializeRows(prices.map((price,i)=>Object.assign(row("易车",2026,"价格款"+i),{"官方指导价":price})));
+  assert.equal(hooks.state.saleScope,"onSale");
+  assert.equal(hooks.state.rangeFilters.msrp.max,"35");
+  assert.equal(hooks.getFilteredRows().length,3);
+  assert.equal(hooks.groupRowsBySeries(hooks.getFilteredRows())[0].rows.length,3,"filter SKU before SPU summary");
+  assert.equal(hooks.state.rows.length,7,"default is not a data deletion rule");
+  assert.ok([undefined,"未提供"].includes(hooks.state.rows.find(r=>r["车型名称"]==="价格款3")["官方指导价"]),"zero placeholder is not displayed as a positive 0万元 price");
+  hooks.state.rangeFilters.msrp={min:"",max:""};
+  assert.equal(hooks.getFilteredRows().length,7,"clearing both bounds also shows unknown prices");
+  hooks.state.rangeFilters.msrp={min:"",max:"40"};
+  assert.equal(hooks.getFilteredRows().length,5);
+  hooks.state.saleScope="all";
+  elements.get("resetFilters").dispatch("click");
+  assert.equal(hooks.state.saleScope,"onSale");
+  assert.equal(hooks.state.rangeFilters.msrp.max,"35");
+  assert.equal(hooks.getFilteredRows().length,3);
+  hooks.initializeRows([Object.assign(row("易车",2026,"带单位零占位"),{"官方指导价":"0万"})]);
+  assert.equal(hooks.state.rows[0]["官方指导价"],"未提供");
+  assert.equal(hooks.getFilteredRows().length,0);
+});
+
+
+test("recent-five-year lower bound rolls with the current year instead of freezing 2022", () => {
+  const {hooks}=loadAppForTest();
+  const year=new Date().getFullYear();
+  hooks.initializeRows([row("汽车之家",year-5,"更早"),row("汽车之家",year-4,"下界"),row("汽车之家",year,"当年")]);
+  assert.equal(hooks.state.rows.length,2);
+  assert.ok(!hooks.state.rows.some(r=>r["车型名称"]==="更早"));
+});
+
+
+test("merged sale status preserves negative and unknown evidence in both source orders", () => {
+  const {hooks}=loadAppForTest();
+  const base=row("易车",2026,"同一SKU销售冲突");
+  for(const negative of ["停售","off_sale","0","已上市"]) {
+    for(const statuses of [["approved",negative],[negative,"approved"]]) {
+      const original=statuses.map(status=>Object.assign({},base,{"易车上市状态":status}));
+      const before=JSON.stringify(original);
+      hooks.initializeRows(original);
+      assert.equal(hooks.state.rows.length,1);
+      assert.ok(hooks.state.rows[0]["易车上市状态"].includes(negative));
+      assert.equal(hooks.getFilteredRows().length,0,"one source approval must not mask contrary evidence");
+      hooks.state.saleScope="all";
+      assert.equal(hooks.getFilteredRows().length,1,"conflicting record remains available in all scope");
+      hooks.state.saleScope="onSale";
+      assert.equal(JSON.stringify(original),before);
+    }
+  }
+  hooks.initializeRows([base,Object.assign({},base,{"易车上市状态":""})]);
+  assert.equal(hooks.getFilteredRows().length,1,"absent observation does not contradict a recorded approval");
 });
 
 test("annotated or interval MSRP observations cannot silently disable the SKU price-conflict guard", () => {

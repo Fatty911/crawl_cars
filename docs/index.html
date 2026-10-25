@@ -78,14 +78,15 @@
               <h3>核心条件</h3>
               <div class="center-condition-list" id="centerConditionList"></div>
             </section>
-            <section class="sale-scope" id="saleScopeSection" hidden aria-label="在售范围切换">
-              <h3>在售范围</h3>
+            <section class="sale-scope" id="saleScopeSection" aria-label="在售范围切换">
+              <h3>核心条件 · 销售范围</h3>
               <div class="segmented" role="group" aria-label="在售范围">
-                <button class="segment" id="saleScopeOnSale" type="button"
-                        title="只看上市时间已到的车型。注意：停售车型在爬取阶段就未入库，本面区分不出停售。">只显示在售</button>
-                <button class="segment active" id="saleScopeAll" type="button"
-                        title="发布面里的全部车型（年款 2022 起），含上市时间在未来的未上市款">显示近五年全部车型</button>
+                <button class="segment active" id="saleScopeOnSale" type="button"
+                        title="只显示已保存来源确认在售且上市时间已到的车型；未知状态不算在售。">只显示在售</button>
+                <button class="segment" id="saleScopeAll" type="button"
+                        title="显示已收录的近五年年款及新款，含未知销售状态；仍受其它已选条件约束。">显示近五年全部车型</button>
               </div>
+              <p class="scope-note">在售依据已保存来源状态；未知状态仅在“近五年全部”中显示。全部范围仍受价格等条件约束，未收录的停售车型不在本表。</p>
             </section>
           </div>
           <div class="selected-tags" id="selectedTags" aria-label="已选条件"></div>
