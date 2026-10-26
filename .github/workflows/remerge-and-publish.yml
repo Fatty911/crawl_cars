@@ -103,14 +103,13 @@ jobs:
           TAG="${{ github.event.inputs.release_tag || github.event.release.tag_name }}"
           if [ -z "$TAG" ]; then
             # 本链自己发布的 release 也叫 cnb-data-*（tag 形如 cnb-data-<date>-remerged-r<run>）；
-            # 不过滤就会把上一轮自己的输出当输入（自我喂食，行集逐轮变薄，见 ISSUE-CNB-CHAIN-INPUT-SELFFEED）。
-            ALL=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 40 --json tagName \
-                  --jq '.[] | .tagName' | grep -E '^cnb-data-' || true)
-            TAG=$(printf '%s\n' "$ALL" | grep -vE -- '-remerged-' | head -1 || true)
-            if [ -z "$TAG" ]; then
+            # 不过滤就会把上一轮自己的输出当输入（自我喂食，行集逐轮变薄，见 ISSUE-CNB-CHAIN-INPUT-SELFFEED）；
+            # 固定条数窗口还会让这些产物把真实爬取 release 挤出候选（GH#377 / run 40305884321：原始 release 排在索引 44）。
+            # 故交给 download_verified_release.py 完整分页选源：仍要求 complete/published/非 draft/非 prerelease/合法 tag，
+            # 额外排除 -remerged-，无合格原件即失败（不 data-latest、不自家产物兜底）。
+            if ! TAG=$(python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
+                  --no-legacy --original-only --print-tag); then
               echo "::error::没有可用的真实爬取 release（已排除本链 -remerged- 产物）⇒ 不猜、不退回最新；请显式传 release_tag"
-              echo "候选标签："
-              printf '%s\n' "$ALL" | sed 's/^/  /'
               exit 1
             fi
           fi

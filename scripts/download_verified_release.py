@@ -29,9 +29,15 @@ def complete_release(release):
             and {'manifest.json', 'verified-site.zip'} <= uploaded_assets(release).keys())
 
 
-def select_release(api, tag=None, *, allow_legacy=True):
+def derived_tag(tag):
+    return isinstance(tag, str) and '-remerged-' in tag
+
+
+def select_release(api, tag=None, *, allow_legacy=True, original_only=False):
     if tag:
         if not valid_tag(tag): raise ValueError('release_tag must identify a cnb-data-* build')
+        if original_only and derived_tag(tag):
+            raise ValueError('release_tag must identify an original crawl build, not a derived -remerged- build')
         release = api.get_release(tag)
         if release is None or release.get('tag_name') != tag or not complete_release(release):
             raise ValueError('requested CNB Release is missing, draft, or incomplete')
@@ -40,11 +46,14 @@ def select_release(api, tag=None, *, allow_legacy=True):
     page = 1
     while True:
         batch = api.request('GET', f'/releases?per_page=100&page={page}')
-        candidates.extend(release for release in batch if complete_release(release))
+        candidates.extend(release for release in batch
+                          if complete_release(release) and not (original_only and derived_tag(release['tag_name'])))
         if len(batch) < 100: break
         page += 1
     if candidates:
         return max(candidates, key=lambda release: (release.get('published_at') or '', release['tag_name']))
+    if original_only:
+        raise ValueError('no complete published original CNB build (derived -remerged- builds are not accepted)')
     if allow_legacy:
         legacy = api.get_release('data-latest')
         if legacy is not None and not legacy.get('draft') and not legacy.get('prerelease'):
@@ -104,13 +113,15 @@ def main(argv=None):
     parser.add_argument('--dir', type=Path)
     parser.add_argument('--print-tag', action='store_true')
     parser.add_argument('--no-legacy', action='store_true')
+    parser.add_argument('--original-only', action='store_true',
+                        help='only accept original crawl builds, excluding derived -remerged- ones')
     args = parser.parse_args(argv)
     if not args.repo or not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', args.repo):
         raise ValueError('repo must be owner/repository')
     api = GitHub(args.repo, os.getenv('GH_TOKEN') or os.getenv('GITHUB_TOKEN') or os.getenv('GITHUB_PAT') or '')
     if not any(os.getenv(name) for name in ('GH_TOKEN', 'GITHUB_TOKEN', 'GITHUB_PAT')):
         api.headers.pop('Authorization')
-    release = select_release(api, args.tag, allow_legacy=not args.no_legacy)
+    release = select_release(api, args.tag, allow_legacy=not args.no_legacy, original_only=args.original_only)
     if args.print_tag:
         print(release['tag_name'])
         return
