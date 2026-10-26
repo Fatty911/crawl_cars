@@ -264,11 +264,19 @@ def test_full_platform_reading_is_checked_two_ways_against_the_monitor() -> None
     第二向：名单里不许出现读数说非 active 的名字（凑数覆盖）。
     与 `test_real_monitor_matches_current_active_chains` 的差别：那条只喂 2 条 disabled 名字，
     这条喂**全表**（9 条 disabled 全在），所以"名单里混进任何一条停用链"都会被抓到。
+
+    注意：本读数里 `AI Auto Fix Monitor` 自身是 disabled_manually（历史事实，不许改），
+    所以**链覆盖**两向必须零错，而 errs 里必须且只该剩"监视器自身被停用"这一条。
+    此前这里断言 `errs == []` 正是把"自身停用"误判成绿的旧缺口，现已按真实契约收紧。
     """
     mod = _load()
     states = [{"name": n, "state": s} for n, s in PLATFORM_READING["states"].items()]
     errs, active, monitored = mod.check(MONITOR, states)
-    assert errs == [], errs
+    chain_errs = [e for e in errs if SELF_NAME not in e]
+    assert chain_errs == [], chain_errs
+    self_errs = _self_errs(errs)
+    assert len(self_errs) == 1, errs
+    assert "disabled_manually" in self_errs[0], self_errs
     assert set(ACTIVE) <= monitored, "读数说 active 但名单里没有：%s" % sorted(set(ACTIVE) - monitored)
 
 
@@ -296,3 +304,91 @@ def test_platform_reading_is_not_silently_truncated() -> None:
     assert PLATFORM_READING.get("total_count") == n, (
         "读数条数 %d ≠ 平台 total_count=%r ⇒ per_page 截断或手抄漏行"
         % (n, PLATFORM_READING.get("total_count")))
+
+
+# ---------------------------------------------------------------------------
+# 监视器**自身**状态：五条链 active 只证明被监视的链在跑，不证明有一个在跑的监视器。
+# 这里的整表读数默认就是 `PLATFORM_READING` 原样（self 仍是 historical 的 disabled_manually），
+# 需要 self=active 才能过的用例一律用**内存里的合成副本**，绝不回写 `PLATFORM_READING`。
+# ---------------------------------------------------------------------------
+SELF_NAME = "AI Auto Fix Monitor"
+
+
+def _reading(states=None):
+    """整表读数（默认 `PLATFORM_READING` 原样，不自作主张改 self 的 state）。"""
+    table = PLATFORM_READING["states"] if states is None else states
+    return [{"name": n, "state": s} for n, s in table.items()]
+
+
+def _self_errs(errs):
+    return [e for e in errs if SELF_NAME in e]
+
+
+def test_monitor_itself_disabled_is_red():
+    """真实读数里 self 就是 disabled_manually：五条链名单全对，也必须红并点名 disabled_manually。"""
+    mod = _load()
+    errs, active, monitored = mod.check(MONITOR, _reading())
+    assert set(ACTIVE) <= monitored, "链覆盖本身应当是对的（否则这条测不到 self）"
+    named = _self_errs(errs)
+    assert named, errs
+    assert any("disabled_manually" in e for e in named), named
+
+
+def test_monitor_self_missing_from_reading_is_red():
+    """读数里根本没有 self 条目 ⇒ 无法证明监视器存在 ⇒ 红（fail closed，不是第三态）。"""
+    mod = _load()
+    table = {n: s for n, s in PLATFORM_READING["states"].items() if n != SELF_NAME}
+    errs, _, _ = mod.check(MONITOR, _reading(table))
+    assert _self_errs(errs), errs
+
+
+def test_monitor_self_duplicate_and_conflicting_entries_are_red():
+    """self 出现两次且状态互相矛盾 ⇒ 身份不唯一，不能挑一条"看起来绿"的来放行。"""
+    mod = _load()
+    states = _reading() + [{"name": SELF_NAME, "state": "active"}]
+    errs, _, _ = mod.check(MONITOR, states)
+    assert _self_errs(errs), errs
+
+
+def test_monitor_self_unknown_state_is_red():
+    """未知状态（既非 active 也非 disabled_manually）不许被当成能跑。"""
+    mod = _load()
+    table = dict(PLATFORM_READING["states"], **{SELF_NAME: "state_not_in_enum"})
+    errs, _, _ = mod.check(MONITOR, _reading(table))
+    named = _self_errs(errs)
+    assert named, errs
+    assert any("state_not_in_enum" in e for e in named), named
+
+
+def test_monitor_self_state_unreadable_is_red():
+    """state 不是字符串（null/对象）⇒ 读不懂就不能判绿，按红处理。"""
+    mod = _load()
+    for bad in (None, {"nested": "active"}, ["active"]):
+        states = _reading() + []
+        states = [w for w in states if w["name"] != SELF_NAME] + [{"name": SELF_NAME, "state": bad}]
+        errs, _, _ = mod.check(MONITOR, states)
+        assert _self_errs(errs), (bad, errs)
+
+
+def test_monitor_self_active_synthetic_copy_passes():
+    """合成副本（仅内存）把 self 改成 active ⇒ 这才是应当放行的形态。`PLATFORM_READING` 保持原样。"""
+    assert PLATFORM_READING["states"][SELF_NAME] == "disabled_manually"
+    mod = _load()
+    table = dict(PLATFORM_READING["states"], **{SELF_NAME: "active"})
+    errs, active, monitored = mod.check(MONITOR, _reading(table))
+    assert errs == [], errs
+    assert active == set(ACTIVE)
+    assert monitored == set(ACTIVE)
+
+
+def test_monitor_itself_disabled_main_returns_1(monkeypatch, capsys, tmp_path):
+    """端到端：真实读数（self=disabled_manually）过 CLI ⇒ rc=1 且诊断里点名 self。"""
+    mod = _load()
+    states = tmp_path / "states.json"
+    states.write_text(json.dumps({"workflows": _reading()}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--states-json", str(states), "--monitor", str(MONITOR)])
+    rc = mod.main()
+    out = capsys.readouterr().out
+    assert rc == 1, out
+    assert "COVERAGE_FAIL" in out
+    assert SELF_NAME in out

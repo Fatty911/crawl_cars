@@ -10,7 +10,9 @@
    读不到 / 读到的 active 少于 3 条 ⇒ 退出 2（第三态：不是红也不是过）。
 2. 监视名单必须与 active 集合**完全相等**：
    少一条 ⇒ 红（被监视漏掉）；多一条（含已停用/不存在的链名）⇒ 红（凑数式覆盖）。
-3. 监视器的 `if:` 只许 failure 触发（出现 success 即红），且修复腿必须是"开 Issue/归档证据"
+3. 监视器**自己**必须存在、身份唯一且 state=active：五条链 active 不证明有一个在跑的监视器。
+   缺失 / 重复（身份不唯一）/ 未知状态 / state 不可读 ⇒ 拒绝放行（fail closed）；active 读数不足且名单无缺漏时仍保留既有第三态。
+4. 监视器的 `if:` 只许 failure 触发（出现 success 即红），且修复腿必须是"开 Issue/归档证据"
    形状（必须含 `gh issue create`，不许出现付费模型 Action）。
 
 本地复算用 `--states-json` 喂夹具，不碰网络；CI 里用 GITHUB_TOKEN 实查。
@@ -69,6 +71,26 @@ def check(monitor_path: pathlib.Path, states: list[dict]) -> tuple[list[str], se
     monitored = set(wf_run.get("workflows") or [])
     if not monitored:
         errors.append("监视名单为空 ⇒ 通道不存在")
+
+    # 监视器**自身**必须存在、身份唯一且 state=active。五条链 active 只证明被监视的链在跑，
+    # 不证明有一个在跑的监视器——历史缺陷就是这里：self 被剔出 active 集合后再没人看它的状态，
+    # 于是 `AI Auto Fix Monitor` 自身 disabled_manually 时全表照样绿。缺失/重复/未知/不可读
+    # 一律拒绝放行（fail closed）；保留既有读数不足第三态，也不许挑一条"看起来绿"的来放行。
+    self_entries = [w for w in states if str(w.get("name")) == SELF_NAME]
+    if not self_entries:
+        errors.append("监视器自身 `%s` 不在状态读数里 ⇒ 无法证明它在跑，红链没有执行者" % SELF_NAME)
+    elif len(self_entries) > 1:
+        errors.append("监视器身份不唯一：状态读数里 `%s` 出现 %d 次（state=%s）⇒ 不能挑一条放行"
+                      % (SELF_NAME, len(self_entries),
+                         [repr(w.get("state")) for w in self_entries]))
+    else:
+        self_state = self_entries[0].get("state")
+        if not isinstance(self_state, str) or not self_state:
+            errors.append("监视器自身 `%s` 的 state 不可读（%r）⇒ 读不懂就不能判绿"
+                          % (SELF_NAME, self_state))
+        elif self_state != "active":
+            errors.append("监视器自身 `%s` state=%s ⇒ 它已被停用，红链没有执行者"
+                          % (SELF_NAME, self_state))
 
     active = {str(w.get("name")) for w in states
               if str(w.get("state")) == "active" and str(w.get("name")) != SELF_NAME}
