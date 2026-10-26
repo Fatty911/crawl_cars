@@ -1486,23 +1486,38 @@
     if (columnPaths.has(column)) { return columnPaths.get(column); }
     var found = null;
     var suspect = /^(?:\d+(?:\.\d+)?(?:\s*(?:英寸|寸|km\b|kW\b|W\b|L\b|°|个|点|座|幅|款)|$)|支持$|不支持$|标配$|选配$|黑色$|白色$)|(?:选装包|套件|套装)/i.test(column);
+    // 声明过的精确列名/条件字段优先于任何类别宽正则；同级冲突仍按配置原顺序取第一个命中。
+    var declaredFields = function (section) {
+      var fields = (section.columns || []).slice();
+      (state.config.conditions || []).forEach(function (condition) {
+        if ((section.conditionIds || []).indexOf(condition.id) !== -1) {
+          fields = fields.concat(condition.fields || [], condition.field || []);
+        }
+      });
+      return fields;
+    };
+    var accept = function (category, section, major, minor) {
+      found = {major: category.label, minor: section.label, rank: [major, minor], id: category.id + "/" + section.id};
+    };
     getFilterTaxonomy().some(function (category, major) {
       return (category.sections || []).some(function (section, minor) {
-        var fields = (section.columns || []).slice();
-        (state.config.conditions || []).forEach(function (condition) {
-          if ((section.conditionIds || []).indexOf(condition.id) !== -1) {
-            fields = fields.concat(condition.fields || [], condition.field || []);
-          }
-        });
-        var matches = fields.indexOf(column) !== -1 || !suspect && (section.columnPatterns || []).some(function (pattern) {
-          return new RegExp(pattern).test(column);
-        });
-        if (matches) {
-          found = {major: category.label, minor: section.label, rank: [major, minor], id: category.id + "/" + section.id};
-        }
-        return Boolean(found);
+        if (declaredFields(section).indexOf(column) === -1) { return false; }
+        accept(category, section, major, minor);
+        return true;
       });
     });
+    if (!found && !suspect) {
+      getFilterTaxonomy().some(function (category, major) {
+        return (category.sections || []).some(function (section, minor) {
+          var matches = (section.columnPatterns || []).some(function (pattern) {
+            return new RegExp(pattern).test(column);
+          });
+          if (!matches) { return false; }
+          accept(category, section, major, minor);
+          return true;
+        });
+      });
+    }
     if (!found) {
       found = {major: "未分类/待确认", minor: suspect ? "疑似属性值 · 字段待核验" : "属性待归类",
         rank: [10000, suspect ? 1 : 0], id: "unclassified/" + (suspect ? "suspect" : "unknown")};

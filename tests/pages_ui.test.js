@@ -1894,3 +1894,129 @@ test("property taxonomy does not classify raw values or merge dealer and manufac
   const normalized = hooks.normalizeRowColumns([original])[0];
   Object.entries(original).forEach(([column, value]) => assert.equal(normalized[column], value));
 });
+
+test("earlier broad category patterns never outrank a later exact declared column", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = {
+    conditions: [],
+    filterTaxonomy: [
+      { id: "outer", label: "外层", sections: [{ id: "body", label: "车身", columnPatterns: ["^车窗|^车门"] }] },
+      { id: "inner", label: "内层", sections: [{ id: "glazing", label: "玻璃", columns: ["车窗防夹手功能"] }] }
+    ]
+  };
+  assert.equal(hooks.columnPath("车窗防夹手功能").id, "inner/glazing");
+  assert.equal(hooks.columnPath("车窗装饰条").id, "outer/body", "未声明项仍走原正则");
+  assert.equal(hooks.columnPath("车门开启方式").id, "outer/body");
+});
+test("later exact condition fields outrank broad patterns while exact ties keep configured order", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = {
+    conditions: [
+      { id: "remote_start", type: "feature", field: "远程启动", fields: ["远程启动", "发动机远程启动"] },
+      { id: "msrp", type: "range", field: "官方指导价" }
+    ],
+    filterTaxonomy: [
+      { id: "power", label: "动力", sections: [{ id: "energy", label: "动力与能源", columnPatterns: ["^发动机|远程"] }] },
+      { id: "external", label: "外部", sections: [{ id: "remote", label: "远程与钥匙", conditionIds: ["remote_start"], columnPatterns: ["钥匙"] }] },
+      { id: "basic", label: "基本信息", sections: [{ id: "budget", label: "价格", conditionIds: ["msrp"] }] }
+    ]
+  };
+  assert.equal(hooks.columnPath("发动机远程启动").id, "external/remote", "条件 fields 精确命中优先于前面类别正则");
+  assert.equal(hooks.columnPath("远程启动").id, "external/remote", "条件 field 精确命中同样优先");
+  assert.equal(hooks.columnPath("官方指导价").id, "basic/budget", "较后 section 的条件 field 生效");
+  assert.equal(hooks.columnPath("发动机型号").id, "power/energy", "无精确声明时仍按原正则顺序");
+  assert.equal(hooks.columnPath("远程钥匙").id, "power/energy", "正则阶段仍按原顺序先到先得");
+  const tie = loadAppForTest();
+  tie.hooks.state.config = {
+    conditions: [],
+    filterTaxonomy: [
+      { id: "first", label: "先", sections: [{ id: "one", label: "先声明", columns: ["远程启动"] }] },
+      { id: "second", label: "后", sections: [{ id: "two", label: "后声明", columns: ["远程启动"] }] }
+    ]
+  };
+  assert.equal(tie.hooks.columnPath("远程启动").id, "first/one", "同级精确命中仍保留配置原顺序");
+});
+test("the 36 observed property headers resolve through exact declared sections and both config mirrors stay byte-identical", () => {
+  const configBytes = fs.readFileSync(path.join(__dirname, "..", "config", "filter_conditions.json"));
+  const docsBytes = fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"));
+  assert.ok(configBytes.equals(docsBytes), "两份配置镜像必须字节一致");
+  const config = JSON.parse(configBytes.toString("utf8"));
+  const { hooks } = loadAppForTest();
+  hooks.state.config = config;
+  const expected = {
+    "数据来源": "basic/source",
+    "车体结构": "external/body",
+    "车身结构": "external/body",
+    "车门开启方式": "external/body",
+    "前制动器类型": "chassis/running",
+    "后制动器类型": "chassis/running",
+    "驱动形式": "chassis/running",
+    "转向类型": "chassis/running",
+    "变速箱类型": "chassis/running",
+    "挡位数": "chassis/running",
+    "ABS防抱死": "assist/safety",
+    "驾驶辅助影像": "assist/navigation",
+    "巡航系统": "assist/navigation",
+    "近光灯": "lighting/headlights",
+    "远光灯": "lighting/headlights",
+    "日间行车灯": "lighting/headlights",
+    "大灯延时关闭": "lighting/headlights",
+    "扬声器数量": "hardware/cockpit",
+    "车内化妆镜": "interior/convenience",
+    "后排杯架": "interior/convenience",
+    "无钥匙启动": "external/remote",
+    "车内中控锁": "external/remote",
+    "车窗防夹手功能": "glass/glazing",
+    "内后视镜功能": "glass/mirrors",
+    "车内PM2.5过滤装置": "interior/climate",
+    "排量(L)": "power/energy",
+    "排量(mL)": "power/energy",
+    "气缸排列形式": "power/energy",
+    "最大马力(Ps)": "power/energy",
+    "气缸数": "power/energy",
+    "环保标准": "power/energy",
+    "燃油标号": "power/energy",
+    "发动机型号": "power/energy",
+    "进气形式": "power/energy",
+    "最大功率转速(rpm)": "power/energy",
+    "最大扭矩转速(rpm)": "power/energy"
+  };
+  assert.equal(Object.keys(expected).length, 36, "36 个真实属性");
+  const declared = new Map();
+  config.filterTaxonomy.forEach((category) => (category.sections || []).forEach((section) => {
+    (section.columns || []).forEach((column) => declared.set(column, category.id + "/" + section.id));
+  }));
+  Object.keys(expected).forEach((column) => {
+    assert.equal(declared.get(column), expected[column], "必须在 section.columns 精确声明：" + column);
+  });
+  Object.entries(expected).forEach(([column, target]) => {
+    assert.equal(hooks.columnPath(column).id, expected[column], column);
+    assert.equal(hooks.columnPath(column).major, config.filterTaxonomy.find((category) => category.id === target.split("/")[0]).label, column);
+  });
+  assert.equal(config.filterTaxonomy.length, 10, "不新增类别");
+  config.filterTaxonomy.forEach((category) => assert.ok((category.sections || []).length > 0, category.id));
+});
+test("declared property names never promote observed values and keep row facts intact", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "config", "filter_conditions.json"), "utf8"));
+  ["非承载式", "承载式", "碟式", "通风盘式", "涡轮增压", "2.0", "国VI", "92号", "支持", "●", "8", "L", "6喇叭", "自动防眩目", "1997"]
+    .forEach((value) => assert.equal(hooks.columnPath(value).major, "未分类/待确认", value));
+  assert.match(hooks.columnPath("2.0").minor, /疑似属性值/, "数字取值仍标疑似");
+  assert.match(hooks.columnPath("支持").minor, /疑似属性值/);
+  assert.equal(hooks.columnPath("车窗防夹手功能").id, "glass/glazing");
+  assert.equal(hooks.columnPath("车窗装饰条").id, "external/body", "只声明精确名，不靠新正则扩散");
+  const energy = hooks.state.config.filterTaxonomy.find((category) => category.id === "power")
+    .sections.find((section) => section.id === "energy");
+  assert.equal(energy.columns.filter((column) => column === "排量(L)").length, 1, "排量(L) 独立声明一次");
+  assert.equal(energy.columns.filter((column) => column === "排量(mL)").length, 1, "排量(mL) 独立声明一次");
+  assert.equal(energy.columns.includes("排量"), false, "单位不合并");
+  assert.equal(JSON.stringify(hooks.state.config.conditions).includes("无钥匙启动"), false, "无钥匙启动不是远程启动");
+  const remoteStart = hooks.state.config.conditions.find((condition) => condition.id === "remote_start");
+  assert.deepEqual(remoteStart.fields, ["远程启动", "远程启动功能", "发动机远程启动"], "核心条件不改");
+  assert.equal(hooks.state.config.hiddenByDefault.includes("ABS防抱死"), true, "隐藏默认值不改");
+  assert.equal(hooks.state.config.defaultVisibleColumns.includes("无钥匙启动"), false, "默认展示列不改");
+  const original = { "排量(L)": "2.0", "排量(mL)": "1997", "官方指导价": "35.80万", "环保标准": "国VI",
+    "燃油标号": "92号", "进气形式": "涡轮增压", "无钥匙启动": "标配", "车窗防夹手功能": "标配" };
+  const normalized = hooks.normalizeRowColumns([Object.assign({}, original)])[0];
+  Object.entries(original).forEach(([column, value]) => assert.equal(normalized[column], value, column));
+});
