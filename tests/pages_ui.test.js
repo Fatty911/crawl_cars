@@ -1860,3 +1860,37 @@ test("legacy desktop groups include each strict condition exactly once in its re
     groups.reduce((total, group) => total + group.conditionIds.length, 0),
     "legacy desktop 分组内不得重复分配条件");
 });
+test("common observed property headers use exact existing three-level taxonomy paths", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "config", "filter_conditions.json"), "utf8"));
+  const paths = {
+    "厂商": "basic/identity",
+    "经销商参考价": "basic/budget",
+    "整车质保": "basic/ownership",
+    "整车保修期限": "basic/ownership",
+    "最大功率(kW)": "power/energy",
+    "最大扭矩(N·m)": "power/energy",
+    "最大净功率(kW)": "power/energy",
+    "供油方式": "power/energy",
+    "配气机构": "power/energy",
+    "缸盖材料": "power/energy",
+    "缸体材料": "power/energy",
+    "助力类型": "chassis/running",
+    "驻车制动类型": "chassis/running"
+  };
+  Object.entries(paths).forEach(([column, expected]) => {
+    assert.equal(hooks.columnPath(column).id, expected, column);
+  });
+});
+
+test("property taxonomy does not classify raw values or merge dealer and manufacturer facts", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "config", "filter_conditions.json"), "utf8"));
+  ["350", "铝合金", "电子液压助力", "三年或10万公里"].forEach((value) => {
+    assert.ok(hooks.columnPath(value).id.startsWith("unclassified/"), value);
+  });
+  // Synthetic values exercise field separation; these are not source observations.
+  const original = { "品牌": "合成品牌", "厂商": "合成厂商", "官方指导价": "35.80万", "经销商参考价": "33.8万" };
+  const normalized = hooks.normalizeRowColumns([original])[0];
+  Object.entries(original).forEach(([column, value]) => assert.equal(normalized[column], value));
+});

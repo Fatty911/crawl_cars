@@ -436,6 +436,8 @@ jobs:
             config/source_identity_evidence.json
             column-scan-report.json
             column-scan-history.json
+            live-acceptance.log
+            live-acceptance-filtered.log
             site/data/manifest.json
           retention-days: 3
 
