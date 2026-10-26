@@ -359,6 +359,65 @@
         "自动灯光"
       ],
       "defaultEnabled": true
+    },
+    {
+      "id": "sentry_mode",
+      "label": "哨兵模式",
+      "type": "feature",
+      "fields": [
+        "哨兵模式/千里眼",
+        "哨兵模式_千里眼",
+        "千里眼",
+        "哨兵模式",
+        "哨兵(千里眼)模式",
+        "哨兵（千里眼）模式"
+      ],
+      "keywords": [
+        "哨兵",
+        "千里眼"
+      ],
+      "defaultEnabled": true
+    },
+    {
+      "id": "tire_pressure_display",
+      "label": "胎压显示",
+      "type": "feature",
+      "fields": [
+        "胎压显示",
+        "胎压显示功能",
+        "胎压监测系统",
+        "胎压监测功能",
+        "胎压监测"
+      ],
+      "genericFields": [
+        "胎压监测系统",
+        "胎压监测功能",
+        "胎压监测"
+      ],
+      "keywords": [
+        "胎压显示"
+      ],
+      "defaultEnabled": true
+    },
+    {
+      "id": "bev_heat_pump",
+      "label": "纯电车型需热泵空调",
+      "type": "feature",
+      "fields": [
+        "热泵空调",
+        "热泵管理系统",
+        "热泵",
+        "CO2热泵空调包",
+        "CO2热泵空调系统",
+        "CO2热泵空调系统_1",
+        "CO2热泵空调系统_2",
+        "CO2热泵空调包_1",
+        "CO2热泵空调包_2"
+      ],
+      "keywords": [
+        "热泵"
+      ],
+      "defaultEnabled": true
     }
   ],
   "desktopConditionGroups": [
@@ -499,7 +558,11 @@
         {
           "id": "safety",
           "label": "安全与制动辅助",
-          "conditionIds": [],
+          "desktopGroupId": "smart",
+          "conditionIds": [
+            "sentry_mode",
+            "tire_pressure_display"
+          ],
           "columnPatterns": [
             "气囊|气帘|安全带|碰撞|预警|主动刹车|^ABS|防抱死|制动力分配|制动辅助|牵引力控制|车身稳定|胎压|儿童座椅|疲劳|哨兵"
           ]
@@ -668,7 +731,10 @@
         {
           "id": "climate",
           "label": "空调与空气",
-          "conditionIds": [],
+          "desktopGroupId": "comfort",
+          "conditionIds": [
+            "bev_heat_pump"
+          ],
           "columnPatterns": [
             "空调|空气|^热泵|温区|出风口|^香氛|负离子|PM2"
           ]

@@ -244,12 +244,14 @@ function loadAppForTest() {
       snapshotFilters: snapshotFilters,
       applySnapshot: applySnapshot,
       getFilteredRows: getFilteredRows,
+      conditionMatches: conditionMatches,
       defaultRangeFilters: DEFAULT_RANGE_FILTERS,
       normalizeRowColumns: normalizeRowColumns,
       isEquipmentColumn: isEquipmentColumn,
       shouldHideColumn: shouldHideColumn,
       classifySkuColumns: classifySkuColumns,
       getFilterTaxonomy: getFilterTaxonomy,
+      desktopConditionGroups: desktopConditionGroups,
       selectedCountForCategory: selectedCountForCategory,
       activateMobileCategory: activateMobileCategory,
       restoreDefaultFilters: restoreDefaultFilters,
@@ -1063,7 +1065,8 @@ test("Pages restore-default semantics are schema-driven and preserve the three r
   });
   assert.equal(hooks.state.search, "");
   assert.equal(elements.get("globalSearch").value, "");
-  assert.equal(Object.keys(hooks.state.featureFilters).length, 9);
+  assert.equal(Object.keys(hooks.state.featureFilters).length,
+    config.conditions.filter((condition) => ["feature", "pagesFeature"].includes(condition.type) && condition.defaultEnabled !== false).length);
 });
 
 test("Pages first load renders and applies acceleration, speed, and EV range defaults", () => {
@@ -1682,4 +1685,178 @@ test("canonical category patterns reject appended values while retaining real un
     "最大快充功率(kw)", "最大快充功率(kW)", "VTOL最大对外放电功率", "VTOL最大对外放电功率(kW)", "零整比"]
     .forEach((column) => assert.notEqual(hooks.columnPath(column).major, "未分类/待确认",
       "收紧边界不能丢掉规范属性或明确单位：" + column));
+});
+
+function strictFilterContext(id) {
+  const app = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "config", "filter_conditions.json"), "utf8"));
+  const condition = config.conditions.find((item) => item.id === id);
+  assert.ok(condition, "配置里缺少严格筛选：" + id);
+  app.hooks.state.config = config;
+  app.hooks.state.featureFilters[id] = true;
+  return { hooks: app.hooks, condition, config };
+}
+
+test("sentry mode requires dedicated affirmative evidence instead of camera or recorder fields", () => {
+  const { hooks, condition } = strictFilterContext("sentry_mode");
+  const matches = (row) => hooks.conditionMatches(row, condition);
+  assert.equal(matches({ "摄像头": "哨兵模式" }), false);
+  assert.equal(matches({ "行车记录仪": "支持千里眼" }), false);
+  assert.equal(matches({ "哨兵模式": "●" }), true);
+  assert.equal(matches({ "哨兵模式/千里眼": "标配" }), true);
+  assert.equal(matches({ "千里眼": "是" }), true);
+  assert.equal(matches({ "哨兵(千里眼)模式": "支持" }), true);
+  assert.equal(matches({ "哨兵（千里眼）模式": "懂车帝:支持|易车:待查" }), true,
+    "未知来源段不能抹掉另一来源的明确肯定");
+  assert.equal(matches({ "哨兵模式": "待查" }), false);
+  assert.equal(matches({ "哨兵模式": "○" }), false);
+  assert.equal(matches({ "哨兵模式": "选装" }), false);
+  assert.equal(matches({ "哨兵模式": "无" }), false);
+});
+
+test("tire pressure display rejects alarms, monitoring dots, optional equipment and composite packages", () => {
+  const { hooks, condition } = strictFilterContext("tire_pressure_display");
+  const matches = (row) => hooks.conditionMatches(row, condition);
+  assert.equal(matches({ "胎压监测系统": "●" }), false, "笼统的监测●不能证明胎压显示");
+  assert.equal(matches({ "胎压监测系统": "胎压报警" }), false);
+  assert.equal(matches({ "胎压报警": "●" }), false);
+  assert.equal(matches({ "胎压监测功能": "支持胎压监测" }), false);
+  assert.equal(matches({ "胎压显示": "选装" }), false);
+  assert.equal(matches({ "胎压显示": "选配" }), false);
+  assert.equal(matches({ "胎压显示": "○" }), false);
+  assert.equal(matches({ "精品礼包": "胎压显示+脚垫" }), false, "礼包复合字段不能证明单项已配备");
+});
+
+test("tire pressure display accepts explicit generic values and rejects source conflicts", () => {
+  const { hooks, condition } = strictFilterContext("tire_pressure_display");
+  const matches = (row) => hooks.conditionMatches(row, condition);
+  assert.equal(matches({ "胎压监测系统": "胎压显示" }), true);
+  assert.equal(matches({ "胎压监测功能": "懂车帝:胎压显示|易车:未知" }), true);
+  assert.equal(matches({ "胎压显示": "●" }), true);
+  assert.equal(matches({ "胎压显示功能": "标配" }), true);
+  assert.equal(matches({ "胎压监测系统": "懂车帝:胎压显示|易车:不支持" }), false);
+  assert.equal(matches({ "胎压显示": "懂车帝:●|易车:选装" }), false);
+});
+
+test("BEV heat pump filtering requires dedicated affirmative evidence", () => {
+  const { hooks, condition } = strictFilterContext("bev_heat_pump");
+  const matches = (row) => hooks.conditionMatches(row, condition);
+  assert.equal(matches({ "能源类型": "纯电动", "热泵空调": "●" }), true);
+  assert.equal(matches({ "能源类型": "懂车帝:纯电动", "热泵管理系统": "支持" }), true);
+  assert.equal(matches({ "能源类型": "纯电动", "CO2热泵空调包": "标配" }), true);
+  assert.equal(matches({ "能源类型": "纯电动", "热泵空调": "无" }), false);
+  assert.equal(matches({ "能源类型": "纯电动", "热泵空调": "○" }), false);
+  assert.equal(matches({ "能源类型": "纯电动", "热泵空调": "待查" }), false);
+  assert.equal(matches({ "能源类型": "纯电动" }), false);
+  assert.equal(matches({ "能源类型": "纯电动", "220V后备箱电源+热泵空调礼包": "支持" }), false,
+    "复合礼包字段不能单独证明热泵空调");
+  assert.equal(matches({ "能源类型": "纯电动", "热泵空调": "懂车帝:标配|易车:选装" }), false);
+});
+
+test("known non-BEV energy types are exempt without heat pump evidence", () => {
+  const { hooks, condition } = strictFilterContext("bev_heat_pump");
+  const matches = (energy) => hooks.conditionMatches({ "能源类型": energy }, condition);
+  ["插电式混合动力", "增程式", "增程式纯电动", "油电混合", "汽油", "柴油", "48V轻混", "氢燃料"]
+    .forEach((energy) => assert.equal(matches(energy), true, energy + " 不应被热泵条件误限"));
+  assert.equal(matches("懂车帝:增程式纯电动"), true, "增程式纯电动是增程，不能读成 BEV");
+});
+
+test("mixed BEV energy cannot bypass heat pump while unknown energy needs explicit evidence", () => {
+  const { hooks, condition } = strictFilterContext("bev_heat_pump");
+  const matches = (energy, heat) => hooks.conditionMatches(
+    Object.assign({ "能源类型": energy }, heat ? { "热泵空调": heat } : {}), condition);
+  assert.equal(matches("纯电动|插电式混合动力"), false);
+  assert.equal(matches("纯电动/插电式混合动力"), false);
+  assert.equal(matches("纯电动|插电式混合动力", "●"), true);
+  assert.equal(matches("增程式纯电动|纯电动"), false, "混合来源含 BEV 不能借增程绕过");
+  assert.equal(matches("未知"), false);
+  assert.equal(matches("待查"), false);
+  assert.equal(matches("未知", "●"), true);
+  assert.equal(matches("", "●"), true, "缺失能源类型时只接受明确热泵肯定");
+  assert.equal(matches(""), false);
+});
+
+test("strict filters reject source-positive/source-negative conflicts while retaining unknown plus positive", () => {
+  const sentry = strictFilterContext("sentry_mode");
+  assert.equal(sentry.hooks.conditionMatches({ "哨兵模式": "懂车帝:支持|易车:待查" }, sentry.condition), true);
+  assert.equal(sentry.hooks.conditionMatches({ "哨兵模式": "懂车帝:未知|易车:●" }, sentry.condition), true);
+  assert.equal(sentry.hooks.conditionMatches({ "哨兵模式": "懂车帝:支持|易车:无" }, sentry.condition), false);
+  assert.equal(sentry.hooks.conditionMatches({ "哨兵模式": "懂车帝:○|易车:待查" }, sentry.condition), false);
+  const tire = strictFilterContext("tire_pressure_display");
+  assert.equal(tire.hooks.conditionMatches({ "胎压监测系统": "懂车帝:胎压显示|易车:未知" }, tire.condition), true);
+  assert.equal(tire.hooks.conditionMatches({ "胎压监测系统": "懂车帝:胎压显示|易车:不支持" }, tire.condition), false);
+  assert.equal(tire.hooks.conditionMatches({ "胎压监测系统": "懂车帝:胎压显示|易车:选装" }, tire.condition), false);
+  const heat = strictFilterContext("bev_heat_pump");
+  assert.equal(heat.hooks.conditionMatches({ "能源类型": "纯电动", "热泵空调": "懂车帝:标配|易车:待查" }, heat.condition), true);
+  assert.equal(heat.hooks.conditionMatches({ "能源类型": "纯电动", "热泵空调": "懂车帝:标配|易车:○" }, heat.condition), false);
+});
+
+test("three strict filters default on, remain independently disableable, and keep both configs and taxonomy aligned", () => {
+  const app = loadAppForTest();
+  const hooks = app.hooks;
+  const configPath = path.join(__dirname, "..", "config", "filter_conditions.json");
+  const docsPath = path.join(__dirname, "..", "docs", "filter_conditions.json");
+  const configText = fs.readFileSync(configPath, "utf8");
+  assert.equal(configText, fs.readFileSync(docsPath, "utf8"), "两份筛选配置必须逐字相同");
+  const config = JSON.parse(configText);
+  const ids = ["sentry_mode", "tire_pressure_display", "bev_heat_pump"];
+  ids.forEach((id) => {
+    const condition = config.conditions.find((item) => item.id === id);
+    assert.ok(condition, "缺少新条件：" + id);
+    assert.equal(condition.type, "feature");
+    assert.equal(condition.defaultEnabled, true);
+    hooks.state.config = config;
+    hooks.state.featureFilters[id] = true;
+    assert.equal(hooks.conditionMatches({}, condition), false, id + " 开启时无证据应拒绝");
+    hooks.state.featureFilters[id] = false;
+    assert.equal(hooks.conditionMatches({}, condition), true, id + " 关闭后应放行");
+  });
+  const assist = config.filterTaxonomy.find((category) => category.id === "assist");
+  const safety = assist.sections.find((section) => section.id === "safety");
+  assert.equal(safety.label, "安全与制动辅助");
+  assert.deepEqual(safety.conditionIds, ["sentry_mode", "tire_pressure_display"]);
+  assert.deepEqual(assist.sections.find((section) => section.id === "navigation").conditionIds, ["city_navigation"]);
+  const climate = config.filterTaxonomy.find((category) => category.id === "interior")
+    .sections.find((section) => section.id === "climate");
+  assert.equal(climate.label, "空调与空气");
+  assert.deepEqual(climate.conditionIds, ["bev_heat_pump"]);
+  assert.ok(config.conditions.some((condition) => condition.id === "auto_headlight" && condition.label === "自动头灯"),
+    "旧条件与标题必须保留");
+  hooks.state.config = config;
+  hooks.initializeRows([Object.assign(row("易车", 2026, "默认三项"), { "级别": "中型车" })]);
+  ids.forEach((id) => assert.equal(hooks.state.featureFilters[id], true, "加载配置后应默认勾选：" + id));
+  hooks.state.rangeFilters = {};
+  hooks.state.featureFilters = { sentry_mode: true, tire_pressure_display: true, bev_heat_pump: true };
+  assert.equal(hooks.getFilteredRows().length, 0, "默认三项应共同参与共享结果路径");
+  hooks.state.featureFilters = {};
+  assert.equal(hooks.getFilteredRows().length, 1, "三项全部关闭后同一车型应放行");
+});
+
+test("strict equipment evidence rejects negative compounds before feature words", () => {
+  const sentry = strictFilterContext("sentry_mode");
+  assert.equal(sentry.hooks.conditionMatches({ "哨兵模式": "不具备哨兵模式" }, sentry.condition), false);
+  const tire = strictFilterContext("tire_pressure_display");
+  assert.equal(tire.hooks.conditionMatches({ "胎压监测功能": "不带胎压显示" }, tire.condition), false);
+  const heat = strictFilterContext("bev_heat_pump");
+  assert.equal(heat.hooks.conditionMatches({ "能源类型": "纯电动", "热泵空调": "未标配" }, heat.condition), false);
+});
+
+test("legacy desktop groups include each strict condition exactly once in its real group", () => {
+  const { hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "config", "filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  const groups = hooks.desktopConditionGroups();
+  assert.deepEqual(groups.map((group) => group.id), ["performance", "smart", "comfort"]);
+  const expected = {
+    sentry_mode: ["smart"],
+    tire_pressure_display: ["smart"],
+    bev_heat_pump: ["comfort"]
+  };
+  Object.keys(expected).forEach((id) => {
+    const owners = groups.filter((group) => group.conditionIds.includes(id)).map((group) => group.id);
+    assert.deepEqual(owners, expected[id], id + " 必须且只能出现在实际 legacy desktop 分组一次");
+  });
+  assert.equal(new Set(groups.flatMap((group) => group.conditionIds)).size,
+    groups.reduce((total, group) => total + group.conditionIds.length, 0),
+    "legacy desktop 分组内不得重复分配条件");
 });

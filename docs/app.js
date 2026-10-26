@@ -44,7 +44,10 @@
     mirror_memory: true,
     app_remote_control: true,
     rain_sensor_wiper: true,
-    auto_headlight: true
+    auto_headlight: true,
+    sentry_mode: true,
+    tire_pressure_display: true,
+    bev_heat_pump: true
   };
 
   var fallbackConfig = {
@@ -991,6 +994,62 @@
     return columns;
   }
 
+  function strictEquipmentKey(value) {
+    return String(value == null ? "" : value).replace(/\s+/g, "").toLowerCase();
+  }
+
+  function strictEquipmentEvidence(value, policy) {
+    var options = policy || {};
+    var positive = false;
+    var negative = false;
+    splitDisplaySegments(value).forEach(function (part) {
+      var text = stripSourceSegmentPrefix(part).replace(/\s+/g, "");
+      if (!text || text === "-") { return; }
+      var denied = /不支持|不提供|不具备|不配备|不带|未支持|未标配|未配备|未安装|没有|选装|选配|○/.test(text) ||
+        /^无(?!线|钥匙)/.test(text) ||
+        /^否(?:$|定|不)/.test(text);
+      if (denied) { negative = true; }
+      var affirmed = /●|支持|标配|标准配置|配备|具备|已装/.test(text) ||
+        /^是(?:$|[（(，,；;、])/.test(text) ||
+        /^有(?:$|[（(，,；;、])/.test(text);
+      if (options.requireExplicitValue) {
+        affirmed = text.indexOf(options.requireExplicitValue) !== -1 && !denied;
+      } else if (options.acceptExplicitValue && text.indexOf(options.acceptExplicitValue) !== -1) {
+        affirmed = true;
+      }
+      if (affirmed) { positive = true; }
+    });
+    return { positive: positive, negative: negative };
+  }
+
+  function strictEquipmentFieldEvidence(row, fields, policy) {
+    var expected = fields.map(strictEquipmentKey);
+    var result = { positive: false, negative: false };
+    Object.keys(row).forEach(function (key) {
+      if (expected.indexOf(strictEquipmentKey(key)) === -1) { return; }
+      var evidence = strictEquipmentEvidence(row[key], policy);
+      result.positive = result.positive || evidence.positive;
+      result.negative = result.negative || evidence.negative;
+    });
+    return result;
+  }
+
+  function strictEnergyPresence(value) {
+    var result = { bev: false, other: false };
+    splitDisplaySegments(value).forEach(function (part) {
+      part.split(/[\/／]/).forEach(function (piece) {
+        var token = String(canonicalEnergyValue(piece)).replace(/\s+/g, "").toLowerCase();
+        if (!token) { return; }
+        if (/增程|插电|插混|油电|混动|汽油|燃油|柴油|48v|轻混|氢|燃料电池|phev|erev|hev|ice/.test(token)) {
+          result.other = true;
+        } else if (/纯电|bev/.test(token)) {
+          result.bev = true;
+        }
+      });
+    });
+    return result;
+  }
+
   function conditionMatches(row, condition) {
     if (condition.type === "range") {
       var filter = state.rangeFilters[condition.id] || {};
@@ -1021,6 +1080,29 @@
     if (isFeatureCondition(condition)) {
       if (!state.featureFilters[condition.id]) {
         return true;
+      }
+      if (condition.id === "sentry_mode") {
+        var sentry = strictEquipmentFieldEvidence(row, condition.fields || [], {});
+        return sentry.positive && !sentry.negative;
+      }
+      if (condition.id === "tire_pressure_display") {
+        var genericFields = condition.genericFields || [];
+        var dedicatedFields = (condition.fields || []).filter(function (field) {
+          return genericFields.indexOf(field) === -1;
+        });
+        var dedicated = strictEquipmentFieldEvidence(row, dedicatedFields, { acceptExplicitValue: "胎压显示" });
+        var generic = strictEquipmentFieldEvidence(row, genericFields, { requireExplicitValue: "胎压显示" });
+        var tire = {
+          positive: dedicated.positive || generic.positive,
+          negative: dedicated.negative || generic.negative
+        };
+        return tire.positive && !tire.negative;
+      }
+      if (condition.id === "bev_heat_pump") {
+        var energy = strictEnergyPresence(row["能源类型"] || row["燃料形式"]);
+        if (!energy.bev && energy.other) { return true; }
+        var heatPump = strictEquipmentFieldEvidence(row, condition.fields || [], {});
+        return heatPump.positive && !heatPump.negative;
       }
       var fields = condition.fields || [];
       var keywords = condition.keywords || [];
