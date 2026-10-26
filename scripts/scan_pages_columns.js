@@ -12,9 +12,12 @@
  *   3. 对每个扫描到的列名执行归并：
  *        - 命中别名映射（config/column_header_aliases.json column→canonical，
  *          docs/filter_conditions.json columnAliases canonical→[alias]）→ alias→canonical
- *        - 命中显式声明的规范列 → 已归并；历史仅用于首次通知去重
- *        - 未命中 → 新增待归并（输出到报告，供 AI 修复链自发现新列名/未归并列名）
- *   4. 输出 JSON 报告（stdout + 可选文件）；严格模式下数据或历史读写失败阻断部署。
+ *        - 命中 filter_conditions.json 明确声明的列名（defaultVisibleColumns、
+ *          conditions[].field/fields、filterTaxonomy[].sections[].columns）→ 已归并
+ *        - 未命中 → 待审证据，进入完整 pendingColumns 队列；历史仅用于首次通知去重，
+ *          永远不能把未知列批准为规范
+ *   4. 输出 JSON 报告（stdout + 可选文件），带 inputSha256 / knowledgeSources 供评审绑定；
+ *      严格模式下数据、历史或知识库读写/结构失败一律阻断部署。
  *   5. Pages URL 不写死：--url 显式指定，否则依次取 env PAGES_URL/GITHUB_PAGES_URL、
  *      GitHub API（repos/{owner}/{repo}/pages html_url）、{owner}.github.io/{repo}/ 推导。
  *
@@ -28,8 +31,22 @@
  *           GITHUB_REPOSITORY（owner/repo）用于 API 查询/推导 Pages 域名。
  */
 const fs = require("node:fs");
+const crypto = require("node:crypto");
 const path = require("node:path");
 const { execFileSync, spawnSync } = require("node:child_process");
+
+// pending 列 id 的 schema 版本：只绑定「版本 + 精确列名」，不含时间/样本，便于跨轮去重
+const PENDING_ID_SCHEMA = "pages-column-scan/pending/v1";
+const SAMPLE_MAX_CHARS = 120;
+const IDENTITY_FIELDS = ["品牌", "车系", "车型名称", "车款ID", "年款"];
+
+function sha256Hex(input) {
+  return crypto.createHash("sha256").update(input).digest("hex");
+}
+
+function isNonEmptyString(v) {
+  return typeof v === "string" && v.trim() !== "";
+}
 
 // ---- 参数解析 ----
 const args = process.argv.slice(2);
@@ -59,9 +76,12 @@ function resolvePagesUrl() {
     // 1) API 查询（自定义域名优先）
     try {
       const token = process.env.GITHUB_TOKEN;
-      const curlArgs = ["-fsSL", "--max-time", "15", "https://api.github.com/repos/" + repo + "/pages"];
-      if (token) curlArgs.unshift("-H", "Authorization: Bearer " + token);
-      const out = execFileSync("curl", curlArgs, { encoding: "utf8", timeout: 20000 });
+      if (token && /[\x00-\x1f\x7f]/.test(token)) throw new Error("Invalid credential characters");
+      const curlArgs = ["--disable", "--config", "-", "-fsSL", "--max-time", "15",
+        "https://api.github.com/repos/" + repo + "/pages"];
+      // 凭据仅经 stdin 传给 curl；禁止放进 URL/进程参数或临时文件。
+      const input = token ? "header = " + JSON.stringify("Authorization: Bearer " + token) + "\n" : "";
+      const out = execFileSync("curl", curlArgs, { encoding: "utf8", timeout: 20000, input });
       const htmlUrl = JSON.parse(out).html_url;
       if (htmlUrl) return htmlUrl.replace(/\/+$/, "") + "/";
     } catch (_) { /* API 失败走推导 */ }
@@ -151,40 +171,149 @@ function extractHeadersFromDom(dom) {
 }
 
 // ---- 归并知识库 ----
-function loadMergeKnowledge(repoRoot, historyPath) {
+// 只收录「配置文件里明确声明的列名」：
+//   1. config/column_header_aliases.json 的 aliases[].column（显式别名，优先级最高）
+//   2. docs/filter_conditions.json 的 columnAliases（canonical → [alias]）
+//   3. docs/filter_conditions.json 明确声明的列名：defaultVisibleColumns、
+//      conditions[].field / conditions[].fields[]、filterTaxonomy[].sections[].columns[]
+// 明确不收录：label / id / columnPatterns / genericFields / hiddenByDefault /
+//             dropIfUniformPositive / 首行键 / 历史 seenColumns（这些都不是「列名声明」）
+function readKnowledgeFile(repoRoot, relPath, strict) {
+  const abs = path.join(repoRoot, relPath);
+  const src = { path: relPath, status: "missing", sha256: null, bytes: 0 };
+  if (!fs.existsSync(abs)) return { src, parsed: null };
+  let buf;
+  try {
+    buf = fs.readFileSync(abs);
+  } catch (e) {
+    src.status = "invalid";
+    src.error = `读取失败: ${e.message}`;
+    if (strict) throw new Error(`--require-data: 读取知识库 ${relPath} 失败: ${e.message}`);
+    process.stderr.write(`[scan] 读取 ${relPath} 失败: ${e.message}\n`);
+    return { src, parsed: null };
+  }
+  src.sha256 = sha256Hex(buf);
+  src.bytes = buf.length;
+  try {
+    const parsed = JSON.parse(buf.toString("utf8"));
+    src.status = "ok";
+    return { src, parsed };
+  } catch (e) {
+    src.status = "invalid";
+    src.error = `JSON 解析失败: ${e.message}`;
+    if (strict) throw new Error(`--require-data: 知识库 ${relPath} 不是合法 JSON: ${e.message}`);
+    process.stderr.write(`[scan] 读取 ${abs} 失败: ${e.message}\n`);
+    return { src, parsed: null };
+  }
+}
+
+// 校验并收集「显式列名声明」；结构不符即抛错（strict 由调用方决定是否中止）
+function collectDeclaredColumns(fc, fail) {
+  const declared = new Set();
+  const addList = (value, where) => {
+    if (value === undefined) return;
+    if (!Array.isArray(value)) fail(`${where} 必须是字符串数组`);
+    for (const item of value) {
+      if (!isNonEmptyString(item)) fail(`${where} 含非字符串或空白列名: ${JSON.stringify(item)}`);
+      declared.add(item);
+    }
+  };
+  if (fc === null || typeof fc !== "object" || Array.isArray(fc)) fail("filter_conditions 顶层必须是对象");
+  addList(fc.defaultVisibleColumns, "defaultVisibleColumns");
+  if (fc.conditions !== undefined) {
+    if (!Array.isArray(fc.conditions)) fail("conditions 必须是数组");
+    fc.conditions.forEach((cond, i) => {
+      if (!cond || typeof cond !== "object" || Array.isArray(cond)) fail(`conditions[${i}] 必须是对象`);
+      if (cond.field !== undefined) addList([cond.field], `conditions[${i}].field`);
+      addList(cond.fields, `conditions[${i}].fields`);
+    });
+  }
+  if (fc.filterTaxonomy !== undefined) {
+    if (!Array.isArray(fc.filterTaxonomy)) fail("filterTaxonomy 必须是数组");
+    fc.filterTaxonomy.forEach((tax, i) => {
+      if (!tax || typeof tax !== "object" || Array.isArray(tax)) fail(`filterTaxonomy[${i}] 必须是对象`);
+      if (tax.sections === undefined) return;
+      if (!Array.isArray(tax.sections)) fail(`filterTaxonomy[${i}].sections 必须是数组`);
+      tax.sections.forEach((sec, k) => {
+        if (!sec || typeof sec !== "object" || Array.isArray(sec)) fail(`filterTaxonomy[${i}].sections[${k}] 必须是对象`);
+        addList(sec.columns, `filterTaxonomy[${i}].sections[${k}].columns`);
+      });
+    });
+  }
+  if (fc.columnAliases !== undefined) {
+    const ca = fc.columnAliases;
+    if (!ca || typeof ca !== "object" || Array.isArray(ca)) fail("columnAliases 必须是对象");
+    for (const [canonical, aliases] of Object.entries(ca)) {
+      if (!isNonEmptyString(canonical)) fail("columnAliases 含空 canonical");
+      addList(aliases, `columnAliases[${canonical}]`);
+    }
+  }
+  return declared;
+}
+
+function collectAliasEntries(cfg, fail) {
+  if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) fail("别名文件顶层必须是对象");
+  if (!Array.isArray(cfg.aliases)) fail("别名文件缺少 aliases 数组");
+  const entries = [];
+  cfg.aliases.forEach((item, i) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) fail(`aliases[${i}] 必须是对象`);
+    if (!isNonEmptyString(item.column)) fail(`aliases[${i}].column 必须是非空字符串`);
+    if (!isNonEmptyString(item.canonical)) fail(`aliases[${i}].canonical 必须是非空字符串`);
+    entries.push(item);
+  });
+  return entries;
+}
+
+function loadMergeKnowledge(repoRoot, historyPath, strict) {
   const kb = {
     aliasToCanonical: new Map(), // 别名列 -> 规范列
     knownColumns: new Set(),     // 显式知识库中的规范列与别名
     rawCanonicals: [],           // 知识库中声明的规范列（不含常规列骨架）
     staleCandidates: [],         // 别名条目（column, canonical, evidence）
+    sources: {},                 // 实际读取的配置原字节 hash
+    errors: [],                  // 宽松模式下的知识库问题（不得据此自称完整）
     raw: null,
   };
+  const fail = (relPath) => (msg) => {
+    const err = new Error(`--require-data: 知识库 ${relPath} 结构非法: ${msg}`);
+    err.knowledgePath = relPath;
+    throw err;
+  };
   // 1. config/column_header_aliases.json（AI 修复链维护的别名映射）
-  const aliasPath = path.join(repoRoot, "config", "column_header_aliases.json");
-  if (fs.existsSync(aliasPath)) {
+  const aliasRel = "config/column_header_aliases.json";
+  const aliasRead = readKnowledgeFile(repoRoot, aliasRel, strict);
+  kb.sources[aliasRel] = aliasRead.src;
+  if (aliasRead.src.status === "ok") {
     try {
-      const cfg = JSON.parse(fs.readFileSync(aliasPath, "utf8"));
-      kb.raw = cfg;
-      for (const item of cfg.aliases || []) {
-        if (item.column && item.canonical) {
-          kb.aliasToCanonical.set(item.column, item.canonical);
-          kb.knownColumns.add(item.column);
-          kb.knownColumns.add(item.canonical);
-          kb.rawCanonicals.push(item.canonical);
-          kb.staleCandidates.push({ column: item.column, canonical: item.canonical, evidence: item.evidence || "" });
-        }
+      const entries = collectAliasEntries(aliasRead.parsed, fail(aliasRel));
+      kb.raw = aliasRead.parsed;
+      for (const item of entries) {
+        kb.aliasToCanonical.set(item.column, item.canonical);
+        kb.knownColumns.add(item.column);
+        kb.knownColumns.add(item.canonical);
+        kb.rawCanonicals.push(item.canonical);
+        kb.staleCandidates.push({ column: item.column, canonical: item.canonical, evidence: item.evidence || "" });
       }
     } catch (e) {
-      console.error(`[scan] 读取 ${aliasPath} 失败: ${e.message}`);
+      if (strict) throw e;
+      aliasRead.src.status = "invalid";
+      aliasRead.src.error = e.message;
+      kb.errors.push({ path: aliasRel, error: e.message });
+      process.stderr.write(`[scan] ${aliasRel} 结构非法: ${e.message}\n`);
     }
+  } else if (aliasRead.src.status === "invalid") {
+    kb.errors.push({ path: aliasRel, error: aliasRead.src.error });
   }
-  // 2. docs/filter_conditions.json columnAliases (canonical -> [alias])
-  const fcPath = path.join(repoRoot, "docs", "filter_conditions.json");
-  if (fs.existsSync(fcPath)) {
+  // 2. docs/filter_conditions.json：columnAliases + 明确声明的列名
+  const fcRel = "docs/filter_conditions.json";
+  const fcRead = readKnowledgeFile(repoRoot, fcRel, strict);
+  kb.sources[fcRel] = fcRead.src;
+  if (fcRead.src.status === "ok") {
     try {
-      const fc = JSON.parse(fs.readFileSync(fcPath, "utf8"));
-      const ca = fc.columnAliases || {};
-      for (const [canonical, aliases] of Object.entries(ca)) {
+      const fc = fcRead.parsed;
+      const declared = collectDeclaredColumns(fc, fail(fcRel));
+      for (const col of declared) kb.knownColumns.add(col);
+      for (const [canonical, aliases] of Object.entries(fc.columnAliases || {})) {
         kb.knownColumns.add(canonical);
         kb.rawCanonicals.push(canonical);
         for (const a of aliases || []) {
@@ -193,11 +322,69 @@ function loadMergeKnowledge(repoRoot, historyPath) {
         }
       }
     } catch (e) {
-      console.error(`[scan] 读取 ${fcPath} 失败: ${e.message}`);
+      if (strict) throw e;
+      fcRead.src.status = "invalid";
+      fcRead.src.error = e.message;
+      kb.errors.push({ path: fcRel, error: e.message });
+      process.stderr.write(`[scan] ${fcRel} 结构非法: ${e.message}\n`);
     }
+  } else if (fcRead.src.status === "invalid") {
+    kb.errors.push({ path: fcRel, error: fcRead.src.error });
   }
   // 见过的列不代表已完成映射；历史去重在 newColumns 计算时单独执行。
   return kb;
+}
+
+// ---- pending 队列（完整待审证据，不截断）----
+// 每条都只是「待审证据」：status 恒为 pending_review，不携带任何批准/映射/隐藏标记。
+function buildPendingColumns(unmapped, rows, source) {
+  const byColumn = new Map();
+  for (const col of unmapped) {
+    byColumn.set(col, { occurrences: 0, nonEmptyCount: 0, samples: [], seen: new Set() });
+  }
+  rows.forEach((row, rowIndex) => {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return;
+    const identity = {};
+    for (const f of IDENTITY_FIELDS) {
+      if (row[f] !== undefined && row[f] !== null && String(row[f]).trim() !== "") identity[f] = String(row[f]);
+    }
+    for (const [col, stat] of byColumn) {
+      if (!Object.prototype.hasOwnProperty.call(row, col)) continue;
+      stat.occurrences += 1;
+      const raw = row[col];
+      const jsonValue = JSON.stringify(raw);
+      const value = raw === null || raw === undefined ? "" :
+        typeof raw === "string" ? raw : jsonValue;
+      if (value.trim() === "") continue;
+      stat.nonEmptyCount += 1;
+      if (stat.samples.length >= 3 || stat.seen.has(jsonValue)) continue;
+      stat.seen.add(jsonValue);
+      const chars = [...value];
+      const truncated = chars.length > SAMPLE_MAX_CHARS;
+      stat.samples.push({
+        rowIndex,
+        value: truncated ? chars.slice(0, SAMPLE_MAX_CHARS).join("") : value,
+        truncated,
+        originalLength: chars.length,
+        valueSha256: sha256Hex(value), // 未截断展示文本；原 JSON 类型另行绑定
+        valueType: Array.isArray(raw) ? "array" : typeof raw,
+        jsonValueSha256: sha256Hex(jsonValue), // 区分数字/字符串与不同嵌套对象
+        dataSource: row["数据来源"] === undefined ? null : row["数据来源"],
+        identity,
+      });
+    }
+  });
+  return [...byColumn.entries()]
+    .sort((a, b) => Buffer.compare(Buffer.from(a[0], "utf8"), Buffer.from(b[0], "utf8")))
+    .map(([column, stat]) => ({
+      id: sha256Hex(`${PENDING_ID_SCHEMA}\n${column}`),
+      column,
+      status: "pending_review",
+      source,
+      occurrences: stat.occurrences,
+      nonEmptyCount: stat.nonEmptyCount,
+      samples: stat.samples,
+    }));
 }
 
 // ---- 归并扫描 ----
@@ -235,7 +422,8 @@ async function main() {
   }
   const startedAt = new Date().toISOString();
   const pagesUrl = REQUIRE_DATA ? "" : resolvePagesUrl();
-  const kb = loadMergeKnowledge(REPO_ROOT, HISTORY_PATH);
+  // 知识库先行：严格模式下坏 JSON/坏结构必须在此中止，不得写历史或覆盖报告
+  const kb = loadMergeKnowledge(REPO_ROOT, HISTORY_PATH, REQUIRE_DATA);
   let dom = null;
   let browserUsed = null;
 
@@ -265,6 +453,8 @@ async function main() {
   let regularColumns = []; // 首行键（每行都有的常规列）
   let rowCount = 0;
   let dataSource = "";
+  let inputSha256 = null;  // 实际本地输入的原字节 hash（未做任何规范化）
+  let rowsForEvidence = [];
   function collectColumns(rows) {
     const keys = new Set();
     for (let i = 0; i < rows.length; i += 1) {
@@ -275,7 +465,9 @@ async function main() {
   }
   if (DATA_PATH && fs.existsSync(DATA_PATH)) {
     try {
-      const d = JSON.parse(fs.readFileSync(DATA_PATH, "utf8"));
+      const dataBuf = fs.readFileSync(DATA_PATH);
+      inputSha256 = sha256Hex(dataBuf);
+      const d = JSON.parse(dataBuf.toString("utf8"));
       const rows = Array.isArray(d) ? d : d.rows || d.data || [];
       if (REQUIRE_DATA && (!Array.isArray(rows) || rows.some((row) =>
         !row || typeof row !== "object" || Array.isArray(row)))) {
@@ -286,6 +478,7 @@ async function main() {
         regularColumns = Object.keys(rows[0]);
         dataColumns = collectColumns(rows);
       }
+      rowsForEvidence = rows;
       dataSource = DATA_PATH;
     } catch (e) {
       console.error(`[scan] 读取 ${DATA_PATH} 失败: ${e.message}`);
@@ -299,6 +492,7 @@ async function main() {
       const raw = execFileSync("curl", ["-fsSL", "--max-time", "60", pagesUrl + "data/latest.json"], {
         encoding: "utf8", timeout: 70000, maxBuffer: 128 * 1024 * 1024,
       });
+      inputSha256 = sha256Hex(Buffer.from(raw, "utf8"));
       const d = JSON.parse(raw);
       const rows = Array.isArray(d) ? d : d.rows || d.data || [];
       rowCount = rows.length;
@@ -306,6 +500,7 @@ async function main() {
         regularColumns = Object.keys(rows[0]);
         dataColumns = collectColumns(rows);
       }
+      rowsForEvidence = rows;
       dataSource = pagesUrl + "data/latest.json";
     } catch (e) {
       console.error(`[scan] 拉取线上数据失败: ${e.message}`);
@@ -332,6 +527,8 @@ async function main() {
   }
   const result = mergeScan(scanColumns, regularColumns, kb, historyKnown);
   const newColumns = result.unmapped.filter((c) => !historyKnown.has(c));
+  // 完整待审队列：覆盖每一个 unmapped 列，不截断、按列名排序，可跨轮去重
+  const pendingColumns = buildPendingColumns(result.unmapped, rowsForEvidence, dataSource || "unknown");
 
   // 更新历史记录（本次扫描到的列名全部入历史）
   try {
@@ -345,6 +542,7 @@ async function main() {
         mappedCount: result.canonicalHits.length + result.aliasHits.length,
         newColumns: newColumns,
       },
+      pendingColumns: pendingColumns.map((i) => i.column),
     };
     fs.mkdirSync(path.dirname(histPath), { recursive: true });
     fs.writeFileSync(histPath, JSON.stringify(hist, null, 2), "utf8");
@@ -366,10 +564,16 @@ async function main() {
     totalScanned: scanColumns.length,
     mappedCount: result.canonicalHits.length + result.aliasHits.length,
     aliasMappedCount: result.aliasHits.length,
-    newColumns: newColumns.slice(0, 200),     // 本次新出现的未归并列名（持续扫描的核心产出，限长）
+    inputSha256: inputSha256,                 // 实际本地输入原字节 hash（本报告未做任何再采集）
+    knowledgeSources: kb.sources,             // 实际读取的配置原字节 hash（缺失/非法明确标注）
+    knowledgeErrors: kb.errors,               // 宽松模式下的知识库问题；非空即不可称完整
+    complete: kb.errors.length === 0,         // 仅表示知识库读取完整，不代表已闭环修复
+    newColumns: newColumns.slice(0, 200),     // 本次新出现的未归并列名（兼容字段，限长）
     newColumnsTotal: newColumns.length,
     unmappedCount: result.unmapped.length,
-    unmapped: result.unmapped.slice(0, 200),  // 未被显式知识库覆盖；完整集合保存在历史文件
+    unmapped: result.unmapped.slice(0, 200),  // 兼容字段；完整集合见 pendingColumns
+    pendingCount: pendingColumns.length,
+    pendingColumns: pendingColumns,           // 完整待审证据队列（不截断，按列名排序）
     aliasHits: result.aliasHits,              // 命中别名映射的归并记录
     foldedAliases: result.folded,             // 知识库中已不在数据列出现的别名（已被 publish 折叠，可清理）
     domHeadersOnly: domHeaders.filter((c) => !dataColumns.includes(c)),
@@ -383,15 +587,16 @@ async function main() {
   }
   // 汇总到 stderr（不污染 stdout 的 JSON）
   console.error(
-    `[scan] 扫描列名 ${report.totalScanned} 个：规范命中 ${report.mappedCount - report.aliasMappedCount}，别名归并 ${report.aliasMappedCount}，新增未归并 ${report.newColumns.length}，已折叠别名 ${report.foldedAliases.length}`
+    `[scan] 扫描列名 ${report.totalScanned} 个：规范命中 ${report.mappedCount - report.aliasMappedCount}，别名归并 ${report.aliasMappedCount}，新增未归并 ${report.newColumnsTotal}，待审 ${report.pendingCount}，已折叠别名 ${report.foldedAliases.length}`
   );
   if (report.newColumns.length > 0) {
     console.error(`[scan] 新增列名（待归并）: ${report.newColumns.join(" | ")}`);
   }
-  process.exit(0);
+  // 用 exitCode 而非 process.exit：报告可能很大，立即退出会截断管道中的 stdout
+  process.exitCode = 0;
 }
 
 main().catch((e) => {
   console.error(`[scan] 失败: ${e.message}`);
-  process.exit(1);
+  process.exitCode = 1;
 });
