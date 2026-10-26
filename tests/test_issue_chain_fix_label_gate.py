@@ -30,6 +30,8 @@ import copy
 import os
 import pathlib
 import re
+import shutil
+import subprocess
 
 import yaml
 
@@ -221,3 +223,113 @@ def test_red_sample_foreign_variable_turns_red():
     except AssertionError:
         return
     raise AssertionError("借别变量的绿没被抓 ⇒ 判据无效")
+
+
+# ---------------------------------------------------------------------------
+# 行为回归：从 CFG 取出**当前**闸脚本，用真实 POSIX shell 跑，按
+# CNB_ISSUE_LABELS（官方定义：逗号分隔的名称列表）判定 RUN/SKIP。
+# 期望独立写成“按逗号分隔后是否有恰好等于 fix 的名称”，不复用被测脚本的判据。
+# ---------------------------------------------------------------------------
+
+def _gate_script():
+    gate = _find(_all_stages(CFG), GATE_NAME)
+    assert gate is not None, "issue 链里没有名为 %s 的闸" % GATE_NAME
+    script = _script(gate)
+    assert script.strip(), "%s 的 script 是空的" % GATE_NAME
+    return script
+
+
+def _posix_shell():
+    if os.name == "nt":
+        candidates = [
+            pathlib.Path(r"C:\Program Files\Git\bin\bash.exe"),
+            pathlib.Path(r"C:\Program Files\Git\usr\bin\sh.exe"),
+            pathlib.Path(r"C:\Program Files (x86)\Git\bin\bash.exe"),
+        ]
+        found = [str(p) for p in candidates if p.is_file()]
+        if not found:
+            bash = shutil.which("bash")
+            if bash:
+                found.append(bash)
+    else:
+        found = [p for p in (shutil.which("sh"), shutil.which("bash")) if p]
+    assert found, (
+        "找不到 POSIX shell：Windows 需要已安装的 Git bash，Linux 需要 sh/bash；"
+        "本测试不允许 skip，缺少 shell 直接判失败")
+    return found[0]
+
+
+def _run_gate(script, labels, cwd):
+    env = dict(os.environ)
+    env.pop("CNB_ISSUE_LABELS", None)
+    if labels is not None:
+        env["CNB_ISSUE_LABELS"] = labels
+    proc = subprocess.run(
+        [_posix_shell(), "-c", script],
+        cwd=str(cwd),
+        env=env,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+    )
+    assert proc.returncode == 0, (
+        "闸脚本非零退出：stdout=%r stderr=%r" % (proc.stdout, proc.stderr))
+    return proc.stdout
+
+
+def _decision(stdout):
+    got = re.findall(r"##\[set-output\s+fix_gate=(RUN|SKIP)\]", stdout)
+    assert len(got) == 1, "期望恰好一条 fix_gate set-output，实际 stdout=%r" % stdout
+    return got[0]
+
+
+def _assert_gate(labels, expected, cwd):
+    decision = _decision(_run_gate(_gate_script(), labels, cwd))
+    assert decision == expected, (
+        "CNB_ISSUE_LABELS=%r 时闸判为 %s，期望 %s（逗号分隔名称中是否有恰好 fix）"
+        % (labels, decision, expected))
+
+
+def test_actual_gate_skips_missing_and_empty_labels(tmp_path):
+    """空/missing 都是无标签：missing 不设变量，empty 设为空串，均 SKIP。"""
+    _assert_gate(None, "SKIP", tmp_path)
+    _assert_gate("", "SKIP", tmp_path)
+
+
+def test_actual_gate_skips_triage_only(tmp_path):
+    """triage 不是 fix。"""
+    _assert_gate("triage", "SKIP", tmp_path)
+
+
+def test_actual_gate_runs_for_exact_fix(tmp_path):
+    """恰好 fix 才 RUN。"""
+    _assert_gate("fix", "RUN", tmp_path)
+
+
+def test_actual_gate_runs_for_fix_member_in_csv(tmp_path):
+    """逗号分隔列表中任一名称恰好是 fix 即 RUN，与位置无关。"""
+    _assert_gate("triage,fix", "RUN", tmp_path)
+    _assert_gate("fix,urgent", "RUN", tmp_path)
+
+
+def test_actual_gate_skips_near_miss_names(tmp_path):
+    """prefix/hotfix/fixme/not-fix/fix-disabled 都只是包含 fix 子串，不是成员 fix。"""
+    for labels in ("prefix", "hotfix", "fixme", "not-fix", "fix-disabled"):
+        _assert_gate(labels, "SKIP", tmp_path)
+
+
+def test_actual_gate_treats_injection_style_labels_as_data(tmp_path):
+    """注入样式标签只能作为 DATA 参与比较，不得被 shell 执行。"""
+    marker = tmp_path / "gate-was-executed"
+    labels = "fix; touch gate-was-executed,$(touch gate-was-executed)"
+    out = _run_gate(_gate_script(), labels, tmp_path)
+    assert _decision(out) == "SKIP", (
+        "含分号/命令替换的标签不是恰好 fix，应为 SKIP；stdout=%r" % out)
+    assert not marker.exists(), "标签内容被 shell 执行了：出现 %s" % marker
+
+    marker2 = tmp_path / "gate-was-executed-2"
+    out = _run_gate(_gate_script(), "fix,$(touch gate-was-executed-2)", tmp_path)
+    assert _decision(out) == "RUN", (
+        "存在恰好 fix 成员时应 RUN；stdout=%r" % out)
+    assert not marker2.exists(), "RUN 分支把兄弟标签当命令执行了：出现 %s" % marker2

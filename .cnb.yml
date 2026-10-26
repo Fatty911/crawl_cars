@@ -1638,12 +1638,15 @@ $:
         # 禁止退回 `|| exit 0` 之类吞失败的恒通过形状。
         - name: 检查fix标签
           script: |
-            if echo "$CNB_ISSUE_LABELS" | grep -q 'fix'; then
-              echo "##[set-output fix_gate=RUN]"
-            else
-              echo "##[set-output fix_gate=SKIP]"
-              echo "Issue 无 fix 标签：本轮不派发 NPC（下游段显示为 skipped，而不是跑了却什么都不做）"
-            fi
+            case ",${CNB_ISSUE_LABELS:-}," in
+              *,fix,*)
+                echo "##[set-output fix_gate=RUN]"
+                ;;
+              *)
+                echo "##[set-output fix_gate=SKIP]"
+                echo "Issue 无 fix 标签：本轮不派发 NPC（下游段显示为 skipped，而不是跑了却什么都不做）"
+                ;;
+            esac
           exports:
             fix_gate: NPC_FIX_GATE
         # 默认构建镜像无 python：14 次 issue 运行里 agent 跑不了任何判据，只能读代码。
