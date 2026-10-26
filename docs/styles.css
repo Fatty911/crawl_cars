@@ -1215,6 +1215,34 @@ tbody tr:hover td {
 .condition-major-group > h3 { font-size: 15px; margin: 0 0 10px; }
 .condition-minor-group { border-top: 1px solid #e2e9ed; padding: 8px 0; }
 .condition-minor-group > h4 { color: #526875; font-size: 13px; margin: 0 0 6px; }
+/* Desktop core filters: content-height columns instead of stretched cards. */
+@media (min-width: 721px) {
+  #centerConditionList { display: block; column-width: 280px; column-gap: 12px; }
+  #centerConditionList > .condition-major-group {
+    display: inline-block;
+    vertical-align: top;
+    break-inside: avoid;
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 8px 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  #centerConditionList > .condition-major-group:last-child { border-bottom: 0; padding-bottom: 0; }
+  #centerConditionList > .condition-major-group > h3 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  #centerConditionList .condition-minor-group { min-width: 0; padding: 0; margin-bottom: 6px; border: 0; }
+  #centerConditionList .condition-minor-group > h4 { margin: 0 0 4px; font-size: 12px; }
+  #centerConditionList .center-condition-item { max-width: 100%; flex-wrap: wrap; margin: 0 6px 4px 0; gap: 5px; }
+  #centerConditionList .center-condition-item > label { min-height: 32px; padding: 5px 8px; }
+  #centerConditionList .center-range-inputs input { width: 64px; min-height: 30px; padding: 4px 6px; }
+}
 .column-list { display: block; }
 .column-major-group { border-bottom: 1px solid #e1e9ed; padding-bottom: 10px; }
 .column-major-group > h3 { font-size: 14px; color: #243d4a; margin: 12px 0 6px; }
