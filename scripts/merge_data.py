@@ -17481,7 +17481,9 @@ def _collapse(rows: list, key_fn, accept=None, *, _observe_merge=None) -> list:
         # 这一档回填只是把已经存在的真实值搬到它该在的位置；≥2 个互异候选的 21 格（集中在 `远程启动`）
         # 一律留空：在两个都成立过的值里挑一个写成事实，比留一个空白更难被用户发现。
         # 身份列不参与——它们各有各的保留规则（品牌还要过 `has_chinese` 发布门禁）。
-        for col in {k for row in group for k in row}:
+        # 列集合原来直接遍历 set ⇒ 顺序随 PYTHONHASHSEED 漂移，回填先后决定新增键的插入序，
+        # 同一输入会产出不同键序（乃至不同取值）。排序后遍历：只定顺序，不改任何候选/冲突判据。
+        for col in sorted({k for row in group for k in row}, key=str):
             if col in _MERGE_IDENTITY_COLS or not _cell_blank(base.get(col)):
                 continue
             # X6（10-18 hy4 黑箱票的阻断件，构造面已复现）：簇里没有 approved 易车行时上面会把

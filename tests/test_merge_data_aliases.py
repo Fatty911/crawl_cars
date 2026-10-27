@@ -218,3 +218,203 @@ def test_single_screen_field_without_collision_stays_verbatim() -> None:
         assert merged["品牌"] == "奔驰"
         normalized = normalize_publish_row_headers({column: value})
         assert normalized == {normalize_audited_publish_header(column): value}
+
+
+import copy
+
+from scripts.merge_data import _collapse, dedupe_merged_rows
+
+FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "merge_alias_real_peer_cluster_20261015.json"
+
+# 子进程内固定调用链：真实 18 行 fixture → 生产 dedupe_merged_rows → normalize_publish_row_headers。
+_FULLPATH_PROBE = """
+import json, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from scripts.merge_data import dedupe_merged_rows
+from scripts.prepare_pages_payload import normalize_publish_row_headers
+
+rows = json.loads(Path(sys.argv[2]).read_bytes())
+merged = dedupe_merged_rows(rows)
+normalized = [normalize_publish_row_headers(r) if isinstance(r, dict) else r for r in merged]
+# 键序另列一份：sort_keys=True 只整理对象键，值里的 "●|11.9" 原子串一字不动。
+print(json.dumps({"n_input": len(rows), "n_merged": len(merged), "rows": normalized,
+                  "key_orders": [list(r) for r in normalized]},
+                 ensure_ascii=False, sort_keys=True))
+"""
+
+
+def _fullpath_probe(seed: str) -> dict:
+    env = dict(os.environ)
+    env["PYTHONHASHSEED"] = seed
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    proc = subprocess.run(
+        [sys.executable, "-B", "-c", _FULLPATH_PROBE, str(REPO_ROOT), str(FIXTURE_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=300,
+    )
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout)
+
+
+def test_real_peer_cluster_full_path_signature_is_identical_across_hash_seeds() -> None:
+    # 真实 18 peer 输入：dedupe_merged_rows 全路径 + 发布列归一，跨哈希种子必须逐行逐值一致。
+    signatures = {seed: _fullpath_probe(seed) for seed in ("1", "3")}
+    # 12 行逐行逐值 + 逐行键序都要一致（键序漂移同样算不确定输出）。
+    rendered = {seed: json.dumps([p["rows"], p["key_orders"]], ensure_ascii=False, sort_keys=True)
+                for seed, p in signatures.items()}
+    assert len(set(rendered.values())) == 1, rendered
+    signature = signatures["1"]
+    assert signature["n_input"] == 18, signature["n_input"]
+    assert signature["n_merged"] == 12, signature["n_merged"]
+    ids = {str(r.get("车款ID") or "").strip() for r in signature["rows"]} - {"", "-"}
+    assert len(ids) == 12, sorted(ids)
+
+_COLLAPSE_SEED_PROBE = """
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from scripts.merge_data import _collapse
+rows = json.loads(sys.argv[2])
+out = _collapse(rows, lambda r: ("unit",))
+print(json.dumps({"keys": list(out[0]), "screen": out[0].get("中控屏幕尺寸"),
+                  "row": out[0]}, ensure_ascii=False, sort_keys=True))
+"""
+
+_REAL_TARGET_IDS = ("181357", "181359", "181360", "185491", "189115")
+
+
+def _fixture_rows() -> list:
+    return json.loads(FIXTURE_PATH.read_bytes())
+
+
+def test_real_peer_fixture_input_untouched_and_identity_columns_kept() -> None:
+    raw = _fixture_rows()
+    snapshot = copy.deepcopy(raw)
+    assert len(raw) == 18
+    merged = dedupe_merged_rows(raw)
+    # 输入行按原字节内容不变（折叠返回新列表，不得就地改写）。
+    assert raw == snapshot
+    expected = {str(r.get("车款ID")).strip(): (r.get("年款"), r.get("官方指导价"))
+                for r in snapshot if str(r.get("车款ID") or "").strip() not in ("", "-")}
+    assert len(expected) == 12
+    got = {str(r.get("车款ID")).strip(): (r.get("年款"), r.get("官方指导价"))
+           for r in merged if str(r.get("车款ID") or "").strip() not in ("", "-")}
+    # 12 个非空 SKU ID 一个不少，且 ID 自己的年款/价格身份没被邻居改写。
+    assert got == expected
+    assert len(merged) == 12
+
+
+def test_real_peer_screen_cells_are_text_with_both_atoms_kept() -> None:
+    merged = dedupe_merged_rows(_fixture_rows())
+    by_id = {str(r.get("车款ID")).strip(): r for r in merged}
+    for sku_id in _REAL_TARGET_IDS:
+        row = by_id[sku_id]
+        raw_cell = row["中控屏幕尺寸"]
+        assert type(raw_cell) is str, (sku_id, type(raw_cell))
+        assert raw_cell == "●", (sku_id, raw_cell)
+        normalized = normalize_publish_row_headers(row)["中控屏幕尺寸"]
+        assert type(normalized) is str, (sku_id, type(normalized))
+        assert sorted(normalized.split("|")) == ["11.9", "●"], (sku_id, normalized)
+        # 支持符号不得被当成测量值：整格无法按数值解析。
+        try:
+            float(normalized)
+        except ValueError:
+            pass
+        else:  # pragma: no cover - 只有回归才走这里
+            raise AssertionError(f"{sku_id} 把 ● 合成了数值: {normalized!r}")
+
+
+def test_real_peer_row_without_inch_source_does_not_invent_measurement() -> None:
+    merged = dedupe_merged_rows(_fixture_rows())
+    by_id = {str(r.get("车款ID")).strip(): r for r in merged}
+    # 185560 的源侧只有支持符号；不得凭空出现别行的英寸数值。
+    normalized = normalize_publish_row_headers(by_id["185560"])["中控屏幕尺寸"]
+    assert normalized == "●", normalized
+    assert "11.9" not in normalized
+
+
+def test_collapse_keeps_keeper_prefix_types_zero_and_stable_new_key_order() -> None:
+    keeper = {
+        "品牌": "测试品牌",
+        "车系": "测试车系",
+        "年款": "2026",
+        "官方指导价": "10.00万",
+        "数据来源": "汽车之家+懂车帝",
+        "中控屏幕尺寸": "●",
+        "纯电续航(km)": "0",
+    }
+    tail_a = {"数据来源": "懂车帝", "中控屏幕尺寸(英寸)": "11.9", "远程启动": "●", "HUD抬头显示": "○"}
+    tail_b = {"HUD抬头显示": "○", "远程启动": "●", "中控屏幕尺寸(英寸)": "11.9", "数据来源": "懂车帝"}
+    first = _collapse([dict(keeper), dict(tail_a)], lambda r: ("unit",))
+    second = _collapse([dict(keeper), dict(tail_b)], lambda r: ("unit",))
+    assert len(first) == 1 and len(second) == 1
+    prefix = list(keeper)
+    # 既有前缀（含空的/零值/类型）原样在前，逐值逐类型保留。
+    for out in (first[0], second[0]):
+        assert list(out)[: len(prefix)] == prefix, list(out)[: len(prefix)]
+    assert first[0]["中控屏幕尺寸"] == "●"
+    assert first[0]["纯电续航(km)"] == "0"
+    assert type(first[0]["纯电续航(km)"]) is str
+    assert first[0]["中控屏幕尺寸(英寸)"] == "11.9"
+    # 只改另一行键插入顺序 ⇒ 出口键序、值完全一致。
+    assert list(first[0]) == list(second[0])
+    assert first[0] == second[0]
+
+
+def test_collapse_backfills_single_real_candidate_only() -> None:
+    # keeper 这一格空着（不是显式否定 `-`，`-` 本身算一个候选），簇内恰好一个真实候选 ⇒ 回填。
+    keeper = {"车系": "测试车系", "数据来源": "汽车之家+懂车帝", "远程启动": ""}
+    single = _collapse(
+        [dict(keeper), {"数据来源": "懂车帝", "远程启动": "●"}], lambda r: ("unit",))
+    assert single[0]["远程启动"] == "●"
+    two = _collapse(
+        [dict(keeper), {"数据来源": "懂车帝", "远程启动": "●"},
+         {"数据来源": "汽车之家", "远程启动": "○"}],
+        lambda r: ("unit",))
+    # 两个互异候选 ⇒ 留空，不挑一个写成事实。
+    assert str(two[0].get("远程启动") or "").strip() == "", two[0].get("远程启动")
+    # keeper 自己写着显式否定时，另一行的 `●` 与之互异 ⇒ 仍是两个候选，不许改写成标配。
+    neg_keeper = _collapse(
+        [{"车系": "测试车系", "数据来源": "汽车之家+懂车帝", "远程启动": "-"},
+         {"数据来源": "懂车帝", "远程启动": "●"}], lambda r: ("unit",))
+    assert neg_keeper[0]["远程启动"] == "-"
+
+
+def test_collapse_merges_three_rows_deterministically_across_seeds() -> None:
+    rows = [
+        {"车系": "测试车系", "数据来源": "汽车之家+懂车帝", "中控屏幕尺寸": "●",
+         "中控屏幕尺寸(英寸)": "11.9", "远程启动": ""},
+        {"车系": "测试车系", "数据来源": "懂车帝", "中控屏幕尺寸": "11.9", "远程启动": "●"},
+        {"车系": "测试车系", "数据来源": "汽车之家", "HUD抬头显示": "○", "远程启动": "●"},
+    ]
+    signatures = set()
+    for seed in ("1", "3"):
+        env = dict(os.environ)
+        env["PYTHONHASHSEED"] = seed
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        proc = subprocess.run(
+            [sys.executable, "-B", "-c", _COLLAPSE_SEED_PROBE, str(REPO_ROOT),
+             json.dumps(rows, ensure_ascii=False)],
+            cwd=str(REPO_ROOT), env=env, capture_output=True, text=True,
+            encoding="utf-8", timeout=120,
+        )
+        assert proc.returncode == 0, proc.stderr
+        signatures.add(proc.stdout)
+    # 跨种子同一输入 ⇒ 同一键序、同一行内容（值里的原子串原样保留）。
+    assert len(signatures) == 1, signatures
+    rendered = json.loads(signatures.pop())
+    # keeper 这格本来就写着 `●` ⇒ 不被别行的 `11.9` 顶掉，也不被改写成数值。
+    assert rendered["row"]["中控屏幕尺寸"] == "●", rendered["row"]["中控屏幕尺寸"]
+    assert rendered["row"]["中控屏幕尺寸(英寸)"] == "11.9"
+    # keeper 既有键（含已存在的 `远程启动`）保持原序在前；唯一新增的键按排序追加在后。
+    assert rendered["keys"] == [
+        "车系", "数据来源", "中控屏幕尺寸", "中控屏幕尺寸(英寸)", "远程启动", "HUD抬头显示",
+    ], rendered["keys"]
+    assert rendered["row"]["远程启动"] == "●"
+    assert rendered["row"]["HUD抬头显示"] == "○"
