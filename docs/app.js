@@ -1665,12 +1665,13 @@
       if (previousMajor !== group.path.major) {
         majorCell = document.createElement("th");
         majorCell.scope = "colgroup";
-        majorCell.colSpan = 0;
+        majorCell.colSpan = group.columns.length;
         majorCell.textContent = group.path.major;
         majorRow.appendChild(majorCell);
         previousMajor = group.path.major;
+      } else {
+        majorCell.colSpan += group.columns.length;
       }
-      majorCell.colSpan += group.columns.length;
       var minorCell = document.createElement("th");
       minorCell.scope = "colgroup";
       minorCell.colSpan = group.columns.length;

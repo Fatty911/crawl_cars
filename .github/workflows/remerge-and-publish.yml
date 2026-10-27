@@ -86,6 +86,7 @@ jobs:
             tests/test_sku_dedupe_by_id.py \
             tests/test_pages_payload_audit.py \
             tests/test_pages_asset_readback.py \
+            tests/test_merge_data_aliases.py \
             tests/test_scan_pages_columns.py \
             tests/test_remerge_published_data.py \
             tests/test_remerge_final_csv.py \

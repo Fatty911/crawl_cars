@@ -13954,7 +13954,8 @@ def _merge_existing_with_source(current, current_source, source_name, incoming):
 
 
 
-    for key in set(current) | set(incoming):
+    # 稳定键序：set 并集不保证顺序，新增字段次序会随 hash seed 变化。
+    for key in sorted(set(current) | set(incoming), key=str):
 
 
 

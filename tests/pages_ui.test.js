@@ -2020,3 +2020,41 @@ test("declared property names never promote observed values and keep row facts i
   const normalized = hooks.normalizeRowColumns([Object.assign({}, original)])[0];
   Object.entries(original).forEach(([column, value]) => assert.equal(normalized[column], value, column));
 });
+
+
+test("native HTML colSpan zero clamping cannot add phantom columns to the three-level header", () => {
+  const descriptor = Object.getOwnPropertyDescriptor(FakeElement.prototype, "colSpan");
+  const spans = new WeakMap();
+  // Native production th.colSpan clamps the old assignment 0 to 1; the old fake did not.
+  Object.defineProperty(FakeElement.prototype, "colSpan", {
+    configurable: true,
+    get() { return spans.has(this) ? spans.get(this) : 1; },
+    set(value) { spans.set(this, Math.max(1, Number(value) || 1)); }
+  });
+  try {
+    const fixtures = [
+      { columns: ["品牌", "车型名称", "车窗防夹手功能"], major: [["基本信息", 2], ["玻璃/后视镜", 1]] },
+      { columns: ["品牌", "数据来源", "车内化妆镜", "后排杯架"], major: [["基本信息", 2], ["内饰与舒适", 2]] },
+      { columns: [], major: [] }
+    ];
+    fixtures.forEach(({columns, major}) => {
+      const app = loadAppForTest();
+      app.hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "config", "filter_conditions.json"), "utf8"));
+      app.hooks.state.columns = columns;
+      app.hooks.state.visibleColumns = new Set(columns);
+      app.hooks.renderTableHead();
+      const rows = app.elements.get("tableHead").children;
+      assert.equal(rows.length, 4);
+      assert.deepEqual(rows[0].children.map(cell => [cell.textContent, cell.colSpan]), major);
+      for (const index of [0, 1]) {
+        assert.equal(rows[index].children.reduce((sum, cell) => sum + cell.colSpan, 0), columns.length,
+          "every grouping row must cover exactly the real leaf-column count");
+      }
+      assert.equal(rows[2].children.length, columns.length);
+      assert.equal(rows[3].children.length, columns.length);
+    });
+  } finally {
+    if (descriptor) Object.defineProperty(FakeElement.prototype, "colSpan", descriptor);
+    else delete FakeElement.prototype.colSpan;
+  }
+});
