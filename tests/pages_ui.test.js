@@ -1486,6 +1486,18 @@ test("range tags omit zero lower bound but preserve meaningful positive or negat
 });
 
 
+test("Canonical sale status still respects the future listing-time cutoff", () => {
+  const { hooks } = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("汽车之家", 2026, "未来在售"), { "上市状态": "在售", "上市时间": "2099.03" }),
+    Object.assign(row("汽车之家", 2026, "已到在售"), { "上市状态": "在售", "上市时间": "2025.01" }),
+    Object.assign(row("汽车之家", 2026, "冲突状态"), { "上市状态": "冲突", "上市时间": "2025.01" }),
+    Object.assign(row("汽车之家+易车", 2026, "逐源未知"), { "上市状态_汽车之家": "未知", "上市时间": "2025.01" })
+  ]);
+  assert.equal(hooks.getFilteredRows().map((r) => r["车型名称"]).join(","), "已到在售");
+});
+
+
 test("merged sale status preserves negative and unknown evidence in both source orders", () => {
   const {hooks}=loadAppForTest();
   const base=row("易车",2026,"同一SKU销售冲突");
