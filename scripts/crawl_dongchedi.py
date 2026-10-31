@@ -865,6 +865,34 @@ def _extract_car_ids(value):
     return result
 
 
+# 懂车帝 garage `info.sale_status`: 0=在售, 1=停产在售(页面归入停售), 2=停售.
+DCD_SALE_STATUS_LABELS = {0: "在售", 1: "停售", 2: "停售"}
+
+
+def _extract_car_sale_status(payload):
+    """Map car_id -> 在售/停售 from the garage payload; unknown ids stay absent."""
+    result = {}
+
+    def walk(node):
+        if isinstance(node, dict):
+            info = node.get("info")
+            if isinstance(info, dict):
+                car_id = info.get("id")
+                status = info.get("sale_status")
+                if isinstance(car_id, int) and isinstance(status, int):
+                    label = DCD_SALE_STATUS_LABELS.get(status)
+                    if label and str(car_id) not in result:
+                        result[str(car_id)] = label
+            for item in node.values():
+                walk(item)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(payload.get("data", payload) if isinstance(payload, dict) else payload)
+    return result
+
+
 def _request_dongchedi_json(url, params=None):
     import requests
 
@@ -895,12 +923,14 @@ def fetch_series_entity_payload(series):
     if garage_payload.get("status") not in (0, "0"):
         raise RuntimeError(f"garage API status={garage_payload.get('status')} message={garage_payload.get('message')}")
 
+    car_sale_status = _extract_car_sale_status(garage_payload)
     car_ids = _extract_car_ids(garage_payload.get("data", garage_payload))
     if not car_ids:
         return {
             "source": "dongchedi_entity_api",
             "series_info": series,
             "car_ids": [],
+            "car_sale_status": car_sale_status,
             "terminal_empty": True,
             "empty_reason": "garage_no_car_ids",
             "data": {"car_info": [], "properties": []},
@@ -943,6 +973,7 @@ def fetch_series_entity_payload(series):
         "source": "dongchedi_entity_api",
         "series_info": series,
         "car_ids": car_ids,
+        "car_sale_status": car_sale_status,
         "data": {"car_info": car_info, "properties": properties},
     }
     if empty_car_ids:
@@ -1179,6 +1210,17 @@ def parse_config_pages(series_list):
                             car_data[DCD_CAR_ID_FIELD] = car_id_values
                             if DCD_CAR_ID_FIELD not in all_headers:
                                 all_headers.append(DCD_CAR_ID_FIELD)
+
+                        # 在售/停售来自 garage 的 sale_status；没有观测就留空（未知不冒充在售）。
+                        car_sale_status = payload.get("car_sale_status") or {}
+                        status_values = [
+                            car_sale_status.get(car_id_value, "") if car_id_value != "-" else ""
+                            for car_id_value in car_id_values
+                        ]
+                        if any(status_values):
+                            car_data["上市状态_懂车帝"] = status_values
+                            if "上市状态_懂车帝" not in all_headers:
+                                all_headers.append("上市状态_懂车帝")
 
                         # 年款信息
                         year_values = []

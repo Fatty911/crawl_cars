@@ -113,6 +113,74 @@ class DongchediApiPayloadTest(unittest.TestCase):
         self.assertEqual(calls[0][1], {"no_sales": 1})
         self.assertEqual(calls[1][1], {"car_id_list": "256890,256891"})
 
+    def test_extract_car_sale_status_maps_garage_info(self):
+        payload = {
+            "data": {
+                "list": [
+                    {"data": [{"data": [
+                        {"info": {"id": 262806, "sale_status": 0}},
+                        {"info": {"id": 253394, "sale_status": 2}},
+                        {"info": {"id": 253395, "sale_status": 1}},
+                        {"info": {"id": 1, "sale_status": 9}},
+                    ]}]}
+                ]
+            }
+        }
+        self.assertEqual(
+            self.module._extract_car_sale_status(payload),
+            {"262806": "在售", "253394": "停售", "253395": "停售"},
+        )
+
+    def test_fetch_series_entity_payload_keeps_garage_sale_status(self):
+        responses = iter(
+            [
+                {
+                    "status": 0,
+                    "message": "success",
+                    "data": {"list": [{"data": [{"data": [{"info": {"id": 256890, "sale_status": 0}},
+                                                       {"info": {"id": 256891, "sale_status": 2}}]}]}]},
+                },
+                {
+                    "status": "success",
+                    "message": "data is load",
+                    "data": {
+                        "car_info": [
+                            {"car_id": 256890, "car_name": "A", "car_year": "2026款", "official_price": "10万", "brand_name": "测试", "info": {}},
+                            {"car_id": 256891, "car_name": "B", "car_year": "2026款", "official_price": "11万", "brand_name": "测试", "info": {}},
+                        ],
+                        "properties": [],
+                    },
+                },
+            ]
+        )
+        self.module._request_dongchedi_json = lambda url, params=None: next(responses)
+        payload = self.module.fetch_series_entity_payload({"id": "3504", "name": "测试车系", "brand": "测试"})
+        self.assertEqual(payload["car_sale_status"], {"256890": "在售", "256891": "停售"})
+
+    def test_parse_config_pages_emits_per_car_sale_status(self):
+        cache = {
+            "source": "dongchedi_entity_api",
+            "series_info": {"id": "3504", "name": "测试车系", "brand": "测试"},
+            "car_ids": ["256890", "256891"],
+            "car_sale_status": {"256890": "在售", "256891": "停售"},
+            "data": {
+                "car_info": [
+                    {"car_id": 256890, "car_name": "A", "car_year": "2026款", "official_price": "10万", "brand_name": "测试",
+                     "info": {"level": {"value": "中型车"}, "fuel": {"value": "纯电动"}}},
+                    {"car_id": 256891, "car_name": "B", "car_year": "2026款", "official_price": "11万", "brand_name": "测试",
+                     "info": {"level": {"value": "中型车"}, "fuel": {"value": "纯电动"}}},
+                ],
+                "properties": [{"key": "level", "text": "级别"}, {"key": "fuel", "text": "能源类型"}],
+            },
+        }
+        cache_path = Path(self.module.dcd_json_dir) / "3504.json"
+        cache_path.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+        rows, headers = self.module.parse_config_pages([{"id": "3504", "name": "测试车系", "brand": "测试"}])
+        self.assertIn("上市状态_懂车帝", headers)
+        by_name = {row["车型名称"]: row for row in rows}
+        self.assertEqual(by_name["A"]["上市状态_懂车帝"], "在售")
+        self.assertEqual(by_name["B"]["上市状态_懂车帝"], "停售")
+
     def test_fetch_series_entity_payload_accepts_successful_empty_entity_data(self):
         responses = iter(
             [
