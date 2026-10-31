@@ -1401,7 +1401,7 @@
     // 默认隐藏越野车/货车/皮卡/大客车等用户配置的车型分类
     rows = rows.filter(rowMatchesDefaultRowType);
 
-    // Saved sale-page approval is evidence of sale scope; missing status is not.
+    // 只显示在售：状态来自逐源证据聚合后的 `上市状态`（未知不冒充在售）。
     if (state.saleScope === "onSale") {
       var onSaleCutoff = currentYearMonthKey();
       rows = rows.filter(function (row) { return rowIsOnSale(row, onSaleCutoff); });
@@ -2309,14 +2309,32 @@
   }
 
   function rowIsOnSale(row, cutoffKey) {
-    var statuses = [row["易车上市状态"], row["销售状态"], row["在售状态"]];
+    // 统一列由发布链按逐源状态算出；未知/冲突/即将上市都不算“在售”。
+    var canonical = String(row["上市状态"] || "").trim();
+    if (canonical) {
+      if (canonical !== "在售") { return false; }
+      var canonicalKey = listingYearMonth(row["上市时间"]);
+      return canonicalKey === null || canonicalKey <= cutoffKey;
+    }
+    // 兼容没有统一列的历史数据：逐源读，任一源明确停售就否，只有明确在售才算。
+    var columns = ["上市状态_汽车之家", "上市状态_懂车帝", "上市状态_易车",
+      "易车上市状态", "销售状态", "在售状态"];
     var approved = false;
     var rejected = false;
-    statuses.forEach(function (value) {
-      splitDisplaySegments(value).forEach(function (part) {
-        var status = stripSourceSegmentPrefix(part);
-        if (/^(approved|在售|销售中)$/.test(status)) { approved = true; }
-        else if (status && status !== "-") { rejected = true; }
+    columns.forEach(function (column) {
+      var perSource = column.indexOf("上市状态_") === 0;
+      splitDisplaySegments(row[column]).forEach(function (part) {
+        var status = stripSourceSegmentPrefix(part).replace(/\s+/g, "");
+        if (!status || status === "-") { return; }
+        if (/^(approved|在售|销售中|在售中)$/i.test(status)) {
+          approved = true;
+        } else if (perSource) {
+          // 逐源列只要不是明确“在售”，就不为本行作在售担保。
+          rejected = true;
+        } else {
+          // 历史单源标记只有 approved 算在售；其它非空值不冒充确认。
+          rejected = true;
+        }
       });
     });
     var key = listingYearMonth(row["上市时间"]);
