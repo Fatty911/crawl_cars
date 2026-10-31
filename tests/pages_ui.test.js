@@ -312,6 +312,44 @@ test("card sort by price orders series groups", () => {
   assert.equal(groups[0].rows[0]["数据来源"].includes("汽车之家"), true);
 });
 
+test("explicit price sort is not pre-empted by multi-source priority", () => {
+  const { hooks } = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("汽车之家+易车+懂车帝", 2026, "多源贵车"), { "官方指导价": "20.00万" }),
+    Object.assign(row("懂车帝", 2026, "单源便宜车"), { "官方指导价": "10.00万" })
+  ]);
+  hooks.state.sortField = "官方指导价";
+  hooks.state.sortDir = "asc";
+  assert.deepEqual(Array.from(hooks.getFilteredRows(), (item) => item["车型名称"]),
+    ["单源便宜车", "多源贵车"]);
+  hooks.state.sortField = "";
+  hooks.state.sortLevels = [];
+  assert.deepEqual(Array.from(hooks.getFilteredRows(), (item) => item["车型名称"]),
+    ["多源贵车", "单源便宜车"], "default relevance order still prefers more sources");
+});
+
+test("per-source range aliases merge only for electrified rows and never treat 999 as a range", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = Object.assign({}, hooks.state.config, {
+    columnAliases: {
+      "纯电续航(km)": ["纯电续航里程(km)", "WLTC纯电续航里程(km)", "CLTC纯电续航(km)"]
+    }
+  });
+  hooks.initializeRows([
+    Object.assign(row("懂车帝", 2026, "纯电别名"), { "能源类型": "纯电动", "纯电续航(km)": "0", "纯电续航里程(km)": "560" }),
+    Object.assign(row("懂车帝", 2026, "插混别名"), { "能源类型": "插电式混合动力", "纯电续航(km)": "0", "纯电续航里程(km)": "155" }),
+    Object.assign(row("懂车帝", 2026, "燃油哨兵"), { "能源类型": "汽油", "纯电续航(km)": "0", "WLTC纯电续航里程(km)": "999" }),
+    Object.assign(row("懂车帝", 2026, "燃油伪里程"), { "能源类型": "汽油", "纯电续航(km)": "0", "纯电续航里程(km)": "400" })
+  ]);
+  const byName = {};
+  hooks.state.rows.forEach((item) => { byName[item["车型名称"]] = item; });
+  assert.equal(Number(byName["纯电别名"]["纯电续航(km)"]), 560);
+  assert.equal(Number(byName["插混别名"]["纯电续航(km)"]), 155);
+  assert.ok(!(Number(byName["燃油哨兵"]["纯电续航(km)"]) >= 150), "999 sentinel stays unknown");
+  assert.notEqual(String(byName["燃油哨兵"]["纯电续航(km)"] || ""), "999");
+  assert.ok(!(Number(byName["燃油伪里程"]["纯电续航(km)"]) >= 150), "fuel-only rows never gain electric range from aliases");
+});
+
 function row(source, year, name) {
   return {
     "数据来源": source,

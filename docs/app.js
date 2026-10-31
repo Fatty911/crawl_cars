@@ -939,6 +939,17 @@
     return parts.indexOf(incomingText) === -1 ? String(existing) + "|" + incomingText : existing;
   }
 
+  var ELECTRIC_RANGE_STANDARD = "纯电续航(km)";
+  function rowHasElectricEnergy(row) {
+    var text = String(row["能源类型"] || row["燃料形式"] || "").toLowerCase();
+    return /纯电|插电|增程|混动|phev|erev|hev|bev/.test(text);
+  }
+  function electricRangeAliasAllowed(row, value) {
+    // 懂车帝用 999 表示“无纯电续航”（燃油车），不能当真实里程并入。
+    var number = firstNumber(value);
+    return number !== null && number > 0 && number !== 999 && rowHasElectricEnergy(row);
+  }
+
   function normalizeRowColumns(rows) {
     var aliasMap = columnAliasMap();
     return rows.map(function (row) {
@@ -960,7 +971,11 @@
         }
         var standard = aliasMap[column];
         if (standard && standard !== column) {
-          if (hasPositiveValue(value)) {
+          var acceptAlias = hasPositiveValue(value);
+          if (acceptAlias && standard === ELECTRIC_RANGE_STANDARD) {
+            acceptAlias = electricRangeAliasAllowed(row, value);
+          }
+          if (acceptAlias) {
             next[standard] = mergeDistinctColumnValues(next[standard], value);
           }
           delete next[column];
@@ -1260,7 +1275,9 @@
         if (sourceResult !== 0) {
           return explicitSource.dir === "desc" ? -sourceResult : sourceResult;
         }
-      } else {
+      } else if (!levels.length) {
+        // Source-count priority is the default relevance order only. An explicit
+        // sort (for example price ascending) must not be silently pre-empted.
         var leftCount = sourceCount(a.row);
         var rightCount = sourceCount(b.row);
         if (leftCount !== rightCount) {
