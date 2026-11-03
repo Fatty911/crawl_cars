@@ -17281,7 +17281,61 @@ def _backfill_candidate(v):
     return (not _cell_blank(s)) or s in _EXPLICIT_NEG
 
 
-def dedupe_merged_rows(rows, *, _observe_merge=None):
+# 重合并折叠"两款声明"判据的两条**现成裁定**豁免（不是我新发明的口子）：
+#   · 百公里加速(s) 及别名列：round-8C 票实测把加速加进冲突轴会带来 4 对现网真回退
+#     （同一台车的跨源测量差 `2.92` vs `2.98`），`_sku_spec_conflict` 里撤掉这根轴的
+#     注释就是这条口径的落点。
+#   · 日期形状的值：`_date_conflict_foldable` 定义"同年同月、只差写没写日"是精度差
+#     不是冲突（现网 上市时间 的拆分对绝大多数是这个形状）。
+_ACCELERATION_CONFLICT_EXEMPT = frozenset({
+    "百公里加速(s)", "0-100km/h加速(s)", "0-100km/h加速时间(s)",
+    "百公里加速时间", "官方百公里加速时间(s)",
+})
+
+
+def _declared_pair_conflict(left: dict, right: dict) -> bool:
+    """两行在任一非身份列上**都声明了互不相交的值** ⇒ 不是重复 SKU，不许折。
+
+    为什么是 opt-in：_sku_spec_conflict 的冲突轴是逐条裁定加出来的 curated 清单
+    （电池/能源/驱动/续航/版本词/座位/化学/名字编号/限量/配置token/身份词），
+    悬挂形式、轮胎规格这类列没有轴 ⇒ 同车款ID/年款/价但悬挂声明互斥的行会被折成一行。
+    选主落在全空行上、回填又被"≥2 个互异候选"挡住 ⇒ 已发布的规格格整列消失
+    （重合并链 run 41445835420 实测：蔚来ES8 车款ID 74331/73547，
+    多连杆式独立悬架+265/45 R21 与 五连杆式独立悬架+265/45 R21 / 265/40 R22 同价并存，
+    宽松折叠出口四格全空，发布防缩小闸的字段保留臂判红）。
+    判据复用项目自己的等价口径：_spec_value_set 剥源前缀、拆复合写法、归一数值；
+    子集不算差异（`265/45 R21` ⊂ `265/45 R21 / 265/40 R22` 是同一声明的两种粒度）；
+    一侧没声明（缺数据 ≠ 证据）不算冲突；`-`/`暂无` 经 _spec_value_set 视为未声明，
+    与 curated 轴同一口径。身份/标签列（_MERGE_IDENTITY_COLS）由折叠自己的选主与
+    并标签政策管，不参与判据。默认关：生产合并链行为一字不变，只有显式打开的消费者
+    （重合并链与复算它的那道闸）按"只折事实相容的重复 SKU"执行——这与本链
+    "保住现网发布行集不变"的合同同向：宽松档实测会把发布面刻意分开的 1651 行
+    合掉（1228 簇），其中大部分是同一 SKU 的声明粒度/取值差异，不属于重复 SKU。
+
+    strict 档看**实际值**（不还原登记簿），和 curated 轴刻意的"搬来的值不参与后续判断"
+    相反——这是有意的不对称：登记簿那半边防的是**把同一台车拆成两行**（现网实测 86 组，
+    票面②的裁定，curated 轴那边一个字没动）；而重合并链的合同是"保住已发布行集"，
+    第二遍把上一遍刚搬进 keeper 的悬挂声明当成"没写过"，就会把 74331 的 五连杆 那行
+    再吸回收主行 ⇒ 整行声明消失。宁留重复（测试 test_strict_fold_keeps_... 钉这条）。
+    """
+    for col in set(left) | set(right):
+        if col in _MERGE_IDENTITY_COLS or col in ("跨源归并ID", "跨源归并证据"):
+            continue
+        if col in _ACCELERATION_CONFLICT_EXEMPT:
+            continue
+        lv, rv = left.get(col), right.get(col)
+        if _cell_blank(lv) or _cell_blank(rv):
+            continue
+        if _date_conflict_foldable(str(lv), str(rv)):
+            continue
+        ls = _spec_value_set(lv, split_slash=True)
+        rs = _spec_value_set(rv, split_slash=True)
+        if ls and rs and not (ls & rs):
+            return True
+    return False
+
+
+def dedupe_merged_rows(rows, *, _observe_merge=None, declared_conflict_strict=False):
     if not isinstance(rows, list):
         return rows
     # 登记簿按 id 索引，跨调用会踩到回收后的 id（虽有 `is` 核身，仍会白白涨内存）。
@@ -17372,20 +17426,25 @@ def dedupe_merged_rows(rows, *, _observe_merge=None):
         # 无锚 ⇒ 与冲突闸同一个严格度（取值集合必须相同），只是**取值来源**统一成 `_row_seat_values`
         return not _seat_sets_conflict([_row_seat_values(r) for r in group], anchored=False)
 
-    rows = _collapse(rows, _id_key, _observe_merge=_observe_merge)
-    rows = _collapse(rows, _attr_key, _observe_merge=_observe_merge)
+    # declared_conflict_strict：成对分裂再加一根"任意非身份列两侧都声明了互不相交的值"
+    # 的轴（_declared_pair_conflict）。只服务重合并链"只折事实相容的重复 SKU"的合同，
+    # 默认关 ⇒ 生产合并链的三遍折叠一字不变。
+    pair_conflict = _declared_pair_conflict if declared_conflict_strict else None
+    rows = _collapse(rows, _id_key, _observe_merge=_observe_merge, _pair_conflict=pair_conflict)
+    rows = _collapse(rows, _attr_key, _observe_merge=_observe_merge, _pair_conflict=pair_conflict)
     # 第三遍要**跑到不动点**：车系写法归一发生在每一遍的末尾，
     # 所以"物理身份相同、只是车系写法不同"的两行要到归一之后才会落进同一个簇。
     # 实测一轮会留下 12 个这样的簇。
     for _ in range(3):
         before = len(rows)
-        rows = _collapse(rows, _phys_key, _physical_cluster_ok, _observe_merge=_observe_merge)
+        rows = _collapse(rows, _phys_key, _physical_cluster_ok, _observe_merge=_observe_merge,
+                         _pair_conflict=pair_conflict)
         if len(rows) == before:
             break
     return rows
 
 
-def _collapse(rows: list, key_fn, accept=None, *, _observe_merge=None) -> list:
+def _collapse(rows: list, key_fn, accept=None, *, _observe_merge=None, _pair_conflict=None) -> list:
     """按 key_fn 对**它收到的这批行**分簇收敛：同簇且无明确冲突才合并成一行。
     行不是 dict 或 key_fn 返回 None ⇒ 原样带走，不参与本遍折叠。
     accept(cluster) 返回假 ⇒ 整簇放弃折叠（用于"归属有歧义就不折"的场合）。"""
@@ -17549,7 +17608,9 @@ def _collapse(rows: list, key_fn, accept=None, *, _observe_merge=None) -> list:
         cells = []
         for row in group:
             for cell in cells:
-                if all(not _sku_spec_conflict([row, other]) for other in cell):
+                if all(not _sku_spec_conflict([row, other])
+                   and not (_pair_conflict is not None and _pair_conflict(row, other))
+                   for other in cell):
                     cell.append(row)
                     break
             else:

@@ -28,6 +28,53 @@ def load(name: str, path: Path):
 
 
 class PagesPayloadAuditTests(unittest.TestCase):
+
+    def test_wide_context_removes_the_audit_as_a_second_fold_authority(self) -> None:
+        """Real regression: the audit re-folded the published narrow face and
+        reported the chain's own keepers as lost identities (40 of them on the
+        20261102 face).  With an original wide context the lineage arm owns that
+        proof, so the audit must not fold at all."""
+        calls = []
+        real = self.audit.dedupe_merged_rows
+
+        def spy(rows, **kwargs):
+            calls.append(dict(kwargs))
+            return real(rows, **kwargs)
+
+        row = self.row("1", "汽车之家")
+        self.audit.dedupe_merged_rows = spy
+        try:
+            self.audit.audit_payload([dict(row)], [dict(row)], head_sha="abc",
+                                     full_validation=True,
+                                     wide_baseline_rows=[dict(row)])
+        finally:
+            self.audit.dedupe_merged_rows = real
+        self.assertEqual([], calls,
+                         "带原始宽面时审计不得再折窄面基线：它不是发布物的折叠权威")
+
+    def test_without_wide_context_the_audit_folds_with_the_chains_ruler(self) -> None:
+        """The other half: when the audit is the only comparer it must fold with
+        the strict ruler, never the looser default that invented keeper names."""
+        calls = []
+        real = self.audit.dedupe_merged_rows
+
+        def spy(rows, **kwargs):
+            calls.append(dict(kwargs))
+            return real(rows, **kwargs)
+
+        row = self.row("1", "汽车之家")
+        self.audit.dedupe_merged_rows = spy
+        try:
+            self.audit.audit_payload([dict(row)], [dict(row)], head_sha="abc",
+                                     full_validation=True)
+        finally:
+            self.audit.dedupe_merged_rows = real
+        self.assertEqual(1, len(calls))
+        self.assertTrue(calls[0].get("declared_conflict_strict"),
+                        "审计基线折叠必须与链同尺，否则它比的是自己造的发布物")
+
+
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.audit = load("pages_payload_audit", SCRIPTS / "audit_pages_payload.py")

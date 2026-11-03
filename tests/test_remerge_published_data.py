@@ -197,7 +197,8 @@ def test_raised_threshold_refuses_when_identity_set_shrinks(monkeypatch) -> None
         _row("K2", "车型乙", "丙车系", "2026", "10.00万", "仅易车", "300"),
     ], target=1200)
 
-    def lossy_merge(inp):
+    def lossy_merge(inp, **_kw):
+        # 桩必须吃下真实调用形状（declared_conflict_strict 是链侧新参数）。
         return [dict(r) for r in inp if str(r.get("车款ID")) != "K2"]
 
     # 评审 B2 之后身份不变式是**无条件**的：默认档位与抬高档位都必须拦住，

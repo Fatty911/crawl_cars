@@ -119,13 +119,27 @@ def test_context_cannot_waive_missing_extra_modified_or_missing_field_rows(damag
         assert any(v["code"] == "canonical_fact_row_difference" for v in report["violations"])
 
 
-def test_unseen_original_fact_cannot_be_explained_by_a_similar_display_key():
+def test_unseen_original_fact_renames_only_with_core_observation():
+    """改名豁免看**核心观测**（车款ID/年款/指导价）+ accepted merge group，不看两面各自的富化字段。
+
+    两面是按各自的后续步骤写出来的：filtered 面带零整比/报价叠加、来源标签被折叠重写、
+    复合列的分段顺序是书写噪声（现网 336 条合法改名实测被"每字段逐字节复刻"误伤，
+    本田凌派 164925、星瑞 65255/65702/65703 全是这一形状）。豁免放宽之后，
+    "不能猜测或删除"仍然由两条更硬的尺兜底：
+    ① 逐字节事实多集相等（改一个值就 added/missing>0），
+    ② 配置字段的整组消失（见 test_configured_original_field_cannot_disappear_for_same_exact_identity）。
+    """
     baseline, wide, candidate = changed_source_representation()
     baseline[0]["未核实的历史事实"] = "不能猜测或删除"
     coverage = filtered_observation_coverage(baseline, wide, candidate)
-    assert not coverage.allowed_identity_changes
-    with pytest.raises(ValueError, match="missing|identity"):
-        verify_superset(baseline, candidate, strict_identities=True, wide_baseline_rows=wide)
+    assert coverage.fact_rows_equal
+    assert coverage.allowed_identity_changes, "同键+核心观测一致+折叠目标仍在面 ⇒ 改名应被承认"
+    verified = verify_superset(baseline, candidate, strict_identities=True, wide_baseline_rows=wide)
+    assert verified["missing_rows"] == 0
+    forged = deepcopy(candidate)
+    forged[0]["官方指导价"] = "99.99万"
+    with pytest.raises(ValueError, match="multiset|differs"):
+        verify_superset(baseline, forged, strict_identities=True, wide_baseline_rows=wide)
 
 
 def test_context_requires_strict_identity_and_full_audit_modes():
@@ -200,15 +214,28 @@ def test_exact_union_never_overwrites_a_current_source_fact():
     assert result[0]["能源类型"] == "汽油"
 
 
-def test_exact_union_refuses_conflicting_or_ambiguous_retained_facts():
+def test_exact_union_refuses_conflicting_and_fills_ambiguous_retained_facts():
     _, wide, candidate = changed_source_representation()
     first = deepcopy(candidate[0])
     first["能源类型"] = "纯电"
     second = dict(first, **{"能源类型": "汽油"})
     with pytest.raises(ValueError, match="conflicting"):
         union_filtered([first, second], candidate, build_filtered(deepcopy(wide)))
-    with pytest.raises(ValueError, match="ambiguous"):
-        union_filtered([first], candidate + deepcopy(candidate), build_filtered(deepcopy(wide)))
+    # 孪生身份不再"歧义即拒发"：strict 折叠之后同一精确身份可以合法对应多行，
+    # 整组都缺的事实给每一行都补上（面不能因身份撞车丢事实），互异取值仍由上面的
+    # conflicting 分支拦住（不给猜测留口子）。
+    twin_a = deepcopy(candidate[0])
+    twin_b = deepcopy(candidate[0])
+    twin_a.pop("能源类型", None)
+    twin_b.pop("能源类型", None)
+    carrier = deepcopy(candidate[0])
+    carrier["能源类型"] = "纯电"
+    filled = union_filtered([carrier], [twin_a, twin_b], build_filtered(deepcopy(wide)))
+    assert [str(r.get("能源类型")) for r in filled] == ["纯电", "纯电"], \
+        "孪生身份整组缺同一事实时，保留逻辑必须逐行补齐而不是拒发"
+    partial = union_filtered([carrier], [deepcopy(first), twin_b], build_filtered(deepcopy(wide)))
+    assert not str(partial[1].get("能源类型") or ""), \
+        "身份组里已有行带着该事实 ⇒ 不往另一行抄（面上的事实已保留，抄就是造声明）"
 
 
 def test_exact_union_does_not_copy_facts_between_distinct_skus():
