@@ -460,6 +460,30 @@ test("Pages groups only rows carrying the same audited cross-source component id
   assert.equal(hooks.state.rows.find((item) => item["交叉核验"] === "单源数据")["车型名称"], unrelated["车型名称"]);
 });
 
+test("display merge joins an annotated row with its unannotated same-key twin", () => {
+  // 线上 182656 的实况：同一个 车款ID + 同一个车型名称，易车把它同时挂在两个车系名下，
+  // 并且只有其中一行带跨源归并ID。旧写法先按"带不带注解"分桶，主键规则只作用在不带注解的桶里，
+  // 于是这两张卡永不并，展示层留下同主键的两行（线上验收不变式正是断这条）。
+  const { hooks } = loadAppForTest();
+  const annotated = Object.assign(row("仅易车", 2025, "25款 改款 GLE 400 e 4MATIC"), {
+    "车系": "奔驰GLE 插电混动",
+    "车款ID": "182656",
+    "跨源归并ID": "visible-f-v3:test",
+    "OTA升级": "●"
+  });
+  const plain = Object.assign(row("仅易车", 2025, "25款 改款 GLE 400 e 4MATIC"), {
+    "车系": "奔驰GLE 插电混动(进口)",
+    "车款ID": "182656",
+    "OTA升级": "●|车机OTA"
+  });
+
+  hooks.initializeRows([annotated, plain]);
+
+  assert.equal(hooks.state.rows.length, 1,
+    "同主键两行必须并成一条：一行带归并注解、一行不带，不是把它们分开的理由");
+  assert.equal(hooks.state.rows[0]["车款ID"], "182656");
+});
+
 test("Pages page jump rejects invalid values and clamps valid integers", () => {
   const { elements, hooks } = loadAppForTest();
   const rows = Array.from({ length: 250 }, (_, index) => row("仅懂车帝", 2026, "车型" + index));

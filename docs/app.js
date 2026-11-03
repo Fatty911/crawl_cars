@@ -785,41 +785,59 @@
   }
 
   function mergeVerifiedRows(rows) {
-    var audited = {};
-    var rest = [];
-    rows.forEach(function (row) {
-      var id = String(row["跨源归并ID"] || "").trim();
-      if (id) {
-        var key = "audited|" + id;
-        if (!audited[key]) { audited[key] = []; }
-        audited[key].push(row);
-      } else {
-        rest.push(row);
+    // 两条"同一个 SKU"的证据必须在同一趟里生效：跨源归并注解（visible-f-v3 组件）
+    // 与源侧主键 (车款ID, 归一后车型名称)。旧写法先把行按"带不带注解"分成两个桶，
+    // 主键规则只作用在不带注解的桶里，于是一行带注解、一行不带时两张卡谁也不并谁
+    // （线上 182656：易车把同一 SKU 挂在 `奔驰GLE 插电混动` 与 `奔驰GLE 插电混动(进口)`
+    // 两个车系名下，只有其中一行带注解）。现在按完全链接取连通块：
+    // 同注解 ⇒ 同块，同主键 ⇒ 同块，块内 ≥2 行才并；剩下的单行仍走粗键 + 兼容闸，
+    // 跨源不同主键的行（如 E7 的 186452/76217）不会被这条规则牵连。
+    var parent = [];
+    function find(index) {
+      while (parent[index] !== index) {
+        parent[index] = parent[parent[index]];
+        index = parent[index];
       }
+      return index;
+    }
+    function union(left, right) {
+      var a = find(left), b = find(right);
+      if (a !== b) { parent[Math.max(a, b)] = Math.min(a, b); }
+    }
+    rows.forEach(function (row, index) { parent[index] = index; });
+    [function (row) {
+      var id = String(row["跨源归并ID"] || "").trim();
+      return id ? "annotated|" + id : "";
+    }, skuIdNameKey].forEach(function (edgeOf) {
+      var seen = {};
+      rows.forEach(function (row, index) {
+        var key = edgeOf(row);
+        if (!key) { return; }
+        if (seen[key] === undefined) { seen[key] = index; return; }
+        union(seen[key], index);
+      });
     });
-    var identity = {};
-    rest.forEach(function (row) {
-      // 同一 车款ID + 同名 = 同一个 SKU（源侧主键），**成组（≥2）时无条件并**：线上验收不变式
-      // 就钉在"展示层不许留同车款ID 同名的两行"上；属性值互斥多半是源侧数据问题（实测 171437：
-      // 一行价格 `11.98万`、另一行是聚合串 `懂车帝:10.89万|易车:11.98万`），过兼容闸会把它拆开。
-      // 单条（该 ID+名只有一行）不吃掉：跨源两行 ID 不同（如 E7 的 186452/76217）仍要走粗键+兼容闸。
-      var key = skuIdNameKey(row);
-      if (!key) { return; }
-      if (!identity[key]) { identity[key] = []; }
-      identity[key].push(row);
+    var blocks = {};
+    var singletons = [];
+    rows.forEach(function (row, index) {
+      var root = find(index);
+      if (!blocks[root]) { blocks[root] = []; }
+      blocks[root].push(row);
+    });
+    var clusters = [];
+    var consumed = new Set();
+    Object.keys(blocks).forEach(function (root) {
+      var block = blocks[root];
+      if (block.length < 2) { return; }
+      block.forEach(function (row) { consumed.add(row); });
+      clusters.push(block);
     });
     var coarse = {};
-    rest.forEach(function (row) {
-      var key = skuIdNameKey(row);
-      if (key && identity[key].length >= 2) { return; }
+    rows.forEach(function (row) {
+      if (consumed.has(row)) { return; }
       var ckey = skuCoarseKey(row);
       if (!coarse[ckey]) { coarse[ckey] = []; }
       coarse[ckey].push(row);
-    });
-    var clusters = [];
-    Object.keys(audited).forEach(function (key) { clusters.push(audited[key]); });
-    Object.keys(identity).forEach(function (key) {
-      if (identity[key].length >= 2) { clusters.push(identity[key]); }
     });
     Object.keys(coarse).forEach(function (key) {
       clusters = clusters.concat(clusterSkuRows(coarse[key]));
