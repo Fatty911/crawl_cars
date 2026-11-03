@@ -44,7 +44,15 @@ def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict], *,
     transitions = []
     if identity_evidence is not None:
         baseline_rows, transitions = reconcile(baseline_rows, identity_evidence)
-    baseline_rows = dedupe_merged_rows(baseline_rows)
+    if wide_baseline_rows is None:
+        # 非 wide 路径（merged 面）：基线按候选同一把尺折——链侧已改 declared_conflict_strict，
+        # 这里若按宽松档折基线，两遍折叠的选主/取名顺序差异会凭空造出"缺失身份"
+        # （实测 银河M7 四配置 21 条假丢）。
+        # wide 路径不折窄面基线：链的 filtered 面来自**宽面折叠 ∪ 已发布行保留**，
+        # 窄面 remerge 已撤（narrow 面瞎子判卷，见 remerge_published_data.main 的注释），
+        # 基线折叠会造出一条链从没做过的前置变换。被宽面折掉的已发布身份走
+        # coverage.allowed_identity_changes 的证据通道（逐行投影回原宽面行）。
+        baseline_rows = dedupe_merged_rows(baseline_rows, declared_conflict_strict=True)
     # Dedupe can merge rows with different source identity completeness;
     # filter before building identity keys to avoid identity_key() raising.
     baseline_rows = _identity_safe_rows(baseline_rows)
@@ -61,7 +69,11 @@ def verify_superset(baseline_rows: list[dict], candidate_rows: list[dict], *,
     # 这是最直接的「数据丢了」信号，且与身份数学无关——旧实现完全没有这道闸，
     # 只有下面那条基于身份集合的比较，于是「基线 N 行、候选只剩 1 行」
     # 只要身份集合没有严格减少就可能被放过。
-    if len(candidate_rows) < len(baseline_rows):
+    # wide 路径跳过这条**粗尺**：该路径的基线按合同不折窄面（链的 filtered 面来自
+    # 宽面折叠 ∪ 已发布行保留），19365 行里本来就有 N 行会被合法折叠；
+    # 这里由 `filtered_observation_coverage` 的**逐字节多集相等 + 字段保留**两条
+    # 更细的尺接管（丢一行 ⇒ missing_or_modified>0 当场红，测试里有红样）。
+    if wide_baseline_rows is None and len(candidate_rows) < len(baseline_rows):
         raise ValueError(
             f"candidate row count decreased: baseline={len(baseline_rows)} "
             f"candidate={len(candidate_rows)}"

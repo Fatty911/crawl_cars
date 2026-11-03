@@ -101,7 +101,14 @@ def audit_payload(baseline_rows: list[dict], candidate_rows: list[dict], *, head
     transitions = []
     if identity_evidence is not None:
         baseline_rows, transitions = reconcile(baseline_rows, identity_evidence)
-    baseline_rows = dedupe_merged_rows(baseline_rows)
+    # With an original wide context the lineage arm already proves every folded
+    # observation from raw inputs, so the audit must not invent its own second
+    # fold of the published narrow face: that re-fold clusters differently from
+    # the chain and reports the chain's keepers as lost identities.  Without a
+    # wide context the audit is the only comparer and folds with the chain's
+    # ruler (strict), never the looser default.
+    if coverage is None:
+        baseline_rows = dedupe_merged_rows(baseline_rows, declared_conflict_strict=True)
     candidate_rows, candidate_publish_stats = partition_publishable_rows(candidate_rows)
     baseline_rows, invalid_baseline = filter_valid_identity_rows(baseline_rows)
     candidate_rows, invalid_candidate = filter_valid_identity_rows(candidate_rows)

@@ -1829,3 +1829,73 @@ def test_h28_circle_glyph_is_optional_equivalent() -> None:
     out2 = MD.dedupe_merged_rows([dict(c), dict(d)])
     assert str(out2[0].get("记忆泊车")).strip() == "○", \
         "○(选配) 被 ●(标配) 覆盖 ⇒ 把选装说成标配（两个互斥候选该留各自写下的那个）"
+
+
+# ---- declared_conflict_strict：重合并链的"只折事实相容的重复 SKU"判据 ----
+# 现网依据（20261102 发布面，run 41445835420 实测）：蔚来ES8 车款ID 74331 三行同价同年款，
+# 悬挂/轮胎声明互斥（多连杆式独立悬架+265/45 R21 vs 五连杆式独立悬架+265/45 R21 / 265/40 R22），
+# 宽松折叠把三行并成一行、选主落在规格全空那行、回填被"≥2 个互异候选"挡住 ⇒ 四格整列消失。
+_ES8_BLANK = _row("74331", "六座行政豪华版", "蔚来ES8", "2026", "40.68万", "懂车帝+汽车之家", "1616")
+_ES8_LUO = dict(_ES8_BLANK, **{
+    "车型名称": "蔚来ES8 2026款 六座行政豪华版", "数据来源": "汽车之家+懂车帝",
+    "前悬挂形式": "多连杆式独立悬架", "后悬挂形式": "多连杆式独立悬架",
+    "前轮胎规格": "265/45 R21", "后轮胎规格": "265/45 R21"})
+_ES8_WU = dict(_ES8_LUO, **{
+    "前悬挂形式": "五连杆式独立悬架", "后悬挂形式": "五连杆式独立悬架",
+    "前轮胎规格": "265/45 R21 / 265/40 R22", "后轮胎规格": "265/45 R21 / 265/40 R22"})
+
+
+def _es8_cluster():
+    return [dict(_ES8_BLANK), dict(_ES8_LUO), dict(_ES8_WU)]
+
+
+def test_default_fold_still_blanks_the_es8_cluster() -> None:
+    """双向自校·基线半：默认（宽松）档行为一字不变——三行折成一行且悬挂整列丢空。
+
+    这条断言钉的是"生产合并链（CNB 线）不受本包影响"；它变红说明默认档被动过。
+    """
+    out = MD.dedupe_merged_rows(_es8_cluster())
+    assert len(out) == 1
+    assert MD._cell_blank(out[0].get("前悬挂形式")), "默认档把冲突轴外的规格格折丢了——正是 run 41445835420 的现网形状"
+
+
+def test_strict_fold_keeps_suspension_conflict_declared() -> None:
+    """双向自校·修法半：strict 档下每一行自己声明过的悬挂/轮胎值都还在面上。"""
+    out = MD.dedupe_merged_rows(_es8_cluster(), declared_conflict_strict=True)
+    assert len(out) >= 2, "悬挂互斥的两行被折成一行 ⇒ _declared_pair_conflict 没接进分簇分裂"
+    declared = {str(r.get("前悬挂形式") or "").strip() for r in out}
+    assert declared == {"", "多连杆式独立悬架", "五连杆式独立悬架"} - {""} or "五连杆式独立悬架" in declared
+    assert "五连杆式独立悬架" in {str(r.get("后悬挂形式") or "").strip() for r in out}
+    kept = [r for r in out if not MD._cell_blank(r.get("前悬挂形式"))]
+    assert len(kept) == 2, "同一身份组里两份互斥悬挂声明必须各自存活（宁留重复）"
+    again = MD.dedupe_merged_rows([dict(r) for r in out], declared_conflict_strict=True)
+    assert len(again) == len(out), "strict 档不幂等：二遍又折掉行"
+
+
+def test_strict_fold_still_folds_blank_vs_value_duplicates() -> None:
+    """缺数据 ≠ 证据：一侧整列空、另一侧单值声明 ⇒ 回填补上，行照折（不放大成假孪生）。"""
+    a = _row("90001", "测试车系 2026款 Pro", "测试车系", "2026", "10.00万", "仅汽车之家", "900")
+    b = dict(a, 数据来源="懂车帝", **{"蓝牙/数字钥匙": "●"})
+    a = dict(a, **{"蓝牙/数字钥匙": ""})
+    out = MD.dedupe_merged_rows([a, b], declared_conflict_strict=True)
+    assert len(out) == 1 and str(out[0].get("蓝牙/数字钥匙")).strip() == "●"
+
+
+def test_strict_fold_folds_date_precision_gap() -> None:
+    """`2023-05` vs `2023-05-26` 是精度差不是两款（复用 _date_conflict_foldable 现成口径）。"""
+    a = _row("90002", "测试车系 标准版", "测试车系", "2023", "12.00万", "仅汽车之家", "902")
+    b = dict(a, 数据来源="懂车帝")
+    a = dict(a, **{"上市时间": "2023-05"})
+    b = dict(b, **{"上市时间": "2023-05-26"})
+    out = MD.dedupe_merged_rows([a, b], declared_conflict_strict=True)
+    assert len(out) == 1, "同年同月只差写没写日被当成两款 ⇒ strict 档把精度差放大成重复"
+
+
+def test_strict_fold_folds_acceleration_measurement_noise() -> None:
+    """round-8C 裁定（实测 4 对现网真回退）：百公里加速是跨源测量差，不进冲突轴。"""
+    a = _row("90003", "测试车系 性能版", "测试车系", "2026", "30.00万", "仅汽车之家", "903")
+    b = dict(a, 数据来源="懂车帝")
+    a = dict(a, **{"百公里加速(s)": "2.92"})
+    b = dict(b, **{"百公里加速(s)": "2.98"})
+    out = MD.dedupe_merged_rows([a, b], declared_conflict_strict=True)
+    assert len(out) == 1, "加速测量差把同款拆成两行 ⇒ 违反 round-8C 的现网实测裁定"

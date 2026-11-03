@@ -70,12 +70,21 @@ def sku_ids(rows: list) -> set:
 
 
 def remerge(rows: list, max_drop_pct: float = MAX_DROP_PCT) -> list:
-    """对已发布的合并产物补跑修好的归并段（幂等）。"""
+    """对已发布的合并产物补跑修好的归并段（幂等）。
+
+    折叠只吃**事实相容**的重复 SKU（declared_conflict_strict）：本链的输入是已经
+    发布的 face，库里同车款ID/年款/价并存的多行往往是发布面刻意分开的不同规格声明
+    （实测 蔚来ES8 74331：多连杆式独立悬架+265/45 R21 与 五连杆式独立悬架+265/45 R21 /
+    265/40 R22 同价并存）。宽松折叠把它们合成一行时，选主落在全空行上、回填被
+    "≥2 个互异候选"挡住 ⇒ 已发布的规格格整列消失（run 41445835420 的字段保留臂判红）。
+    curated 冲突轴没覆盖的列，由 _declared_pair_conflict 按"两侧都声明了互不相交的值"
+    补齐判据；缺数据（一侧空）永远不算冲突。
+    """
     before = len(rows)
     ids_before = sku_ids(rows)
-    merged = MD.dedupe_merged_rows([dict(r) for r in rows])
+    merged = MD.dedupe_merged_rows([dict(r) for r in rows], declared_conflict_strict=True)
     # 幂等自检：归并本身必须稳定，否则说明键依赖了会变的东西
-    again = MD.dedupe_merged_rows([dict(r) for r in merged])
+    again = MD.dedupe_merged_rows([dict(r) for r in merged], declared_conflict_strict=True)
     if len(again) != len(merged):
         raise SystemExit(
             "❌ dedupe_merged_rows 不幂等（一遍 %d 行 vs 二遍 %d 行），拒绝发布"
@@ -174,6 +183,14 @@ def union_filtered(inherited: list, rebuilt: list, raw_rebuilt: list) -> list:
         identity = filtered_fact_identity(row)
         if identity is not None:
             by_identity[identity].append(index)
+    # Retained configured facts: a fact already published must not vanish from the
+    # rebuilt face. Strict folding keeps spec-twin rows apart, and twins can share
+    # one narrow identity tuple, so the old "exactly one target or fail closed"
+    # rule blocked every collision. A field present on ANY target is already
+    # retained on the face — never copy it onto the other twin and never overwrite
+    # a current value. When every target lacks the field, fill it from the released
+    # row; if two released rows of the same identity disagree on that value, the
+    # proposals conflict check below still fails closed (no guessing).
     proposals = {}
     for original in inherited:
         identity = filtered_fact_identity(original)
@@ -181,17 +198,17 @@ def union_filtered(inherited: list, rebuilt: list, raw_rebuilt: list) -> list:
         if not targets:
             continue
         for field in MD.resolve_pages_columns([original]):
-            if field not in original or all(field in out[index] for index in targets):
+            if field not in original:
                 continue
-            if len(targets) != 1:
-                raise ValueError("ambiguous target for a retained configured fact")
-            index = targets[0]
+            if any(field in out[index] for index in targets):
+                continue
             encoded = json.dumps(original[field], ensure_ascii=False, sort_keys=True,
                                  separators=(",", ":"), allow_nan=False)
-            key = (index, field)
-            if key in proposals and proposals[key][0] != encoded:
-                raise ValueError("conflicting retained configured fact values")
-            proposals[key] = (encoded, deepcopy(original[field]))
+            for index in targets:
+                key = (index, field)
+                if key in proposals and proposals[key][0] != encoded:
+                    raise ValueError("conflicting retained configured fact values")
+                proposals[key] = (encoded, deepcopy(original[field]))
     for (index, field), (_, value) in proposals.items():
         out[index][field] = value
     seen = set()
@@ -221,8 +238,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--merged", required=True, type=Path, help="上一轮 merged_<date>.json（即发布面 latest）")
     ap.add_argument("--filtered", type=Path,
-                    help="上一轮 filtered_cars_<date>.json（发布面 filtered）。给了就**只对它去重**"
-                         "（保住现网发布行集不变），不给才用 filter_car 从合并结果重算")
+                    help="上一轮 filtered_cars_<date>.json（发布面 filtered）。给了就按"
+                         "「宽面现口径重算 ∪ 已发布行保留」重建（保住已发布行集与配置字段），"
+                         "不给才用 filter_car 从合并结果直接重算")
     ap.add_argument("--date", default="", help="输出文件名里的日期；留空则从文件名里认")
     ap.add_argument("--outdir", default=".", type=Path)
     ap.add_argument("--max-drop-pct", type=float, default=MAX_DROP_PCT)
@@ -264,7 +282,12 @@ def main() -> int:
             old_filtered, changes = reconcile(old_filtered, identity_evidence)
             identity_changes["filtered"] = len(changes)
         f_before_groups, _ = dup_id_groups(old_filtered)
-        inherited = remerge(old_filtered, args.max_drop_pct)
+        # 折叠只在宽面跑（merged）。窄面 remerge 是**瞎子判卷**：narrow_pages_rows
+        # 裁掉了冲突闸要看的整列，宽面刻意分开的孪生行在窄面上会被合掉（本文件
+        # union_filtered 的注释记着同一教训的 103 行实测），合掉之后保留逻辑还要
+        # 面对"同身份多目标"无从归属。已发布行原样进并集当保留源，
+        # "已发布身份一个不丢"（下面 sku_ids 的断言）口径不变。
+        inherited = [dict(row) for row in old_filtered]
         rebuilt = build_filtered(merged)
         # 折前基准：同一套 filter+narrow，但没跑折叠——用来分清"被宽面折掉"与"被重算丢掉"。
         raw_rebuilt = build_filtered(rows)
