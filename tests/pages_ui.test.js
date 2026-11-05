@@ -1812,6 +1812,24 @@ test("tire pressure display accepts explicit generic values and rejects source c
   assert.equal(matches({ "胎压显示": "懂车帝:●|易车:选装" }), false);
 });
 
+test("phone key accepts either Bluetooth or UWB and requires technology evidence", () => {
+  const { hooks, condition } = strictFilterContext("bluetooth_key");
+  const matches = (row) => hooks.conditionMatches(row, condition);
+  assert.equal(matches({ "蓝牙/数字钥匙": "手机蓝牙钥匙|NFC钥匙" }), true);
+  assert.equal(matches({ "遥控钥匙类型": "懂车帝:UWB数字钥匙" }), true);
+  assert.equal(matches({ "UWB钥匙": "选装", "手机蓝牙钥匙": "●" }), true);
+  assert.equal(matches({ "UWB钥匙": "不支持", "蓝牙/数字钥匙": "UWB数字钥匙" }), false);
+  assert.equal(matches({ "蓝牙/数字钥匙": "NFC钥匙|数字钥匙" }), false);
+  assert.equal(matches({ "蓝牙/数字钥匙": "支持" }), false);
+  assert.equal(matches({ "销售说明": "UWB数字钥匙" }), false);
+  assert.equal(matches({ "蓝牙": "●" }), false);
+  assert.equal(matches({ "遥控钥匙类型": "遥控钥匙 / 蓝牙钥匙" }), true);
+  hooks.initializeRows([Object.assign(row("易车", 2026, "UWB 钥匙"), {
+    "级别": "中型车", "UWB钥匙": "●"
+  })]);
+  assert.equal(matches(hooks.state.rows[0]), true);
+});
+
 test("BEV heat pump filtering requires dedicated affirmative evidence", () => {
   const { hooks, condition } = strictFilterContext("bev_heat_pump");
   const matches = (row) => hooks.conditionMatches(row, condition);

@@ -1131,6 +1131,24 @@
         };
         return tire.positive && !tire.negative;
       }
+      if (condition.keyTechnologies) {
+        return condition.keyTechnologies.some(function (names) {
+          var expected = names.map(strictEquipmentKey);
+          var dedicatedFields = names.filter(function (name) {
+            return condition.fields.indexOf(name) !== -1;
+          });
+          var dedicated = strictEquipmentFieldEvidence(row, dedicatedFields, {});
+          if (dedicated.negative) { return false; }
+          if (dedicated.positive) { return true; }
+          return condition.fields.some(function (field) {
+            return splitDisplaySegments(row[field]).some(function (part) {
+              return stripSourceSegmentPrefix(part).split(/\s+[/／]\s+|、/).some(function (value) {
+                return expected.indexOf(strictEquipmentKey(value)) !== -1;
+              });
+            });
+          });
+        });
+      }
       if (condition.id === "bev_heat_pump") {
         var energy = strictEnergyPresence(row["能源类型"] || row["燃料形式"]);
         if (!energy.bev && energy.other) { return true; }
