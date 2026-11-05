@@ -58,7 +58,7 @@ jobs:
           node-version: "22"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt pytest
 
       - name: Compile Python files
         run: python -m py_compile scripts/crawl_dongchedi.py scripts/crawl_zero_to_whole_ratio.py scripts/merge_data.py scripts/proxy_manager.py scripts/run_with_proxy.py scripts/test_autohome.py scripts/*.py
@@ -94,6 +94,9 @@ jobs:
       - name: Test Pages display data model
         run: node --test tests/pages_ui.test.js
 
+      - name: Test publication workflow guards and saved-row retention
+        run: python -m pytest -q tests/test_pages_deploy_paths.py tests/test_pages_filter_defaults_not_hard_drops.py
+
       - name: Validate workflow expectations
         run: python scripts/validate_workflow_expectations.py
 
@@ -104,6 +107,13 @@ jobs:
 
       - name: Smoke test scripts/merge_data.py
         run: |
+          set -euo pipefail
+          SMOKE_ROOT=$(mktemp -d)
+          trap 'rm -rf "$SMOKE_ROOT"' EXIT
+          mkdir -p "$SMOKE_ROOT/scripts" "$SMOKE_ROOT/config"
+          cp scripts/merge_data.py scripts/publish_identity.py scripts/dealer_price_overlay.py "$SMOKE_ROOT/scripts/"
+          cp config/filter_conditions.json "$SMOKE_ROOT/config/"
+          cd "$SMOKE_ROOT"
           python - <<'PY'
           import json
 
@@ -174,8 +184,14 @@ jobs:
 
           if len(merged_rows) != 2:
               raise SystemExit(f"expected 2 merged rows (deduplicated), got {len(merged_rows)}")
-          if len(filtered_rows) != 1:
-              raise SystemExit(f"expected 1 filtered row (low range excluded), got {len(filtered_rows)}")
+          expected_ids = {"54529", "54530"}
+          for label, rows in (("merged", merged_rows), ("filtered", filtered_rows)):
+              identities = [str(row.get("车款ID", "")) for row in rows]
+              if len(rows) != 2 or set(identities) != expected_ids:
+                  raise SystemExit(f"{label} must retain both distinct source identities exactly once: {identities}")
+          low_range = next(row for row in filtered_rows if str(row.get("车款ID")) == "54530")
+          if str(low_range.get("纯电续航(km)")) != "CLTC:100":
+              raise SystemExit(f"low-range source evidence changed: {low_range.get('纯电续航(km)')}")
           ratios = [row.get("零整比") for row in filtered_rows if row.get("车型名称") == "CI测试车型"]
           if ratios != ["330.50%"]:
               raise SystemExit(f"expected averaged zero-to-whole ratio, got {ratios}")

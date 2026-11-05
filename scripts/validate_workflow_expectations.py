@@ -339,7 +339,7 @@ def check_dongchedi_reset_script(path: Path, errors: list[str]) -> None:
 
 
 def check_ai_monitor(path: Path, errors: list[str]) -> None:
-    """配额期的红线通道：只覆盖在跑的三条旁路链，只在 failure 触发，修复腿只归档证据。
+    """红线通道只覆盖三条发布链和两条既有保护链，failure 时只归档证据。
 
     旧断言要求它监听两条**已停用**的爬虫链并集成付费 Codex Action —— 这两条都是
     "名单里有、实际接不住"的反面教材（停用链不会触发；绿的一轮也会被 `|| success` 拉起）。
@@ -348,10 +348,11 @@ def check_ai_monitor(path: Path, errors: list[str]) -> None:
     text = resolve_workflow_file(path).read_text(encoding="utf-8")
     workflow_run = data.get(True, {}).get("workflow_run", {})
     workflows = set(workflow_run.get("workflows", []))
-    expected = {"重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示"}
+    expected = {"重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示",
+                "Markdown privacy (candidate)", "Runtime proxy cache guard"}
 
     assert_condition(workflows == expected,
-                     "AI 监控名单必须恰好覆盖配额期在跑的三条旁路链（实际：%s）" % sorted(workflows),
+                     "AI 监控名单必须精确覆盖三条发布链和两条保护链（实际：%s）" % sorted(workflows),
                      errors)
     ifs = " ".join(str(j.get("if") or "") for j in (data.get("jobs") or {}).values())
     assert_condition("failure" in ifs, "AI 监控必须只在 failure 时触发", errors)
@@ -360,12 +361,29 @@ def check_ai_monitor(path: Path, errors: list[str]) -> None:
     assert_condition("openai/codex-action" not in text,
                      "AI 监控不得调用付费模型 Action（这一腿只归档证据）", errors)
     assert_condition("issues: write" in text, "AI 监控缺少 issues: write 权限，开不了 Issue", errors)
+    for job in data.get("jobs", {}).values():
+        condition = re.sub(r"[\s${}]+", "", str(job.get("if", "")))
+        assert_condition(
+            condition == "github.event.workflow_run.head_branch=='main'&&github.event.workflow_run.conclusion=='failure'",
+            "AI 监控必须仅在 main 的失败 run 归档，不得用 OR 扩大触发", errors,
+        )
+        for step in job.get("steps", []):
+            action = str(step.get("uses", "")).split("@", 1)[0]
+            assert_condition(action in {"", "actions/checkout", "actions/upload-artifact"},
+                             "AI 监控不得调用修复或付费 Action", errors)
+            assert_condition(not re.search(r"gh\s+workflow\s+run|git\s+push|\b(?:codex|opencode)\s|npc:go|/dispatches", str(step.get("run", ""))),
+                             "AI 监控只可归档证据，不得自驱修复或 dispatch", errors)
 
 
 def check_merge_workflow(path: Path, errors: list[str]) -> None:
     data = load_yaml(path)
     text = resolve_workflow_file(path).read_text(encoding="utf-8")
     inputs = data.get(True, {}).get("workflow_dispatch", {}).get("inputs", {})
+    missing = pages_push_paths_cover(path, PAGES_PUSH_DEPENDENCIES)
+    push = data.get(True, {}).get("push", {})
+    assert_condition(not missing, f"{path.name} push paths 漏掉 Pages 依赖: {missing}", errors)
+    assert_condition(not push.get("paths-ignore"), f"{path.name} 不得用 paths-ignore 绕过 Pages 依赖", errors)
+    assert_condition("release_tag" in inputs, f"{path.name} 缺少可选 release_tag", errors)
     assert_condition(
         {"debug_mode", "crawler_run_id", "crawler_run_attempt", "trigger_source"}.issubset(inputs),
         "merge-and-filter.yml 缺少 debug 精确定位 inputs",
@@ -512,18 +530,158 @@ def check_merge_workflow(path: Path, errors: list[str]) -> None:
         "merge-and-filter.yml 缺少 merge 后、artifact/Release 前的全路径基线保留与防缩小校验",
         errors,
     )
+    jobs = data.get("jobs", {})
+    producer = jobs.get("merge-data", {})
+    release = jobs.get("create-release", {})
+    date_run = "\n".join(str(step.get("run", "")) for step in merge_steps if step.get("id") == "date")
+    tag_line = next((line for line in date_run.splitlines() if 'echo "release_tag=v' in line), "")
+    release_steps = [step for step in release.get("steps", [])
+                     if str(step.get("uses", "")).startswith("softprops/action-gh-release@")]
     assert_condition(
-        "release_tag=v" in text
-        and "${{ github.run_id }}" in text
-        and "release_tag: ${{ needs.merge-data.outputs.release_tag }}" in text
-        and "needs.create-release.outputs.release_tag" in text,
-        "merge-and-filter.yml Release tag 未绑定 run_id 或未精确传给 Pages",
+        "${{ github.run_id }}" in tag_line and "${{ github.run_attempt }}" in tag_line
+        and producer.get("outputs", {}).get("release_tag") == "${{ steps.date.outputs.release_tag }}"
+        and "merge-data" in release.get("needs", [])
+        and release.get("outputs", {}).get("release_tag") == "${{ needs.merge-data.outputs.release_tag }}"
+        and len(release_steps) == 1
+        and release_steps[0].get("with", {}).get("tag_name") == "${{ needs.merge-data.outputs.release_tag }}",
+        "merge-and-filter.yml Release tag 必须绑定 run_id/run_attempt 并精确传给 Release 生产者",
         errors,
     )
+    # A producer without a Pages job does not consume its own Release. If an
+    # inline consumer returns (including a disabled workflow), retain its guards.
+    if any(str(step.get("uses", "")).startswith("actions/deploy-pages@")
+           for job in jobs.values() for step in job.get("steps", [])):
+        assert_condition("needs.create-release.outputs.release_tag" in text,
+                         "inline Pages 必须消费本轮 create-release 的精确 tag", errors)
+        check_deploy_workflow(path, errors)
     assert_condition(
         "mode" in inputs and "merge_and_deploy" in text,
         "merge-and-filter.yml 缺少合并后部署模式",
         errors,
+    )
+
+
+def publication_run(step: dict) -> str:
+    lines = (line for line in str(step.get("run", "")).splitlines()
+             if not line.lstrip().startswith("#"))
+    return "\n".join(lines).replace("\\\n", " ")
+
+
+def publication_step(steps: list[dict], marker: str, path: Path, errors: list[str]) -> tuple[int, dict]:
+    """Locate a required operation in its job, excluding shell comment lines."""
+    matches = [(i, step) for i, step in enumerate(steps)
+               if (str(step.get("uses", "")).startswith(marker) if marker.startswith("actions/")
+                   else marker in publication_run(step))]
+    assert_condition(len(matches) == 1, f"{path.name} 必须唯一执行 {marker}", errors)
+    if len(matches) != 1:
+        return -1, {}
+    index, step = matches[0]
+    assert_condition("if" not in step and not step.get("continue-on-error"),
+                     f"{path.name} {marker} 不得跳过或吞错误", errors)
+    run = str(step.get("run", ""))
+    assert_condition("|| true" not in run, f"{path.name} {marker} 不得吞错误", errors)
+    return index, step
+
+
+def check_verified_archive_deployment(path: Path, errors: list[str]) -> None:
+    """Deployers consume attested bytes; data-changing audits belong to producers."""
+    data = load_yaml(path)
+    frontend = path.name == "deploy-frontend.yml"
+    job_id, directory, site = ("deploy-frontend", "release-files", "site") if frontend else ("deploy", "release", "cnb-site")
+    steps = data.get("jobs", {}).get(job_id, {}).get("steps", [])
+    download_i, download = publication_step(steps, "python scripts/download_verified_release.py", path, errors)
+    extract_i, extract = publication_step(steps, "python scripts/prepare_cnb_pages.py --archive", path, errors)
+    upload_i, upload = publication_step(steps, "actions/upload-pages-artifact@", path, errors)
+    deploy_i, _ = publication_step(steps, "actions/deploy-pages@", path, errors)
+    verify_i, verify = publication_step(steps, f'--site {site} --verify-url "$PAGE_URL"', path, errors)
+    download_run = str(download.get("run", "")).replace("\\\n", " ")
+    extract_run = str(extract.get("run", ""))
+    assert_condition(
+        0 <= download_i <= extract_i < upload_i < deploy_i < verify_i
+        and upload.get("with", {}).get("path") == site
+        and f'--archive {directory}/verified-site.zip --manifest {directory}/manifest.json --site {site}' in extract_run
+        and f'--dir {directory}' in download_run
+        and f'--site {site} --verify-url "$PAGE_URL"' in str(verify.get("run", "")),
+        f"{path.name} 必须先验证完整 Release 及 manifest 再上传同一目录，部署后回读", errors,
+    )
+    if frontend:
+        assert_condition(
+            0 <= extract_run.find("prepare_cnb_pages.py") < extract_run.find('Path("docs")')
+            and 'relative.parts[0] == "data" or relative.as_posix() == "manifest.json"' in extract_run
+            and 'cmp release-files/manifest.json site/data/manifest.json' in extract_run
+            and "set -euo pipefail" in extract_run,
+            f"{path.name} 前端覆盖不得修改已验证数据和 manifest", errors,
+        )
+    else:
+        inputs = data.get(True, {}).get("workflow_dispatch", {}).get("inputs", {})
+        assert_condition(
+            "release_tag" in inputs
+            and download.get("env", {}).get("RELEASE_TAG") == "${{ inputs.release_tag }}"
+            and '--tag "$RELEASE_TAG"' in download_run and "--no-legacy" in download_run
+            and "||" not in download_run and "--verify-data" in str(verify.get("run", "")),
+            f"{path.name} 显式 release_tag 必须精确传给 fail-closed 下载器，禁止 latest 兜底", errors,
+        )
+
+
+def check_remerge_publication(path: Path, errors: list[str]) -> None:
+    """The saved-input producer owns identity conservation before Pages/Release."""
+    steps = load_yaml(path).get("jobs", {}).get("remerge-and-publish", {}).get("steps", [])
+    fetch_i, fetch = publication_step(steps, 'gh release download "$TAG"', path, errors)
+    merge_i, _ = publication_step(steps, "python scripts/remerge_published_data.py", path, errors)
+    guard_i, guard = publication_step(steps, '--candidate "out/merged_${DATE}.json"', path, errors)
+    assemble_i, assemble = publication_step(steps, 'cp "out/merged_${DATE}.json" site/data/latest.json', path, errors)
+    upload_i, upload = publication_step(steps, "actions/upload-pages-artifact@", path, errors)
+    deploy_i, _ = publication_step(steps, "actions/deploy-pages@", path, errors)
+    publish_i, publish = publication_step(steps, "python scripts/publish_github_release.py", path, errors)
+    fetch_run = str(fetch.get("run", "")).replace("\\\n", " ")
+    expected_tag = "${{ github.event.inputs.release_tag || github.event.release.tag_name }}"
+    exact_tag = f'TAG="{expected_tag}"' in fetch_run or (
+        fetch.get("env", {}).get("BASELINE_RELEASE") == expected_tag
+        and 'TAG="$BASELINE_RELEASE"' in fetch_run
+    )
+    assert_condition(
+        exact_tag and 'if [ -z "$TAG" ]; then' in fetch_run
+        and "--no-legacy --original-only --print-tag" in fetch_run
+        and "exit 1" in fetch_run
+        and 'gh release download "$TAG"' in fetch_run,
+        f"{path.name} 必须保留显式精确 tag，空输入只选完整原始制品，失败不得兜底", errors,
+    )
+    guard_run = publication_run(guard)
+    assembly = publication_run(assemble)
+    audit_latest = 'python scripts/audit_pages_payload.py'
+    audits = [line.strip() for line in assembly.splitlines() if line.strip().startswith(audit_latest)]
+    final_audits = all(
+        any(f'--baseline "{baseline}"' in command and f'--candidate site/data/{name}.json' in command
+            and '--head-sha "$GITHUB_SHA" --full-validation' in command
+            and '--source-identity-evidence config/source_identity_evidence.json' in command
+            and 0 <= assembly.find(f'--input site/data/{name}.json') < assembly.find(command)
+            for command in audits)
+        for name, baseline in (("latest", "baseline-${DATE}.json"),
+                               ("filtered", "baseline-filtered-${DATE}.json"))
+    )
+    assert_condition(
+        0 <= fetch_i < merge_i < guard_i < assemble_i < upload_i < deploy_i < publish_i
+        and upload.get("with", {}).get("path") == "site"
+        and "set -euo pipefail" in guard_run and "set -euo pipefail" in assembly
+        and "python scripts/verify_publish_superset.py" in guard_run
+        and '--baseline "baseline-${DATE}.json"' in guard_run and "--strict-identities" in guard_run
+        and '--source-identity-evidence config/source_identity_evidence.json' in guard_run
+        and '--candidate site/data/filtered.json --strict-identities' in assembly
+        and '--wide-baseline "$RAW_WIDE"' in assembly
+        and len(audits) == 2 and final_audits
+        and assembly.count("--full-validation") == 2
+        and '--candidate site/data/latest.json' in assembly
+        and '--candidate site/data/filtered.json' in assembly
+        and assembly.find("prepare_pages_payload.py") < assembly.find(audit_latest),
+        f"{path.name} 必须在站点上传/Release 前执行严格身份守恒、防缩小及最终两份数据审计", errors,
+    )
+    published = str(publish.get("run", ""))
+    assert_condition(
+        assemble.get("env", {}).get("INPUT_RELEASE") == "${{ steps.fetch.outputs.tag }}"
+        and 'echo "tag=$TAG" >> "$GITHUB_OUTPUT"' in fetch_run
+        and 'TAG="cnb-data-${DATE}-remerged-verified-r${{ github.run_id }}a${{ github.run_attempt }}"' in published
+        and '--site-dir site --repo "$GITHUB_REPOSITORY" --tag "$TAG" --ref "$GITHUB_SHA"' in published,
+        f"{path.name} verified Release 必须绑定本轮 run_id/run_attempt 和已审计的同一 site", errors,
     )
 
 
@@ -601,7 +759,9 @@ def main() -> int:
     check_trigger(ROOT / ".github/workflows/crawl-trigger.yml", errors)
     check_budget_script(ROOT / "scripts/crawl_budget.py", errors)
     check_merge_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
-    check_deploy_workflow(ROOT / ".github/workflows/merge-and-filter.yml", errors)
+    check_remerge_publication(ROOT / ".github/workflows/remerge-and-publish.yml", errors)
+    check_verified_archive_deployment(ROOT / ".github/workflows/cnb-pages.yml", errors)
+    check_verified_archive_deployment(ROOT / ".github/workflows/deploy-frontend.yml", errors)
     # Actions 停用期（2026-10-05 用户裁定）把该工作流改名为 .yml.disabled，
     # 守卫必须继续校验它，否则改名即等于护栏失效。
     check_single_source_repair_workflow(
