@@ -387,6 +387,26 @@ function buildPendingColumns(unmapped, rows, source) {
     }));
 }
 
+// A signal routes a name to the value/option review queue. It does not approve a mapping.
+function columnValueSignals(columns, knowledge) {
+  const names = new Set(columns);
+  return columns.flatMap((column) => {
+    if (knowledge.knownColumns.has(column)) return [];
+    if (/^(?:支持|不支持|标配|选配|黑色|白色|\d+(?:\.\d+)?\s*(?:英寸|寸|km|kW|W|L|°|个|点|座|幅|款)?)$/i.test(column)) {
+      return [{ column, kind: "attribute_value", reason: "standalone_measurement_or_enum" }];
+    }
+    const option = /^(.+)_([12])$/.exec(column);
+    if (option && /选装|选配|套装|套件|包[（(]/.test(option[1]) &&
+        names.has(option[1] + "_" + (option[2] === "1" ? "2" : "1"))) {
+      return [{ column, kind: "option_package_value", reason: "package_description_status_pair" }];
+    }
+    if (/选装包|套件|套装|(?:包[（(]整包选装)/.test(column)) {
+      return [{ column, kind: "option_package_candidate", reason: "package_like_name_needs_value_evidence" }];
+    }
+    return [];
+  });
+}
+
 // ---- 归并扫描 ----
 // regularColumns = 首行键（发布规范列骨架）；kb = 归并知识库（canonical + alias）
 // 规则（按优先级）：
@@ -572,6 +592,7 @@ async function main() {
     newColumnsTotal: newColumns.length,
     unmappedCount: result.unmapped.length,
     unmapped: result.unmapped.slice(0, 200),  // 兼容字段；完整集合见 pendingColumns
+    columnValueSignals: columnValueSignals(scanColumns, kb),
     pendingCount: pendingColumns.length,
     pendingColumns: pendingColumns,           // 完整待审证据队列（不截断，按列名排序）
     aliasHits: result.aliasHits,              // 命中别名映射的归并记录

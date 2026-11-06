@@ -113,6 +113,17 @@ def test_first_scan_establishes_full_baseline(scan_env, tmp_path: Path) -> None:
     assert "16扬Flyme音响(限时赠送)_1" in hist_data["seenColumns"]
 
 
+def test_attribute_value_signals_keep_unapproved_columns_in_review(scan_env, tmp_path):
+    rows = [{"品牌": "样本", "12.3英寸": "●", "智慧驾驶包(整包选装)_1": "抬头显示",
+             "智慧驾驶包(整包选装)_2": "○ 6000元", "保留新属性": "真实值"}]
+    scan_env["data"].write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    report = _run_scan(scan_env["data"], tmp_path / "history.json", scan_env["repo"], tmp_path / "report.json")
+    signals = {item["column"]: item["kind"] for item in report["columnValueSignals"]}
+    assert signals == {"12.3英寸": "attribute_value", "智慧驾驶包(整包选装)_1": "option_package_value",
+                       "智慧驾驶包(整包选装)_2": "option_package_value"}
+    assert set(signals) <= {item["column"] for item in report["pendingColumns"]}
+
+
 def test_second_scan_reports_zero_new(scan_env, tmp_path: Path) -> None:
     hist = tmp_path / "hist.json"
     out1 = tmp_path / "r1.json"
