@@ -339,7 +339,7 @@ def check_dongchedi_reset_script(path: Path, errors: list[str]) -> None:
 
 
 def check_ai_monitor(path: Path, errors: list[str]) -> None:
-    """红线通道只覆盖三条发布链和两条既有保护链，failure 时只归档证据。
+    """红线通道覆盖三条发布链、两条既有保护链和 CI，failure 时只归档证据。
 
     旧断言要求它监听两条**已停用**的爬虫链并集成付费 Codex Action —— 这两条都是
     "名单里有、实际接不住"的反面教材（停用链不会触发；绿的一轮也会被 `|| success` 拉起）。
@@ -349,10 +349,10 @@ def check_ai_monitor(path: Path, errors: list[str]) -> None:
     workflow_run = data.get(True, {}).get("workflow_run", {})
     workflows = set(workflow_run.get("workflows", []))
     expected = {"重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示",
-                "Markdown privacy (candidate)", "Runtime proxy cache guard"}
+                "Markdown privacy (candidate)", "Runtime proxy cache guard", "CI"}
 
     assert_condition(workflows == expected,
-                     "AI 监控名单必须精确覆盖三条发布链和两条保护链（实际：%s）" % sorted(workflows),
+                     "AI 监控名单必须精确覆盖三条发布链、两条保护链和 CI（实际：%s）" % sorted(workflows),
                      errors)
     ifs = " ".join(str(j.get("if") or "") for j in (data.get("jobs") or {}).values())
     assert_condition("failure" in ifs, "AI 监控必须只在 failure 时触发", errors)

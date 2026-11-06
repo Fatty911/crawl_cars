@@ -13,43 +13,32 @@ import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MONITOR = ROOT / ".github/workflows/AI_Auto_Fix_Monitor.yml"
-# 服务端 state=active 的**旁路（不爬取）链**快照。出处：`GET /repos/Fatty911/crawl_cars/actions/workflows`
-# 于 2026-10-22T14:21+08:00 的逐条读数——5 条 active 的正是 `部署车型配置网页/懂车帝爬虫/CI` 等
-# disabled_manually 之外的那 5 条；其余 9 条 state=disabled_manually（爬虫类与 PR 自动合并）不参与"全部成功"。
-# 为什么这里是快照而不是现调 API：本套测试不许依赖网络与凭据（夹具里的本机事实会让判据在别的 OS 上假红）。
-# 这条快照**会漂**：10-22 的教训是监视名单补到 5 条而这里还停在 3 条 ⇒
-# `test_real_monitor_matches_current_active_chains` 当场判红并点名两条链——那是**这条不变式在正常工作**，
-# 补名单必须同批改这里，判据不许反过来迁就名单。
-# 服务端 workflow **整表**读数（14 条：active 5 + disabled_manually 9）。
-# 出处：`GET /repos/Fatty911/crawl_cars/actions/workflows?per_page=50`，2026-10-22T14:21+08:00。
-# 为什么是常量而不是现调 API：本套测试不许依赖网络与凭据（宿主事实会让判据在别的 OS 上假红）。
-# 为什么不再单独维护一份"active 名单"：10-22 的实测事故就是名单补到 5 条、测试里的快照还停在 3 条
-# ——两边各抄一份，必然有一边先漂。这里是**整表**（含 disabled 的 9 条），所以"漏列一条真 active 的链"
-# 与"混进一条停用链"两向都能判。刷新方式（机械动作，别手改 state）：
-#   gh api "repos/Fatty911/crawl_cars/actions/workflows?per_page=50" #     --jq '.workflows[]|{name,state}' | python -c "import json,sys;print({json.loads(l)[\"name\"]:json.loads(l)[\"state\"] for l in sys.stdin if l.strip()})"
-# 把输出贴进下面的 dict（并更新 read_at/source），再跑本文件。
+# 服务端工作流整表快照：与仓库配置独立，测试不会调用 GitHub。
+# 刷新：gh api 'repos/Fatty911/crawl_cars/actions/workflows?per_page=50'。
+# 更新 read_at 和完整状态表，保留停用项来验证双向覆盖。
 PLATFORM_READING = {
-    "read_at": "2026-10-22T14:21:00+08:00",
+    "read_at": "2026-11-06T01:23:03+00:00",
     "source": "GET https://api.github.com/repos/Fatty911/crawl_cars/actions/workflows?per_page=50",
     "total_count": 14,
     "states": {
-        "重合并并发布（不爬取）": "active",
-        "Deploy verified CNB Pages": "active",
+        "AI Auto Fix Monitor": "active",
+        "CI": "active",
         "部署前端展示": "active",
+        "Deploy verified CNB Pages": "active",
+        "重合并并发布（不爬取）": "active",
         "Markdown privacy (candidate)": "active",
         "Runtime proxy cache guard": "active",
-        "AI Auto Fix Monitor": "disabled_manually",
-        "CI": "disabled_manually",
-        "PR 自动合并": "disabled_manually",
-        "懂车帝爬虫": "disabled_manually",
-        "易车爬虫": "disabled_manually",
         "汽车之家爬虫": "disabled_manually",
-        "爬虫外部触发器": "disabled_manually",
-        "经销商报价增量爬虫": "disabled_manually",
+        "懂车帝爬虫": "disabled_manually",
         "部署车型配置网页": "disabled_manually",
-    },
+        "爬虫外部触发器": "disabled_manually",
+        "PR 自动合并": "disabled_manually",
+        "易车爬虫": "disabled_manually",
+        "经销商报价增量爬虫": "disabled_manually"
+    }
 }
-ACTIVE = [name for name, state in PLATFORM_READING["states"].items() if state == "active"]
+ACTIVE = [name for name, state in PLATFORM_READING["states"].items()
+          if state == "active" and name != "AI Auto Fix Monitor"]
 # 读数最多能当多久的"现状"：超过这个天数就判红，逼下一个人刷新（v2.7 评审票点名的那条加固）。
 # 这不是"自动同步"——没有任何东西会自己跑 gh；它只是把"漂了没人发现"变成"漂了最多 N 天必响"。
 MAX_READING_AGE_DAYS = 14
@@ -93,7 +82,7 @@ def _load():
 
 def _states(names=None, extra=None):
     out = [{"name": n, "state": "active"} for n in (names or ACTIVE)]
-    out += [{"name": n, "state": "disabled_manually"} for n in (extra or ["汽车之家爬虫", "CI"])]
+    out += [{"name": n, "state": "disabled_manually"} for n in (extra or ["汽车之家爬虫", "易车爬虫"])]
     out.append({"name": "AI Auto Fix Monitor", "state": "active"})
     return out
 
@@ -129,7 +118,8 @@ def test_green_when_monitor_covers_every_active_chain(tmp_path):
 
 def test_missing_active_chain_is_red_and_named(tmp_path):
     mod = _load()
-    errs, _, _ = mod.check(_monitor(tmp_path, workflows=ACTIVE[:2]), _states())
+    workflows = [name for name in ACTIVE if name != "部署前端展示"]
+    errs, _, _ = mod.check(_monitor(tmp_path, workflows=workflows), _states())
     assert any("部署前端展示" in e for e in errs), errs
 
 
@@ -181,10 +171,10 @@ def test_too_few_active_main_returns_2(monkeypatch, capsys, tmp_path):
 
 
 def test_disabled_chain_with_stale_monitor_is_red(monkeypatch, capsys, tmp_path):
-    # active 只剩两条、名单仍列三条（停用链未同步）⇒ 覆盖红(1)，不是第三态(2)。
+    # active 只剩两条、名单仍列其余链（停用链未同步）⇒ 覆盖红(1)，不是第三态(2)。
     mod = _load()
     states = tmp_path / "states.json"
-    states.write_text(json.dumps({"workflows": _states(names=ACTIVE[:2])}), encoding="utf-8")
+    states.write_text(json.dumps({"workflows": _states(names=[name for name in ACTIVE if name != "部署前端展示"][:2])}), encoding="utf-8")
     monkeypatch.setattr(sys, "argv", ["x", "--states-json", str(states),
                                       "--monitor", str(_monitor(tmp_path))])
     rc = mod.main()
@@ -258,26 +248,12 @@ def test_platform_reading_covers_every_declared_workflow() -> None:
 
 
 def test_full_platform_reading_is_checked_two_ways_against_the_monitor() -> None:
-    """拿**整表读数**（不只 active）过一遍判据：两条方向都必须成立。
-
-    第一向：读数里 state=active 的链，一条都不许缺席监视名单（旧缺口就在这一向）。
-    第二向：名单里不许出现读数说非 active 的名字（凑数覆盖）。
-    与 `test_real_monitor_matches_current_active_chains` 的差别：那条只喂 2 条 disabled 名字，
-    这条喂**全表**（9 条 disabled 全在），所以"名单里混进任何一条停用链"都会被抓到。
-
-    注意：本读数里 `AI Auto Fix Monitor` 自身是 disabled_manually（历史事实，不许改），
-    所以**链覆盖**两向必须零错，而 errs 里必须且只该剩"监视器自身被停用"这一条。
-    此前这里断言 `errs == []` 正是把"自身停用"误判成绿的旧缺口，现已按真实契约收紧。
-    """
+    """用独立的整表读数核对所有 active、停用项及监视器自身状态。"""
     mod = _load()
-    states = [{"name": n, "state": s} for n, s in PLATFORM_READING["states"].items()]
+    states = [{"name": n, "state": state} for n, state in PLATFORM_READING["states"].items()]
     errs, active, monitored = mod.check(MONITOR, states)
-    chain_errs = [e for e in errs if SELF_NAME not in e]
-    assert chain_errs == [], chain_errs
-    self_errs = _self_errs(errs)
-    assert len(self_errs) == 1, errs
-    assert "disabled_manually" in self_errs[0], self_errs
-    assert set(ACTIVE) <= monitored, "读数说 active 但名单里没有：%s" % sorted(set(ACTIVE) - monitored)
+    assert errs == [], errs
+    assert active == monitored == set(ACTIVE)
 
 
 def test_platform_reading_is_fresh_enough_to_be_trusted() -> None:
@@ -308,7 +284,7 @@ def test_platform_reading_is_not_silently_truncated() -> None:
 
 # ---------------------------------------------------------------------------
 # 监视器**自身**状态：五条链 active 只证明被监视的链在跑，不证明有一个在跑的监视器。
-# 这里的整表读数默认就是 `PLATFORM_READING` 原样（self 仍是 historical 的 disabled_manually），
+# 整表读数默认使用 `PLATFORM_READING`；需要异常状态的测试显式构造。
 # 需要 self=active 才能过的用例一律用**内存里的合成副本**，绝不回写 `PLATFORM_READING`。
 # ---------------------------------------------------------------------------
 SELF_NAME = "AI Auto Fix Monitor"
@@ -325,9 +301,10 @@ def _self_errs(errs):
 
 
 def test_monitor_itself_disabled_is_red():
-    """真实读数里 self 就是 disabled_manually：五条链名单全对，也必须红并点名 disabled_manually。"""
+    """即使链名单全对，监视器停用也必须报错。"""
     mod = _load()
-    errs, active, monitored = mod.check(MONITOR, _reading())
+    table = dict(PLATFORM_READING["states"], **{SELF_NAME: "disabled_manually"})
+    errs, active, monitored = mod.check(MONITOR, _reading(table))
     assert set(ACTIVE) <= monitored, "链覆盖本身应当是对的（否则这条测不到 self）"
     named = _self_errs(errs)
     assert named, errs
@@ -345,7 +322,7 @@ def test_monitor_self_missing_from_reading_is_red():
 def test_monitor_self_duplicate_and_conflicting_entries_are_red():
     """self 出现两次且状态互相矛盾 ⇒ 身份不唯一，不能挑一条"看起来绿"的来放行。"""
     mod = _load()
-    states = _reading() + [{"name": SELF_NAME, "state": "active"}]
+    states = _reading() + [{"name": SELF_NAME, "state": "disabled_manually"}]
     errs, _, _ = mod.check(MONITOR, states)
     assert _self_errs(errs), errs
 
@@ -370,22 +347,12 @@ def test_monitor_self_state_unreadable_is_red():
         assert _self_errs(errs), (bad, errs)
 
 
-def test_monitor_self_active_synthetic_copy_passes():
-    """合成副本（仅内存）把 self 改成 active ⇒ 这才是应当放行的形态。`PLATFORM_READING` 保持原样。"""
-    assert PLATFORM_READING["states"][SELF_NAME] == "disabled_manually"
-    mod = _load()
-    table = dict(PLATFORM_READING["states"], **{SELF_NAME: "active"})
-    errs, active, monitored = mod.check(MONITOR, _reading(table))
-    assert errs == [], errs
-    assert active == set(ACTIVE)
-    assert monitored == set(ACTIVE)
-
-
 def test_monitor_itself_disabled_main_returns_1(monkeypatch, capsys, tmp_path):
-    """端到端：真实读数（self=disabled_manually）过 CLI ⇒ rc=1 且诊断里点名 self。"""
+    """端到端：模拟监视器停用后执行 CLI ⇒ rc=1 且诊断里点名 self。"""
     mod = _load()
     states = tmp_path / "states.json"
-    states.write_text(json.dumps({"workflows": _reading()}), encoding="utf-8")
+    table = dict(PLATFORM_READING["states"], **{SELF_NAME: "disabled_manually"})
+    states.write_text(json.dumps({"workflows": _reading(table)}), encoding="utf-8")
     monkeypatch.setattr(sys, "argv", ["x", "--states-json", str(states), "--monitor", str(MONITOR)])
     rc = mod.main()
     out = capsys.readouterr().out
