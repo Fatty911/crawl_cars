@@ -401,12 +401,89 @@
     return items.length ? items.map(function (item) { return item.source + item.value; }).join("|") : value;
   }
 
+  function parseMeasurementValues(value, isRange) {
+    var observations = [];
+    var blocks = String(value).split(/[;；·]/);
+    for (var i = 0; i < blocks.length; i += 1) {
+      var source = "";
+      var standard = "";
+      var parts = blocks[i].trim().replace(/([:：])\s+/g, "$1").split(/[|/／]|\s+(?=(?:汽车之家|懂车帝|易车|CLTC|WLTC|NEDC|WLTP|EPA)\s*[:：])/i);
+      for (var j = 0; j < parts.length; j += 1) {
+        var part = parts[j].trim();
+        var provider = part.match(/^(汽车之家|懂车帝|易车)\s*[:：]\s*/);
+        if (provider) {
+          source = provider[1];
+          standard = "";
+          part = part.slice(provider[0].length);
+        }
+        var cycle = isRange && part.match(/^(CLTC|WLTC|NEDC|WLTP|EPA)\s*[:：]\s*/i);
+        if (cycle) {
+          standard = cycle[1].toUpperCase();
+          part = part.slice(cycle[0].length);
+        }
+        var number = isRange ? part.match(/^(\d+(?:\.\d+)?)\s*(?:km|公里)?$/i)
+          : part.match(/^(\d+(?:\.\d+)?)\s*(?:s|秒)?$/i);
+        if (!number) { return null; }
+        observations.push({ source: source, standard: standard, number: canonicalDecimal(number[1]) });
+      }
+    }
+    return observations;
+  }
+
+  function normalizeMeasurementText(values, isRange, summarize) {
+    var groups = [];
+    var measurementGroups = new Map();
+    var seen = new Set();
+    values.forEach(function (value) {
+      var observations = parseMeasurementValues(value, isRange);
+      if (!observations) {
+        var text = String(value);
+        if (!seen.has(text)) {
+          seen.add(text);
+          groups.push({ text: text });
+        }
+        return;
+      }
+      observations.forEach(function (observation) {
+        var key = observation.standard + ":" + observation.number;
+        if (seen.has(key)) { return; }
+        seen.add(key);
+        var groupKey = observation.source + ":" + observation.standard;
+        var group = measurementGroups.get(groupKey);
+        if (!group) {
+          group = { source: observation.source, standard: observation.standard, numbers: [] };
+          measurementGroups.set(groupKey, group);
+          groups.push(group);
+        }
+        group.numbers.push(observation.number);
+      });
+    });
+    // Keep the existing min-max card summary for comparable, unlabeled readings.
+    if (summarize && groups.length && groups.every(function (group) { return !group.standard && group.numbers; })) {
+      var numbers = groups.flatMap(function (group) { return group.numbers; })
+        .filter(function (number) { return !isRange || number !== "999"; });
+      if (!numbers.length) { return ""; }
+      var min = Math.min.apply(null, numbers);
+      var max = Math.max.apply(null, numbers);
+      return min === max ? String(min) : min + "-" + max;
+    }
+    return groups.map(function (group) {
+      if (group.text != null) { return group.text; }
+      var source = group.source ? group.source + ":" : "";
+      var standard = group.standard ? group.standard + ":" : "";
+      return source + standard + group.numbers.join("/");
+    }).join(" · ");
+  }
+
   function normalizeDisplayValues(rows) {
     // 只在展示行上做：`publishedRawRows` 的完整 JSON/CSV 下载仍是原始值，不进这里。
     return rows.map(function (row) {
       var next = Object.assign({}, row);
       if (next["能源类型"] != null) { next["能源类型"] = normalizeEnergyText(next["能源类型"]); }
       if (next["官方指导价"] != null) { next["官方指导价"] = normalizePriceText(next["官方指导价"]); }
+      ["纯电续航(km)", "百公里加速(s)"].forEach(function (field) {
+        if (next[field] != null) { next[field] = normalizeMeasurementText([next[field]], field === "纯电续航(km)"); }
+      });
       return next;
     });
   }
@@ -2576,6 +2653,9 @@
       var text;
       if (field === "能源类型") {
         text = normalizeEnergyText(values.join("|"));
+      } else if (field === "纯电续航(km)" || field === "百公里加速(s)") {
+        text = normalizeMeasurementText(values, field === "纯电续航(km)", uniq.length > 1);
+        if (!text) { return; }
       } else if (allNumeric && uniq.length > 1) {
         // 管道/斜杠多值拆分（230|163|230|163、420|315|315/202|165/汽车之家:420|315）：取数字集，
         // 去重、排除 999 占位，再求 min-max；后缀取首个非空（如 万）。

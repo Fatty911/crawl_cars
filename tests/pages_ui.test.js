@@ -292,6 +292,41 @@ test("data generation time formats to minute precision", () => {
   assert.equal(hooks.formatDataTimestamp(""), "", "empty iso -> empty");
   assert.equal(hooks.formatDataTimestamp("not-a-date"), "", "invalid iso -> empty");
 });
+test("Pages combines equivalent measurement values without mixing driving cycles", () => {
+  const { hooks } = loadAppForTest();
+  const raw = [
+    Object.assign(row("懂车帝", 2026, "甲配置"), {
+      "车系": "数值样本", "纯电续航(km)": "WLTC:163|163|215 CLTC:640|640", "百公里加速(s)": "7|7.0|7.00"
+    }),
+    Object.assign(row("懂车帝", 2026, "乙配置"), {
+      "车系": "数值样本", "纯电续航(km)": "WLTC:170/230/170|CLTC:163", "百公里加速(s)": "7.00/7.2"
+    }),
+    Object.assign(row("懂车帝", 2026, "另一个系列"), {
+      "车系": "保留样本", "纯电续航(km)": "WLTC:待公布|CLTC:640", "百公里加速(s)": "约7秒"
+    }),
+    Object.assign(row("懂车帝", 2026, "有来源前缀"), {
+      "车系": "保留样本", "纯电续航(km)": "懂车帝: WLTC： 170/170.0|易车:CLTC:170",
+      "百公里加速(s)": "懂车帝: 7秒|易车:7.00s"
+    }),
+  ];
+  const original = JSON.stringify(raw);
+  hooks.initializeRows(raw);
+  const [a, b, c, d] = hooks.state.rows;
+  assert.equal(a["纯电续航(km)"], "WLTC:163/215 · CLTC:640");
+  assert.equal(b["纯电续航(km)"], "WLTC:170/230 · CLTC:163");
+  assert.equal(a["百公里加速(s)"], "7");
+  assert.equal(b["百公里加速(s)"], "7/7.2");
+  assert.equal(c["纯电续航(km)"], "WLTC:待公布|CLTC:640");
+  assert.equal(c["百公里加速(s)"], "约7秒");
+  assert.equal(d["纯电续航(km)"], "懂车帝:WLTC:170 · 易车:CLTC:170");
+  assert.equal(d["百公里加速(s)"], "懂车帝:7");
+  const groups = hooks.groupRowsBySeries(hooks.state.rows).filter((group) => group.name === "数值样本");
+  const cards = hooks.renderCards(groups);
+  assert.match(cards[0].meta, /WLTC:163\/215\/170\/230 · CLTC:640\/163/);
+  assert.match(cards[0].meta, /百公里加速\(s\): 7-7\.2/);
+  assert.equal(JSON.stringify(raw), original);
+});
+
 test("card sort by price orders series groups", () => {
   const { hooks } = loadAppForTest();
   hooks.initializeRows([
