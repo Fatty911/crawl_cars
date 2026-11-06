@@ -18137,21 +18137,8 @@ def main():
 
 
 
-    if not autohome_rows and not dongchedi_rows:
-
-
-
-
-
-
-        print("错误: 没有找到任何数据文件")
-
-
-
-
-
-
-        return
+    if not (autohome_rows or dongchedi_rows or yiche_rows):
+        raise SystemExit("错误: 没有找到任何数据文件")
 
 
 

@@ -157,8 +157,10 @@ def test_remerge_publication_rejects_identity_loss_or_late_guards(tmp_path, brok
             guard["run"] = guard["run"].replace(missing, "")
         elif broken == "input_tag":
             fetch = _step(workflow, 'gh release download "$TAG"')
-            fetch["run"] = fetch["run"].replace(
-                'TAG="${{ github.event.inputs.release_tag || github.event.release.tag_name }}"', 'TAG=""')
+            fetch["env"]["BASELINE_RELEASE"] = ""
+            binding = 'TAG="$BASELINE_RELEASE"'
+            assert fetch["run"].count(binding) == 1
+            fetch["run"] = fetch["run"].replace(binding, 'TAG=""', 1)
         elif broken == "final_audit":
             assemble = _step(workflow, 'cp "out/merged_${DATE}.json" site/data/latest.json')
             assemble["run"] = assemble["run"].replace("--full-validation", "")

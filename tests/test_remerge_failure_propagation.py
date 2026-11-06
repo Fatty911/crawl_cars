@@ -85,3 +85,58 @@ def test_raw_source_correction_precedes_merge_and_keeps_original_input_immutable
     assert "steps.correct_source_identities.outputs.src" in steps[merge]["env"]["SRC"]
     assert "steps.correct_source_identities.outputs.filtered" in steps[merge]["env"]["FILT"]
     assert not any("python scripts/reconcile_source_identities.py" in s.get("run", "") for s in steps[merge + 1:])
+
+
+@pytest.mark.parametrize("baseline_tag", ["", "cnb-data-fixed-baseline"])
+@pytest.mark.parametrize("failure", ["", "download", "verify"])
+def test_aws_fetch_uses_verified_archive_without_legacy_json_assets(tmp_path, baseline_tag, failure):
+    config = yaml.safe_load((ROOT / ".github/workflows/remerge-and-publish.yml").read_text(encoding="utf-8"))
+    command = next(s["run"] for s in config["jobs"]["remerge-and-publish"]["steps"] if s.get("id") == "fetch")
+    bash = str(Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Git/bin/bash.exe") if os.name == "nt" else shutil.which("bash")
+    if not bash or not Path(bash).is_file():
+        pytest.skip("bash is required for actual workflow shell execution")
+    outputs = tmp_path / "outputs"
+    env = dict(os.environ, BASELINE_RELEASE=baseline_tag, AWS_RAW_RELEASE="aws-raw-20261105T023300Z",
+               GITHUB_REPOSITORY="owner/repo", GITHUB_OUTPUT=outputs.as_posix(), FAIL_STAGE=failure)
+    # The real shell gets only a verified archive interface. Legacy split
+    # merged/filtered Release assets deliberately do not exist.
+    prelude = r'''
+python() {
+  if [[ "$*" == *"--print-tag"* ]]; then
+    printf '%s\n' cnb-data-latest-verified
+    return
+  fi
+  if [ "$1" = scripts/download_verified_release.py ]; then
+    [ "$FAIL_STAGE" != download ] || return 23
+    printf '%s\n' "$@" > download-args
+    mkdir -p src-data/verified-release
+    printf archive > src-data/verified-release/verified-site.zip
+    printf manifest > src-data/verified-release/manifest.json
+  elif [ "$1" = scripts/prepare_cnb_pages.py ]; then
+    [ "$FAIL_STAGE" != verify ] || return 23
+    test -f src-data/verified-release/verified-site.zip
+    test -f src-data/verified-release/manifest.json
+    mkdir -p src-data/published-site/data
+    printf '[{"identity":"published-wide"}]' > src-data/published-site/data/latest.json
+    printf '[{"identity":"published-filtered"}]' > src-data/published-site/data/filtered.json
+  else
+    return 97
+  fi
+}
+gh() { echo 'legacy Release JSON assets are absent' >&2; return 77; }
+'''
+    result = subprocess.run([bash, "--noprofile", "--norc", "-c", prelude + command],
+                            cwd=tmp_path, env=env, capture_output=True)
+    out = outputs.read_text() if outputs.exists() else ""
+    if failure:
+        assert result.returncode == 23, result.stdout + result.stderr
+        assert "src=" not in out and "filtered=" not in out
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert (tmp_path / "src-data/merged_published.json").read_text() == '[{"identity":"published-wide"}]'
+        assert (tmp_path / "src-data/filtered_cars_published.json").read_text() == '[{"identity":"published-filtered"}]'
+        args = (tmp_path / "download-args").read_text().splitlines()
+        assert args[args.index("--tag") + 1] == (baseline_tag or "cnb-data-latest-verified")
+        assert "--no-legacy" in args
+        assert "src=src-data/merged_published.json" in out
+        assert "filtered=src-data/filtered_cars_published.json" in out

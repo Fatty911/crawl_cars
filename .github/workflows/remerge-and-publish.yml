@@ -19,6 +19,10 @@ on:
         description: '要重合并的 cnb-data-* release；留空取最新一条'
         required: false
         default: ''
+      aws_raw_release:
+        description: 'AWS 原始数据 Release（aws-raw-YYYYMMDDTHHMMSSZ）'
+        required: false
+        default: ''
       date:
         description: '输出日期（默认认输入文件名里的日期）'
         required: false
@@ -99,9 +103,16 @@ jobs:
 
       - name: 下载上一轮合并产物
         id: fetch
+        env:
+          BASELINE_RELEASE: ${{ github.event.inputs.release_tag || github.event.release.tag_name }}
+          AWS_RAW_RELEASE: ${{ inputs.aws_raw_release }}
         run: |
           set -euo pipefail
-          TAG="${{ github.event.inputs.release_tag || github.event.release.tag_name }}"
+          TAG="$BASELINE_RELEASE"
+          if [ -z "$TAG" ] && [ -n "$AWS_RAW_RELEASE" ]; then
+            TAG=$(python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
+              --no-legacy --print-tag)
+          fi
           if [ -z "$TAG" ]; then
             # 本链自己发布的 release 也叫 cnb-data-*（tag 形如 cnb-data-<date>-remerged-r<run>）；
             # 不过滤就会把上一轮自己的输出当输入（自我喂食，行集逐轮变薄，见 ISSUE-CNB-CHAIN-INPUT-SELFFEED）；
@@ -114,14 +125,27 @@ jobs:
               exit 1
             fi
           fi
+          [[ "$TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
           echo "release=$TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           rm -rf src-data && mkdir -p src-data
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir src-data \
-            --pattern 'merged_*.json' --pattern 'filtered_cars_*.json'
+          if [ -n "$AWS_RAW_RELEASE" ]; then
+            python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
+              --tag "$TAG" --no-legacy --dir src-data/verified-release
+            python scripts/prepare_cnb_pages.py \
+              --archive src-data/verified-release/verified-site.zip \
+              --manifest src-data/verified-release/manifest.json --site src-data/published-site
+            SRC=src-data/merged_published.json
+            FILT=src-data/filtered_cars_published.json
+            cp src-data/published-site/data/latest.json "$SRC"
+            cp src-data/published-site/data/filtered.json "$FILT"
+          else
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir src-data \
+              --pattern 'merged_*.json' --pattern 'filtered_cars_*.json'
+            SRC=$(ls src-data/merged_*.json | head -1)
+            FILT=$(ls src-data/filtered_cars_*.json | head -1)
+          fi
           ls -la src-data
-          SRC=$(ls src-data/merged_*.json | head -1)
-          FILT=$(ls src-data/filtered_cars_*.json | head -1)
           echo "src=$SRC" >> "$GITHUB_OUTPUT"
           echo "filtered=$FILT" >> "$GITHUB_OUTPUT"
           echo "src=$SRC filtered=$FILT"
@@ -146,11 +170,42 @@ jobs:
           echo "src=$CORRECTED_SRC" >> "$GITHUB_OUTPUT"
           echo "filtered=$CORRECTED_FILT" >> "$GITHUB_OUTPUT"
 
+      - name: 接收 AWS 原始数据并合并到已验证基线
+        if: ${{ inputs.aws_raw_release != '' }}
+        id: ingest_aws
+        env:
+          RAW_RELEASE: ${{ inputs.aws_raw_release }}
+          BASELINE: ${{ steps.correct_source_identities.outputs.src }}
+        run: |
+          set -euo pipefail
+          [[ "$RAW_RELEASE" =~ ^aws-raw-[0-9]{8}T[0-9]{6}Z$ ]]
+          test "$(gh release view "$RAW_RELEASE" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease --jq '(.isDraft == false) and .isPrerelease')" = true
+          mkdir aws-raw-input
+          gh release download "$RAW_RELEASE" --repo "$GITHUB_REPOSITORY" \
+            --dir aws-raw-input --pattern '*.json'
+          python scripts/aws_raw_bundle.py publish-github --check-only \
+            --tag "$RAW_RELEASE" --repo "$GITHUB_REPOSITORY" aws-raw-input
+          for asset in autoHome_aws.json dongchedi_aws.json yiche_aws.json; do
+            if [ -f "aws-raw-input/$asset" ]; then
+              test ! -e "$asset"
+              cp "aws-raw-input/$asset" "$asset"
+            fi
+          done
+          DATE=${RAW_RELEASE:8:8}
+          MERGE_DATE="$DATE" python scripts/merge_data.py
+          test -s "merged_$DATE.json"
+          python scripts/preserve_publish_baseline.py --baseline "$BASELINE" \
+            --merged-json "merged_$DATE.json" --merged-csv "merged_$DATE.csv" \
+            --filtered-json "filtered_cars_$DATE.json" --filtered-csv "filtered_cars_$DATE.csv"
+          echo "src=merged_$DATE.json" >> "$GITHUB_OUTPUT"
+          echo "filtered=filtered_cars_$DATE.json" >> "$GITHUB_OUTPUT"
+
       - name: 重合并（用修好的归并逻辑，不重新爬取）
         id: remerge
         env:
-          SRC: ${{ steps.correct_source_identities.outputs.src }}
-          FILT: ${{ steps.correct_source_identities.outputs.filtered }}
+          SRC: ${{ steps.ingest_aws.outputs.src || steps.correct_source_identities.outputs.src }}
+          FILT: ${{ steps.ingest_aws.outputs.filtered || steps.correct_source_identities.outputs.filtered }}
           DATE: ${{ github.event.inputs.date }}
           DROP: ${{ github.event.inputs.max_drop_pct || '15' }}
         run: |
@@ -186,6 +241,7 @@ jobs:
         env:
           DATE: ${{ steps.remerge.outputs.date }}
           INPUT_RELEASE: ${{ steps.fetch.outputs.tag }}
+          AWS_RAW_RELEASE: ${{ inputs.aws_raw_release }}
           RAW_WIDE: ${{ steps.fetch.outputs.src }}
         run: |
           set -euo pipefail
@@ -289,6 +345,10 @@ jobs:
                   "filteredCsv": f"data/filtered_cars_{date}.csv",
               },
           }
+          if os.environ.get("AWS_RAW_RELEASE"):
+              raw_manifest = Path("aws-raw-input/aws-raw-manifest.json")
+              manifest["provenance"]["awsRawRelease"] = os.environ["AWS_RAW_RELEASE"]
+              manifest["provenance"]["awsRawManifestSha256"] = hashlib.sha256(raw_manifest.read_bytes()).hexdigest()
           json.dump(manifest, open("site/data/manifest.json", "w", encoding="utf-8"),
                     ensure_ascii=False, indent=2)
           print(manifest)
