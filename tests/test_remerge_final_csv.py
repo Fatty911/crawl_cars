@@ -37,8 +37,15 @@ def test_actual_workflow_writes_csv_from_prepared_json_and_binds_input(tmp_path)
         (tmp_path / f"site/data/{name}.json").write_text(json.dumps(rows), encoding="utf-8")
     raw = b'[{"original":"preserved"}]'
     (tmp_path / "src-data/merged_20261015.json").write_bytes(raw)
+    raw_release = "aws-raw-20261015T023300Z"
+    producer = "a" * 40
+    raw_manifest = json.dumps({"tag": raw_release, "producer_commit": producer}).encode()
+    (tmp_path / "aws-raw-input").mkdir()
+    (tmp_path / "aws-raw-input/aws-raw-manifest.json").write_bytes(raw_manifest)
     env = dict(os.environ, PYTHONPATH=str(ROOT / "scripts"), GITHUB_SHA="commit-proof",
-               INPUT_RELEASE="cnb-data-original", PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")
+               INPUT_RELEASE="cnb-data-original", AWS_RAW_RELEASE=raw_release,
+               GITHUB_RUN_ID="1234", GITHUB_RUN_ATTEMPT="2",
+               PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")
     result = subprocess.run([sys.executable, "-", "20261015"], input=code, text=True, encoding="utf-8",
                             env=env, cwd=tmp_path, capture_output=True)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -54,6 +61,9 @@ def test_actual_workflow_writes_csv_from_prepared_json_and_binds_input(tmp_path)
     manifest = json.loads((tmp_path / "site/data/manifest.json").read_bytes())
     assert manifest["provenance"] == {
         "codeCommit": "commit-proof", "inputRelease": "cnb-data-original",
+        "workflowRunId": "1234", "workflowRunAttempt": "2",
+        "awsRawRelease": raw_release, "awsRawProducerCommit": producer,
+        "awsRawManifestSha256": hashlib.sha256(raw_manifest).hexdigest(),
         "inputSha256": {"merged_20261015.json": hashlib.sha256(raw).hexdigest()},
         "sourceIdentityEvidenceSha256": {name: hashlib.sha256(body).hexdigest()
                                         for name, body in evidence_inputs.items()},
