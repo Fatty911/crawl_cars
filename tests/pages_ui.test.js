@@ -772,7 +772,7 @@ test("Sale scope is always visible, defaults to evidenced in-sale, and preserves
 });
 
 
-test("Pages enables the eleven core filters by default and after reset", () => {
+test("Pages enables the ten distinct core filters by default and after reset", () => {
   const { elements, hooks } = loadAppForTest();
   hooks.state.config.conditions = [
     { id: "zero_to_hundred", label: "百公里加速", type: "range", field: "百公里加速(s)" },
@@ -783,14 +783,13 @@ test("Pages enables the eleven core filters by default and after reset", () => {
     { id: "bluetooth_key", label: "蓝牙/数字钥匙", type: "feature", fields: ["蓝牙/数字钥匙"], keywords: ["支持"] },
     { id: "seat_memory", label: "座椅记忆", type: "feature", fields: ["座椅记忆"], keywords: ["支持"] },
     { id: "mirror_memory", label: "外后视镜记忆", type: "feature", fields: ["外后视镜记忆"], keywords: ["支持"] },
-    { id: "app_remote_control", label: "手机APP远程控制", type: "feature", fields: ["手机App远程控制 - 远程控制"], keywords: ["支持"] },
     { id: "rain_sensor_wiper", label: "雨量感应式雨刷", type: "feature", fields: ["雨量感应式雨刷"], keywords: ["支持"] },
     { id: "auto_headlight", label: "自动头灯", type: "feature", fields: ["自动大灯"], keywords: ["支持"] }
   ];
   hooks.state.config.centerConditionGroups = [
     { id: "performance", label: "性能/续航", conditionIds: ["zero_to_hundred", "ev_range"] },
     { id: "smart", label: "核心配置", conditionIds: ["city_navigation", "remote_start", "remote_control", "bluetooth_key", "seat_memory", "mirror_memory"] },
-    { id: "comfort", label: "舒适/便利", conditionIds: ["app_remote_control", "rain_sensor_wiper", "auto_headlight"] }
+    { id: "comfort", label: "舒适/便利", conditionIds: ["rain_sensor_wiper", "auto_headlight"] }
   ];
   const passing = Object.assign(row("仅懂车帝", 2026, "默认通过"), {
     "百公里加速(s)": "6.9",
@@ -811,7 +810,7 @@ test("Pages enables the eleven core filters by default and after reset", () => {
   hooks.renderEverything();
 
   assert.deepEqual(Object.keys(hooks.state.featureFilters).sort(), [
-    "app_remote_control", "auto_headlight", "bluetooth_key", "city_navigation", "mirror_memory", "rain_sensor_wiper", "remote_control", "remote_start", "seat_memory"
+    "auto_headlight", "bluetooth_key", "city_navigation", "mirror_memory", "rain_sensor_wiper", "remote_control", "remote_start", "seat_memory"
   ].sort());
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: "" }, ev_range: { min: "", max: "" } });
   // Without hardcoded range defaults, both rows pass initially
@@ -820,22 +819,22 @@ test("Pages enables the eleven core filters by default and after reset", () => {
   hooks.state.rangeFilters.zero_to_hundred = { min: "", max: "7" };
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.getFilteredRows().map((item) => item["车型名称"]))), ["默认通过"]);
   hooks.state.rangeFilters.zero_to_hundred = { min: "", max: "" };
-  assert.equal(elements.get("selectedTags").children.map((tag) => tag.textContent).join("|"), "百公里加速|纯电续航|NOA城市领航|远程启动|手机远程控制|蓝牙/数字钥匙|座椅记忆|外后视镜记忆|手机APP远程控制|雨量感应式雨刷|自动头灯");
+  assert.equal(elements.get("selectedTags").children.map((tag) => tag.textContent).join("|"), "百公里加速|纯电续航|NOA城市领航|远程启动|手机远程控制|蓝牙/数字钥匙|座椅记忆|外后视镜记忆|雨量感应式雨刷|自动头灯");
   // All conditions are in centerConditionGroups, so sidebar conditionList fragment has no items
   assert.equal(elements.get("conditionList").children[0].children.length, 0);
   // Queries follow property nodes through the new category/section/property hierarchy.
   const centerItems = descendants(elements.get("centerConditionList")).filter(item => item.className === "center-condition-item");
-  assert.equal(centerItems.length, 11);
-  assert.equal(centerItems.filter((item) => item.children[0] && item.children[0].children[0] && item.children[0].children[0].checked).length, 11);
+  assert.equal(centerItems.length, 10);
+  assert.equal(centerItems.filter((item) => item.children[0] && item.children[0].children[0] && item.children[0].children[0].checked).length, 10);
 
   hooks.state.rangeFilters = {};
   hooks.state.featureFilters = {};
   elements.get("resetFilters").dispatch("click");
   assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.rangeFilters)), { zero_to_hundred: { min: "", max: "" }, ev_range: { min: "", max: "" } });
-  assert.equal(Object.keys(hooks.state.featureFilters).length, 9);
+  assert.equal(Object.keys(hooks.state.featureFilters).length, 8);
   assert.equal(elements.get("conditionList").children[0].children.length, 0);
   const centerItemsAfterReset = descendants(elements.get("centerConditionList")).filter(item => item.className === "center-condition-item");
-  assert.equal(centerItemsAfterReset.filter((item) => item.children[0] && item.children[0].children[0] && item.children[0].children[0].checked).length, 11);
+  assert.equal(centerItemsAfterReset.filter((item) => item.children[0] && item.children[0].children[0] && item.children[0].children[0].checked).length, 10);
 });
 
 test("Pages default visible columns include listing time and core feature columns", () => {
@@ -1057,9 +1056,9 @@ test("Pages mobile filter center exposes a config-driven major/minor taxonomy", 
   const conditionIds = config.conditions.map((condition) => condition.id).sort();
   assert.deepEqual(assignments.slice().sort(), conditionIds);
   assert.equal(new Set(assignments).size, assignments.length, "every condition belongs to exactly one minor section");
-  const pagesOnly = ["app_remote_control", "rain_sensor_wiper", "auto_headlight"];
+  const pagesOnly = ["rain_sensor_wiper", "auto_headlight"];
   assert.deepEqual(config.conditions.filter((condition) => pagesOnly.includes(condition.id)).map((condition) => condition.type), [
-    "pagesFeature", "pagesFeature", "pagesFeature"
+    "pagesFeature", "pagesFeature"
   ], "Pages-only controls must not silently expand the merge-data filter contract");
 });
 
@@ -1771,6 +1770,116 @@ function strictFilterContext(id) {
   return { hooks: app.hooks, condition, config };
 }
 
+test("phone control requires actual operations, with independent source evidence", () => {
+  const { hooks, condition } = strictFilterContext("remote_control");
+  const matches = (row) => hooks.conditionMatches(row, condition);
+  [
+    [{ "手机App远程控制": "车辆监控|服务预约" }, false],
+    [{ "手机App远程控制": "车况查询|车辆定位|寻车" }, false],
+    [{ "手机APP远程功能": "车辆监控|服务预约" }, false],
+    [{ "手机APP远程功能": "●" }, false],
+    [{ "手机App远程控制": "车门控制|车辆监控" }, true],
+    [{ "手机APP远程功能": "车窗控制|空调控制|车辆启动|充电控制" }, true],
+    [{ "远程控制功能": "标配" }, true],
+    [{ "手机远程控制": "●（标配）" }, true],
+    [{ "远程控制": "支持（车辆监控）" }, false],
+    [{ "手机App远程控制": "不支持车门控制" }, false],
+    [{ "手机App远程控制": "车门控制|选装" }, false],
+    [{ "手机远程控制": "●（选装）" }, false],
+    [{ "销售说明": "手机APP远程控制|车门控制" }, false],
+    [{ "手机App远程控制": "车辆监控|服务预约", "远程控制": "空调控制" }, true],
+    [{ "手机App远程控制": "不支持", "手机APP远程功能": "车门控制" }, true]
+  ].forEach(([input, expected]) => assert.equal(matches(input), expected, JSON.stringify(input)));
+});
+
+test("remote start needs its own equipment or a typed explicit startup action", () => {
+  const { hooks, condition: control, config } = strictFilterContext("remote_control");
+  const start = config.conditions.find((item) => item.id === "remote_start");
+  hooks.state.featureFilters.remote_start = true;
+  assert.equal(hooks.conditionMatches({ "远程启动": "●" }, start), true);
+  assert.equal(hooks.conditionMatches({ "远程启动": "●" }, control), false);
+  assert.equal(hooks.conditionMatches({ "手机App远程控制": "车门控制" }, control), true);
+  assert.equal(hooks.conditionMatches({ "手机App远程控制": "车门控制" }, start), false);
+  assert.equal(hooks.conditionMatches({ "手机APP远程功能": "车辆启动" }, control), true);
+  assert.equal(hooks.conditionMatches({ "手机APP远程功能": "车辆启动" }, start), true);
+  assert.equal(hooks.conditionMatches({ "远程启动功能": "选装" }, start), false);
+  assert.equal(hooks.conditionMatches({ "远程启动": "不支持", "销售说明": "车辆启动" }, start), false);
+});
+
+test("merged phone control retains both raw source columns and does not promote optional enums", () => {
+  const { hooks, condition } = strictFilterContext("remote_control");
+  const original = Object.assign(row("易车", 2026, "独立控制来源"), {
+    "级别": "中型车", "手机App远程控制": "车辆监控|服务预约", "手机APP远程功能": "车门控制"
+  });
+  const raw = [Object.freeze(original)];
+  const before = JSON.stringify(raw);
+  hooks.state.publishedRawRows = raw;
+  hooks.initializeRows(raw);
+  assert.equal(hooks.state.rows.length, 1);
+  assert.equal(hooks.state.rows[0]["手机App远程控制"], "车辆监控|服务预约");
+  assert.equal(hooks.state.rows[0]["手机APP远程功能"], "车门控制");
+  assert.equal(hooks.state.columns.includes("手机App远程控制"), true);
+  assert.equal(hooks.state.columns.includes("手机APP远程功能"), true);
+  assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), true);
+  assert.equal(hooks.state.publishedRawRows, raw);
+  assert.equal(JSON.stringify(raw), before);
+  const optional = { "手机App远程控制 - 远程控制": "选装" };
+  const normalized = hooks.normalizeRowColumns([optional])[0];
+  assert.equal(normalized["手机App远程控制 - 远程控制"], "选装");
+  assert.equal(hooks.conditionMatches(normalized, condition), false);
+  assert.equal(hooks.conditionMatches(hooks.normalizeRowColumns([
+    { "手机App远程控制 - 车门控制": "●" }
+  ])[0], condition), true);
+});
+
+test("historical phone control switches migrate by OR without mutating snapshot input", () => {
+  const { hooks } = strictFilterContext("remote_control");
+  hooks.initializeRows([]);
+  [
+    { remote_control: false, app_remote_control: false },
+    { remote_control: true, app_remote_control: false },
+    { remote_control: false, app_remote_control: true },
+    { remote_control: true, app_remote_control: true },
+    { app_remote_control: true },
+    { app_remote_control: false },
+    { remote_control: false }
+  ].forEach((old) => {
+    const featureFilters = Object.freeze(Object.assign({ remote_start: true, bluetooth_key: false }, old));
+    const snapshot = Object.freeze({ featureFilters });
+    const before = JSON.stringify(snapshot);
+    const expected = Boolean(old.remote_control || old.app_remote_control);
+    hooks.applySnapshot(snapshot);
+    assert.equal(hooks.state.featureFilters.remote_control, expected);
+    assert.equal(Object.hasOwn(hooks.state.featureFilters, "app_remote_control"), false);
+    assert.equal(hooks.state.featureFilters.remote_start, true);
+    assert.equal(hooks.state.featureFilters.bluetooth_key, false);
+    assert.notEqual(hooks.state.featureFilters, featureFilters);
+    hooks.state.featureFilters.remote_control = !expected;
+    assert.equal(JSON.stringify(snapshot), before);
+  });
+});
+
+test("phone control has one condition, taxonomy assignment and UI item", () => {
+  const { hooks, config } = strictFilterContext("remote_control");
+  const { elements, hooks: ui } = loadAppForTest();
+  assert.equal(config.conditions.filter((item) => item.id === "remote_control").length, 1);
+  assert.equal(config.conditions.some((item) => item.id === "app_remote_control"), false);
+  const assigned = config.filterTaxonomy.flatMap((major) => major.sections.flatMap((section) => section.conditionIds));
+  assert.equal(assigned.filter((id) => id === "remote_control").length, 1);
+  assert.equal(assigned.includes("app_remote_control"), false);
+  ui.state.config = config;
+  ui.initializeRows([]);
+  ui.renderEverything();
+  const controls = descendants(elements.get("centerConditionList"));
+  assert.equal(controls.filter((item) => item.className === "center-condition-item" && item.dataset.conditionId === "remote_control").length, 1);
+  assert.equal(controls.some((item) => item.dataset && item.dataset.conditionId === "app_remote_control"), false);
+  assert.equal(Object.hasOwn(ui.state.featureFilters, "app_remote_control"), false);
+  assert.equal(hooks.state.featureFilters.remote_control, true);
+});
+
+
+
+
 test("sentry mode requires dedicated affirmative evidence instead of camera or recorder fields", () => {
   const { hooks, condition } = strictFilterContext("sentry_mode");
   const matches = (row) => hooks.conditionMatches(row, condition);
@@ -1810,6 +1919,38 @@ test("tire pressure display accepts explicit generic values and rejects source c
   assert.equal(matches({ "胎压显示功能": "标配" }), true);
   assert.equal(matches({ "胎压监测系统": "懂车帝:胎压显示|易车:不支持" }), false);
   assert.equal(matches({ "胎压显示": "懂车帝:●|易车:选装" }), false);
+});
+
+
+test("typed App startup actions survive initializeRows without admitting unrelated phone operations", () => {
+  const { hooks, condition, config } = strictFilterContext("remote_start");
+  const control = config.conditions.find((item) => item.id === "remote_control");
+  [
+    [{ "手机APP远程功能": "车辆启动" }, true],
+    [{ "手机App远程控制": "发动机启动" }, true],
+    [{ "手机App远程控制": "远程启动|车况查询" }, true],
+    [{ "手机App远程控制": "远程控制" }, false],
+    [{ "手机App远程控制": "●" }, false],
+    [{ "手机APP远程功能": "支持" }, false],
+    [{ "手机App远程控制": "车门控制" }, false],
+    [{ "手机App远程控制": "车辆监控|服务预约" }, false],
+    [{ "手机App远程控制": "车辆启动|选装" }, false],
+    [{ "远程启动功能": "不支持", "手机APP远程功能": "车辆启动" }, false],
+    [{ "远程启动": "选装", "手机App远程控制": "发动机启动" }, false],
+    [{ "销售说明": "车辆启动" }, false],
+    [{ "手机App远程控制 - 车辆启动": "●" }, true],
+    [{ "手机App远程控制 - 车辆启动": "选装" }, false]
+  ].forEach(([fields, expected]) => {
+    const source = Object.freeze(Object.assign(row("懂车帝", 2026, "启动管线反例"), fields));
+    const before = JSON.stringify(source);
+    hooks.initializeRows([source]);
+    hooks.state.featureFilters.remote_control = true;
+    assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), expected, JSON.stringify(fields));
+    if (fields["手机App远程控制"] === "发动机启动") {
+      assert.equal(hooks.conditionMatches(hooks.state.rows[0], control), true, "an explicit App startup is also an actual phone operation");
+    }
+    assert.equal(JSON.stringify(source), before);
+  });
 });
 
 test("phone key accepts either Bluetooth or UWB and requires technology evidence", () => {
@@ -2149,4 +2290,28 @@ test("native HTML colSpan zero clamping cannot add phantom columns to the three-
     if (descriptor) Object.defineProperty(FakeElement.prototype, "colSpan", descriptor);
     else delete FakeElement.prototype.colSpan;
   }
+});
+
+test("known remote-operation parents prove startup only through explicit start actions", () => {
+  const { hooks, condition } = strictFilterContext("remote_start");
+  const parents = ["远程控制", "远程操控", "远程控制功能", "手机远程控制"];
+  parents.forEach((parent) => {
+    [
+      ["车门控制 / 车窗控制 / 车辆启动 / 充电管理 / 空调控制 / 车况查询/诊断", true],
+      ["发动机启动", true], ["远程启动", true],
+      ["车门控制 / 空调控制 / 车况查询/诊断", false],
+      ["远程控制", false], ["支持", false], ["●", false],
+      ["车辆启动|选装", false], ["车辆启动|不支持", false]
+    ].forEach(([value, expected]) => {
+      const input = Object.freeze(Object.assign(row("汽车之家", 2026, "已知远程操作父列"), { [parent]: value }));
+      const before = JSON.stringify(input);
+      hooks.initializeRows([input]);
+      assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), expected, parent + ":" + value);
+      assert.equal(JSON.stringify(input), before);
+    });
+    hooks.initializeRows([Object.assign(row("汽车之家", 2026, "启动否定"), { [parent]: "车辆启动", "远程启动": "不支持" })]);
+    assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), false, "dedicated denial wins");
+  });
+  hooks.initializeRows([Object.assign(row("汽车之家", 2026, "营销文案"), { "销售说明": "车辆启动" })]);
+  assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), false);
 });

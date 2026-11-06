@@ -42,7 +42,6 @@
     bluetooth_key: true,
     seat_memory: true,
     mirror_memory: true,
-    app_remote_control: true,
     rain_sensor_wiper: true,
     auto_headlight: true,
     sentry_mode: true,
@@ -751,14 +750,37 @@
     return text.replace(/\s+/g, " ").trim();
   }
 
-  function mergeSkuCluster(items) {
+  function typedEquipmentColumns() {
+    var fields = [];
+    (state.config.conditions || []).forEach(function (condition) {
+      if (["remote_control", "remote_start"].indexOf(condition.id) !== -1) {
+        fields = fields.concat(condition.fields || [], condition.genericFields || []);
+      }
+    });
+    return new Set(fields.map(strictEquipmentKey));
+  }
+
+  function mergeSkuCluster(items, evidenceColumns) {
     var merged = {};
     var sources = new Set();
     var rawNames = [];
     items.forEach(function (row) {
       atomicSources(row["数据来源"]).forEach(function (source) { sources.add(source); });
       Object.keys(row).forEach(function (column) {
-        if (["易车上市状态", "销售状态", "在售状态", "激光雷达数量", "激光雷达数量(个)", "驱动电机数"].indexOf(column) !== -1) {
+        var valueColumn = VALUE_COLUMN_PATTERN.exec(column);
+        var evidenceColumn = valueColumn ? valueColumn[1] : column;
+        if (evidenceColumns.has(strictEquipmentKey(evidenceColumn))) {
+          // These filters need negative/optional source evidence as well as yes.
+          if (!Object.prototype.hasOwnProperty.call(merged, column)) {
+            merged[column] = row[column];
+          } else {
+            var values = splitDisplaySegments(merged[column]);
+            splitDisplaySegments(row[column]).forEach(function (part) {
+              if (values.indexOf(part) === -1) { values.push(part); }
+            });
+            if (values.length) { merged[column] = values.join("|"); }
+          }
+        } else if (["易车上市状态", "销售状态", "在售状态", "激光雷达数量", "激光雷达数量(个)", "驱动电机数"].indexOf(column) !== -1) {
           // Negative statuses and numeric zero counts are evidence, not missing values.
           var status = String(row[column] == null ? "" : row[column]).trim();
           var observed = String(merged[column] == null ? "" : merged[column]).split("|").filter(Boolean);
@@ -842,7 +864,8 @@
     Object.keys(coarse).forEach(function (key) {
       clusters = clusters.concat(clusterSkuRows(coarse[key]));
     });
-    return clusters.map(mergeSkuCluster);
+    var evidenceColumns = typedEquipmentColumns();
+    return clusters.map(function (items) { return mergeSkuCluster(items, evidenceColumns); });
   }
 
   function withDerivedDimensions(rows) {
@@ -970,6 +993,7 @@
 
   function normalizeRowColumns(rows) {
     var aliasMap = columnAliasMap();
+    var evidenceColumns = typedEquipmentColumns();
     return rows.map(function (row) {
       var next = Object.assign({}, row);
       Object.keys(row).forEach(function (sourceColumn) {
@@ -981,6 +1005,13 @@
         var valueMatch = VALUE_COLUMN_PATTERN.exec(column);
         if (valueMatch) {
           var parent = valueMatch[1].trim();
+          if (evidenceColumns.has(strictEquipmentKey(parent))) {
+            var explicit = typedEquipmentValueEvidence(value, [], true);
+            if (explicit.positive && !explicit.negative) {
+              next[parent] = mergeDistinctColumnValues(next[parent], valueMatch[2].trim());
+            }
+            return; // Keep the source column, including optional/negative evidence.
+          }
           if (hasPositiveValue(value)) {
             next[parent] = mergeDistinctColumnValues(next[parent], valueMatch[2].trim());
           }
@@ -996,7 +1027,9 @@
           if (acceptAlias) {
             next[standard] = mergeDistinctColumnValues(next[standard], value);
           }
-          delete next[column];
+          if (!evidenceColumns.has(strictEquipmentKey(column))) {
+            delete next[column];
+          }
         } else if (column !== sourceColumn && hasPositiveValue(value)) {
           next[column] = mergeDistinctColumnValues(next[column], value);
         }
@@ -1067,6 +1100,50 @@
     return result;
   }
 
+  function typedEquipmentValueEvidence(value, acceptedValues, allowStandard) {
+    var result = { positive: false, negative: strictEquipmentEvidence(value, {}).negative };
+    var accepted = acceptedValues.map(strictEquipmentKey);
+    var unknown = false;
+    splitDisplaySegments(value).forEach(function (part) {
+      var text = stripSourceSegmentPrefix(part).replace(/\s+/g, "");
+      if (/未知|待定|暂无|待开通|未开通|未开放|未激活|未提供/.test(text)) {
+        unknown = true;
+      }
+      text.split(/[/／、,，;；]/).forEach(function (piece) {
+        piece = stripSourceSegmentPrefix(piece);
+        var standard = /^(?:●(?:标配|标准配置)?|支持|标配|标准配置|是|有)(?:[（(](?:标配|标准配置)[）)])?$/.test(piece);
+        var token = strictEquipmentKey(piece.replace(/^(?:●|支持|标配|具备|配备|有)/, "")
+          .replace(/[（(](?:标配|标准配置)[）)]$/, ""));
+        if ((allowStandard && standard) || accepted.indexOf(token) !== -1) {
+          result.positive = true;
+        }
+      });
+    });
+    result.positive = result.positive && !unknown;
+    return result;
+  }
+
+  function typedEquipmentFieldEvidence(row, fields, acceptedValues, allowStandard) {
+    var expected = fields.map(strictEquipmentKey);
+    var accepted = acceptedValues.map(strictEquipmentKey);
+    var result = { positive: false, negative: false };
+    Object.keys(row).forEach(function (key) {
+      if (expected.indexOf(strictEquipmentKey(key)) === -1) {
+        var option = VALUE_COLUMN_PATTERN.exec(key);
+        if (!option || expected.indexOf(strictEquipmentKey(option[1])) === -1 ||
+            accepted.indexOf(strictEquipmentKey(option[2])) === -1) { return; }
+        var optionEvidence = typedEquipmentValueEvidence(row[key], [], true);
+        result.positive = result.positive || optionEvidence.positive;
+        result.negative = result.negative || optionEvidence.negative;
+        return;
+      }
+      var evidence = typedEquipmentValueEvidence(row[key], acceptedValues, allowStandard);
+      result.positive = result.positive || evidence.positive;
+      result.negative = result.negative || evidence.negative;
+    });
+    return result;
+  }
+
   function strictEnergyPresence(value) {
     var result = { bev: false, other: false };
     splitDisplaySegments(value).forEach(function (part) {
@@ -1113,6 +1190,25 @@
     if (isFeatureCondition(condition)) {
       if (!state.featureFilters[condition.id]) {
         return true;
+      }
+      if (condition.id === "remote_control") {
+        var controlFields = (condition.fields || []).map(strictEquipmentKey);
+        var genericControlFields = (condition.genericFields || []).map(strictEquipmentKey);
+        return Object.keys(row).some(function (key) {
+          var normalized = strictEquipmentKey(key);
+          if (controlFields.indexOf(normalized) === -1) { return false; }
+          var control = typedEquipmentValueEvidence(row[key], condition.controlValues || [],
+            genericControlFields.indexOf(normalized) === -1);
+          return control.positive && !control.negative;
+        });
+      }
+      if (condition.id === "remote_start") {
+        var startActions = ["远程启动", "车辆启动", "发动机启动"];
+        var start = typedEquipmentFieldEvidence(row, condition.fields || [], startActions, true);
+        if (start.negative) { return false; }
+        if (start.positive) { return true; }
+        var appStart = typedEquipmentFieldEvidence(row, condition.genericFields || [], startActions, false);
+        return appStart.positive && !appStart.negative;
       }
       if (condition.id === "sentry_mode") {
         var sentry = strictEquipmentFieldEvidence(row, condition.fields || [], {});
@@ -2713,7 +2809,11 @@
     state.series = snapshot.series || "";
     state.columnFilters = snapshot.columnFilters || {};
     state.rangeFilters = snapshot.rangeFilters || {};
-    state.featureFilters = snapshot.featureFilters || {};
+    state.featureFilters = Object.assign({}, snapshot.featureFilters || {});
+    if (Object.prototype.hasOwnProperty.call(state.featureFilters, "app_remote_control")) {
+      state.featureFilters.remote_control = Boolean(state.featureFilters.remote_control || state.featureFilters.app_remote_control);
+      delete state.featureFilters.app_remote_control;
+    }
     state.sortField = snapshot.sortField || "";
     state.sortDir = snapshot.sortDir || "asc";
     state.sortLevels = Array.isArray(snapshot.sortLevels) ? snapshot.sortLevels : [];
