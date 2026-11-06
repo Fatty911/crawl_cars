@@ -5,6 +5,7 @@
   var HISTORY_API = window.CARS_FILTER_HISTORY_API || "/api/filter-history";
   var GITHUB_HISTORY = window.CARS_GITHUB_HISTORY || null;
   var DEFAULT_SYNC_ID = window.CARS_DEFAULT_FILTER_SYNC_ID || "";
+  var DEFAULT_SORT_FIELD = "官方指导价";
   var STORAGE_SYNC_KEY = "cars_filter_sync_id";
   var STORAGE_HISTORY_KEY = "cars_filter_history_cache";
   var STORAGE_GITHUB_TOKEN_KEY = "cars_filter_github_token";
@@ -71,7 +72,7 @@
     search: "",
     brand: "",
     series: "",
-    sortField: "",
+    sortField: DEFAULT_SORT_FIELD,
     sortDir: "asc",
     sortLevels: [],
     mode: "center",
@@ -1383,6 +1384,11 @@
       if (result === 0) {
         result = String(av || "").localeCompare(String(bv || ""), "zh-Hans", { numeric: true });
       }
+    } else if (level.field === DEFAULT_SORT_FIELD) {
+      var ap = validPrice(a, level.field);
+      var bp = validPrice(b, level.field);
+      if (ap === null || bp === null) { return ap === bp ? 0 : ap === null ? 1 : -1; }
+      result = ap - bp;
     } else {
       var an = firstNumber(av);
       var bn = firstNumber(bv);
@@ -1438,6 +1444,7 @@
   }
 
   function validPrice(row, field) {
+    if (field === DEFAULT_SORT_FIELD) { return skuPrice(row); }
     var value = firstNumber(row[field]);
     return value !== null && Number.isFinite(value) && value > 0 ? value : null;
   }
@@ -2501,6 +2508,7 @@
     if (!level) { return null; }
     if (level.field === "数据来源") { return sourceCount(row); }
     if (level.field === "车系") { return seriesIdentity(row).name; }
+    if (level.field === DEFAULT_SORT_FIELD) { return validPrice(row, level.field); }
     if (level.field === "上市时间") {
       var rawDate = row[level.field];
       if (!rawDate) { return null; }
@@ -3074,9 +3082,10 @@
     state.search = "";
     state.brand = "";
     state.series = "";
-    state.sortField = "";
+    state.sortField = DEFAULT_SORT_FIELD;
     state.sortDir = "asc";
     state.sortLevels = [];
+    state.cardSort = null;
     state.cardLimit = 24;
     state.page = 1;
     state.saleScope = "onSale";

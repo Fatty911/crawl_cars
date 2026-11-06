@@ -312,20 +312,32 @@ test("card sort by price orders series groups", () => {
   assert.equal(groups[0].rows[0]["数据来源"].includes("汽车之家"), true);
 });
 
-test("explicit price sort is not pre-empted by multi-source priority", () => {
+test("official price is the default for models and series, with unknowns last", () => {
   const { hooks } = loadAppForTest();
   hooks.initializeRows([
-    Object.assign(row("汽车之家+易车+懂车帝", 2026, "多源贵车"), { "官方指导价": "20.00万" }),
-    Object.assign(row("懂车帝", 2026, "单源便宜车"), { "官方指导价": "10.00万" })
+    Object.assign(row("汽车之家+易车+懂车帝", 2026, "多源贵车"), { "车系": "贵车系", "官方指导价": "20.00万" }),
+    Object.assign(row("懂车帝", 2026, "单源便宜车"), { "车系": "低价车系", "官方指导价": "90000元" }),
+    Object.assign(row("懂车帝", 2026, "另一车款"), { "车系": "低价车系", "官方指导价": "15万" }),
+    Object.assign(row("懂车帝", 2026, "未定价车"), { "车系": "未定价车系", "官方指导价": "0万" })
   ]);
-  hooks.state.sortField = "官方指导价";
-  hooks.state.sortDir = "asc";
-  assert.deepEqual(Array.from(hooks.getFilteredRows(), (item) => item["车型名称"]),
-    ["单源便宜车", "多源贵车"]);
+  const names = () => Array.from(hooks.getFilteredRows(), (item) => item["车型名称"]);
+  const groups = () => hooks.groupRowsBySeries(hooks.getFilteredRows());
+  assert.deepEqual(names(), ["单源便宜车", "另一车款", "多源贵车", "未定价车"]);
+  assert.deepEqual(Array.from(groups(), (group) => group.name), ["低价车系", "贵车系", "未定价车系"]);
+  assert.equal(groups()[0].representative["车型名称"], "单源便宜车");
+
+  hooks.state.sortDir = "desc";
+  assert.deepEqual(names(), ["多源贵车", "另一车款", "单源便宜车", "未定价车"]);
+  const manual = hooks.snapshotFilters();
+  hooks.state.cardSort = { field: "数据来源", dir: "desc" };
+  hooks.restoreDefaultFilters();
+  assert.equal(hooks.state.cardSort, null);
+  assert.deepEqual(names(), ["单源便宜车", "另一车款", "多源贵车", "未定价车"]);
+  hooks.applySnapshot(manual);
+  assert.deepEqual(names(), ["多源贵车", "另一车款", "单源便宜车", "未定价车"]);
   hooks.state.sortField = "";
   hooks.state.sortLevels = [];
-  assert.deepEqual(Array.from(hooks.getFilteredRows(), (item) => item["车型名称"]),
-    ["多源贵车", "单源便宜车"], "default relevance order still prefers more sources");
+  assert.equal(names()[0], "多源贵车", "clearing a sort retains the relevance order");
 });
 
 test("per-source range aliases merge only for electrified rows and never treat 999 as a range", () => {
