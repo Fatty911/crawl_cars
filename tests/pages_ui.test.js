@@ -1877,8 +1877,66 @@ test("phone control has one condition, taxonomy assignment and UI item", () => {
   assert.equal(hooks.state.featureFilters.remote_control, true);
 });
 
+test("city navigation requires dedicated or typed urban driving evidence, never highway or marketing", () => {
+  const { hooks, condition } = strictFilterContext("city_navigation");
+  [
+    [{ "车系": "摩卡PHEV", "车型名称": "Hi4 Max版 四驱长续航", "导航辅助驾驶": "高快领航" }, false],
+    [{ "导航辅助驾驶": "高速NOA|高速NOP|高速领航" }, false],
+    [{ "导航辅助驾驶": "高快领航|城市领航" }, true],
+    [{ "导航辅助驾驶": "懂车帝:高快领航|易车:城市领航" }, true],
+    [{ "导航辅助驾驶": "城区NOA" }, true],
+    [{ "导航辅助驾驶": "城市地图|城市导航" }, false],
+    [{ "地图导航": "城市领航", "销售说明": "NOA城市领航" }, false],
+    [{ "NOA城市领航": "●" }, true],
+    [{ "城市领航辅助": "支持" }, true],
+    [{ "NOA城市领航": "未知" }, false],
+    [{ "NOA城市领航": "选装" }, false],
+    [{ "导航辅助驾驶": "城市领航（选装）" }, false],
+    [{ "NOA城市领航": "不支持", "导航辅助驾驶": "城市领航" }, false],
+    [{ "NOA城市领航": "未知", "导航辅助驾驶": "城市领航" }, true]
+  ].forEach(([input, expected]) => assert.equal(hooks.conditionMatches(input, condition), expected, JSON.stringify(input)));
+});
 
+test("city alias denial survives display normalization and optional one-hot values stay unproven", () => {
+  const { hooks, condition } = strictFilterContext("city_navigation");
+  const original = Object.freeze(Object.assign(row("懂车帝", 2026, "城市否定冲突"), {
+    "城市领航辅助": "不支持", "导航辅助驾驶": "高快领航|城市领航"
+  }));
+  const before = JSON.stringify(original);
+  hooks.initializeRows([original]);
+  assert.equal(hooks.state.rows[0]["城市领航辅助"], "不支持");
+  assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), false);
+  assert.equal(JSON.stringify(original), before);
+  ["选装", "不支持", "○"].forEach((value) => {
+    const normalized = hooks.normalizeRowColumns([{ "导航辅助驾驶 - 城市领航": value }])[0];
+    assert.equal(hooks.conditionMatches(normalized, condition), false, value);
+  });
+  const standard = hooks.normalizeRowColumns([{ "导航辅助驾驶 - 城市领航": "●" }])[0];
+  assert.equal(hooks.conditionMatches(standard, condition), true);
+  const denied = hooks.normalizeRowColumns([{
+    "NOA城市领航 - 城市领航": "不支持", "导航辅助驾驶": "城市领航"
+  }])[0];
+  assert.equal(hooks.conditionMatches(denied, condition), false, "dedicated one-hot denial cannot be rescued by generic navigation");
+});
 
+test("SKU display merging preserves typed negative evidence without changing raw identities", () => {
+  const { hooks, condition, config } = strictFilterContext("city_navigation");
+  const inputs = [
+    Object.assign(row("汽车之家", 2026, "同一车型"), { "车款ID": "887766", "NOA城市领航": "●", "远程控制": "支持" }),
+    Object.assign(row("懂车帝", 2026, "同一车型"), { "车款ID": "887766", "NOA城市领航": "不支持", "远程控制": "选装", "手机APP远程功能": "空调控制" })
+  ];
+  const before = JSON.stringify(inputs);
+  hooks.initializeRows(inputs);
+  assert.equal(hooks.state.rows.length, 1, "the same SKU still merges once");
+  assert.equal(hooks.state.rows[0]["车款ID"], "887766");
+  assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), false);
+  hooks.state.featureFilters.remote_control = true;
+  const control = config.conditions.find((item) => item.id === "remote_control");
+  assert.equal(hooks.conditionMatches(hooks.state.rows[0], control), true, "independent standard operation survives the optional source");
+  delete hooks.state.rows[0]["手机APP远程功能"];
+  assert.equal(hooks.conditionMatches(hooks.state.rows[0], control), false, "support plus optional in the same source column is not standard");
+  assert.equal(JSON.stringify(inputs), before);
+});
 
 test("sentry mode requires dedicated affirmative evidence instead of camera or recorder fields", () => {
   const { hooks, condition } = strictFilterContext("sentry_mode");
@@ -1921,6 +1979,28 @@ test("tire pressure display accepts explicit generic values and rejects source c
   assert.equal(matches({ "胎压显示": "懂车帝:●|易车:选装" }), false);
 });
 
+test("phone-key negative evidence survives initializeRows and stays isolated by technology", () => {
+  const { hooks, condition } = strictFilterContext("bluetooth_key");
+  [
+    [{ "手机蓝牙钥匙": "不支持", "遥控钥匙类型": "手机蓝牙钥匙" }, false],
+    [{ "UWB钥匙": "选装", "遥控钥匙类型": "UWB数字钥匙" }, false],
+    [{ "手机蓝牙钥匙": "不支持", "UWB钥匙": "●" }, true],
+    [{ "UWB钥匙": "不支持", "手机蓝牙钥匙": "●" }, true],
+    [{ "手机蓝牙钥匙": "不支持", "UWB钥匙": "不支持", "遥控钥匙类型": "手机蓝牙钥匙|UWB数字钥匙" }, false],
+    [{ "蓝牙/数字钥匙": "NFC钥匙|数字钥匙" }, false],
+    [{ "蓝牙": "●" }, false]
+  ].forEach(([fields, expected]) => {
+    const source = Object.freeze(Object.assign(row("懂车帝", 2026, "钥匙管线反例"), fields));
+    const before = JSON.stringify(source);
+    hooks.initializeRows([source]);
+    assert.equal(hooks.state.rows.length, 1);
+    assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), expected, JSON.stringify(fields));
+    ["手机蓝牙钥匙", "UWB钥匙"].forEach((field) => {
+      if (Object.hasOwn(fields, field)) assert.equal(hooks.state.rows[0][field], fields[field], "dedicated evidence must survive preparation");
+    });
+    assert.equal(JSON.stringify(source), before);
+  });
+});
 
 test("typed App startup actions survive initializeRows without admitting unrelated phone operations", () => {
   const { hooks, condition, config } = strictFilterContext("remote_start");

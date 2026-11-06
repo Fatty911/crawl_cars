@@ -753,7 +753,7 @@
   function typedEquipmentColumns() {
     var fields = [];
     (state.config.conditions || []).forEach(function (condition) {
-      if (["remote_control", "remote_start"].indexOf(condition.id) !== -1) {
+      if (["remote_control", "remote_start", "city_navigation", "bluetooth_key"].indexOf(condition.id) !== -1) {
         fields = fields.concat(condition.fields || [], condition.genericFields || []);
       }
     });
@@ -1209,6 +1209,13 @@
         if (start.positive) { return true; }
         var appStart = typedEquipmentFieldEvidence(row, condition.genericFields || [], startActions, false);
         return appStart.positive && !appStart.negative;
+      }
+      if (condition.id === "city_navigation") {
+        var city = typedEquipmentFieldEvidence(row, condition.fields || [], condition.cityNavigationValues || [], true);
+        if (city.negative) { return false; }
+        if (city.positive) { return true; }
+        var navigation = typedEquipmentFieldEvidence(row, condition.genericFields || [], condition.cityNavigationValues || [], false);
+        return navigation.positive && !navigation.negative;
       }
       if (condition.id === "sentry_mode") {
         var sentry = strictEquipmentFieldEvidence(row, condition.fields || [], {});

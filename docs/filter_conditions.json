@@ -213,16 +213,34 @@
         "NOP城市",
         "城市NOP",
         "城市导航辅助驾驶",
-        "城市自动驾驶"
+        "城市自动驾驶",
+        "NOA城市路段",
+        "城区领航辅助",
+        "城区NOA",
+        "城区NOP"
       ],
-      "keywords": [
-        "NOA",
-        "NOP",
-        "城市",
-        "领航",
-        "导航辅助"
+      "defaultEnabled": true,
+      "genericFields": [
+        "导航辅助驾驶",
+        "导航辅助驾驶功能",
+        "领航辅助驾驶"
       ],
-      "defaultEnabled": true
+      "cityNavigationValues": [
+        "城市领航",
+        "城区领航",
+        "城市NOA",
+        "城区NOA",
+        "城市NOP",
+        "城区NOP",
+        "NOA城市路段",
+        "NOA城区路段",
+        "NOP城市",
+        "NOP城区",
+        "城市导航辅助驾驶",
+        "城区导航辅助驾驶",
+        "城市路段",
+        "城区路段"
+      ]
     },
     {
       "id": "remote_start",
