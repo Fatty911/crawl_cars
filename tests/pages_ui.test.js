@@ -327,6 +327,39 @@ test("Pages combines equivalent measurement values without mixing driving cycles
   assert.equal(JSON.stringify(raw), original);
 });
 
+test("real range aliases retain their cycle and card control reflects inherited price", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  const raw = [
+    Object.assign(row("懂车帝", 2026, "元境智行版"), { "车系": "极狐 阿尔法T5", "能源类型": "增程式",
+      "纯电续航(km)": "CLTC:215 / WLTC:163", "WLTC纯电续航里程(km)": "163",
+      "纯电续航(CLTC)": "215", "纯电续航里程(km)": "163" }),
+    Object.assign(row("易车", 2026, "230 Pro"), { "车系": "风云T9L", "能源类型": "插电式混合动力",
+      "纯电续航(km)": "CLTC:230 / WLTC:170", "CLTC纯电续航(km)": "230",
+      "WLTC纯电续航(km)": "170", "WLTC纯电续航里程(km)": "170" }),
+    Object.assign(row("易车", 2026, "200 四驱"), { "车系": "风云T9L", "能源类型": "插电式混合动力",
+      "纯电续航(km)": "CLTC:200 / WLTC:140", "CLTC纯电续航(km)": "200",
+      "WLTC纯电续航(km)": "140", "WLTC纯电续航里程(km)": "140" }),
+    Object.assign(row("懂车帝", 2026, "保留工况差异"), { "车系": "测试工况", "能源类型": "增程式",
+      "纯电续航(km)": "CLTC:170 / WLTC:163|163", "WLTC纯电续航里程(km)": "170" }),
+  ];
+  const expected = ["CLTC:215 · WLTC:163", "CLTC:230 · WLTC:170", "CLTC:200 · WLTC:140", "CLTC:170 · WLTC:163/170"];
+  hooks.initializeRows(raw);
+  assert.deepEqual(Array.from(hooks.state.rows, (item) => item["纯电续航(km)"]), expected);
+  const groups = hooks.groupRowsBySeries(hooks.state.rows);
+  const cards = hooks.renderCards(groups);
+  const t9 = groups.findIndex((group) => group.name === "风云T9L");
+  assert.match(cards[t9].meta, /CLTC:230\/200 · WLTC:170\/140/);
+  assert.equal(elements.get("cardSortSelect").value, "官方指导价:asc");
+  assert.equal(hooks.state.cardSort, null);
+  hooks.state.sortField = "车系";
+  hooks.renderCards(groups);
+  assert.equal(elements.get("cardSortSelect").value, "default");
+  hooks.state.cardSort = { field: "纯电续航(km)", dir: "desc" };
+  hooks.renderCards(groups);
+  assert.equal(elements.get("cardSortSelect").value, "纯电续航(km):desc");
+});
+
 test("card sort by price orders series groups", () => {
   const { hooks } = loadAppForTest();
   hooks.initializeRows([

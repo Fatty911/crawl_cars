@@ -407,7 +407,7 @@
     for (var i = 0; i < blocks.length; i += 1) {
       var source = "";
       var standard = "";
-      var parts = blocks[i].trim().replace(/([:：])\s+/g, "$1").split(/[|/／]|\s+(?=(?:汽车之家|懂车帝|易车|CLTC|WLTC|NEDC|WLTP|EPA)\s*[:：])/i);
+      var parts = blocks[i].trim().replace(/([:：])\s+/g, "$1").split(/\s*[|/／]\s*|\s+(?=(?:汽车之家|懂车帝|易车|CLTC|WLTC|NEDC|WLTP|EPA)\s*[:：])/i);
       for (var j = 0; j < parts.length; j += 1) {
         var part = parts[j].trim();
         var provider = part.match(/^(汽车之家|懂车帝|易车)\s*[:：]\s*/);
@@ -1069,6 +1069,25 @@
     return number !== null && number > 0 && number !== 999 && rowHasElectricEnergy(row);
   }
 
+  function mergeElectricRangeAlias(existing, incoming, column) {
+    var cycle = column.match(/CLTC|WLTC|NEDC|WLTP|EPA/i);
+    var prior = hasPositiveValue(existing) ? parseMeasurementValues(existing, true) : [];
+    var observations = parseMeasurementValues(incoming, true);
+    var result = hasPositiveValue(existing) ? [existing] : [];
+    if (!observations) { return result.concat(incoming).join(" · "); }
+    observations.forEach(function (reading) {
+      var standard = reading.standard || (cycle ? cycle[0].toUpperCase() : "");
+      if (reading.number === "0" || reading.number === "999") { return; }
+      if (prior && prior.some(function (item) {
+        return item.number === reading.number && (!standard || item.standard === standard);
+      })) { return; }
+      var prefix = reading.source ? reading.source + ":" : "";
+      result.push(prefix + (standard ? standard + ":" : "") + reading.number);
+      if (prior) { prior.push({ standard: standard, number: reading.number }); }
+    });
+    return result.length ? result.join(" · ") : existing;
+  }
+
   function normalizeRowColumns(rows) {
     var aliasMap = columnAliasMap();
     var evidenceColumns = typedEquipmentColumns();
@@ -1103,7 +1122,9 @@
             acceptAlias = electricRangeAliasAllowed(row, value);
           }
           if (acceptAlias) {
-            next[standard] = mergeDistinctColumnValues(next[standard], value);
+            next[standard] = standard === ELECTRIC_RANGE_STANDARD
+              ? mergeElectricRangeAlias(next[standard], value, column)
+              : mergeDistinctColumnValues(next[standard], value);
           }
           if (!evidenceColumns.has(strictEquipmentKey(column))) {
             delete next[column];
@@ -2769,7 +2790,10 @@
     });
     els.loadMoreCards.hidden = groups.length <= state.cardLimit;
     if (els.cardSortSelect) {
-      var cardLevel = state.cardSort;
+      var inherited = activeSortLevels();
+      var cardLevel = state.cardSort ||
+        (inherited.length === 1 && inherited[0].field === DEFAULT_SORT_FIELD && !inherited[0].customOrder
+          ? inherited[0] : null);
       els.cardSortSelect.value = cardLevel && cardLevel.field
         ? cardLevel.field + (cardLevel.dir === "desc" ? ":desc" : ":asc") : "default";
     }
