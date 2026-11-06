@@ -1010,9 +1010,21 @@
   function addOptionPackageColumns(target, name) {
     var base = String(name || "").trim();
     if (!base) { return; }
-    target.add(base);
+    if (isPackageName(base)) { target.add(base); }
     target.add(base + "_1");
     target.add(base + "_2");
+  }
+
+  function isPackageName(name) {
+    return /选装|选配|套装|套件|包(?:$|[（(0-9])/.test(name);
+  }
+
+  function isOptionStatus(value) {
+    return /^(?:[●○]|选配|选装|标配)(?:$|\s|[|/])/.test(value);
+  }
+
+  function isPackageDescription(value) {
+    return value.length > 2 && !isOptionStatus(value) && !/^(?:支持|不支持|\d+(?:\.\d+)?)$/.test(value);
   }
 
   function readOptionPackages(raw) {
@@ -1026,29 +1038,96 @@
     }
   }
 
+  function optionContentNames(value, names) {
+    if (typeof value !== "string") { return; }
+    value.replace(/^包含\s*[:：]\s*/, "").split(/[、，,；;＋+\n]/).forEach(function (part) {
+      var name = part.trim();
+      if (name) { names.add(name); }
+    });
+  }
+
+  function declaredOptionIndependentColumns() {
+    var config = state.config || {};
+    var names = new Set(config.defaultVisibleColumns || []);
+    Object.keys(config.columnAliases || {}).forEach(function (name) { names.add(name); });
+    (config.conditions || []).forEach(function (condition) {
+      (condition.fields || []).concat(condition.field || []).forEach(function (name) { names.add(name); });
+    });
+    getFilterTaxonomy().forEach(function (group) {
+      (group.sections || []).forEach(function (section) {
+        (section.columns || []).forEach(function (name) { names.add(name); });
+      });
+    });
+    return names;
+  }
+
   function collectEquipmentColumns(rows) {
     var columns = new Set();
+    var descriptions = new Set();
+    var options = new Set();
+    var contentNames = new Set();
+    var presenceColumns = new Set();
+    var substantiveColumns = new Set();
+    var descriptionsByColumn = new Map();
     (rows || []).forEach(function (row) {
-      Object.keys(readOptionPackages(row["选装包列表"])).forEach(function (name) {
+      var packages = readOptionPackages(row["选装包列表"]);
+      Object.keys(packages).forEach(function (name) {
         addOptionPackageColumns(columns, name);
+        contentNames.add(name);
+        var value = packages[name];
+        optionContentNames(typeof value === "string" ? value : value && value["描述"], contentNames);
       });
 
-      var pairs = {};
+      var pairs = Object.create(null);
       Object.keys(row).forEach(function (column) {
+        var value = String(row[column] == null ? "" : row[column]).trim();
+        if (value && !substantiveColumns.has(column)) {
+          var signals = splitDisplaySegments(value);
+          if (signals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part); })) {
+            substantiveColumns.add(column);
+          } else if (signals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
+            presenceColumns.add(column);
+          }
+        }
         var match = OPTION_SUFFIX_PATTERN.exec(column);
         if (!match) { return; }
-        if (!pairs[match[1]]) { pairs[match[1]] = {}; }
+        if (!pairs[match[1]]) { pairs[match[1]] = Object.create(null); }
         pairs[match[1]][match[2]] = row[column];
+        if (match[2] === "1" && isPackageDescription(value)) {
+          descriptions.add(match[1]);
+          if (!descriptionsByColumn.has(column)) { descriptionsByColumn.set(column, new Set()); }
+          descriptionsByColumn.get(column).add(value);
+        }
+        if (match[2] === "2" && isOptionStatus(value)) {
+          options.add(match[1]);
+        }
       });
       Object.keys(pairs).forEach(function (base) {
         var suffixes = Object.keys(pairs[base]).sort();
         var first = pairs[base]["1"];
         var second = pairs[base]["2"];
         if (suffixes.length === 2 && suffixes[0] === "1" && suffixes[1] === "2" &&
-            hasPositiveValue(first) && hasPositiveValue(second) && String(first).trim() !== String(second).trim()) {
+            isPackageDescription(String(first == null ? "" : first).trim()) &&
+            isOptionStatus(String(second == null ? "" : second).trim())) {
           addOptionPackageColumns(columns, base);
         }
       });
+    });
+    descriptions.forEach(function (name) {
+      if (options.has(name) && isPackageName(name)) {
+        addOptionPackageColumns(columns, name);
+      }
+    });
+    descriptionsByColumn.forEach(function (values, column) {
+      if (columns.has(column)) {
+        values.forEach(function (value) { optionContentNames(value, contentNames); });
+      }
+    });
+    var declared = declaredOptionIndependentColumns();
+    presenceColumns.forEach(function (name) {
+      if (!substantiveColumns.has(name) && !declared.has(name) && (contentNames.has(name) || isPackageName(name))) {
+        columns.add(name);
+      }
     });
     return columns;
   }
@@ -1075,7 +1154,8 @@
     if (hidden.indexOf(column) !== -1) {
       return true;
     }
-    if (isEquipmentColumn(column, rows, equipmentColumns)) {
+    if (isEquipmentColumn(column, rows, equipmentColumns) ||
+        /^(?:支持|不支持|标配|选配|黑色|白色|\d+(?:\.\d+)?\s*(?:英寸|寸|km|kW|W|L|°|个|点|座|幅|款)?)$/i.test(column)) {
       return true;
     }
     if (dropUniform.indexOf(column) !== -1) {

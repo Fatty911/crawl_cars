@@ -342,7 +342,7 @@ test("SKU expands in cards and table with exact source links and separate packag
   ]);
   assert.equal(hooks.state.rows.length, 1);
   const columns = Array.from(hooks.state.columns);
-  for (const value of ["选装包列表", "易车车型链接"]) {
+  for (const value of ["12.3英寸", "智慧驾驶包(整包选装)_1", "智慧驾驶包(整包选装)_2", "选装包列表", "易车车型链接"]) {
     assert.ok(!columns.includes(value), value);
   }
   assert.ok(columns.includes("某陌生配置列"));
@@ -369,6 +369,34 @@ test("SKU expands in cards and table with exact source links and separate packag
     assert.ok(packageList.children.some((node) => /舒适包.*座椅通风/.test(node.textContent)));
     assert.ok(packageList.children.some((node) => /智慧驾驶包.*抬头显示.*6000元/.test(node.textContent)));
   }
+});
+
+test("package-only circle and dash columns become SKU option values, preserving real attributes", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  const first = Object.assign(row("懂车帝", 2026, "有选装"), {
+    "灯光扩展包": "●", "定制迎宾投影": "●", "真实布尔属性": "●",
+    "零重力座椅": "第一排",
+    "选装包列表": { "灯光扩展包": { "描述": "包含：定制迎宾投影、零重力座椅" } },
+  });
+  const second = Object.assign(row("懂车帝", 2026, "无选装"), {
+    "灯光扩展包": "-", "定制迎宾投影": "-", "真实布尔属性": "-", "零重力座椅": "●",
+  });
+  hooks.initializeRows([first, second]);
+  const cols = Array.from(hooks.state.columns);
+  assert.ok(!cols.includes("灯光扩展包"));
+  assert.ok(!cols.includes("定制迎宾投影"));
+  assert.ok(cols.includes("真实布尔属性"));
+  assert.ok(cols.includes("零重力座椅"));
+  const groups = hooks.groupRowsBySeries(hooks.state.rows);
+  hooks.state.expandedSeries.add(groups[0].key);
+  hooks.renderCards(groups);
+  const details = descendants(elements.get("cardList")).filter((node) => node.className === "sku-details");
+  assert.equal(details.length, 2);
+  for (const item of details) { item.open = true; item.dispatch("toggle"); }
+  const optionList = descendants(details[0]).find((node) => node.className === "sku-option-packages");
+  assert.ok(optionList.children.some((node) => /定制迎宾投影.*●/.test(node.textContent)));
+  assert.ok(!descendants(details[1]).some((node) => node.className === "sku-option-packages"));
 });
 
 test("real range aliases retain their cycle and card control reflects inherited price", () => {
@@ -1014,6 +1042,11 @@ test("Pages identifies legacy option-package columns only from structured packag
     "选装包列表": JSON.stringify({ "冬季包": { "描述": "方向盘加热", "状态": "选装" } }),
     "冬季包": "方向盘加热",
     "安全轮胎_1": "支持",
+    "零重力座椅": "第一排",
+    "零重力座椅_1": "支持一键躺平及按摩",
+    "零重力座椅_2": "○ 6000元",
+    "不明字段_1": "前视",
+    "不明字段_2": "后视",
     "camera_count_v4_1": "前视",
     "camera_count_v4_2": "后视",
     "camera_count_v4_3": "环视",
@@ -1022,6 +1055,9 @@ test("Pages identifies legacy option-package columns only from structured packag
   assert.equal(hooks.shouldHideColumn("冬季包_1", rows), true);
   assert.equal(hooks.shouldHideColumn("冬季包", rows), true);
   assert.equal(hooks.shouldHideColumn("安全轮胎_1", rows), false);
+  assert.equal(hooks.shouldHideColumn("零重力座椅", rows), false);
+  assert.equal(hooks.shouldHideColumn("零重力座椅_1", rows), true);
+  assert.equal(hooks.shouldHideColumn("不明字段_1", rows), false);
   assert.equal(hooks.shouldHideColumn("camera_count_v4_1", rows), false);
   assert.equal(hooks.shouldHideColumn("扬声器数量", rows), false);
 });
