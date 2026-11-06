@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import os
 import tempfile
@@ -90,8 +91,10 @@ def refold_row(row: dict) -> dict:
     return result
 
 
-def enrich_baseline_row(baseline: dict, candidate: dict) -> tuple[dict, bool]:
-    enriched = refold_row(baseline)
+def enrich_baseline_row(
+    baseline: dict, candidate: dict, *, keep_existing_values: bool = False
+) -> tuple[dict, bool]:
+    enriched = dict(baseline) if keep_existing_values else refold_row(baseline)
     changed = False
     sources = atomic_source_names(baseline.get("数据来源"))
     for source in atomic_source_names(candidate.get("数据来源")):
@@ -340,6 +343,48 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
     return preserved, stats
 
 
+def preserve_partial_rows(
+    baseline_rows: list[dict], candidate_rows: list[dict]
+) -> tuple[list[dict], dict[str, int]]:
+    """Supplement a verified baseline from a partial snapshot; absence is not retirement."""
+    if not baseline_rows or not candidate_rows:
+        raise ValueError("partial publication needs a nonempty baseline and observations")
+    baseline_keys = [identity_key(row) for row in baseline_rows]
+    counts = Counter(baseline_keys)
+    indexes = {key: idx for idx, key in enumerate(baseline_keys)}
+    candidate_keys = unique_keys("candidate", candidate_rows)
+    output = list(baseline_rows)
+    stats = {
+        "baseline_rows": len(output),
+        "candidate_input_rows": len(candidate_rows),
+        "candidate_added": 0,
+        "candidate_enriched": 0,
+        "ambiguous_baseline_matches": 0,
+    }
+    for key, row in zip(candidate_keys, candidate_rows):
+        if counts[key] > 1:
+            # A publication key can legitimately cover two distinct observations.
+            stats["ambiguous_baseline_matches"] += 1
+        elif key in indexes:
+            idx = indexes[key]
+            base = output[idx]
+            if any(not missing_value(base.get(field)) and not missing_value(row.get(field))
+                   and str(base[field]) != str(row[field])
+                   for field in ("车款ID", "懂车帝车型ID", "易车车型ID")):
+                stats["ambiguous_baseline_matches"] += 1
+                continue
+            enriched, changed = enrich_baseline_row(base, row, keep_existing_values=True)
+            if identity_key(enriched) != key:
+                raise ValueError("partial enrichment changed a published identity")
+            output[idx] = enriched
+            stats["candidate_enriched"] += int(changed)
+        else:
+            output.append(row)
+            stats["candidate_added"] += 1
+    stats["candidate_output_rows"] = len(output)
+    return output, stats
+
+
 def write_publish_assets(
     rows: list[dict],
     merged_json: Path,
@@ -388,7 +433,17 @@ def main() -> int:
     parser.add_argument("--merged-csv", type=Path, required=True)
     parser.add_argument("--filtered-json", type=Path, required=True)
     parser.add_argument("--filtered-csv", type=Path, required=True)
+    parser.add_argument("--partial-input", action="store_true",
+                        help="preserve all published observations; add facts from partial input")
     args = parser.parse_args()
+
+    if args.partial_input:
+        baseline = load_json_rows(args.baseline)
+        candidates, _ = partition_publishable_rows(load_json_rows(args.merged_json))
+        rows, stats = preserve_partial_rows(baseline, candidates)
+        write_publish_assets(rows, args.merged_json, args.merged_csv, args.filtered_json, args.filtered_csv)
+        print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
+        return 0
 
     baseline_rows = [row for row in load_json_rows(args.baseline) if keep_pages_year(row)]
     seen_b = set()

@@ -121,3 +121,38 @@ def test_cleaner_is_reused_not_reimplemented():
     src = (ROOT / "scripts" / "preserve_publish_baseline.py").read_text(encoding="utf-8")
     assert any(f in src for f in fold), (
         "preserve_publish_baseline.py 没引用 merge_data 的折叠器 %s ⇒ 它在自己那套逻辑里搬旧值" % fold)
+
+
+def test_partial_aws_input_preserves_baseline_row_multiplicity():
+    first = _row(车款ID="185651", 座椅记忆="标配")
+    second = _row(车款ID="185651", 座椅记忆="选装")
+    observation = _row(车款ID="185651", 远程启动="●")
+
+    out, stats = PB.preserve_partial_rows([first, second], [observation])
+
+    assert out == [first, second]
+    assert stats["ambiguous_baseline_matches"] == 1
+    assert stats["candidate_output_rows"] == 2
+
+
+def test_partial_aws_input_adds_facts_without_retiring_or_rewriting_existing_sources():
+    existing = _row(车款ID="185652", 懂车帝车型ID="256585", 官方指导价="汽车之家:10万|懂车帝:11万")
+    latest = _row(数据来源="仅懂车帝", 懂车帝车型ID="256585", 官方指导价="13万",
+                  远程启动="●", 无效样本="-")
+    new = _row(车款ID="185653", 车型名称="测试S 2026款 Ultra", 懂车帝车型ID="262903")
+
+    out, stats = PB.preserve_partial_rows([existing], [latest, new])
+
+    assert out == [{**existing, "远程启动": "●"}, new]
+    assert stats["candidate_enriched"] == stats["candidate_added"] == 1
+    assert "远程启动" not in existing
+
+
+def test_partial_aws_input_does_not_enrich_an_explicitly_different_trim():
+    published = _row(车款ID="185654", 懂车帝车型ID="256585")
+    observation = _row(数据来源="仅懂车帝", 懂车帝车型ID="256586", 远程启动="●")
+
+    out, stats = PB.preserve_partial_rows([published], [observation])
+
+    assert out == [published]
+    assert stats["ambiguous_baseline_matches"] == 1

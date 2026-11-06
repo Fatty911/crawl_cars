@@ -1,28 +1,18 @@
 name: 重合并并发布（不爬取）
 
-# CNB 核时限额用完时的数据生成通道：
-# 吃上一轮真实爬取的合并产物（cnb-data-* release 里的 merged_<date>.json，
-# 即发布面 latest），用**修好的合并逻辑**补跑归并段，重建发布面并部署到 GitHub Pages。
-# 不触发任何爬虫：输入就是已爬到的数据。
-
+# AWS 负责采集，平台仅接收已经发布的原始制品、合并与部署。
+# 现网回滚可单独部署已经验证的完整归档。
 on:
-  release:
-    # CNB 真发布一条 clean `cnb-data-*` release 时自动补跑合并/发布（配额期的兜底通道）。
-    # 本链自己发布的 `…-remerged-…` release 也在同一仓库里，job 级 if 会跳过它（避免自喂食/回声）。
-    types: [published]
-  schedule:
-    # 兜底：万一 release 事件没拉起（平台抖动/事件丢失），每天一次把最新 clean release 再处理一遍。
-    - cron: '17 4 * * *'
   workflow_dispatch:
     inputs:
       release_tag:
-        description: '要重合并的 cnb-data-* release；留空取最新一条'
+        description: '验证过的 cnb-data-* 基线；留空取最新完整归档'
         required: false
         default: ''
       aws_raw_release:
         description: 'AWS 原始数据 Release（aws-raw-YYYYMMDDTHHMMSSZ）'
-        required: false
-        default: ''
+        required: true
+        type: string
       date:
         description: '输出日期（默认认输入文件名里的日期）'
         required: false
@@ -44,14 +34,7 @@ concurrency:
 
 jobs:
   remerge-and-publish:
-    # release 事件的 run 在 **tag ref** 上 ⇒ 同 deploy-frontend：github-pages 环境的 branch_policy 会在分配阶段拒绝（0 步骤、无日志、无自愈票，实测 run 39619805892）。
-    # 所以这条链不在 release 事件里部署 Pages；新 clean 数据由**已生效的两个自动入口**接手：
-    #   1) `schedule: 17 4 * * *`（每天一次，跑在 main ref 上，Pages 部署合法）；
-    #   2) 上游 CNB 链发布后自己 dispatch 本链。
-    # 想做"release ⇒ 立刻以 main 重新 dispatch"的接力，必须先证明 GITHUB_TOKEN 能触发 workflow_dispatch（平台防递归规则），已另立单，不许先写了当已生效。
-    # `-remerged-` 是本链产物，本来就永不接手（自我喂食/回声），语义不变。
-    # v2.3：按事件名排除改成按 ref 钉死默认分支。tag ref 不止 release 一个来源（create、push tags、refs/pull/N/merge、gh-readonly-queue，以及**人把本链 dispatch 到某个 tag/别的分支**），
-    # 逐个事件名去列永远会漏一个；而 github-pages 环境的 branch_policy 拒绝依据本来就是 ref⇒ 判据与平台用同一根轴。schedule 与在 main 上的 dispatch 仍放行（release 事件必带 tag ref ⇒ 依旧跳过）。
+    # Pages 部署环境只允许 main。
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -65,8 +48,7 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@main
         with:
-          # release 事件默认检出的是 tag 的树，而 clean tag 可能早于本工作流的最新脚本；
-          # 数据和脚本分开：仅 main ref 可运行，代码固定到本轮 github.sha；release 只当数据输入。
+          # 代码固定到本轮 github.sha；release 只当数据输入。
           ref: ${{ github.sha }}
 
       - name: 设置 Python
@@ -95,6 +77,7 @@ jobs:
             tests/test_remerge_published_data.py \
             tests/test_remerge_final_csv.py \
             tests/test_remerge_failure_propagation.py \
+            tests/test_publish_baseline_dirty_values_refolded.py \
             --junitxml=postprocess-regressions.xml
 
 
@@ -104,47 +87,27 @@ jobs:
       - name: 下载上一轮合并产物
         id: fetch
         env:
-          BASELINE_RELEASE: ${{ github.event.inputs.release_tag || github.event.release.tag_name }}
-          AWS_RAW_RELEASE: ${{ inputs.aws_raw_release }}
+          BASELINE_RELEASE: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           TAG="$BASELINE_RELEASE"
-          if [ -z "$TAG" ] && [ -n "$AWS_RAW_RELEASE" ]; then
+          if [ -z "$TAG" ]; then
             TAG=$(python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
               --no-legacy --print-tag)
-          fi
-          if [ -z "$TAG" ]; then
-            # 本链自己发布的 release 也叫 cnb-data-*（tag 形如 cnb-data-<date>-remerged-r<run>）；
-            # 不过滤就会把上一轮自己的输出当输入（自我喂食，行集逐轮变薄，见 ISSUE-CNB-CHAIN-INPUT-SELFFEED）；
-            # 固定条数窗口还会让这些产物把真实爬取 release 挤出候选（GH#377 / run 40305884321：原始 release 排在索引 44）。
-            # 故交给 download_verified_release.py 完整分页选源：仍要求 complete/published/非 draft/非 prerelease/合法 tag，
-            # 额外排除 -remerged-，无合格原件即失败（不 data-latest、不自家产物兜底）。
-            if ! TAG=$(python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
-                  --no-legacy --original-only --print-tag); then
-              echo "::error::没有可用的真实爬取 release（已排除本链 -remerged- 产物）⇒ 不猜、不退回最新；请显式传 release_tag"
-              exit 1
-            fi
           fi
           [[ "$TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
           echo "release=$TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           rm -rf src-data && mkdir -p src-data
-          if [ -n "$AWS_RAW_RELEASE" ]; then
-            python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
-              --tag "$TAG" --no-legacy --dir src-data/verified-release
-            python scripts/prepare_cnb_pages.py \
-              --archive src-data/verified-release/verified-site.zip \
-              --manifest src-data/verified-release/manifest.json --site src-data/published-site
-            SRC=src-data/merged_published.json
-            FILT=src-data/filtered_cars_published.json
-            cp src-data/published-site/data/latest.json "$SRC"
-            cp src-data/published-site/data/filtered.json "$FILT"
-          else
-            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir src-data \
-              --pattern 'merged_*.json' --pattern 'filtered_cars_*.json'
-            SRC=$(ls src-data/merged_*.json | head -1)
-            FILT=$(ls src-data/filtered_cars_*.json | head -1)
-          fi
+          python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
+            --tag "$TAG" --no-legacy --dir src-data/verified-release
+          python scripts/prepare_cnb_pages.py \
+            --archive src-data/verified-release/verified-site.zip \
+            --manifest src-data/verified-release/manifest.json --site src-data/published-site
+          SRC=src-data/merged_published.json
+          FILT=src-data/filtered_cars_published.json
+          cp src-data/published-site/data/latest.json "$SRC"
+          cp src-data/published-site/data/filtered.json "$FILT"
           ls -la src-data
           echo "src=$SRC" >> "$GITHUB_OUTPUT"
           echo "filtered=$FILT" >> "$GITHUB_OUTPUT"
@@ -171,11 +134,11 @@ jobs:
           echo "filtered=$CORRECTED_FILT" >> "$GITHUB_OUTPUT"
 
       - name: 接收 AWS 原始数据并合并到已验证基线
-        if: ${{ inputs.aws_raw_release != '' }}
         id: ingest_aws
         env:
           RAW_RELEASE: ${{ inputs.aws_raw_release }}
           BASELINE: ${{ steps.correct_source_identities.outputs.src }}
+          BASELINE_FILTERED: ${{ steps.correct_source_identities.outputs.filtered }}
         run: |
           set -euo pipefail
           [[ "$RAW_RELEASE" =~ ^aws-raw-[0-9]{8}T[0-9]{6}Z$ ]]
@@ -195,17 +158,17 @@ jobs:
           DATE=${RAW_RELEASE:8:8}
           MERGE_DATE="$DATE" python scripts/merge_data.py
           test -s "merged_$DATE.json"
-          python scripts/preserve_publish_baseline.py --baseline "$BASELINE" \
+          python scripts/preserve_publish_baseline.py --partial-input --baseline "$BASELINE" \
             --merged-json "merged_$DATE.json" --merged-csv "merged_$DATE.csv" \
             --filtered-json "filtered_cars_$DATE.json" --filtered-csv "filtered_cars_$DATE.csv"
           echo "src=merged_$DATE.json" >> "$GITHUB_OUTPUT"
-          echo "filtered=filtered_cars_$DATE.json" >> "$GITHUB_OUTPUT"
+          echo "filtered=$BASELINE_FILTERED" >> "$GITHUB_OUTPUT"
 
       - name: 重合并（用修好的归并逻辑，不重新爬取）
         id: remerge
         env:
-          SRC: ${{ steps.ingest_aws.outputs.src || steps.correct_source_identities.outputs.src }}
-          FILT: ${{ steps.ingest_aws.outputs.filtered || steps.correct_source_identities.outputs.filtered }}
+          SRC: ${{ steps.ingest_aws.outputs.src }}
+          FILT: ${{ steps.ingest_aws.outputs.filtered }}
           DATE: ${{ github.event.inputs.date }}
           DROP: ${{ github.event.inputs.max_drop_pct || '15' }}
         run: |
@@ -242,7 +205,8 @@ jobs:
           DATE: ${{ steps.remerge.outputs.date }}
           INPUT_RELEASE: ${{ steps.fetch.outputs.tag }}
           AWS_RAW_RELEASE: ${{ inputs.aws_raw_release }}
-          RAW_WIDE: ${{ steps.fetch.outputs.src }}
+          # Lineage uses the verified baseline plus raw observations before remerge.
+          RAW_WIDE: ${{ steps.ingest_aws.outputs.src }}
         run: |
           set -euo pipefail
           rm -rf site
@@ -329,6 +293,8 @@ jobs:
               "filteredRowCount": len(filtered),
               "provenance": {
                   "codeCommit": os.environ["GITHUB_SHA"],
+                  "workflowRunId": os.environ["GITHUB_RUN_ID"],
+                  "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
                   "inputRelease": os.environ["INPUT_RELEASE"],
                   "inputSha256": {
                       path.name: hashlib.sha256(path.read_bytes()).hexdigest()
@@ -345,10 +311,10 @@ jobs:
                   "filteredCsv": f"data/filtered_cars_{date}.csv",
               },
           }
-          if os.environ.get("AWS_RAW_RELEASE"):
-              raw_manifest = Path("aws-raw-input/aws-raw-manifest.json")
-              manifest["provenance"]["awsRawRelease"] = os.environ["AWS_RAW_RELEASE"]
-              manifest["provenance"]["awsRawManifestSha256"] = hashlib.sha256(raw_manifest.read_bytes()).hexdigest()
+          raw_manifest = Path("aws-raw-input/aws-raw-manifest.json")
+          manifest["provenance"]["awsRawRelease"] = os.environ["AWS_RAW_RELEASE"]
+          manifest["provenance"]["awsRawProducerCommit"] = json.loads(raw_manifest.read_bytes())["producer_commit"]
+          manifest["provenance"]["awsRawManifestSha256"] = hashlib.sha256(raw_manifest.read_bytes()).hexdigest()
           json.dump(manifest, open("site/data/manifest.json", "w", encoding="utf-8"),
                     ensure_ascii=False, indent=2)
           print(manifest)

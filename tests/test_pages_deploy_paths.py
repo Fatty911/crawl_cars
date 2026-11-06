@@ -146,7 +146,8 @@ def test_frontend_cannot_replace_verified_manifest_or_data(tmp_path):
 
 
 @pytest.mark.parametrize("broken", ["strict_identity", "source_evidence", "guard_after_copy",
-                                  "audit_after_upload", "attempt", "input_tag", "final_audit"])
+                                  "audit_after_upload", "attempt", "input_tag", "final_audit",
+                                  "legacy_schedule", "raw_optional", "skip_ingest"])
 def test_remerge_publication_rejects_identity_loss_or_late_guards(tmp_path, broken):
     def mutate(workflow):
         steps = _steps(workflow)
@@ -155,8 +156,14 @@ def test_remerge_publication_rejects_identity_loss_or_late_guards(tmp_path, brok
             missing = ("--strict-identities" if broken == "strict_identity"
                        else "--source-identity-evidence config/source_identity_evidence.json")
             guard["run"] = guard["run"].replace(missing, "")
+        elif broken == "legacy_schedule":
+            workflow[True]["schedule"] = [{"cron": "17 4 * * *"}]
+        elif broken == "raw_optional":
+            workflow[True]["workflow_dispatch"]["inputs"]["aws_raw_release"]["required"] = False
+        elif broken == "skip_ingest":
+            _step(workflow, 'scripts/aws_raw_bundle.py publish-github --check-only')["if"] = False
         elif broken == "input_tag":
-            fetch = _step(workflow, 'gh release download "$TAG"')
+            fetch = _step(workflow, '--archive src-data/verified-release/verified-site.zip')
             fetch["env"]["BASELINE_RELEASE"] = ""
             binding = 'TAG="$BASELINE_RELEASE"'
             assert fetch["run"].count(binding) == 1
@@ -179,9 +186,9 @@ def test_remerge_publication_rejects_identity_loss_or_late_guards(tmp_path, brok
 @pytest.mark.parametrize("binding", ["exact", "unrelated", "missing"])
 def test_remerge_exact_tag_can_use_a_bound_step_environment(tmp_path, binding):
     workflow = yaml.safe_load((ROOT / ".github/workflows/remerge-and-publish.yml").read_text())
-    fetch = _step(workflow, 'gh release download "$TAG"')
-    expression = "${{ github.event.inputs.release_tag || github.event.release.tag_name }}"
-    fetch["run"] = fetch["run"].replace(f'TAG="{expression}"', 'TAG="$BASELINE_RELEASE"')
+    fetch = _step(workflow, '--archive src-data/verified-release/verified-site.zip')
+    expression = "${{ inputs.release_tag }}"
+
     fetch["env"] = ({"BASELINE_RELEASE": expression} if binding == "exact"
                     else {"BASELINE_RELEASE": "latest"} if binding == "unrelated" else {})
     path = tmp_path / "remerge-and-publish.yml"

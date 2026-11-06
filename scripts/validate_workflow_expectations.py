@@ -625,8 +625,19 @@ def check_verified_archive_deployment(path: Path, errors: list[str]) -> None:
 
 def check_remerge_publication(path: Path, errors: list[str]) -> None:
     """The saved-input producer owns identity conservation before Pages/Release."""
-    steps = load_yaml(path).get("jobs", {}).get("remerge-and-publish", {}).get("steps", [])
-    fetch_i, fetch = publication_step(steps, 'gh release download "$TAG"', path, errors)
+    data = load_yaml(path)
+    job = data.get("jobs", {}).get("remerge-and-publish", {})
+    triggers = data.get(True, {})
+    raw_input = triggers.get("workflow_dispatch", {}).get("inputs", {}).get("aws_raw_release", {})
+    assert_condition(
+        set(triggers) == {"workflow_dispatch"} and raw_input.get("required") is True
+        and raw_input.get("type") == "string"
+        and job.get("if") == "${{ github.ref == 'refs/heads/main' }}",
+        f"{path.name} 必须由 main 的显式 AWS 制品输入触发，不得定时重放旧基线", errors,
+    )
+    steps = job.get("steps", [])
+    fetch_i, fetch = publication_step(steps, '--archive src-data/verified-release/verified-site.zip', path, errors)
+    ingest_i, ingest = publication_step(steps, 'scripts/aws_raw_bundle.py publish-github --check-only', path, errors)
     merge_i, _ = publication_step(steps, "python scripts/remerge_published_data.py", path, errors)
     guard_i, guard = publication_step(steps, '--candidate "out/merged_${DATE}.json"', path, errors)
     assemble_i, assemble = publication_step(steps, 'cp "out/merged_${DATE}.json" site/data/latest.json', path, errors)
@@ -634,17 +645,26 @@ def check_remerge_publication(path: Path, errors: list[str]) -> None:
     deploy_i, _ = publication_step(steps, "actions/deploy-pages@", path, errors)
     publish_i, publish = publication_step(steps, "python scripts/publish_github_release.py", path, errors)
     fetch_run = str(fetch.get("run", "")).replace("\\\n", " ")
-    expected_tag = "${{ github.event.inputs.release_tag || github.event.release.tag_name }}"
-    exact_tag = f'TAG="{expected_tag}"' in fetch_run or (
-        fetch.get("env", {}).get("BASELINE_RELEASE") == expected_tag
-        and 'TAG="$BASELINE_RELEASE"' in fetch_run
-    )
     assert_condition(
-        exact_tag and 'if [ -z "$TAG" ]; then' in fetch_run
-        and "--no-legacy --original-only --print-tag" in fetch_run
-        and "exit 1" in fetch_run
-        and 'gh release download "$TAG"' in fetch_run,
-        f"{path.name} 必须保留显式精确 tag，空输入只选完整原始制品，失败不得兜底", errors,
+        fetch.get("env", {}).get("BASELINE_RELEASE") == "${{ inputs.release_tag }}"
+        and 'TAG="$BASELINE_RELEASE"' in fetch_run and 'if [ -z "$TAG" ]; then' in fetch_run
+        and "--no-legacy --print-tag" in fetch_run and '--tag "$TAG" --no-legacy' in fetch_run
+        and "python scripts/prepare_cnb_pages.py" in fetch_run
+        and "--manifest src-data/verified-release/manifest.json" in fetch_run
+        and "set -euo pipefail" in fetch_run and "gh release download" not in fetch_run,
+        f"{path.name} 必须使用精确 tag 或最新完整验证归档，失败不得退回未验证输入", errors,
+    )
+    ingest_run = publication_run(ingest)
+    assert_condition(
+        ingest.get("env", {}).get("RAW_RELEASE") == "${{ inputs.aws_raw_release }}"
+        and ingest.get("env", {}).get("BASELINE") == "${{ steps.correct_source_identities.outputs.src }}"
+        and ingest.get("env", {}).get("BASELINE_FILTERED") == "${{ steps.correct_source_identities.outputs.filtered }}"
+        and "if" not in ingest and "set -euo pipefail" in ingest_run
+        and 0 <= ingest_run.find("publish-github --check-only") < ingest_run.find("python scripts/merge_data.py")
+        < ingest_run.find('scripts/preserve_publish_baseline.py --partial-input --baseline "$BASELINE"')
+        and 'echo "filtered=$BASELINE_FILTERED"' in ingest_run
+        and assemble.get("env", {}).get("RAW_WIDE") == "${{ steps.ingest_aws.outputs.src }}",
+        f"{path.name} 必须先验收 AWS 原始制品再合并", errors,
     )
     guard_run = publication_run(guard)
     assembly = publication_run(assemble)
@@ -660,7 +680,7 @@ def check_remerge_publication(path: Path, errors: list[str]) -> None:
                                ("filtered", "baseline-filtered-${DATE}.json"))
     )
     assert_condition(
-        0 <= fetch_i < merge_i < guard_i < assemble_i < upload_i < deploy_i < publish_i
+        0 <= fetch_i < ingest_i < merge_i < guard_i < assemble_i < upload_i < deploy_i < publish_i
         and upload.get("with", {}).get("path") == "site"
         and "set -euo pipefail" in guard_run and "set -euo pipefail" in assembly
         and "python scripts/verify_publish_superset.py" in guard_run

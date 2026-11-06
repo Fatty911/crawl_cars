@@ -44,7 +44,7 @@ def test_filtered_gate_uses_original_wide_and_original_filtered_and_propagates_f
     import yaml
     config = yaml.safe_load((ROOT / ".github/workflows/remerge-and-publish.yml").read_text(encoding="utf-8"))
     step = next(s for s in config["jobs"]["remerge-and-publish"]["steps"] if s["name"] == "组装发布站点")
-    assert step["env"]["RAW_WIDE"] == "${{ steps.fetch.outputs.src }}"
+    assert step["env"]["RAW_WIDE"] == "${{ steps.ingest_aws.outputs.src }}"
     lines = step["run"].splitlines()
     commands = []
     for i, line in enumerate(lines):
@@ -82,8 +82,14 @@ def test_raw_source_correction_precedes_merge_and_keeps_original_input_immutable
     assert '--input "$FILT" --output "$CORRECTED_FILT"' in correction
     assert "corrected-inputs/" in correction and "source-identity-latest.json" in correction
     assert "source-identity-filtered.json" in correction
-    assert "steps.correct_source_identities.outputs.src" in steps[merge]["env"]["SRC"]
-    assert "steps.correct_source_identities.outputs.filtered" in steps[merge]["env"]["FILT"]
+    ingest = next(i for i, step in enumerate(steps) if step.get("id") == "ingest_aws")
+    assert before < ingest < merge
+    assert steps[ingest]["env"]["BASELINE"] == "${{ steps.correct_source_identities.outputs.src }}"
+    assert steps[ingest]["env"]["BASELINE_FILTERED"] == "${{ steps.correct_source_identities.outputs.filtered }}"
+    assert 'scripts/preserve_publish_baseline.py --partial-input --baseline "$BASELINE"' in steps[ingest]["run"]
+    assert 'echo "filtered=$BASELINE_FILTERED"' in steps[ingest]["run"]
+    assert steps[merge]["env"]["SRC"] == "${{ steps.ingest_aws.outputs.src }}"
+    assert steps[merge]["env"]["FILT"] == "${{ steps.ingest_aws.outputs.filtered }}"
     assert not any("python scripts/reconcile_source_identities.py" in s.get("run", "") for s in steps[merge + 1:])
 
 
