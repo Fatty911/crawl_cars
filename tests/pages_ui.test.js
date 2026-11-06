@@ -327,6 +327,50 @@ test("Pages combines equivalent measurement values without mixing driving cycles
   assert.equal(JSON.stringify(raw), original);
 });
 
+test("SKU expands in cards and table with exact source links and separate package values", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.state.yicheSkuSlugs = { "测试品牌|链接样本": "jmev-468" };
+  const common = { "车系": "链接样本", "跨源归并ID": "links-fixture" };
+  hooks.initializeRows([
+    Object.assign(row("汽车之家", 2026, "同一车款"), common, { "车款ID": "76720", "12.3英寸": "●",
+      "智慧驾驶包(整包选装)_1": "抬头显示" }),
+    Object.assign(row("仅易车", 2026, "同一车款"), common, { "车款ID": "174772",
+      "智慧驾驶包(整包选装)_2": "○ 6000元", "易车车型链接": "https://car.yiche.com.evil.invalid/jmev-468/m174772/peizhi/" }),
+    Object.assign(row("懂车帝", 2026, "同一车款"), common, { "懂车帝车型ID": "256585",
+      "选装包列表": { "舒适包": { "描述": "座椅通风", "状态": "选装" } },
+      "某陌生配置列": "实际属性" }),
+  ]);
+  assert.equal(hooks.state.rows.length, 1);
+  const columns = Array.from(hooks.state.columns);
+  for (const value of ["选装包列表", "易车车型链接"]) {
+    assert.ok(!columns.includes(value), value);
+  }
+  assert.ok(columns.includes("某陌生配置列"));
+  const groups = hooks.groupRowsBySeries(hooks.state.rows);
+  hooks.state.expandedSeries.add(groups[0].key);
+  hooks.renderCards(groups);
+  hooks.state.mode = "table";
+  hooks.renderTableBody(hooks.state.rows);
+  for (const root of [elements.get("cardList"), elements.get("tableBody")]) {
+    const details = descendants(root).find((node) => node.className === "sku-details");
+    assert.ok(details);
+    assert.equal(descendants(details).filter((node) => node.tagName === "A").length, 0);
+    details.open = true;
+    details.dispatch("toggle");
+    details.dispatch("toggle");
+    const links = descendants(details).filter((node) => node.tagName === "A");
+    assert.deepEqual(links.map((node) => node.href).sort(), [
+      "https://car.autohome.com.cn/config/spec/76720.html",
+      "https://car.yiche.com/jmev-468/m174772/peizhi/",
+      "https://www.dongchedi.com/auto/params-carIds-256585",
+    ]);
+    assert.ok(links.every((node) => node.rel === "noopener noreferrer"));
+    const packageList = descendants(details).find((node) => node.className === "sku-option-packages");
+    assert.ok(packageList.children.some((node) => /舒适包.*座椅通风/.test(node.textContent)));
+    assert.ok(packageList.children.some((node) => /智慧驾驶包.*抬头显示.*6000元/.test(node.textContent)));
+  }
+});
+
 test("real range aliases retain their cycle and card control reflects inherited price", () => {
   const { hooks, elements } = loadAppForTest();
   hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
@@ -1605,7 +1649,10 @@ test("all table headers, column chooser and field filters share category/section
   const checkboxes=descendants(elements.get("columnList")).filter(e=>e.tagName==="INPUT");
   assert.deepEqual(checkboxes.map(e=>e.dataset.column),Array.from(hooks.state.columns));
   const cells=elements.get("tableBody").children[0].children;
-  hooks.state.columns.forEach((column,i)=>assert.equal(cells[i].textContent,String(hooks.state.rows[0][column] == null ? "-" : hooks.state.rows[0][column])));
+  hooks.state.columns.forEach((column, i) => {
+    const summary = descendants(cells[i]).find((node) => node.tagName === "SUMMARY");
+    assert.equal((summary || cells[i]).textContent, String(hooks.state.rows[0][column] == null ? "-" : hooks.state.rows[0][column]));
+  });
   assert.equal(hooks.columnPath("某陌生配置列").major,"未分类/待确认");
   assert.match(hooks.columnPath("580km尊贵型").minor,/疑似属性值/);
   assert.equal(hooks.columnPath("6万公里保养总成本预估").major,"基本信息");

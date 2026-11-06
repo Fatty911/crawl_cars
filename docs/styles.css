@@ -1256,3 +1256,8 @@ thead .table-column-row th { height: 42px; background: #eef4f6; }
 #tableHead:not([data-measured="true"]) th { position: static; }
 #pageSize { width: 94px; }
 #tableRenderStatus { font-size: 12px; color: #61717c; }
+
+.sku-details summary { cursor: pointer; }
+.sku-source-links, .sku-option-packages { margin: 6px 0; padding-inline-start: 1.35em; white-space: normal; }
+.sku-source-links a { white-space: nowrap; }
+.sku-option-packages { overflow-wrap: anywhere; }

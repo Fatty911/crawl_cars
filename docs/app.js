@@ -79,6 +79,8 @@
     cardLimit: 24,
     cardSort: null,
     expandedSeries: new Set(),
+    yicheSkuSlugs: {},
+    optionPackageColumns: new Set(),
     seriesViewSignature: "",
     mobileCategoryId: "",
     page: 1,
@@ -838,6 +840,44 @@
     return new Set(fields.map(strictEquipmentKey));
   }
 
+  var SKU_SOURCE_LINKS = Symbol("sku-source-links");
+
+  function skuSourceLinks(row) {
+    var sources = atomicSources(row["数据来源"]);
+    var links = [];
+    function id(value) {
+      var text = String(value == null ? "" : value).trim();
+      return /^[1-9][0-9]{0,11}$/.test(text) ? text : "";
+    }
+    function add(source, url) {
+      if (url) { links.push({ source: source, url: url }); }
+    }
+    var dcd = id(row["懂车帝车型ID"]);
+    if (dcd) { add("懂车帝", "https://www.dongchedi.com/auto/params-carIds-" + dcd); }
+    var autohome = id(row["汽车之家车款ID"]);
+    if (!autohome && sources.indexOf("汽车之家") !== -1 &&
+        sources.every(function (source) { return source === "汽车之家" || source === "懂车帝"; })) {
+      autohome = id(row["车款ID"]);
+    }
+    if (autohome) { add("汽车之家", "https://car.autohome.com.cn/config/spec/" + autohome + ".html"); }
+
+    var yiche = id(row["易车车型ID"]);
+    if (!yiche && sources.length === 1 && sources[0] === "易车") { yiche = id(row["车款ID"]); }
+    var yicheUrl = String(row["易车车型链接"] || "");
+    var exact = /^https:\/\/car\.yiche\.com\/[a-z][a-z0-9-]*\/m([1-9][0-9]{0,11})\/peizhi\/$/.exec(yicheUrl);
+    if (exact && (!yiche || exact[1] === yiche) && sources.indexOf("易车") !== -1) {
+      add("易车", yicheUrl);
+    } else if (yiche) {
+      var brand = String(row["品牌"] || "").trim().replace(/[·・]新能源$/, "");
+      var key = brand + "|" + String(row["车系"] || "").trim();
+      var slug = state.yicheSkuSlugs[key];
+      if (typeof slug === "string" && /^[a-z][a-z0-9-]*$/.test(slug)) {
+        add("易车", "https://car.yiche.com/" + slug + "/m" + yiche + "/peizhi/");
+      }
+    }
+    return links;
+  }
+
   function mergeSkuCluster(items, evidenceColumns) {
     var merged = {};
     var sources = new Set();
@@ -881,6 +921,11 @@
     merged["交叉核验"] = sourceList.length >= 2 ? "双源核验" : "单源数据";
     merged["源车型名称"] = rawNames.join(" / ");
     merged["车型名称"] = skuDisplayName(items);
+    var links = new Map();
+    items.forEach(function (row) {
+      skuSourceLinks(row).forEach(function (link) { links.set(link.url, link); });
+    });
+    merged[SKU_SOURCE_LINKS] = Array.from(links.values());
     return merged;
   }
 
@@ -970,20 +1015,23 @@
     target.add(base + "_2");
   }
 
+  function readOptionPackages(raw) {
+    if (!raw || raw === "-") { return {}; }
+    try {
+      var packages = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return packages && typeof packages === "object" && !Array.isArray(packages) ? packages : {};
+    } catch (error) {
+      // Invalid historical metadata is not evidence for hiding any column.
+      return {};
+    }
+  }
+
   function collectEquipmentColumns(rows) {
     var columns = new Set();
     (rows || []).forEach(function (row) {
-      var rawPackages = row["选装包列表"];
-      if (rawPackages && rawPackages !== "-") {
-        try {
-          var packages = typeof rawPackages === "string" ? JSON.parse(rawPackages) : rawPackages;
-          if (packages && typeof packages === "object" && !Array.isArray(packages)) {
-            Object.keys(packages).forEach(function (name) { addOptionPackageColumns(columns, name); });
-          }
-        } catch (error) {
-          // Invalid legacy package metadata is ignored instead of hiding unrelated columns.
-        }
-      }
+      Object.keys(readOptionPackages(row["选装包列表"])).forEach(function (name) {
+        addOptionPackageColumns(columns, name);
+      });
 
       var pairs = {};
       Object.keys(row).forEach(function (column) {
@@ -1017,7 +1065,7 @@
       // 内部审计字段（如 __header_normalization_evidence）永不作为列展示。
       return true;
     }
-    if (column === "懂车帝车型ID") {
+    if (["懂车帝车型ID", "易车车型链接", "选装包列表"].indexOf(column) !== -1) {
       // 懂车帝来源主键只作身份证据，精确隐藏此列，不影响其它 ID/陌生列。
       return true;
     }
@@ -1141,6 +1189,7 @@
     var seen = new Set();
     var columns = [];
     var equipmentColumns = collectEquipmentColumns(rows);
+    state.optionPackageColumns = equipmentColumns;
     (state.config.defaultVisibleColumns || []).forEach(function (column) {
       if (rows.some(function (row) { return Object.prototype.hasOwnProperty.call(row, column); }) && !shouldHideColumn(column, rows, equipmentColumns)) {
         seen.add(column);
@@ -1979,6 +2028,67 @@
     syncTableHeaderOffsets();
   }
 
+  function skuDetails(row, title) {
+    var details = document.createElement("details");
+    details.className = "sku-details";
+    var summary = document.createElement("summary");
+    summary.textContent = title;
+    details.appendChild(summary);
+    var filled = false;
+    details.addEventListener("toggle", function () {
+      if (!details.open || filled) { return; }
+      filled = true;
+      var links = row[SKU_SOURCE_LINKS] || skuSourceLinks(row);
+      var list = document.createElement("ul");
+      list.className = "sku-source-links";
+      links.forEach(function (link) {
+        var item = document.createElement("li");
+        var anchor = document.createElement("a");
+        anchor.href = link.url;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+        anchor.textContent = link.source + " · 车款参数";
+        item.appendChild(anchor);
+        list.appendChild(item);
+      });
+      if (!links.length) {
+        var unavailable = document.createElement("li");
+        unavailable.textContent = "暂无可确认的来源车款链接";
+        list.appendChild(unavailable);
+      }
+      details.appendChild(list);
+
+      var packages = new Map();
+      var metadata = readOptionPackages(row["选装包列表"]);
+      Object.keys(metadata).forEach(function (name) {
+        var value = metadata[name];
+        var descriptions = typeof value === "string" ? [value] :
+          value && typeof value === "object" ? [value["描述"], value["状态"], value["价格"]] : [];
+        packages.set(name, new Set(descriptions.filter(function (text) {
+          return typeof text === "string" && hasPositiveValue(text);
+        })));
+      });
+      Object.keys(row).forEach(function (column) {
+        if (!state.optionPackageColumns.has(column) || !hasPositiveValue(row[column])) { return; }
+        var match = OPTION_SUFFIX_PATTERN.exec(column);
+        var name = match && /^[12]$/.test(match[2]) ? match[1] : column;
+        if (!packages.has(name)) { packages.set(name, new Set()); }
+        packages.get(name).add(String(row[column]).trim());
+      });
+      if (packages.size) {
+        var packageList = document.createElement("ul");
+        packageList.className = "sku-option-packages";
+        packages.forEach(function (values, name) {
+          var item = document.createElement("li");
+          item.textContent = values.size ? name + " · " + Array.from(values).join(" / ") : name;
+          packageList.appendChild(item);
+        });
+        details.appendChild(packageList);
+      }
+    });
+    return details;
+  }
+
   function renderTableBody(rows) {
     var epoch = ++state.tableRenderEpoch;
     var visibleColumns = state.columns.filter(function (column) { return state.visibleColumns.has(column); });
@@ -1999,9 +2109,15 @@
       for (; offset < end; offset += 1) {
         var row = pageRows[offset];
         var tr = document.createElement("tr");
+        var detailsColumn = visibleColumns.indexOf("车型名称") !== -1 ? "车型名称" : visibleColumns[0];
         visibleColumns.forEach(function (column) {
           var td = document.createElement("td");
-          td.textContent = row[column] == null || row[column] === "" ? "-" : row[column];
+          var text = row[column] == null || row[column] === "" ? "-" : row[column];
+          if (column === detailsColumn) {
+            td.appendChild(skuDetails(row, String(text)));
+          } else {
+            td.textContent = text;
+          }
           tr.appendChild(td);
         });
         els.tableBody.appendChild(tr);
@@ -2780,6 +2896,7 @@
           appendCardMeta(modelMeta, row, ["能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]);
           model.appendChild(modelTitle);
           model.appendChild(modelMeta);
+          model.appendChild(skuDetails(row, "来源链接与选装"));
           details.appendChild(model);
           if (modelMeta) { cardSnapshot.rows.push(collectText(modelTitle) + " " + collectText(modelMeta)); }
         });
@@ -3604,10 +3721,12 @@
   function loadData() {
     return Promise.all([
       fetchJson("filter_conditions.json").catch(function () { return fallbackConfig; }),
-      fetchJson("data/manifest.json").catch(function () { return null; })
+      fetchJson("data/manifest.json").catch(function () { return null; }),
+      fetchJson("yiche-sku-series.json").catch(function () { return {}; })
     ]).then(function (results) {
       state.config = Object.assign({}, fallbackConfig, results[0] || {});
       state.manifest = results[1];
+      state.yicheSkuSlugs = results[2] || {};
       if (!state.manifest) {
         initializeRows(SAMPLE_ROWS);
         els.dataMeta.textContent = "本地预览示例 · GitHub Pages 部署后自动加载最新 Release 数据";
