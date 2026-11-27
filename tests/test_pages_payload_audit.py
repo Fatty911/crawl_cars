@@ -385,25 +385,13 @@ class SelfHealTrustRootScopeTests(unittest.TestCase):
 
 class PagesAuditWorkflowWiringTests(unittest.TestCase):
     def test_audit_runs_after_final_transform_and_before_manifest(self) -> None:
-        # 断言对象是 **CNB 工作流**（.cnb.yml），不是 .github/workflows/merge-and-filter.yml。
-        # 原因：GitHub Actions 已停用（2026-10-05 用户裁定，带 if:false），
-        # 且 merge-and-filter.yml 里**根本没有执行 prepare_pages_payload.py**
-        # ——那两处只是 `paths:` 触发列表里的文件名，不是执行行。
-        # 原断言因此在 rindex() 上抛 ValueError，测的也是一个不执行的平台。
-        #
-        # 顺序必须在**同一段 script 内部**用字符位置比较：
-        # prepare / audit / manifest 三步都写在「组装发布站点」这一个 stage 里，
-        # 按 stage 索引比毫无意义（同一个 stage 三个索引相同）。
-        #
-        # 也因此不能用全文 rindex()：.cnb.yml 现在有两个独立发布 job
-        # （基础属性链与经销商报价链），全文搜索会命中另一个 job 的调用。
-        main = (yaml.safe_load((ROOT / ".cnb.yml").read_text(encoding="utf-8")) or {})["main"]
+        jobs = (yaml.safe_load((ROOT / ".github/workflows/remerge-and-publish.yml").read_text(encoding="utf-8")) or {}).get("jobs") or {}
         checked = 0
-        for key, job in main.items():
-            if not isinstance(job, list) or not job or not isinstance(job[0], dict):
+        for key, job in jobs.items():
+            if not isinstance(job, dict):
                 continue
-            for stage in job[0].get("stages") or []:
-                script = stage.get("script") or ""
+            for step in job.get("steps") or []:
+                script = step.get("run") or ""
                 if "audit_pages_payload" not in script:
                     continue
                 with self.subTest(job=key):
@@ -423,26 +411,25 @@ class PagesAuditWorkflowWiringTests(unittest.TestCase):
         self.assertGreater(checked, 0, "没有任何 job 执行 audit_pages_payload —— 审计闸丢失了")
 
     def test_audit_uses_online_baseline(self) -> None:
-        # 审计必须拿线上已发布数据做基线（对比发布前后差异），
-        # 不能拿仓库里的自产数据自审。
-        main = (yaml.safe_load((ROOT / ".cnb.yml").read_text(encoding="utf-8")) or {})["main"]
+        jobs = (yaml.safe_load((ROOT / ".github/workflows/remerge-and-publish.yml").read_text(encoding="utf-8")) or {}).get("jobs") or {}
         checked = 0
-        for key, job in main.items():
-            if not isinstance(job, list) or not job or not isinstance(job[0], dict):
+        for key, job in jobs.items():
+            if not isinstance(job, dict):
                 continue
-            for stage in job[0].get("stages") or []:
-                script = stage.get("script") or ""
+            for step in job.get("steps") or []:
+                script = step.get("run") or ""
                 if "audit_pages_payload" not in script:
                     continue
-                with self.subTest(job=key):
-                    block = script.split("audit_pages_payload", 1)[1][:800]
-                    self.assertIn("--baseline", block)
-                    self.assertNotIn(
-                        "--baseline docs/data",
-                        block,
-                        "审计基线不能是仓库内自产数据，必须是线上已发布数据",
-                    )
-                checked += 1
+                for block_full in script.split("audit_pages_payload")[1:]:
+                    with self.subTest(job=key):
+                        block = block_full[:800]
+                        self.assertIn("--baseline", block)
+                        self.assertNotIn(
+                            "--baseline docs/data",
+                            block,
+                            "审计基线不能是仓库内自产数据，必须是线上已发布数据",
+                        )
+                    checked += 1
         self.assertGreater(checked, 0, "找不到任何 audit_pages_payload 执行点")
 
 
