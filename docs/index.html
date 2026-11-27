@@ -32,6 +32,10 @@
         </div>
       </header>
 
+      <div class="column-preview-status" id="columnPreviewStatus" hidden>
+        <span id="columnPreviewLabel" aria-live="polite"></span>
+        <button class="link-button" id="clearColumnPreview" type="button">返回原筛选</button>
+      </div>
       <main class="workspace" id="workspace">
         <section class="summary-strip" aria-label="数据概览">
           <div>
@@ -185,6 +189,8 @@
                   <option value="equals">=</option>
                 </select>
                 <input id="fieldValue" type="search" placeholder="包含关键字">
+                <input id="fieldMin" type="number" step="any" inputmode="decimal" aria-label="最小值" placeholder="最小值" hidden>
+                <input id="fieldMax" type="number" step="any" inputmode="decimal" aria-label="最大值" placeholder="最大值" hidden>
                 <button id="applyFieldFilter" type="button">应用</button>
               </div>
               <div class="active-filters" id="activeFilters"></div>
@@ -229,7 +235,14 @@
               <span>查找列</span>
               <input id="columnSearch" type="search" placeholder="配置名称">
             </label>
-            <p class="scope-note">按类别查找；“待确认”保留原字段，方便核对属性与属性值。</p>
+            <label>
+              <span>显示列排序</span>
+              <select id="columnOrder">
+                <option value="category">按类别</option>
+                <option value="coverage">按车系数从少到多</option>
+              </select>
+            </label>
+            <p class="scope-note">按全站车款统计，含选配。按车系数排序后，可逐列查看命中的车款。</p>
             <div class="column-list" id="columnList"></div>
           </section>
 

@@ -338,6 +338,11 @@ tbody tr:hover td {
   font-weight: 750;
 }
 
+.table-filter-range { display: flex; gap: 4px; }
+.table-filter-range > input { min-width: 0; flex: 1 1 50%; }
+.center-choice-options { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.center-choice-options label { display: inline-flex; align-items: center; gap: 4px; }
+
 .filter-input {
   width: 100%;
   height: 30px;
@@ -600,6 +605,22 @@ tbody tr:hover td {
 
 .column-list span {
   overflow-wrap: anywhere;
+}
+
+.column-coverage-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.column-preview-status:not([hidden]) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 8px 0;
 }
 
 .download-list {
@@ -1258,6 +1279,5 @@ thead .table-column-row th { height: 42px; background: #eef4f6; }
 #tableRenderStatus { font-size: 12px; color: #61717c; }
 
 .sku-details summary { cursor: pointer; }
-.sku-source-links, .sku-option-packages { margin: 6px 0; padding-inline-start: 1.35em; white-space: normal; }
+.sku-source-links { margin: 6px 0; padding-inline-start: 1.35em; white-space: normal; }
 .sku-source-links a { white-space: nowrap; }
-.sku-option-packages { overflow-wrap: anywhere; }

@@ -2,6 +2,32 @@
   "version": 1,
   "defaultDataset": "latest",
   "hiddenByDefault": [
+    "舒享包A",
+    "舒享包B",
+    "躺赢包A",
+    "躺赢包B",
+    "黑光包Black Package",
+    "非哑光夜色组件：豪华版",
+    "哑光版夜色组件：豪华版",
+    "MANUFAKTUR内饰组件",
+    "畅游包A",
+    "畅游包B",
+    "畅游包C",
+    "AMG 动态增强版组件",
+    "科技增强组件_2",
+    "魏斯阿赫组件",
+    "M碳纤维外装组件",
+    "M碳纤维外观组件",
+    "前排M碳纤维桶形座椅",
+    "安全控(驾驶辅助包)",
+    "安全控(智能驾驶辅助包)",
+    "安全控(智能驾驶辅助包)_1",
+    "安心驾控包",
+    "安心驾控包_1",
+    "安心舒享包PLUS",
+    "安芯守护包",
+    "安芯守护包_1",
+    "奥迪全方位辅助包 高端版",
     "ABS防抱死",
     "制动防抱死",
     "刹车防抱死"
@@ -161,7 +187,296 @@
     "雷克萨斯GX",
     "雷克萨斯LX"
   ],
+  "verifiedCatalogSkuPairs": [
+    {
+      "brand": "腾势",
+      "autohomeId": "76720",
+      "dongchediId": "256585",
+      "autohomeSeries": "腾势Z9GT",
+      "dongchediSeries": "腾势Z9GT EV",
+      "autohomeSeriesId": "7659",
+      "dongchediSeriesId": "10070",
+      "autohomeName": "腾势Z9GT 2026款 闪充尊荣型",
+      "dongchediName": "闪充尊荣型",
+      "energy": "纯电动",
+      "modelYear": "2026",
+      "listingMonth": "2026-03",
+      "msrp": "26.98"
+    },
+    {
+      "brand": "腾势",
+      "autohomeId": "76721",
+      "dongchediId": "256586",
+      "autohomeSeries": "腾势Z9GT",
+      "dongchediSeries": "腾势Z9GT EV",
+      "autohomeSeriesId": "7659",
+      "dongchediSeriesId": "10070",
+      "autohomeName": "腾势Z9GT 2026款 闪充旗舰型",
+      "dongchediName": "闪充旗舰型",
+      "energy": "纯电动",
+      "modelYear": "2026",
+      "listingMonth": "2026-03",
+      "msrp": "29.98"
+    },
+    {
+      "brand": "腾势",
+      "autohomeId": "79145",
+      "dongchediId": "262903",
+      "autohomeSeries": "腾势Z9GT",
+      "dongchediSeries": "腾势Z9GT EV",
+      "autohomeSeriesId": "7659",
+      "dongchediSeriesId": "10070",
+      "autohomeName": "腾势Z9GT 2026款 易三方闪充尊越型",
+      "dongchediName": "易三方闪充尊越型",
+      "energy": "纯电动",
+      "modelYear": "2026",
+      "listingMonth": "2026-09",
+      "msrp": "32.98"
+    },
+    {
+      "brand": "腾势",
+      "autohomeId": "76722",
+      "dongchediId": "256589",
+      "autohomeSeries": "腾势Z9GT",
+      "dongchediSeries": "腾势Z9GT EV",
+      "autohomeSeriesId": "7659",
+      "dongchediSeriesId": "10070",
+      "autohomeName": "腾势Z9GT 2026款 易三方闪充性能型",
+      "dongchediName": "易三方闪充性能型",
+      "energy": "纯电动",
+      "modelYear": "2026",
+      "listingMonth": "2026-03",
+      "msrp": "36.98"
+    },
+    {
+      "brand": "小鹏汽车",
+      "autohomeId": "77789",
+      "dongchediId": "263231",
+      "autohomeSeries": "小鹏MONA L05",
+      "dongchediSeries": "小鹏MONA L05",
+      "autohomeSeriesId": "8662",
+      "dongchediSeriesId": "26149",
+      "autohomeName": "小鹏MONA L05 2027款 纯电 635 Ultra SE",
+      "dongchediName": "纯电 635 Ultra SE",
+      "energy": "纯电动",
+      "modelYear": "2027",
+      "listingMonth": "2026-10",
+      "msrp": "17.68"
+    },
+    {
+      "brand": "小鹏汽车",
+      "autohomeId": "79491",
+      "dongchediId": "263234",
+      "autohomeSeries": "小鹏MONA L05",
+      "dongchediSeries": "小鹏MONA L05",
+      "autohomeSeriesId": "8662",
+      "dongchediSeriesId": "26149",
+      "autohomeName": "小鹏MONA L05 2027款 纯电 635 Max",
+      "dongchediName": "纯电 635 Max",
+      "energy": "纯电动",
+      "modelYear": "2027",
+      "listingMonth": "2026-10",
+      "msrp": "16.48"
+    },
+    {
+      "brand": "小鹏汽车",
+      "autohomeId": "79643",
+      "dongchediId": "264073",
+      "autohomeSeries": "小鹏MONA L05",
+      "dongchediSeries": "小鹏MONA L05",
+      "autohomeSeriesId": "8662",
+      "dongchediSeriesId": "26149",
+      "autohomeName": "小鹏MONA L05 2027款 纯电 560 Plus",
+      "dongchediName": "纯电 560 Plus",
+      "energy": "纯电动",
+      "modelYear": "2027",
+      "listingMonth": "2026-10",
+      "msrp": "14.48"
+    },
+    {
+      "brand": "小鹏汽车",
+      "autohomeId": "79490",
+      "dongchediId": "258711",
+      "autohomeSeries": "小鹏MONA L05",
+      "dongchediSeries": "小鹏MONA L05",
+      "autohomeSeriesId": "8662",
+      "dongchediSeriesId": "26149",
+      "autohomeName": "小鹏MONA L05 2027款 纯电 535 Max",
+      "dongchediName": "纯电 535 Max",
+      "energy": "纯电动",
+      "modelYear": "2027",
+      "listingMonth": "2026-10",
+      "msrp": "15.48"
+    },
+    {
+      "brand": "小鹏汽车",
+      "autohomeId": "79492",
+      "dongchediId": "258707",
+      "autohomeSeries": "小鹏MONA L05",
+      "dongchediSeries": "小鹏MONA L05",
+      "autohomeSeriesId": "8662",
+      "dongchediSeriesId": "26149",
+      "autohomeName": "小鹏MONA L05 2027款 增程 1310 Max",
+      "dongchediName": "增程 1310 Max",
+      "energy": "增程式",
+      "modelYear": "2027",
+      "listingMonth": "2026-10",
+      "msrp": "15.48"
+    },
+    {
+      "brand": "小鹏汽车",
+      "autohomeId": "77788",
+      "dongchediId": "263821",
+      "autohomeSeries": "小鹏MONA L05",
+      "dongchediSeries": "小鹏MONA L05",
+      "autohomeSeriesId": "8662",
+      "dongchediSeriesId": "26149",
+      "autohomeName": "小鹏MONA L05 2027款 增程 1310 Ultra SE",
+      "dongchediName": "增程 1310 Ultra SE",
+      "energy": "增程式",
+      "modelYear": "2027",
+      "listingMonth": "2026-10",
+      "msrp": "16.68"
+    }
+  ],
+  "verifiedEvSkuPairs": [
+    {
+      "brand": "比亚迪",
+      "autohomeId": "75188",
+      "dongchediId": "252722",
+      "autohomeSeries": "汉",
+      "dongchediSeries": "汉EV",
+      "modelYear": "2025",
+      "msrp": "19.58",
+      "seats": 5,
+      "rangeKm": 635,
+      "wheelbaseMm": 2920,
+      "motorKw": 170
+    },
+    {
+      "brand": "比亚迪",
+      "autohomeId": "75198",
+      "dongchediId": "252747",
+      "autohomeSeries": "汉",
+      "dongchediSeries": "汉EV",
+      "modelYear": "2025",
+      "msrp": "21.58",
+      "seats": 5,
+      "rangeKm": 705,
+      "wheelbaseMm": 2920,
+      "motorKw": 170
+    },
+    {
+      "brand": "比亚迪",
+      "autohomeId": "76833",
+      "dongchediId": "256135",
+      "autohomeSeries": "大唐",
+      "dongchediSeries": "大唐EV",
+      "modelYear": "2026",
+      "msrp": "26.99",
+      "seats": 7,
+      "rangeKm": 950,
+      "wheelbaseMm": 3130,
+      "motorKw": 370,
+      "batteryKwh": [130.15, 130.1]
+    },
+    {
+      "brand": "比亚迪",
+      "autohomeId": "76834",
+      "dongchediId": "256137",
+      "autohomeSeries": "大唐",
+      "dongchediSeries": "大唐EV",
+      "modelYear": "2026",
+      "msrp": "28.99",
+      "seats": 7,
+      "rangeKm": 850,
+      "wheelbaseMm": 3130,
+      "motorKw": 585,
+      "batteryKwh": [130.15, 130.1]
+    },
+    {
+      "brand": "大众",
+      "autohomeId": "79167",
+      "dongchediId": "262910",
+      "autohomeSeries": "与众08",
+      "dongchediSeries": "与众08",
+      "modelYear": "2026",
+      "msrp": "26.99",
+      "seats": 5,
+      "rangeKm": 700,
+      "wheelbaseMm": 3030,
+      "motorKw": 370
+    }
+  ],
   "conditions": [
+    {
+      "id": "energy_type",
+      "type": "pagesChoice",
+      "label": "能源类型",
+      "field": "能源类型",
+      "choices": [
+        {
+          "value": "bev",
+          "label": "纯电"
+        },
+        {
+          "value": "erev",
+          "label": "增程"
+        },
+        {
+          "value": "phev",
+          "label": "插电混动"
+        },
+        {
+          "value": "hev",
+          "label": "油电混动"
+        },
+        {
+          "value": "ice",
+          "label": "燃油"
+        },
+        {
+          "value": "other",
+          "label": "其他"
+        }
+      ],
+      "defaultValues": [
+        "bev"
+      ]
+    },
+    {
+      "id": "vehicle_length",
+      "type": "range",
+      "label": "车长",
+      "field": "长(mm)",
+      "unit": "mm",
+      "defaultMin": "",
+      "defaultMax": "5000"
+    },
+    {
+      "id": "vehicle_height",
+      "type": "range",
+      "label": "车高",
+      "field": "高(mm)",
+      "unit": "mm",
+      "defaultMin": "",
+      "defaultMax": "1500"
+    },
+    {
+      "id": "rear_wheel_steering",
+      "type": "pagesEquipment",
+      "label": "后轮转向",
+      "fields": [
+        "后轮转向",
+        "后轮转向系统",
+        "主动后轮转向",
+        "后轮主动转向",
+        "后桥转向",
+        "四轮转向",
+        "整体主动转向系统"
+      ],
+      "defaultEnabled": false
+    },
     {
       "id": "msrp",
       "label": "官方指导价",
@@ -223,7 +538,8 @@
       "genericFields": [
         "导航辅助驾驶",
         "导航辅助驾驶功能",
-        "领航辅助驾驶"
+        "领航辅助驾驶",
+        "辅助驾驶路段"
       ],
       "cityNavigationValues": [
         "城市领航",
@@ -238,6 +554,8 @@
         "NOP城区",
         "城市导航辅助驾驶",
         "城区导航辅助驾驶",
+        "城市导航驾驶辅助",
+        "城区导航驾驶辅助",
         "城市路段",
         "城区路段"
       ]
@@ -382,6 +700,7 @@
       "fields": [
         "雨量感应式雨刷"
       ],
+      "genericFields": ["感应雨刷功能"],
       "keywords": [
         "雨量感应",
         "感应雨刷",
@@ -578,7 +897,10 @@
         {
           "id": "energy",
           "label": "动力与能源",
-          "conditionIds": [],
+          "desktopGroupId": "performance",
+          "conditionIds": [
+            "energy_type"
+          ],
           "columnPatterns": [
             "^能源类型$|^燃料种类$|^发动机|^排量|进气|^气缸|燃油标号|压缩比|^最大马力|^电动机|^电机|^系统综合|^电驱|^总功率|^总扭矩"
           ],
@@ -633,6 +955,27 @@
           ]
         },
         {
+          "id": "surround_view",
+          "label": "全景影像与底盘透视",
+          "conditionIds": [],
+          "columns": [
+            "180°透明底盘",
+            "180°透明底盘系统",
+            "180°透明底盘_2",
+            "360°全景透明影像系统_2",
+            "540°全景影像带底盘透视功能_2",
+            "540°全景影像系统_带透明底盘_",
+            "540°高清全景影像(透明底盘)_2",
+            "540°百万高清全景影像带透明底盘",
+            "540°智能影像(透明底盘)",
+            "底盘透视",
+            "底盘透视_2",
+            "透明底盘_2",
+            "透明底盘_540度影像",
+            "透明底盘/540°影像"
+          ]
+        },
+        {
           "id": "safety",
           "label": "安全与制动辅助",
           "desktopGroupId": "smart",
@@ -673,7 +1016,11 @@
         {
           "id": "body",
           "label": "车身与外部配置",
-          "conditionIds": [],
+          "desktopGroupId": "performance",
+          "conditionIds": [
+            "vehicle_length",
+            "vehicle_height"
+          ],
           "columnPatterns": [
             "^长[×*x宽]|^长度|^宽度|^高度|^车长|^车宽|^车高|^轴距|^车身|^车门|^车窗|^车顶|^后备|^后尾|^天窗|^行李|^整备|^满载|^最大载|^风阻|^接近角|^离去角|^通过角|^离地|^涉水|^车重|^整车质量|^(?:长|宽|高)\\(mm\\)$"
           ],
@@ -807,7 +1154,10 @@
             "屏幕|^中控|^仪表|^车机|^HUD|抬头显示|^OTA|^语音|^扬声器|音响|音频|^USB|^Type.C|^车联网|^蓝牙|^导航|^Wi.Fi|^热点|^网络|^内置行车|^车载"
           ],
           "columns": [
-            "扬声器数量"
+            "扬声器数量",
+            "液晶仪表尺寸(in)",
+            "远端屏尺寸(in)",
+            "外置扬声器功率(W)"
           ]
         }
       ]
@@ -819,7 +1169,10 @@
         {
           "id": "running",
           "label": "行驶与制动",
-          "conditionIds": [],
+          "desktopGroupId": "smart",
+          "conditionIds": [
+            "rear_wheel_steering"
+          ],
           "columnPatterns": [
             "悬挂|悬架|驱动方式|驱动形式|驱动电机数|^变速|^挡位|^转向|^方向盘|^轮胎|^轮毂|^备胎|制动器|差速|^底盘|^四驱|^后轮|^前轮|^换挡形式$|^最小转弯半径(?:\\(m\\))?$"
           ],

@@ -70,5 +70,131 @@
         "excerpt_sha256": "cb5b1b7e70e215ed122b9505fbd7a6d6e952fbec4384153225ca3531c56b51a1"
       }
     }
+  ],
+  "saved_row_repairs": [
+    {
+      "match": {
+        "数据来源": "仅汽车之家",
+        "品牌": "蔚来",
+        "车系": "蔚来EC7",
+        "车系ID": "6994",
+        "年款": "2024",
+        "车型名称": "蔚来EC7 2024款 100kWh",
+        "车款ID_汽车之家": "66826",
+        "纯电续航(CLTC)": "635"
+      },
+      "before": {
+        "车款ID": "66804",
+        "纯电续航里程(km)": "490",
+        "电池容量(kWh)": "75.0"
+      },
+      "after": {
+        "车款ID": "66826",
+        "纯电续航里程(km)": "635",
+        "电池容量(kWh)": "100"
+      },
+      "source": {
+        "url": "https://www.autohome.com.cn/spec/66826/",
+        "raw_response_sha256": "58d42e97091f441e189cae9863546f83a8d3848d7426a0e49410b38a04506d46",
+        "name": "蔚来EC7 2024款 100kWh",
+        "series_id": "6994",
+        "price_yuan": 458000
+      },
+      "conflicting_source": {
+        "url": "https://www.autohome.com.cn/spec/66804/",
+        "raw_response_sha256": "16dc9fe98e8d83438387358c12d039b8528658776d700c353ba77a7588c4e799",
+        "name": "蔚来EC7 2024款 75kWh",
+        "series_id": "6994",
+        "price_yuan": 458000
+      },
+      "config_response_sha256": "80b4da30d2c68c8a349f9073d4c6e3ea0d325221ccb6269b1d8e2ea7dfb0457c",
+      "legacy_filtered_match": {
+        "官方指导价": "45.8万|45.80万",
+        "纯电续航(km)": "CLTC:635",
+        "上市时间": "2024.02"
+      }
+    },
+    {
+      "match": {
+        "数据来源": "仅汽车之家",
+        "品牌": "比亚迪",
+        "车系": "宋Ultra",
+        "车系ID": "8511",
+        "年款": "2026",
+        "车型名称": "宋Ultra 2026款 DM-i 205KM 超越型",
+        "车款ID_汽车之家": "77823",
+        "纯电续航(CLTC)": "205"
+      },
+      "before": {
+        "车款ID": "77981",
+        "厂商指导价_元_": "14.99万",
+        "电池能量(kWh)": "38",
+        "百公里加速(s)": "7.9",
+        "官方指导价": "14.99万"
+      },
+      "after": {
+        "车款ID": "77823",
+        "厂商指导价_元_": "13.99万",
+        "电池能量(kWh)": "26.6",
+        "百公里加速(s)": "7.5",
+        "官方指导价": "13.99万"
+      },
+      "source": {
+        "url": "https://www.autohome.com.cn/spec/77823/",
+        "raw_response_sha256": "62ba10404ab5977b087dc2f930b66af8ab979ffb7201b8107da186e3744030b9",
+        "name": "宋Ultra 2026款 DM-i 205KM 超越型",
+        "series_id": "8511",
+        "price_yuan": 139900
+      },
+      "conflicting_source": {
+        "url": "https://www.autohome.com.cn/spec/77981/",
+        "raw_response_sha256": "596b09666bdaafadd3b7d4e10e93bc40218b4dac1d0eaf02b7b9f231f3cd6325",
+        "name": "宋Ultra 2026款 DM-i 310KM 超越型",
+        "series_id": "8511",
+        "price_yuan": 149900
+      },
+      "config_response_sha256": "f02db3790ebf4eefb540a26290928687a972c2393ecf48d64a36df523c4be217"
+    },
+    {
+      "match": {
+        "数据来源": "仅汽车之家",
+        "品牌": "比亚迪",
+        "车系": "宋Ultra",
+        "车系ID": "8511",
+        "年款": "2026",
+        "车型名称": "宋Ultra 2026款 DM-i 310KM 超越型",
+        "车款ID_汽车之家": "77981",
+        "纯电续航(CLTC)": "310"
+      },
+      "before": {
+        "车款ID": "77823",
+        "厂商指导价_元_": "13.99万",
+        "电池能量(kWh)": "26.6",
+        "百公里加速(s)": "7.5",
+        "官方指导价": "13.99万"
+      },
+      "after": {
+        "车款ID": "77981",
+        "厂商指导价_元_": "14.99万",
+        "电池能量(kWh)": "38",
+        "百公里加速(s)": "7.9",
+        "官方指导价": "14.99万"
+      },
+      "source": {
+        "url": "https://www.autohome.com.cn/spec/77981/",
+        "raw_response_sha256": "596b09666bdaafadd3b7d4e10e93bc40218b4dac1d0eaf02b7b9f231f3cd6325",
+        "name": "宋Ultra 2026款 DM-i 310KM 超越型",
+        "series_id": "8511",
+        "price_yuan": 149900
+      },
+      "conflicting_source": {
+        "url": "https://www.autohome.com.cn/spec/77823/",
+        "raw_response_sha256": "62ba10404ab5977b087dc2f930b66af8ab979ffb7201b8107da186e3744030b9",
+        "name": "宋Ultra 2026款 DM-i 205KM 超越型",
+        "series_id": "8511",
+        "price_yuan": 139900
+      },
+      "config_response_sha256": "f02db3790ebf4eefb540a26290928687a972c2393ecf48d64a36df523c4be217"
+    }
   ]
 }
