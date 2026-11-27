@@ -67,6 +67,7 @@
     columns: [],
     visibleColumns: new Set(),
     columnFilters: {},
+    numericColumns: new Map(),
     rangeFilters: Object.assign({}, DEFAULT_RANGE_FILTERS),
     featureFilters: Object.assign({}, DEFAULT_FEATURE_FILTERS),
     search: "",
@@ -80,7 +81,6 @@
     cardSort: null,
     expandedSeries: new Set(),
     yicheSkuSlugs: {},
-    optionPackageColumns: new Set(),
     seriesViewSignature: "",
     mobileCategoryId: "",
     page: 1,
@@ -90,6 +90,8 @@
     tableRenderEpoch: 0,
     lastResultSignature: "",
     columnSearch: "",
+    columnCoverage: null,
+    previewColumn: "",
     composing: false,
     saleScope: "onSale",
     syncId: "",
@@ -130,11 +132,17 @@
     fieldSelect: document.getElementById("fieldSelect"),
     fieldOperator: document.getElementById("fieldOperator"),
     fieldValue: document.getElementById("fieldValue"),
+    fieldMin: document.getElementById("fieldMin"),
+    fieldMax: document.getElementById("fieldMax"),
     applyFieldFilter: document.getElementById("applyFieldFilter"),
     activeFilters: document.getElementById("activeFilters"),
     showCoreColumns: document.getElementById("showCoreColumns"),
     showAllColumns: document.getElementById("showAllColumns"),
     columnSearch: document.getElementById("columnSearch"),
+    columnOrder: document.getElementById("columnOrder"),
+    columnPreviewStatus: document.getElementById("columnPreviewStatus"),
+    columnPreviewLabel: document.getElementById("columnPreviewLabel"),
+    clearColumnPreview: document.getElementById("clearColumnPreview"),
     columnList: document.getElementById("columnList"),
     historySyncId: document.getElementById("historySyncId"),
     githubToken: document.getElementById("githubToken"),
@@ -279,13 +287,15 @@
   }
 
   function isFeatureCondition(condition) {
-    return Boolean(condition) && (condition.type === "feature" || condition.type === "pagesFeature");
+    return Boolean(condition) && (condition.type === "feature" || condition.type === "pagesFeature" || condition.type === "pagesEquipment");
   }
 
   function cloneDefaultFeatureFilters() {
     var result = {};
     (state.config.conditions || []).forEach(function (condition) {
-      if (isFeatureCondition(condition) && condition.defaultEnabled !== false) {
+      if (condition.type === "pagesChoice") {
+        result[condition.id] = (condition.defaultValues || []).slice();
+      } else if (isFeatureCondition(condition) && condition.defaultEnabled !== false) {
         result[condition.id] = true;
       }
     });
@@ -322,7 +332,7 @@
     { pattern: /插电|插混/, cls: "phev" },
     { pattern: /油电|混动/, cls: "hev" },
     { pattern: /纯电/, cls: "bev" },
-    { pattern: /汽油|燃油/, cls: "ice" }
+    { pattern: /汽油|燃油|柴油/, cls: "ice" }
   ];
   function energyClassOf(text) {
     var value = String(text == null ? "" : text);
@@ -692,6 +702,29 @@
     return values.sort().join("/");
   }
 
+  function skuSourceId(value) {
+    var text = String(value == null ? "" : value).trim();
+    return /^[1-9][0-9]{0,11}$/.test(text) ? text : "";
+  }
+
+  function skuProviderIds(row) {
+    return ["汽车之家", "懂车帝", "易车"].map(function (source) {
+      return skuSourceId(row["车款ID_" + source]) ||
+        (source === "懂车帝" ? skuSourceId(row["懂车帝车型ID"]) : "");
+    });
+  }
+
+  function skuProviderConflict(a, b, verifiedPair) {
+    var left = skuProviderIds(a), right = skuProviderIds(b);
+    var shared = left.some(function (id, index) { return id && right[index]; });
+    if (left.some(function (id, index) { return id && right[index] && id !== right[index]; })) {
+      return true;
+    }
+    var generic = skuSourceId(a["车款ID"]);
+    return !verifiedPair && !shared && left.some(Boolean) && right.some(Boolean) &&
+      generic && generic === skuSourceId(b["车款ID"]);
+  }
+
   function skuIdNameKey(row) {
     // 与 tests/pages_ui.test.js 线上不变式同一口径：空白全去掉 + 小写。
     var id = String(row["车款ID"] == null ? "" : row["车款ID"]).trim();
@@ -758,8 +791,8 @@
     return true;
   }
 
-  function skuCompatible(a, b) {
-    if (!skuEngineCompatible(a, b)) { return false; }
+  function skuCompatible(a, b, verifiedBatteryKwh, verifiedPair) {
+    if (skuProviderConflict(a, b, verifiedPair) || !skuEngineCompatible(a, b)) { return false; }
     // Known conflicting hardware must not be swallowed by a name-only equivalence.
     var hardware = [
       ["电池容量(kWh)", "电池能量(kWh)"], ["电动机总功率(kW)"],
@@ -774,7 +807,13 @@
         });
         return out;
       });
-      if (values[0].length && values[1].length && !values[0].some(function (v) { return values[1].indexOf(v) !== -1; })) { return false; }
+      if (values[0].length && values[1].length && !values[0].some(function (v) { return values[1].indexOf(v) !== -1; })) {
+        var sameVerifiedBattery = h === 0 && Array.isArray(verifiedBatteryKwh) && verifiedBatteryKwh.length === 2 &&
+          Math.abs(verifiedBatteryKwh[0] - verifiedBatteryKwh[1]) < 0.1 &&
+          values[0].length === 1 && values[1].length === 1 &&
+          values[0][0] === verifiedBatteryKwh[0] && values[1][0] === verifiedBatteryKwh[1];
+        if (!sameVerifiedBattery) { return false; }
+      }
     }
     var pa = skuPriceSet(a), pb = skuPriceSet(b);
     if (pa.length && pb.length) {
@@ -782,6 +821,11 @@
       if (!samePrice) { return false; }
     }
     var ra = skuRangeSet(a), rb = skuRangeSet(b);
+    if (verifiedPair === "catalog") {
+      // The sparse catalog used a zero EV-range sentinel for unknown data.
+      ra = ra.filter(function (value) { return value > 0; });
+      rb = rb.filter(function (value) { return value > 0; });
+    }
     if (ra.length && rb.length) {
       var common = ra.some(function (value) { return rb.indexOf(value) !== -1; });
       if (!common) { return false; }
@@ -791,15 +835,30 @@
     return true;
   }
 
+  function skuCoarseProviderConflict(left, right) {
+    var a = skuProviderIds(left), b = skuProviderIds(right);
+    // Equal names and specifications cannot prove identity across disjoint providers.
+    return skuProviderConflict(left, right, false) ||
+      (a.some(Boolean) && b.some(Boolean) && !a.some(function (id, index) { return id && id === b[index]; }));
+  }
+
   function clusterSkuRows(items) {
     // **完全链接**：一条行只有当它与目标簇里**现有每一条**都兼容时才并入。
     // 单链接并查集（原实现）会被桥接行串成大簇：实测 A(58.98万/2.0T)+B(缺价缺动力)+C(62.98万/2.4L)
     // 经 B 合成 1 行、C 静默消失（step 家族票 P1 的复现形状）。完全链接下 C 留在自己簇里，
     // 互斥的 SKU 不再被桥接行吞掉；偏向"漏合"而不是"误合"。
     var clusters = [];
+    var qualified = items.filter(function (item) { return skuProviderIds(item).some(Boolean); });
+    var ambiguous = qualified.some(function (left, i) {
+      return qualified.slice(i + 1).some(function (right) { return skuCoarseProviderConflict(left, right); });
+    });
     items.forEach(function (item) {
       for (var i = 0; i < clusters.length; i += 1) {
-        if (clusters[i].every(function (member) { return skuCompatible(member, item); })) {
+        if (ambiguous && (!skuProviderIds(item).some(Boolean) ||
+            clusters[i].some(function (member) { return !skuProviderIds(member).some(Boolean); }))) { continue; }
+        if (clusters[i].every(function (member) {
+          return !skuCoarseProviderConflict(member, item) && skuCompatible(member, item);
+        })) {
           clusters[i].push(item);
           return;
         }
@@ -845,38 +904,40 @@
   function skuSourceLinks(row) {
     var sources = atomicSources(row["数据来源"]);
     var links = [];
-    function id(value) {
-      var text = String(value == null ? "" : value).trim();
-      return /^[1-9][0-9]{0,11}$/.test(text) ? text : "";
+    function recordedId(current, legacy, fallback, verifyFallback) {
+      var ids = new Set([current, legacy].map(skuSourceId).filter(Boolean));
+      var generic = skuSourceId(fallback);
+      if (verifyFallback && generic) { ids.add(generic); }
+      return ids.size > 1 ? null : Array.from(ids)[0] || generic;
     }
-    function add(source, url) {
-      if (url) { links.push({ source: source, url: url }); }
+    function add(source, id, url) {
+      links.push({ source: source, id: id, url: url });
     }
-    var dcd = id(row["懂车帝车型ID"]);
-    if (dcd) { add("懂车帝", "https://www.dongchedi.com/auto/params-carIds-" + dcd); }
-    var autohome = id(row["汽车之家车款ID"]);
-    if (!autohome && sources.indexOf("汽车之家") !== -1 &&
-        sources.every(function (source) { return source === "汽车之家" || source === "懂车帝"; })) {
-      autohome = id(row["车款ID"]);
-    }
-    if (autohome) { add("汽车之家", "https://car.autohome.com.cn/config/spec/" + autohome + ".html"); }
+    var dcd = recordedId(row["车款ID_懂车帝"], row["懂车帝车型ID"], "");
+    if (dcd) { add("懂车帝", dcd, "https://www.dongchedi.com/auto/params-carIds-" + dcd); }
+    var autohomeFallback = sources.indexOf("汽车之家") !== -1 && sources.indexOf("易车") === -1 ? row["车款ID"] : "";
+    var autohome = recordedId(row["车款ID_汽车之家"], row["汽车之家车款ID"], autohomeFallback, sources.length === 1);
+    if (autohome) { add("汽车之家", autohome, "https://car.autohome.com.cn/config/spec/" + autohome + ".html"); }
 
-    var yiche = id(row["易车车型ID"]);
-    if (!yiche && sources.length === 1 && sources[0] === "易车") { yiche = id(row["车款ID"]); }
+    var yicheFallback = sources.length === 1 && sources[0] === "易车" ? row["车款ID"] : "";
+    var yiche = recordedId(row["车款ID_易车"], row["易车车型ID"], yicheFallback, sources.length === 1);
     var yicheUrl = String(row["易车车型链接"] || "");
     var exact = /^https:\/\/car\.yiche\.com\/[a-z][a-z0-9-]*\/m([1-9][0-9]{0,11})\/peizhi\/$/.exec(yicheUrl);
-    if (exact && (!yiche || exact[1] === yiche) && sources.indexOf("易车") !== -1) {
-      add("易车", yicheUrl);
+    if (yiche !== null && exact && (!yiche || exact[1] === yiche) && sources.indexOf("易车") !== -1) {
+      add("易车", exact[1], yicheUrl);
     } else if (yiche) {
       var brand = String(row["品牌"] || "").trim().replace(/[·・]新能源$/, "");
       var key = brand + "|" + String(row["车系"] || "").trim();
       var slug = state.yicheSkuSlugs[key];
       if (typeof slug === "string" && /^[a-z][a-z0-9-]*$/.test(slug)) {
-        add("易车", "https://car.yiche.com/" + slug + "/m" + yiche + "/peizhi/");
+        add("易车", yiche, "https://car.yiche.com/" + slug + "/m" + yiche + "/peizhi/");
       }
     }
     return links;
   }
+
+  var SOURCE_SALE_STATUS_COLUMNS = ["上市状态_汽车之家", "上市状态_懂车帝", "上市状态_易车",
+    "易车上市状态", "销售状态", "在售状态"];
 
   function mergeSkuCluster(items, evidenceColumns) {
     var merged = {};
@@ -898,7 +959,8 @@
             });
             if (values.length) { merged[column] = values.join("|"); }
           }
-        } else if (["易车上市状态", "销售状态", "在售状态", "激光雷达数量", "激光雷达数量(个)", "驱动电机数"].indexOf(column) !== -1) {
+        } else if (column === "上市状态" || SOURCE_SALE_STATUS_COLUMNS.indexOf(column) !== -1 ||
+                   ["激光雷达数量", "激光雷达数量(个)", "驱动电机数"].indexOf(column) !== -1) {
           // Negative statuses and numeric zero counts are evidence, not missing values.
           var status = String(row[column] == null ? "" : row[column]).trim();
           var observed = String(merged[column] == null ? "" : merged[column]).split("|").filter(Boolean);
@@ -918,15 +980,145 @@
     });
     merged["数据来源"] = sourceList.join(" + ") || merged["数据来源"] || "-";
     merged["核验来源"] = sourceList.join(" + ") || "-";
-    merged["交叉核验"] = sourceList.length >= 2 ? "双源核验" : "单源数据";
     merged["源车型名称"] = rawNames.join(" / ");
     merged["车型名称"] = skuDisplayName(items);
-    var links = new Map();
+    var linksBySource = new Map();
     items.forEach(function (row) {
-      skuSourceLinks(row).forEach(function (link) { links.set(link.url, link); });
+      skuSourceLinks(row).forEach(function (link) {
+        if (!linksBySource.has(link.source)) {
+          linksBySource.set(link.source, link);
+        } else {
+          var prior = linksBySource.get(link.source);
+          if (prior && prior.id !== link.id) { linksBySource.set(link.source, null); }
+        }
+      });
     });
-    merged[SKU_SOURCE_LINKS] = Array.from(links.values());
+    merged[SKU_SOURCE_LINKS] = Array.from(linksBySource.values()).filter(Boolean);
+    merged["交叉核验"] = merged[SKU_SOURCE_LINKS].length >= 2 ? "双源核验" : sourceList.length >= 2 ? "多源记录" : "单源数据";
     return merged;
+  }
+
+  function attachDongchediSaleRows(rows, clusters, consumed) {
+    var targets = new Map();
+    clusters.forEach(function (block) {
+      if (block.some(function (row) {
+        var nativeId = String(row["懂车帝车型ID"] || "").trim();
+        var sale = String(row["上市状态_懂车帝"] || "").trim();
+        return (nativeId && nativeId !== "-") || (sale && sale !== "-");
+      })) { return; }
+      var hasAutohomeId = block.some(function (row) {
+        return /^[1-9][0-9]{0,11}$/.test(String(row["车款ID_汽车之家"] || "")) &&
+          atomicSources(row["数据来源"]).indexOf("汽车之家") !== -1;
+      });
+      var hasLegacyDongchedi = block.some(function (row) {
+        return atomicSources(row["数据来源"]).indexOf("懂车帝") !== -1;
+      });
+      if (!hasAutohomeId || !hasLegacyDongchedi) { return; }
+      var key = skuCoarseKey(block[0]);
+      if (!block.every(function (row) { return skuCoarseKey(row) === key; })) { return; }
+      if (!targets.has(key)) { targets.set(key, []); }
+      targets.get(key).push(block);
+    });
+
+    var matches = new Map();
+    rows.forEach(function (row) {
+      if (consumed.has(row) || !/^(在售|停售)$/.test(String(row["上市状态_懂车帝"] || "")) ||
+          !/^[1-9][0-9]{0,11}$/.test(String(row["懂车帝车型ID"] || "")) ||
+          !modelYear(row) || !skuEnergy(row)) { return; }
+      var sources = atomicSources(row["数据来源"]);
+      if (sources.length !== 1 || sources[0] !== "懂车帝") { return; }
+      var seats = String(row["座位数(个)"] || "").trim();
+      var prices = skuPriceSet(row);
+      if (!/^[1-9][0-9]?$/.test(seats) || prices.length !== 1 || !(Number(prices[0]) > 0)) { return; }
+      var eligible = (targets.get(skuCoarseKey(row)) || []).filter(function (block) {
+        return block.every(function (member) {
+          var memberPrices = skuPriceSet(member);
+          return String(member["座位数(个)"] || "").trim() === seats &&
+            memberPrices.length === 1 && memberPrices[0] === prices[0] && skuCompatible(member, row);
+        });
+      });
+      if (eligible.length !== 1) { return; }
+      var target = eligible[0];
+      if (!matches.has(target)) { matches.set(target, []); }
+      matches.get(target).push(row);
+    });
+    matches.forEach(function (observations, block) {
+      if (observations.length !== 1) { return; }
+      block.push(observations[0]);
+      consumed.add(observations[0]);
+    });
+  }
+
+  function attachVerifiedSkuPairs(rows, find, union) {
+    var pairs = (state.config.verifiedEvSkuPairs || []).concat(state.config.verifiedCatalogSkuPairs || []);
+    var canonicalNames = new Map();
+    if (!pairs.length) { return canonicalNames; }
+    var members = new Map();
+    var byAutohomeId = new Map();
+    var byDongchediId = new Map();
+    function index(map, id, index) {
+      if (!id) { return; }
+      var key = String(id);
+      if (!map.has(key)) { map.set(key, []); }
+      map.get(key).push(index);
+    }
+    rows.forEach(function (row, i) {
+      index(members, String(find(i)), i);
+      index(byAutohomeId, row["车款ID_汽车之家"], i);
+      index(byDongchediId, row["懂车帝车型ID"], i);
+    });
+    function matches(row, pair, series, provider) {
+      var prices = skuPriceSet(row);
+      if (pair.autohomeName && pair.dongchediName) {
+        var autohome = provider === "汽车之家";
+        var energy = skuEnergy(row);
+        var sources = atomicSources(row["数据来源"]);
+        return sources.length === 1 && sources[0] === provider &&
+          row["品牌"] === pair.brand && row["车系"] === series && modelYear(row) === pair.modelYear &&
+          String(row["车系ID"]) === (autohome ? pair.autohomeSeriesId : pair.dongchediSeriesId) &&
+          String(row["车型名称"]).trim() === (autohome ? pair.autohomeName : pair.dongchediName) &&
+          listingYearMonth(row["上市时间"]) === listingYearMonth(pair.listingMonth) &&
+          prices.length === 1 && prices[0] === pair.msrp &&
+          (energy === pair.energy || (!autohome && !energy)) &&
+          skuSourceLinks(row).some(function (link) {
+            return link.source === provider && link.id === (autohome ? pair.autohomeId : pair.dongchediId);
+          });
+      }
+      var range = row["纯电续航(CLTC)"] || row["CLTC纯电续航(km)"] || row["纯电续航(km)"] || row["纯电续航里程(km)"];
+      return row["品牌"] === pair.brand && row["车系"] === series && modelYear(row) === pair.modelYear &&
+        skuEnergy(row) === "纯电动" && atomicSources(row["数据来源"]).indexOf(provider) !== -1 &&
+        prices.length === 1 && prices[0] === pair.msrp &&
+        withinNumericBounds(numericObservations("纯电续航(km)", range), { min: pair.rangeKm, max: pair.rangeKm }) &&
+        [["座位数(个)", pair.seats], ["轴距(mm)", pair.wheelbaseMm], ["电动机总功率(kW)", pair.motorKw]].every(function (entry) {
+          return withinNumericBounds(numericObservations(entry[0], row[entry[0]]), { min: entry[1], max: entry[1] });
+        });
+    }
+    var proposed = [];
+    var uses = new Map();
+    pairs.forEach(function (pair) {
+      var left = (byAutohomeId.get(pair.autohomeId) || []).filter(function (i) {
+        return matches(rows[i], pair, pair.autohomeSeries, "汽车之家");
+      });
+      var right = (byDongchediId.get(pair.dongchediId) || []).filter(function (i) {
+        return matches(rows[i], pair, pair.dongchediSeries, "懂车帝");
+      });
+      var leftRoots = Array.from(new Set(left.map(find)));
+      var rightRoots = Array.from(new Set(right.map(find)));
+      if (leftRoots.length !== 1 || rightRoots.length !== 1 || leftRoots[0] === rightRoots[0]) { return; }
+      var a = leftRoots[0], b = rightRoots[0];
+      var leftMembers = members.get(String(a)), rightMembers = members.get(String(b));
+      if (!leftMembers.every(function (i) {
+        return rightMembers.every(function (j) { return skuCompatible(rows[i], rows[j], pair.batteryKwh, pair.autohomeName ? "catalog" : true); });
+      })) { return; }
+      proposed.push({ a: a, b: b, rows: leftMembers.concat(rightMembers), series: pair.dongchediSeries });
+      [a, b].forEach(function (key) { uses.set(key, (uses.get(key) || 0) + 1); });
+    });
+    proposed.forEach(function (pair) {
+      if (uses.get(pair.a) !== 1 || uses.get(pair.b) !== 1) { return; }
+      union(pair.a, pair.b, true);
+      pair.rows.forEach(function (i) { canonicalNames.set(rows[i], pair.series); });
+    });
+    return canonicalNames;
   }
 
   function mergeVerifiedRows(rows) {
@@ -938,6 +1130,7 @@
     // 同注解 ⇒ 同块，同主键 ⇒ 同块，块内 ≥2 行才并；剩下的单行仍走粗键 + 兼容闸，
     // 跨源不同主键的行（如 E7 的 186452/76217）不会被这条规则牵连。
     var parent = [];
+    var members = [];
     function find(index) {
       while (parent[index] !== index) {
         parent[index] = parent[parent[index]];
@@ -945,25 +1138,50 @@
       }
       return index;
     }
-    function union(left, right) {
+    function union(left, right, verifiedPair) {
       var a = find(left), b = find(right);
-      if (a !== b) { parent[Math.max(a, b)] = Math.min(a, b); }
+      if (a === b || members[a].some(function (i) {
+        return members[b].some(function (j) { return skuProviderConflict(rows[i], rows[j], verifiedPair); });
+      })) { return; }
+      var root = Math.min(a, b), child = Math.max(a, b);
+      parent[child] = root;
+      members[root] = members[root].concat(members[child]);
+      members[child] = [];
     }
-    rows.forEach(function (row, index) { parent[index] = index; });
+    rows.forEach(function (row, index) { parent[index] = index; members[index] = [index]; });
     [function (row) {
       var id = String(row["跨源归并ID"] || "").trim();
       return id ? "annotated|" + id : "";
-    }, skuIdNameKey].forEach(function (edgeOf) {
-      var seen = {};
+    }, skuIdNameKey].forEach(function (edgeOf, kind) {
+      var groups = new Map();
       rows.forEach(function (row, index) {
         var key = edgeOf(row);
         if (!key) { return; }
-        if (seen[key] === undefined) { seen[key] = index; return; }
-        union(seen[key], index);
+        if (!groups.has(key)) { groups.set(key, []); }
+        groups.get(key).push(index);
+      });
+      groups.forEach(function (items) {
+        var anchors = [];
+        var qualified = items.filter(function (i) { return skuProviderIds(rows[i]).some(Boolean); });
+        var ambiguous = qualified.some(function (i, position) {
+          return qualified.slice(position + 1).some(function (j) { return skuProviderConflict(rows[i], rows[j], false); });
+        });
+        items.forEach(function (index) {
+          var ids = skuProviderIds(rows[index]);
+          if (ambiguous && !ids.some(Boolean)) { return; }
+          var matching = anchors.find(function (other) {
+            if (skuProviderConflict(rows[other], rows[index], kind === 0)) { return false; }
+            if (!ambiguous) { return true; }
+            var prior = skuProviderIds(rows[other]);
+            return ids.some(function (id, position) { return id && id === prior[position]; });
+          });
+          if (matching !== undefined) { union(matching, index, kind === 0); }
+          if (matching === undefined || find(matching) !== find(index)) { anchors.push(index); }
+        });
       });
     });
+    var canonicalNames = attachVerifiedSkuPairs(rows, find, union);
     var blocks = {};
-    var singletons = [];
     rows.forEach(function (row, index) {
       var root = find(index);
       if (!blocks[root]) { blocks[root] = []; }
@@ -977,6 +1195,7 @@
       block.forEach(function (row) { consumed.add(row); });
       clusters.push(block);
     });
+    attachDongchediSaleRows(rows, clusters, consumed);
     var coarse = {};
     rows.forEach(function (row) {
       if (consumed.has(row)) { return; }
@@ -988,7 +1207,12 @@
       clusters = clusters.concat(clusterSkuRows(coarse[key]));
     });
     var evidenceColumns = typedEquipmentColumns();
-    return clusters.map(function (items) { return mergeSkuCluster(items, evidenceColumns); });
+    return clusters.map(function (items) {
+      var merged = mergeSkuCluster(items, evidenceColumns);
+      var verifiedSeries = canonicalNames.get(items[0]);
+      if (verifiedSeries) { merged["车系"] = verifiedSeries; }
+      return merged;
+    });
   }
 
   function withDerivedDimensions(rows) {
@@ -1016,7 +1240,7 @@
   }
 
   function isPackageName(name) {
-    return /选装|选配|套装|套件|包(?:$|[（(0-9])/.test(name);
+    return /选装|选配|套装|套件|包(?:$|[（(0-9]|\s+(?:高端版|高级版|基础版|标准版|豪华版|Plus|Pro|Max)(?:$|[（(\s]))/i.test(name);
   }
 
   function isOptionStatus(value) {
@@ -1025,6 +1249,20 @@
 
   function isPackageDescription(value) {
     return value.length > 2 && !isOptionStatus(value) && !/^(?:支持|不支持|\d+(?:\.\d+)?)$/.test(value);
+  }
+
+  function isSpecificOptionValue(name) {
+    return /^\d+座_\d+$/.test(name) ||
+      /^[1-9]\d*\s*扬声器(?:.*音响(?:系统)?(?:[（(].+[）)])?)?$/.test(name) ||
+      /^音响品牌[（(][^（）()]+[）)]$/.test(name) ||
+      /^(?:Bang\s*&\s*Olufsen\s*豪华音响系统(?:(?:带|[+＋])头枕音响)?|Bowers\s*&\s*Wilkins\s*(?:钻石环绕4D|环绕式)音响系统)$/i.test(name) ||
+      /^[1-9]\d*\s*辐\S*设计车轮$/.test(name) ||
+      /^前\d+(?:\.\d+)?\s*英寸[，,]\s*后\d+(?:\.\d+)?\s*英寸.+(?:轮圈|轮毂|车轮)/.test(name) ||
+      /^\d+(?:\.\d+)?\s*(?:(?:英寸|寸|幅)\s*.+(?:车轮|轮圈|轮毂|轮毅)(?:[\u4e00-\u9fff]+版)?|(?:英寸|寸)\s*(?:.+(?:液晶仪表|TFT仪表|液晶屏|智慧屏)|.+样式))(?:_\d+)?$/i.test(name) ||
+      /^360°全场景安全系统\d+$/.test(name) ||
+      /^\d+(?:\.\d+)?\s*kW\s*智能家充桩套餐_\d+米_$/i.test(name) ||
+      /^\d{4}款\s+AMG动态增强版组件$/i.test(name) ||
+      /^(?:扬声器数量|副驾驶屏幕尺寸|激光雷达数量|毫米波雷达数量)(?:[（(]个[）)])?[（(][1-9]\d*(?:\.\d+)?[）)]$/.test(name);
   }
 
   function readOptionPackages(raw) {
@@ -1067,26 +1305,67 @@
     var options = new Set();
     var contentNames = new Set();
     var presenceColumns = new Set();
+    var independentStandardColumns = new Set();
+    var legacyPresenceColumns = new Set();
+    var legacySubstantiveColumns = new Set();
     var substantiveColumns = new Set();
     var descriptionsByColumn = new Map();
+    var descriptionsBySeries = new Map();
+    var optionalPackagesBySeries = new Set();
+    var specificOptions = new Set();
+    var specificStandardValues = new Set();
     (rows || []).forEach(function (row) {
+      var rowPackageContent = new Set();
       var packages = readOptionPackages(row["选装包列表"]);
       Object.keys(packages).forEach(function (name) {
         addOptionPackageColumns(columns, name);
         contentNames.add(name);
         var value = packages[name];
-        optionContentNames(typeof value === "string" ? value : value && value["描述"], contentNames);
+        rowPackageContent.add(name);
+        optionContentNames(typeof value === "string" ? value : value && value["描述"], rowPackageContent);
       });
 
+      rowPackageContent.forEach(function (name) { contentNames.add(name); });
       var pairs = Object.create(null);
+      var brand = normBrand(String(row["品牌"] || "").trim());
+      var series = String(row["车系"] || "").replace(/\s+/g, "");
+      var seriesKey = brand && brand !== "-" && series && series !== "-" ? brand + "|" + series + "|" : "";
       Object.keys(row).forEach(function (column) {
         var value = String(row[column] == null ? "" : row[column]).trim();
-        if (value && !substantiveColumns.has(column)) {
-          var signals = splitDisplaySegments(value);
+        if (value && (!substantiveColumns.has(column) || !legacySubstantiveColumns.has(column))) {
+          var rawSignals = splitDisplaySegments(value);
+          var specific = isSpecificOptionValue(column);
+          var signals = rawSignals.map(function (part) {
+            var text = stripSourceSegmentPrefix(part);
+            return /^(?:○|选配|选装)\s*(?:暂无价格|(?:[1-9]\d*|0)(?:\.\d+)?\s*(?:万元|元))?$/.test(text) ? "○" : text;
+          });
+          if (seriesKey && isPackageName(column) && !OPTION_SUFFIX_PATTERN.test(column) &&
+              signals.indexOf("○") !== -1 && signals.every(function (part) { return /^(?:[-－—]+|○)$/.test(part); })) {
+            optionalPackagesBySeries.add(seriesKey + column);
+          }
+          if (specific) {
+            if (signals.indexOf("○") !== -1) {
+              specificOptions.add(column);
+            }
+            if (signals.some(function (part) { return !/^(?:[-－—○]|选配|选装)$/.test(part); })) {
+              specificStandardValues.add(column);
+            }
+          }
+          var legacySignals = specific ? signals : rawSignals;
+          if (legacySignals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part); })) {
+            legacySubstantiveColumns.add(column);
+          } else if (legacySignals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
+            legacyPresenceColumns.add(column);
+          }
           if (signals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part); })) {
             substantiveColumns.add(column);
           } else if (signals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
             presenceColumns.add(column);
+            if (!rowPackageContent.has(column) && signals.some(function (part) {
+              return /^(?:●|标配|支持|有|是)$/.test(part);
+            })) {
+              independentStandardColumns.add(column);
+            }
           }
         }
         var match = OPTION_SUFFIX_PATTERN.exec(column);
@@ -1095,6 +1374,10 @@
         pairs[match[1]][match[2]] = row[column];
         if (match[2] === "1" && isPackageDescription(value)) {
           descriptions.add(match[1]);
+          if (seriesKey && isPackageName(match[1])) {
+            if (!descriptionsBySeries.has(column)) { descriptionsBySeries.set(column, new Set()); }
+            descriptionsBySeries.get(column).add(seriesKey + match[1]);
+          }
           if (!descriptionsByColumn.has(column)) { descriptionsByColumn.set(column, new Set()); }
           descriptionsByColumn.get(column).add(value);
         }
@@ -1123,9 +1406,23 @@
         values.forEach(function (value) { optionContentNames(value, contentNames); });
       }
     });
+    descriptionsBySeries.forEach(function (seriesKeys, column) {
+      if (Array.from(seriesKeys).every(function (key) { return optionalPackagesBySeries.has(key); })) {
+        columns.add(column);
+      }
+    });
     var declared = declaredOptionIndependentColumns();
+    legacyPresenceColumns.forEach(function (name) {
+      var originalEvidence = contentNames.has(name) || isPackageName(name) ||
+        /[：:]须与.+一起选$/.test(name) || (specificOptions.has(name) && !specificStandardValues.has(name));
+      if (!legacySubstantiveColumns.has(name) && !declared.has(name) && originalEvidence) {
+        columns.add(name);
+      }
+    });
     presenceColumns.forEach(function (name) {
-      if (!substantiveColumns.has(name) && !declared.has(name) && (contentNames.has(name) || isPackageName(name))) {
+      var hasOptionEvidence = (contentNames.has(name) && !independentStandardColumns.has(name)) || isPackageName(name) ||
+        /[：:]须与.+一起选$/.test(name) || (specificOptions.has(name) && !specificStandardValues.has(name));
+      if (!substantiveColumns.has(name) && !declared.has(name) && hasOptionEvidence) {
         columns.add(name);
       }
     });
@@ -1133,7 +1430,9 @@
   }
 
   function isEquipmentColumn(column, rows, equipmentColumns) {
-    return (equipmentColumns || collectEquipmentColumns(rows)).has(String(column || ""));
+    var name = String(column || "");
+    var known = equipmentColumns || collectEquipmentColumns(rows);
+    return known.has(name) || known.has(name.replace(/\s+(_[12])$/, "$1"));
   }
 
   function shouldHideColumn(column, rows, equipmentColumns) {
@@ -1144,8 +1443,9 @@
       // 内部审计字段（如 __header_normalization_evidence）永不作为列展示。
       return true;
     }
-    if (["懂车帝车型ID", "易车车型链接", "选装包列表"].indexOf(column) !== -1) {
-      // 懂车帝来源主键只作身份证据，精确隐藏此列，不影响其它 ID/陌生列。
+    if (["懂车帝车型ID", "车款ID_汽车之家", "车款ID_懂车帝", "车款ID_易车",
+         "易车车型链接", "选装包列表"].indexOf(column) !== -1) {
+      // 来源车款主键用于归并和跳转。
       return true;
     }
     if (defaultVisible.indexOf(column) !== -1) {
@@ -1216,6 +1516,146 @@
     return result.length ? result.join(" · ") : existing;
   }
 
+  var INSTRUMENT_SIZE_COLUMN = "液晶仪表尺寸(in)";
+
+  function instrumentSizeReadings(value) {
+    var parts = value.split(/\s*[/／+＋]\s*/);
+    // An unqualified slash can denote a fraction; explicit inches on every item prove a list.
+    var unit = /[/／]/.test(value) ? /\s*(?:in(?:ch(?:es)?)?|英寸|寸|["″])$/i : null;
+    var readings = parts.map(function (part) {
+      if (unit && !unit.test(part)) { return ""; }
+      var match = /^(\d+(?:\.\d+)?)\s*(?:in(?:ch(?:es)?)?|英寸|寸|["″])?$/i.exec(part);
+      return match && Number(match[1]) > 0 ? canonicalDecimal(match[1]) : "";
+    });
+    return readings.every(Boolean) ? readings : [];
+  }
+
+  function normalizeInstrumentSize(row, next) {
+    var readings = new Map();
+    ["液晶仪表尺寸", INSTRUMENT_SIZE_COLUMN].forEach(function (name) {
+      var unknown = [];
+      var source = "";
+      splitDisplaySegments(row[name]).forEach(function (part) {
+        var prefix = /^(汽车之家|懂车帝|易车)\s*[:：]\s*/.exec(part);
+        if (prefix) { source = prefix[1]; }
+        var value = stripSourceSegmentPrefix(part);
+        var measurements = instrumentSizeReadings(value);
+        if (measurements.length) {
+          measurements.forEach(function (number) {
+            if (!readings.has(number) || (!readings.get(number) && source)) { readings.set(number, source); }
+          });
+        } else if (!/^(?:[-－—]+|[●○]|标配|支持|有|无|否|不支持|待查|未知|暂无|未公布|未提供|0(?:\.0+)?)$/.test(value)) {
+          unknown.push(part);
+        }
+      });
+      if (unknown.length) { next[name] = unknown.join("|"); }
+      else { delete next[name]; }
+    });
+    if (readings.size) {
+      var values = Array.from(readings, function (entry) {
+        return (entry[1] ? entry[1] + ":" : "") + entry[0];
+      });
+      if (next[INSTRUMENT_SIZE_COLUMN]) { values.push(next[INSTRUMENT_SIZE_COLUMN]); }
+      next[INSTRUMENT_SIZE_COLUMN] = values.join("|");
+    }
+  }
+
+  var SENSOR_COUNT_FIELDS = ["车内摄像头数量", "车外摄像头数量", "激光雷达数量", "毫米波雷达数量", "超声波雷达数量"];
+
+  function normalizeSensorCounts(row) {
+    SENSOR_COUNT_FIELDS.forEach(function (field) {
+      var canonical = field + "(个)";
+      if (!Object.prototype.hasOwnProperty.call(row, field) &&
+          !Object.prototype.hasOwnProperty.call(row, canonical)) { return; }
+
+      var counts = new Set();
+      [canonical, field].forEach(function (column) {
+        var other = [];
+        var source = "";
+        splitDisplaySegments(row[column]).forEach(function (part) {
+          var prefix = /^(汽车之家|懂车帝|易车)\s*[:：]\s*/.exec(part);
+          if (prefix) {
+            source = prefix[1] + ":";
+            part = part.slice(prefix[0].length);
+          }
+          var items = part.split(/\s*[/／]\s*/);
+          var readings = items.map(function (item) {
+            var count = /^(\d+)(?:\.0+)?\s*(个)?$/.exec(item);
+            return count && (items.length === 1 || count[2]) ? canonicalDecimal(count[1]) : "";
+          });
+          if (readings.every(Boolean)) {
+            readings.forEach(function (count) { counts.add(source + count); });
+          } else {
+            other.push(source + part);
+          }
+        });
+        if (other.length) { row[column] = other.join("|"); }
+        else { delete row[column]; }
+      });
+      if (counts.size) {
+        var measurements = Array.from(counts).join("|");
+        row[canonical] = row[canonical] ? measurements + "|" + row[canonical] : measurements;
+      }
+    });
+  }
+
+  var VERIFIED_SPELLING_ALIASES = {
+    "180°透明底盘": "底盘透视",
+    "180°透明底盘系统": "底盘透视",
+    "180°透明底盘_2": "底盘透视",
+    "底盘透视_2": "底盘透视",
+    "透明底盘_2": "底盘透视",
+    "540°百万高清全景影像带透明底盘": "底盘透视",
+    "540°高清全景影像(透明底盘)_2": "底盘透视",
+    "540°全景影像带底盘透视功能_2": "底盘透视",
+    "540°全景影像系统_带透明底盘_": "底盘透视",
+    "540°智能影像(透明底盘)": "底盘透视",
+    "MBUX 智能人机交互系统实景穿越导航": "MBUX智能人机交互系统实景穿越导航",
+    "MBUX 智能人机交互系统实景穿越导航_2": "MBUX智能人机交互系统实景穿越导航_2",
+    "AMG 扰流板": "AMG扰流板"
+  };
+
+  function mergeSpellingAliasValues(values) {
+    var observations = new Set();
+    values.forEach(function (value) {
+      var source = "";
+      splitDisplaySegments(value).forEach(function (part) {
+        var prefix = /^(汽车之家|懂车帝|易车)\s*[:：]\s*/.exec(part);
+        if (prefix) {
+          source = prefix[1] + ":";
+          part = part.slice(prefix[0].length);
+        }
+        if (part) { observations.add(source + part); }
+      });
+    });
+    return Array.from(observations).join("|");
+  }
+
+  // These names denote measurements of distinct equipment, verified against
+  // manufacturer specs. A priced option or conflicting marker is not a reading.
+  var VERIFIED_COCKPIT_MEASUREMENTS = {
+    "35.4英寸4K一体远端屏": ["远端屏尺寸(in)", "35.4"],
+    "48 英寸 Skyline 数字天际线": ["远端屏尺寸(in)", "48"],
+    "40W外置扬声器": ["外置扬声器功率(W)", "40"]
+  };
+
+  function normalizeCockpitMeasurements(row) {
+    Object.entries(VERIFIED_COCKPIT_MEASUREMENTS).forEach(function (entry) {
+      var column = entry[0], field = entry[1][0], number = entry[1][1];
+      var readings = splitDisplaySegments(row[column]).map(function (part) {
+        var text = stripSourceSegmentPrefix(part);
+        var source = /^(汽车之家|懂车帝|易车)\s*[:：]/.exec(part);
+        return /^(?:●|标配|支持)$/.test(text) ? (source ? source[1] + ":" : "") + number : null;
+      });
+      if (!readings.length || !readings.every(Boolean)) { return; }
+      var existing = numericObservations(field, row[field]);
+      if (!existing || existing.indexOf(Number(number)) === -1) {
+        row[field] = mergeSpellingAliasValues([row[field]].concat(readings));
+      }
+      delete row[column];
+    });
+  }
+
   function normalizeRowColumns(rows) {
     var aliasMap = columnAliasMap();
     var evidenceColumns = typedEquipmentColumns();
@@ -1261,7 +1701,41 @@
           next[column] = mergeDistinctColumnValues(next[column], value);
         }
       });
+      var spellingObservations = new Map();
+      Object.keys(VERIFIED_SPELLING_ALIASES).forEach(function (alias) {
+        if (!Object.prototype.hasOwnProperty.call(next, alias)) { return; }
+        var standard = VERIFIED_SPELLING_ALIASES[alias];
+        if (!spellingObservations.has(standard)) { spellingObservations.set(standard, [next[standard]]); }
+        spellingObservations.get(standard).push(next[alias]);
+        delete next[alias];
+      });
+      spellingObservations.forEach(function (values, standard) {
+        next[standard] = mergeSpellingAliasValues(values);
+      });
+      normalizeInstrumentSize(row, next);
+      normalizeCockpitMeasurements(next);
+      normalizeSensorCounts(next);
       return next;
+    });
+  }
+
+  var PLACEHOLDER_SOURCE_COLUMNS = new Set([
+    "battery_brand_v4", "camera_count_v4", "car_intelligent_chip_v4", "car_intelligent_system_v4",
+    "cylinder_material", "driving_assist_chip_computing_v4", "driving_assist_chip_v4",
+    "driving_assist_op_system_v4", "heat_pump_management_system_v4", "laser_radar_v4",
+    "millimeter_wave_radar_v4", "mobile_remote_control_v4", "ultrasonic_radar_v4"
+  ]);
+
+  function isMissingColumnObservation(value) {
+    return /^(?:[-－—]+|×|待查|未知|暂无|未公布|N\/A)$/i.test(value);
+  }
+
+  function hasOnlySourcePlaceholders(rows, column) {
+    return PLACEHOLDER_SOURCE_COLUMNS.has(column) && !rows.some(function (row) {
+      return splitDisplaySegments(row[column]).some(function (part) {
+        var text = stripSourceSegmentPrefix(part);
+        return text && !isMissingColumnObservation(text);
+      });
     });
   }
 
@@ -1269,19 +1743,20 @@
     var seen = new Set();
     var columns = [];
     var equipmentColumns = collectEquipmentColumns(rows);
-    state.optionPackageColumns = equipmentColumns;
     (state.config.defaultVisibleColumns || []).forEach(function (column) {
-      if (rows.some(function (row) { return Object.prototype.hasOwnProperty.call(row, column); }) && !shouldHideColumn(column, rows, equipmentColumns)) {
+      if (rows.some(function (row) { return Object.prototype.hasOwnProperty.call(row, column); }) &&
+          !shouldHideColumn(column, rows, equipmentColumns) && !hasOnlySourcePlaceholders(rows, column)) {
         seen.add(column);
         columns.push(column);
       }
     });
     rows.forEach(function (row) {
       Object.keys(row).forEach(function (column) {
-        if (isDimensionColumn(column) || shouldHideColumn(column, rows, equipmentColumns) || seen.has(column)) {
+        if (seen.has(column)) { return; }
+        seen.add(column);
+        if (isDimensionColumn(column) || shouldHideColumn(column, rows, equipmentColumns) || hasOnlySourcePlaceholders(rows, column)) {
           return;
         }
-        seen.add(column);
         columns.push(column);
       });
     });
@@ -1328,8 +1803,8 @@
     return result;
   }
 
-  function typedEquipmentValueEvidence(value, acceptedValues, allowStandard) {
-    var result = { positive: false, negative: strictEquipmentEvidence(value, {}).negative };
+  function typedEquipmentValueEvidence(value, acceptedValues, allowStandard, requireMarkedValue) {
+    var result = { positive: false, negative: !requireMarkedValue && strictEquipmentEvidence(value, {}).negative };
     var accepted = acceptedValues.map(strictEquipmentKey);
     var unknown = false;
     splitDisplaySegments(value).forEach(function (part) {
@@ -1339,10 +1814,18 @@
       }
       text.split(/[/／、,，;；]/).forEach(function (piece) {
         piece = stripSourceSegmentPrefix(piece);
+        if (requireMarkedValue && strictEquipmentEvidence(piece, {}).negative) {
+          var deniedToken = strictEquipmentKey(piece
+            .replace(/^(?:○|选装|选配|不支持|不提供|不具备|不配备|不带|未支持|未标配|未配备|未安装|没有|无|否|[-－—])+/g, "")
+            .replace(/[（(](?:选装|选配|不支持|未标配)[）)]$/, ""));
+          if (accepted.indexOf(deniedToken) !== -1) { result.negative = true; }
+        }
         var standard = /^(?:●(?:标配|标准配置)?|支持|标配|标准配置|是|有)(?:[（(](?:标配|标准配置)[）)])?$/.test(piece);
         var token = strictEquipmentKey(piece.replace(/^(?:●|支持|标配|具备|配备|有)/, "")
           .replace(/[（(](?:标配|标准配置)[）)]$/, ""));
-        if ((allowStandard && standard) || accepted.indexOf(token) !== -1) {
+        var marked = /^(?:●|支持|标配|具备|配备|有)/.test(piece) || /[（(](?:标配|标准配置)[）)]$/.test(piece);
+        if ((allowStandard && standard) ||
+            (accepted.indexOf(token) !== -1 && (!requireMarkedValue || marked))) {
           result.positive = true;
         }
       });
@@ -1351,7 +1834,7 @@
     return result;
   }
 
-  function typedEquipmentFieldEvidence(row, fields, acceptedValues, allowStandard) {
+  function typedEquipmentFieldEvidence(row, fields, acceptedValues, allowStandard, requireMarkedValue) {
     var expected = fields.map(strictEquipmentKey);
     var accepted = acceptedValues.map(strictEquipmentKey);
     var result = { positive: false, negative: false };
@@ -1365,7 +1848,7 @@
         result.negative = result.negative || optionEvidence.negative;
         return;
       }
-      var evidence = typedEquipmentValueEvidence(row[key], acceptedValues, allowStandard);
+      var evidence = typedEquipmentValueEvidence(row[key], acceptedValues, allowStandard, requireMarkedValue);
       result.positive = result.positive || evidence.positive;
       result.negative = result.negative || evidence.negative;
     });
@@ -1388,7 +1871,94 @@
     return result;
   }
 
+  function isSensorCountColumn(column) {
+    return column.endsWith("(个)") && SENSOR_COUNT_FIELDS.indexOf(column.slice(0, -3)) !== -1;
+  }
+
+  function sensorCountObservations(value) {
+    var parts = splitDisplaySegments(value).map(stripSourceSegmentPrefix).filter(function (part) {
+      return !/^(?:[-－—]+|[●○]|支持|不支持|标配|选配|选装|有|无|待查|待公布|未知|暂无|未提供)$/.test(part);
+    });
+    var counts = parts.map(function (part) {
+      var match = /^(\d+)(?:\.0+)?(?:\s*个)?$/.exec(part);
+      return match ? Number(match[1]) : NaN;
+    });
+    return counts.every(Number.isSafeInteger) ? counts : null;
+  }
+
+  function numericObservations(column, value) {
+    if (isSensorCountColumn(column)) { return sensorCountObservations(value); }
+    var parts = splitDisplaySegments(value).map(stripSourceSegmentPrefix).filter(function (part) {
+      return !/^(?:-|—|暂无报价|未提供|待查|待公布|未知)$/.test(part);
+    });
+    if (!parts.length) { return []; }
+    if (column === "官方指导价") {
+      var prices = parts.map(priceSegment);
+      return prices.every(function (price) { return price !== null && Number(price) > 0; }) ? prices.map(Number) : null;
+    }
+    if (column === "纯电续航(km)" || column === "百公里加速(s)") {
+      var values = parseMeasurementValues(parts.join("|"), column === "纯电续航(km)");
+      return values && values.map(function (entry) { return Number(entry.number); });
+    }
+    var unit = /\(([^()]+)\)$/.exec(column);
+    var numbers = parts.map(function (part) {
+      var match = /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(.*?)$/.exec(part);
+      return match && (!match[2] || unit && match[2].toLowerCase() === unit[1].toLowerCase()) ? Number(match[1]) : NaN;
+    });
+    return numbers.every(Number.isFinite) ? numbers : null;
+  }
+
+  function isNumericColumn(column) {
+    if (!column || /(?:ID|链接|名称|日期|时间|编号|编码)$/i.test(column)) { return false; }
+    if (!state.numericColumns.has(column)) {
+      var defined = (state.config.conditions || []).some(function (condition) {
+        return condition.type === "range" && condition.field === column;
+      });
+      if (defined || isSensorCountColumn(column)) {
+        state.numericColumns.set(column, true);
+        return true;
+      }
+      var observed = false;
+      var numeric = state.rows.every(function (row) {
+        var values = numericObservations(column, row[column]);
+        if (values && values.length) { observed = true; }
+        return values !== null;
+      });
+      state.numericColumns.set(column, numeric && observed);
+    }
+    return state.numericColumns.get(column);
+  }
+
+  function hasRangeBounds(filter) {
+    return rangeBoundText(filter.min) !== "" || rangeBoundText(filter.max) !== "";
+  }
+
+  function withinNumericBounds(values, filter) {
+    var min = rangeBoundText(filter.min), max = rangeBoundText(filter.max);
+    return Boolean(values && values.length && values.every(function (value) {
+      return (!min || value >= Number(min)) && (!max || value <= Number(max));
+    }));
+  }
+
+  function columnRange(filter) {
+    if (!filter) { return {}; }
+    if (filter.operator === "range") { return filter; }
+    if (filter.operator === "gte") { return { min: filter.value }; }
+    if (filter.operator === "lte") { return { max: filter.value }; }
+    return { min: filter.value, max: filter.value };
+  }
+
   function conditionMatches(row, condition) {
+    if (condition.type === "pagesChoice") {
+      var choices = state.featureFilters[condition.id];
+      if (!Array.isArray(choices) || !choices.length) { return true; }
+      var energy = splitDisplaySegments(row[condition.field]).flatMap(function (part) {
+        return stripSourceSegmentPrefix(part).split(/[/／]/).map(function (value) {
+          return energyClassOf(value) || "other";
+        });
+      });
+      return energy.length > 0 && energy.every(function (value) { return choices.indexOf(value) !== -1; });
+    }
     if (condition.type === "range") {
       var filter = state.rangeFilters[condition.id] || {};
       var hasMin = filter.min !== "" && filter.min != null;
@@ -1401,6 +1971,9 @@
           if (value === null || !(Number(value) > 0)) { return false; }
           return (!hasMin || Number(value) >= Number(filter.min)) && (!hasMax || Number(value) <= Number(filter.max));
         });
+      }
+      if (condition.id === "vehicle_length" || condition.id === "vehicle_height") {
+        return withinNumericBounds(numericObservations(condition.field, row[condition.field]), filter);
       }
       var rowValue = firstNumber(row[condition.field]);
       if (rowValue == null) {
@@ -1418,6 +1991,10 @@
     if (isFeatureCondition(condition)) {
       if (!state.featureFilters[condition.id]) {
         return true;
+      }
+      if (condition.id === "rear_wheel_steering") {
+        var steering = strictEquipmentFieldEvidence(row, condition.fields || [], {});
+        return steering.positive && !steering.negative;
       }
       if (condition.id === "remote_control") {
         var controlFields = (condition.fields || []).map(strictEquipmentKey);
@@ -1441,9 +2018,18 @@
       if (condition.id === "city_navigation") {
         var city = typedEquipmentFieldEvidence(row, condition.fields || [], condition.cityNavigationValues || [], true);
         if (city.negative) { return false; }
+        var genericFields = condition.genericFields || [];
+        var values = condition.cityNavigationValues || [];
+        var roadField = "辅助驾驶路段";
+        var road = typedEquipmentFieldEvidence(row, genericFields.filter(function (field) {
+          return field === roadField;
+        }), values, false, true);
+        if (road.negative) { return false; }
         if (city.positive) { return true; }
-        var navigation = typedEquipmentFieldEvidence(row, condition.genericFields || [], condition.cityNavigationValues || [], false);
-        return navigation.positive && !navigation.negative;
+        var navigation = typedEquipmentFieldEvidence(row, genericFields.filter(function (field) {
+          return field !== roadField;
+        }), values, false);
+        return (navigation.positive || road.positive) && !navigation.negative;
       }
       if (condition.id === "sentry_mode") {
         var sentry = strictEquipmentFieldEvidence(row, condition.fields || [], {});
@@ -1472,8 +2058,12 @@
           if (dedicated.negative) { return false; }
           if (dedicated.positive) { return true; }
           return condition.fields.some(function (field) {
+            var optional = false;
             return splitDisplaySegments(row[field]).some(function (part) {
-              return stripSourceSegmentPrefix(part).split(/\s+[/／]\s+|、/).some(function (value) {
+              var text = stripSourceSegmentPrefix(part);
+              if (text !== part || /^(?:●|标配|标准配置)$/.test(text)) { optional = false; }
+              if (/^(?:○|选配|选装)(?:$|\s|[:：])/.test(text)) { optional = true; }
+              return !optional && text.split(/\s+[/／]\s+|、/).some(function (value) {
                 return expected.indexOf(strictEquipmentKey(value)) !== -1;
               });
             });
@@ -1684,16 +2274,26 @@
   function normBrand(b) {
     return BRAND_NORM[b] || b;
   }
+  var SERIES_POWERTRAIN_NAMES = new Map([
+    ["比亚迪|海豹06|纯电动", "海豹06EV"],
+    ["比亚迪|汉L|纯电动", "汉L EV"],
+    ["比亚迪|海狮08|纯电动", "海狮08EV"],
+    ["腾势|腾势N8L|纯电动", "腾势N8L EV"],
+    ["名爵|MG07|纯电动", "MG 07 EV"],
+    ["魏牌|魏牌V8X|插电式混合动力", "魏牌V8X PHEV"]
+  ]);
+
   function seriesIdentity(row) {
     var brand = normBrand(String(row["品牌"] || "").trim());
-    // 跨源写法差异：车系去空格仅用于分组 key（阿维塔 07 == 阿维塔07）；
-    // 显示名保留原始写法。
+    // 只按已核实的品牌、车系和能源类型调整分组名。原始车系和车型 ID 用于来源追溯。
     var seriesRaw = String(row["车系"] || "").trim();
     var seriesKey = seriesRaw.replace(/\s+/g, "");
+    var displayName = SERIES_POWERTRAIN_NAMES.get([brand, seriesKey, skuEnergy(row)].join("|")) || seriesRaw;
+    seriesKey = displayName.replace(/\s+/g, "");
     var model = String(row["车型名称"] || "").trim();
     var year = String(row["年款"] || "").trim();
     if (seriesKey) {
-      return { key: "series|" + brand + "|" + seriesKey, name: seriesRaw || seriesKey };
+      return { key: "series|" + brand + "|" + seriesKey, name: displayName || seriesKey };
     }
     return {
       key: "model|" + brand + "|" + model + "|" + year,
@@ -1763,6 +2363,7 @@
 
   function currentSeriesViewSignature() {
     return JSON.stringify({
+      previewColumn: state.previewColumn,
       search: state.search,
       brand: state.brand,
       series: state.series,
@@ -1786,6 +2387,11 @@
   }
 
   function getFilteredRows() {
+    if (state.previewColumn) {
+      return sortRows(state.rows.filter(function (row) {
+        return rowMatchesColumnPreview(row, state.previewColumn);
+      }));
+    }
     var rows = state.rows.slice();
 
     // 默认隐藏越野车/货车/皮卡/大客车等用户配置的车型分类
@@ -1830,10 +2436,13 @@
 
     Object.keys(state.columnFilters).forEach(function (column) {
       var filter = state.columnFilters[column];
-      if (!filter || filter.value === "") {
+      if (!filter || (filter.operator === "range" ? !hasRangeBounds(filter) : filter.value === "")) {
         return;
       }
       rows = rows.filter(function (row) {
+        if (filter.operator === "range") {
+          return withinNumericBounds(numericObservations(column, row[column]), filter);
+        }
         var text = normalizeText(row[column]);
         var value = normalizeText(filter.value);
         var number = firstNumber(row[column]);
@@ -1959,6 +2568,19 @@
     }
 
     appendColumnOptions(els.fieldSelect, state.columns);
+    renderFieldFilterInputs();
+  }
+
+  function renderFieldFilterInputs() {
+    var numeric = isNumericColumn(els.fieldSelect.value);
+    var filter = state.columnFilters[els.fieldSelect.value];
+    els.fieldOperator.hidden = els.fieldValue.hidden = numeric;
+    els.fieldMin.hidden = els.fieldMax.hidden = !numeric;
+    var range = columnRange(filter);
+    els.fieldMin.value = numeric ? rangeBoundText(range.min) : "";
+    els.fieldMax.value = numeric ? rangeBoundText(range.max) : "";
+    els.fieldValue.value = !numeric && filter ? rangeBoundText(filter.value) : "";
+    els.fieldOperator.value = !numeric && filter ? filter.operator : "contains";
   }
 
   function renderConditions() {
@@ -2039,8 +2661,17 @@
     els.tableHead.setAttribute("data-measured", "true");
   }
 
+  function columnsWithPreview(columns) {
+    var column = state.previewColumn;
+    return column && columns.indexOf(column) === -1 ? columns.concat(column) : columns;
+  }
+
+  function visibleResultColumns() {
+    return columnsWithPreview(state.columns.filter(function (column) { return state.visibleColumns.has(column); }));
+  }
+
   function renderTableHead() {
-    var visibleColumns = state.columns.filter(function (column) { return state.visibleColumns.has(column); });
+    var visibleColumns = visibleResultColumns();
     els.tableHead.setAttribute("data-measured", "false");
     els.tableHead.textContent = "";
 
@@ -2094,13 +2725,27 @@
     filterRow.className = "filter-row";
     visibleColumns.forEach(function (column) {
       var th = document.createElement("th");
-      var input = document.createElement("input");
-      input.className = "filter-input";
-      input.dataset.column = column;
-      input.value = state.columnFilters[column] ? state.columnFilters[column].value : "";
-      input.placeholder = "筛选 " + column;
-      input.setAttribute("aria-label", columnPath(column).major + " / " + columnPath(column).minor + " / " + column);
-      th.appendChild(input);
+      var numeric = isNumericColumn(column);
+      var filter = state.columnFilters[column];
+      var controls = numeric ? document.createElement("div") : th;
+      if (numeric) { controls.className = "table-filter-range"; }
+      var range = columnRange(filter);
+      (numeric ? ["min", "max"] : [""]).forEach(function (side) {
+        var input = document.createElement("input");
+        input.className = "filter-input";
+        input.dataset.column = column;
+        if (side) {
+          input.type = "number";
+          input.step = "any";
+          input.inputMode = "decimal";
+          input.dataset.columnBound = side;
+        }
+        input.value = rangeBoundText(side ? range[side] : filter && filter.value);
+        input.placeholder = side ? (side === "min" ? "最小" : "最大") : "筛选 " + column;
+        input.setAttribute("aria-label", column + (side ? " " + input.placeholder : " 筛选"));
+        controls.appendChild(input);
+      });
+      if (numeric) { th.appendChild(controls); }
       filterRow.appendChild(th);
     });
     els.tableHead.appendChild(titleRow);
@@ -2131,47 +2776,26 @@
         item.appendChild(anchor);
         list.appendChild(item);
       });
-      if (!links.length) {
+      var linkedSources = new Set(links.map(function (link) { return link.source; }));
+      var missingSources = atomicSources(row["数据来源"]).filter(function (source) { return !linkedSources.has(source); });
+      missingSources.forEach(function (source) {
+        var missing = document.createElement("li");
+        missing.textContent = source + " · 暂无可确认的车款链接";
+        list.appendChild(missing);
+      });
+      if (!links.length && !missingSources.length) {
         var unavailable = document.createElement("li");
         unavailable.textContent = "暂无可确认的来源车款链接";
         list.appendChild(unavailable);
       }
       details.appendChild(list);
-
-      var packages = new Map();
-      var metadata = readOptionPackages(row["选装包列表"]);
-      Object.keys(metadata).forEach(function (name) {
-        var value = metadata[name];
-        var descriptions = typeof value === "string" ? [value] :
-          value && typeof value === "object" ? [value["描述"], value["状态"], value["价格"]] : [];
-        packages.set(name, new Set(descriptions.filter(function (text) {
-          return typeof text === "string" && hasPositiveValue(text);
-        })));
-      });
-      Object.keys(row).forEach(function (column) {
-        if (!state.optionPackageColumns.has(column) || !hasPositiveValue(row[column])) { return; }
-        var match = OPTION_SUFFIX_PATTERN.exec(column);
-        var name = match && /^[12]$/.test(match[2]) ? match[1] : column;
-        if (!packages.has(name)) { packages.set(name, new Set()); }
-        packages.get(name).add(String(row[column]).trim());
-      });
-      if (packages.size) {
-        var packageList = document.createElement("ul");
-        packageList.className = "sku-option-packages";
-        packages.forEach(function (values, name) {
-          var item = document.createElement("li");
-          item.textContent = values.size ? name + " · " + Array.from(values).join(" / ") : name;
-          packageList.appendChild(item);
-        });
-        details.appendChild(packageList);
-      }
     });
     return details;
   }
 
   function renderTableBody(rows) {
     var epoch = ++state.tableRenderEpoch;
-    var visibleColumns = state.columns.filter(function (column) { return state.visibleColumns.has(column); });
+    var visibleColumns = visibleResultColumns();
     var all = state.tableDisplayMode === "all";
     var start = all ? 0 : (state.page - 1) * state.pageSize;
     var pageRows = all ? rows : rows.slice(start, start + state.pageSize);
@@ -2229,12 +2853,90 @@
     return result;
   }
 
+  function hasColumnObservation(value) {
+    return splitDisplaySegments(value).some(function (part) {
+      var text = stripSourceSegmentPrefix(part);
+      return hasPositiveValue(text) && !isMissingColumnObservation(text);
+    });
+  }
+
+  function rowMatchesColumnPreview(row, column) {
+    var series = String(row["车系"] || "").trim();
+    var counts = isSensorCountColumn(column) ? sensorCountObservations(row[column]) : null;
+    return Boolean(series && series !== "-" && ((counts && counts.length) || hasColumnObservation(row[column])));
+  }
+
+  function setColumnPreview(column) {
+    state.previewColumn = column;
+    state.page = 1;
+    renderTableHead();
+    renderResultsOnly();
+  }
+
+  function countColumnCoverage(rows, columns) {
+    var observations = new Map(columns.map(function (column) {
+      return [column, { series: new Set(), brands: new Set() }];
+    }));
+    rows.forEach(function (row) {
+      var brand = normBrand(String(row["品牌"] || "").trim());
+      var key = seriesIdentity(row).key;
+      Object.keys(row).forEach(function (column) {
+        var coverage = observations.get(column);
+        if (!coverage || !rowMatchesColumnPreview(row, column)) { return; }
+        coverage.series.add(key);
+        if (brand && brand !== "-") { coverage.brands.add(brand); }
+      });
+    });
+    return new Map(Array.from(observations, function (entry) {
+      return [entry[0], { series: entry[1].series.size, brands: entry[1].brands.size }];
+    }));
+  }
+
+  function columnToggle(column, coverage) {
+    var label = document.createElement("label");
+    var checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = state.visibleColumns.has(column);
+    checkbox.dataset.column = column;
+    var text = document.createElement("span");
+    text.textContent = coverage ? column + " · " + coverage.series + " 车系 / " + coverage.brands + " 品牌" : column;
+    label.appendChild(checkbox);
+    label.appendChild(text);
+    return label;
+  }
+
   function renderColumnList() {
     var query = normalizeText(state.columnSearch);
     els.columnList.textContent = "";
+    var columns = state.columns.filter(function (column) { return !query || normalizeText(column).indexOf(query) !== -1; });
+    if (els.columnOrder && els.columnOrder.value === "coverage") {
+      var coverage = state.columnCoverage;
+      if (!coverage) {
+        coverage = countColumnCoverage(state.rows, state.columns);
+        state.columnCoverage = coverage;
+      }
+      columns.sort(function (a, b) {
+        var left = coverage.get(a), right = coverage.get(b);
+        return left.series - right.series || left.brands - right.brands || a.localeCompare(b, "zh-Hans");
+      }).forEach(function (column) {
+        var entry = document.createElement("div");
+        entry.className = "column-coverage-entry";
+        entry.appendChild(columnToggle(column, coverage.get(column)));
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "link-button";
+        button.textContent = "看车款";
+        button.dataset.previewColumn = column;
+        button.setAttribute("aria-label", "查看有「" + column + "」记录的车款");
+        button.addEventListener("click", function () { setColumnPreview(column); });
+        entry.appendChild(button);
+        els.columnList.appendChild(entry);
+      });
+      return;
+    }
     var previousMajor = "";
     var major = null;
-    columnGroups(state.columns.filter(function (column) { return !query || normalizeText(column).indexOf(query) !== -1; })).forEach(function (group) {
+    columnGroups(columns).forEach(function (group) {
       if (previousMajor !== group.path.major) {
         major = document.createElement("section");
         major.className = "column-major-group";
@@ -2251,16 +2953,7 @@
       summary.textContent = group.path.minor + "（" + group.columns.length + "）";
       minor.appendChild(summary);
       group.columns.forEach(function (column) {
-        var label = document.createElement("label");
-        var checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = state.visibleColumns.has(column);
-        checkbox.dataset.column = column;
-        var text = document.createElement("span");
-        text.textContent = column;
-        label.appendChild(checkbox);
-        label.appendChild(text);
-        minor.appendChild(label);
+        minor.appendChild(columnToggle(column));
       });
       major.appendChild(minor);
     });
@@ -2269,6 +2962,10 @@
   function filterLabel(column, filter) {
     if (!filter) {
       return "";
+    }
+    if (filter.operator === "range") {
+      return column + [filter.min === "" || filter.min == null ? "" : " ≥" + filter.min,
+        filter.max === "" || filter.max == null ? "" : " ≤" + filter.max].join("");
     }
     if (filter.operator === "contains") {
       return column + ": " + filter.value;
@@ -2281,7 +2978,7 @@
     els.activeFilters.textContent = "";
     Object.keys(state.columnFilters).forEach(function (column) {
       var filter = state.columnFilters[column];
-      if (!filter || filter.value === "") {
+      if (!filter || (filter.operator === "range" ? !hasRangeBounds(filter) : filter.value === "")) {
         return;
       }
       var chip = document.createElement("span");
@@ -2669,6 +3366,25 @@
         rangeInputs.appendChild(input);
       });
       wrapper.appendChild(rangeInputs);
+    } else if (condition.type === "pagesChoice") {
+      var title = document.createElement("span");
+      title.textContent = condition.label;
+      wrapper.appendChild(title);
+      var options = document.createElement("div");
+      options.className = "center-choice-options";
+      var selected = state.featureFilters[condition.id] || [];
+      (condition.choices || []).forEach(function (choice) {
+        var label = document.createElement("label");
+        var input = document.createElement("input");
+        input.type = "checkbox";
+        input.dataset.conditionId = condition.id;
+        input.dataset.conditionChoice = choice.value;
+        input.checked = selected.indexOf(choice.value) !== -1;
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(choice.label));
+        options.appendChild(label);
+      });
+      wrapper.appendChild(options);
     } else {
       var label2 = document.createElement("label");
       var input2 = document.createElement("input");
@@ -2693,6 +3409,12 @@
   }
 
   function conditionTagLabel(condition) {
+    if (condition.type === "pagesChoice") {
+      var selected = state.featureFilters[condition.id] || [];
+      return condition.label + " " + (condition.choices || []).filter(function (choice) {
+        return selected.indexOf(choice.value) !== -1;
+      }).map(function (choice) { return choice.label; }).join(" / ");
+    }
     if (condition.type !== "range") {
       return condition.label;
     }
@@ -2743,10 +3465,11 @@
         container.appendChild(chip);
       }
     });
-    if (row["交叉核验"] === "双源核验" || rowHasSource(row, "汽车之家") && rowHasSource(row, "懂车帝")) {
+    if (row["交叉核验"] === "双源核验") {
       var badge = document.createElement("span");
       badge.className = "verified-badge";
       badge.textContent = "双源核验";
+      badge.title = "有至少两个来源的车款参数链接。";
       container.appendChild(badge);
     }
   }
@@ -2766,30 +3489,18 @@
   }
 
   function rowIsOnSale(row, cutoffKey) {
-    // 统一列由发布链按逐源状态算出；未知/冲突/即将上市都不算“在售”。
+    // A positive summary cannot override explicit contrary source evidence.
     var canonical = String(row["上市状态"] || "").trim();
-    if (canonical) {
-      if (canonical !== "在售") { return false; }
-      var canonicalKey = listingYearMonth(row["上市时间"]);
-      return canonicalKey === null || canonicalKey <= cutoffKey;
-    }
-    // 兼容没有统一列的历史数据：逐源读，任一源明确停售就否，只有明确在售才算。
-    var columns = ["上市状态_汽车之家", "上市状态_懂车帝", "上市状态_易车",
-      "易车上市状态", "销售状态", "在售状态"];
-    var approved = false;
+    if (canonical && canonical !== "在售") { return false; }
+    var approved = canonical === "在售";
     var rejected = false;
-    columns.forEach(function (column) {
-      var perSource = column.indexOf("上市状态_") === 0;
+    SOURCE_SALE_STATUS_COLUMNS.forEach(function (column) {
       splitDisplaySegments(row[column]).forEach(function (part) {
         var status = stripSourceSegmentPrefix(part).replace(/\s+/g, "");
         if (!status || status === "-") { return; }
         if (/^(approved|在售|销售中|在售中)$/i.test(status)) {
           approved = true;
-        } else if (perSource) {
-          // 逐源列只要不是明确“在售”，就不为本行作在售担保。
-          rejected = true;
         } else {
-          // 历史单源标记只有 approved 算在售；其它非空值不冒充确认。
           rejected = true;
         }
       });
@@ -2973,10 +3684,10 @@
           modelTitle.textContent = baseName + yearSuffix;
           var modelMeta = document.createElement("div");
           modelMeta.className = "card-meta";
-          appendCardMeta(modelMeta, row, ["能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]);
+          appendCardMeta(modelMeta, row, columnsWithPreview(["能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]));
           model.appendChild(modelTitle);
           model.appendChild(modelMeta);
-          model.appendChild(skuDetails(row, "来源链接与选装"));
+          model.appendChild(skuDetails(row, "来源链接"));
           details.appendChild(model);
           if (modelMeta) { cardSnapshot.rows.push(collectText(modelTitle) + " " + collectText(modelMeta)); }
         });
@@ -3019,6 +3730,10 @@
   }
 
   function renderResultsOnly() {
+    if (els.columnPreviewStatus && els.columnPreviewLabel) {
+      els.columnPreviewStatus.hidden = !state.previewColumn;
+      els.columnPreviewLabel.textContent = state.previewColumn ? "逐列核对 · " + state.previewColumn + "（全站车款，含选配）" : "";
+    }
     syncSeriesViewState();
     var filtered = getFilteredRows();
     var seriesGroups = sortSeriesGroups(groupRowsBySeries(filtered));
@@ -3031,7 +3746,7 @@
     }
     els.visibleCount.textContent = String(filtered.length);
     els.totalCount.textContent = String(state.rows.length);
-    els.columnCount.textContent = String(state.visibleColumns.size);
+    els.columnCount.textContent = String(visibleResultColumns().length);
     els.verifiedCount.textContent = String(state.rows.filter(function (row) { return row["交叉核验"] === "双源核验"; }).length);
     els.dongchediCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "懂车帝"); }).length);
     els.autohomeCount.textContent = String(state.rows.filter(function (row) { return rowHasSource(row, "汽车之家"); }).length);
@@ -3088,7 +3803,7 @@
 
   function exportCurrentCsv() {
     var rows = getFilteredRows();
-    var columns = state.columns.filter(function (column) { return state.visibleColumns.has(column); });
+    var columns = visibleResultColumns();
     var lines = [columns.map(csvEscape).join(",")];
     rows.forEach(function (row) {
       lines.push(columns.map(function (column) { return csvEscape(row[column]); }).join(","));
@@ -3119,29 +3834,79 @@
     };
   }
 
+  function snapshotColumnName(column) {
+    return Object.prototype.hasOwnProperty.call(VERIFIED_SPELLING_ALIASES, column)
+      ? VERIFIED_SPELLING_ALIASES[column] : column;
+  }
+
+  function restoreColumnFilters(filters) {
+    var restored = Object.assign({}, filters || {});
+    Object.keys(restored).forEach(function (column) {
+      var standard = snapshotColumnName(column);
+      if (state.columns.indexOf(standard) === -1) {
+        delete restored[column];
+        return;
+      }
+      if (standard === column) { return; }
+      if (!Object.prototype.hasOwnProperty.call(restored, standard)) {
+        restored[standard] = restored[column];
+      }
+      delete restored[column];
+    });
+    return restored;
+  }
+
+  function restoreSortLevels(levels) {
+    var fields = new Set();
+    return (Array.isArray(levels) ? levels : []).filter(function (level) {
+      return level && level.field;
+    }).map(function (level) {
+      return Object.assign({}, level, { field: snapshotColumnName(level.field) });
+    }).filter(function (level) {
+      if (state.columns.indexOf(level.field) === -1 || fields.has(level.field)) { return false; }
+      fields.add(level.field);
+      return true;
+    });
+  }
+
   function applySnapshot(snapshot) {
+    state.previewColumn = "";
     state.search = snapshot.search || "";
     state.brand = snapshot.brand || "";
     state.series = snapshot.series || "";
-    state.columnFilters = snapshot.columnFilters || {};
+    state.columnFilters = restoreColumnFilters(snapshot.columnFilters);
     state.rangeFilters = snapshot.rangeFilters || {};
     state.featureFilters = Object.assign({}, snapshot.featureFilters || {});
     if (Object.prototype.hasOwnProperty.call(state.featureFilters, "app_remote_control")) {
       state.featureFilters.remote_control = Boolean(state.featureFilters.remote_control || state.featureFilters.app_remote_control);
       delete state.featureFilters.app_remote_control;
     }
-    state.sortField = snapshot.sortField || "";
+    state.sortLevels = restoreSortLevels(snapshot.sortLevels);
+    var sortField = snapshotColumnName(snapshot.sortField || "");
+    var unavailableSort = sortField && state.columns.indexOf(sortField) === -1;
+    var removedSort = unavailableSort || (!state.sortLevels.length && Boolean((snapshot.sortLevels || []).length));
+    state.sortField = unavailableSort ? "" : sortField;
     state.sortDir = snapshot.sortDir || "asc";
-    state.sortLevels = Array.isArray(snapshot.sortLevels) ? snapshot.sortLevels : [];
+    if (removedSort && !state.sortField && !state.sortLevels.length) {
+      state.sortField = DEFAULT_SORT_FIELD;
+      state.sortDir = "asc";
+    }
     state.mode = snapshot.mode || state.mode || "center";
     state.saleScope = snapshot.saleScope === "all" ? "all" : "onSale";
     state.tableDisplayMode = snapshot.tableDisplayMode === "all" ? "all" : "paged";
     state.pageSize = Number.isSafeInteger(snapshot.pageSize) && snapshot.pageSize > 0 ? snapshot.pageSize : 100;
     state.pageSizeDraft = null;
     if (Array.isArray(snapshot.visibleColumns)) {
-      state.visibleColumns = new Set(snapshot.visibleColumns.filter(function (column) {
+      var restoredColumns = snapshot.visibleColumns.map(snapshotColumnName).filter(function (column) {
         return state.columns.indexOf(column) !== -1;
-      }));
+      });
+      if (snapshot.visibleColumns.length && !restoredColumns.length) {
+        restoredColumns = (state.config.defaultVisibleColumns || []).filter(function (column) {
+          return state.columns.indexOf(column) !== -1;
+        });
+        if (!restoredColumns.length) { restoredColumns = state.columns.slice(0, 18); }
+      }
+      state.visibleColumns = new Set(restoredColumns);
     }
     els.globalSearch.value = state.search;
     state.page = 1;
@@ -3377,6 +4142,7 @@
   }
 
   function restoreDefaultFilters() {
+    state.previewColumn = "";
     state.columnFilters = {};
     state.rangeFilters = cloneDefaultRangeFilters();
     state.featureFilters = cloneDefaultFeatureFilters();
@@ -3430,6 +4196,14 @@
       if (condition.type === "range") {
         if (event.target.checked) { state.rangeFilters[condition.id] = { min: "", max: "" }; }
         else { delete state.rangeFilters[condition.id]; }
+      } else if (condition.type === "pagesChoice") {
+        var selected = new Set(state.featureFilters[condition.id] || []);
+        var choice = event.target.dataset.conditionChoice;
+        if (!(condition.choices || []).some(function (item) { return item.value === choice; })) { return; }
+        if (event.target.checked) { selected.add(choice); }
+        else { selected.delete(choice); }
+        if (selected.size) { state.featureFilters[condition.id] = Array.from(selected); }
+        else { delete state.featureFilters[condition.id]; }
       } else {
         state.featureFilters[condition.id] = event.target.checked;
         if (!event.target.checked) { delete state.featureFilters[condition.id]; }
@@ -3562,23 +4336,34 @@
       renderResultsOnly();
     });
 
+    function updateHeaderFilter(input) {
+      var column = input.dataset.column;
+      var side = input.dataset.columnBound;
+      if (side) {
+        var range = Object.assign({ min: "", max: "" }, columnRange(state.columnFilters[column]), { operator: "range" });
+        range[side] = input.value;
+        if (hasRangeBounds(range)) { state.columnFilters[column] = range; }
+        else { delete state.columnFilters[column]; }
+      } else {
+        state.columnFilters[column] = { operator: "contains", value: input.value };
+      }
+      if (els.fieldSelect.value === column) { renderFieldFilterInputs(); }
+      state.page = 1;
+      renderResultsOnly();
+    }
     els.tableHead.addEventListener("compositionstart", function () { state.composing = true; });
     els.tableHead.addEventListener("compositionend", function (event) {
       if (!event.target.classList.contains("filter-input")) {
         return;
       }
       state.composing = false;
-      state.columnFilters[event.target.dataset.column] = { operator: "contains", value: event.target.value };
-      state.page = 1;
-      renderResultsOnly();
+      updateHeaderFilter(event.target);
     });
     els.tableHead.addEventListener("input", function (event) {
       if (!event.target.classList.contains("filter-input") || state.composing) {
         return;
       }
-      state.columnFilters[event.target.dataset.column] = { operator: "contains", value: event.target.value };
-      state.page = 1;
-      renderResultsOnly();
+      updateHeaderFilter(event.target);
     });
 
     els.conditionList.addEventListener("change", function (event) {
@@ -3612,15 +4397,19 @@
       renderResultsOnly();
     });
 
+    els.fieldSelect.addEventListener("change", renderFieldFilterInputs);
     els.applyFieldFilter.addEventListener("click", function () {
-      if (!els.fieldSelect.value || !els.fieldValue.value) {
-        return;
+      var column = els.fieldSelect.value;
+      if (!column) { return; }
+      if (isNumericColumn(column)) {
+        var range = { operator: "range", min: els.fieldMin.value, max: els.fieldMax.value };
+        if (hasRangeBounds(range)) { state.columnFilters[column] = range; }
+        else { delete state.columnFilters[column]; }
+      } else {
+        if (!els.fieldValue.value) { return; }
+        state.columnFilters[column] = { operator: els.fieldOperator.value, value: els.fieldValue.value };
       }
-      state.columnFilters[els.fieldSelect.value] = {
-        operator: els.fieldOperator.value,
-        value: els.fieldValue.value
-      };
-      els.fieldValue.value = "";
+      renderFieldFilterInputs();
       state.page = 1;
       renderTableHead();
       renderResultsOnly();
@@ -3632,6 +4421,7 @@
       }
       delete state.columnFilters[event.target.dataset.column];
       state.page = 1;
+      renderFieldFilterInputs();
       renderTableHead();
       renderResultsOnly();
     });
@@ -3649,6 +4439,10 @@
       renderResultsOnly();
     });
 
+    if (els.clearColumnPreview) {
+      els.clearColumnPreview.addEventListener("click", function () { setColumnPreview(""); });
+    }
+    if (els.columnOrder) { els.columnOrder.addEventListener("change", renderColumnList); }
     els.columnSearch.addEventListener("input", function (event) {
       state.columnSearch = event.target.value;
       renderColumnList();
@@ -3762,13 +4556,36 @@
     els.exportJson.addEventListener("click", exportCurrentJson);
   }
 
+  function removeIncorrectSkuAssociation(row) {
+    // The stored 2026 Carrera Cabriolet from Autohome inherited the hardtop's Dongchedi ID.
+    // https://car.autohome.com.cn/config/spec/75254.html
+    // https://www.dongchedi.com/auto/params-carIds-252832
+    var sources = atomicSources(row["数据来源"]);
+    var autohomeId = skuSourceId(row["车款ID_汽车之家"]) || skuSourceId(row["车款ID"]);
+    if (row["品牌"] !== "保时捷" || row["车系"] !== "保时捷911" || autohomeId !== "75254" ||
+        sources.indexOf("汽车之家") === -1 ||
+        !/Carrera\s+Cabriolet\s+3\.0T$/i.test(String(row["车型名称"] || "").trim())) { return row; }
+    var invalidCurrent = skuSourceId(row["车款ID_懂车帝"]) === "252828";
+    var invalidLegacy = skuSourceId(row["懂车帝车型ID"]) === "252828";
+    if (!invalidCurrent && !invalidLegacy) { return row; }
+    var next = Object.assign({}, row);
+    if (invalidCurrent) { delete next["车款ID_懂车帝"]; }
+    if (invalidLegacy) { delete next["懂车帝车型ID"]; }
+    delete next["上市状态_懂车帝"];
+    return next;
+  }
+
   function initializeRows(rows) {
-    var displayRows = mergeVerifiedRows(Array.isArray(rows) ? rows : []).filter(function (row) {
+    var inputRows = Array.isArray(rows) ? rows.map(removeIncorrectSkuAssociation) : [];
+    var displayRows = mergeVerifiedRows(inputRows).filter(function (row) {
       return keepDisplayYear(row);
     });
     state.rows = withDerivedDimensions(displayRows);
     state.rows = normalizeRowColumns(state.rows);
     state.rows = normalizeDisplayValues(state.rows);
+    state.numericColumns.clear();
+    state.columnCoverage = null;
+    state.previewColumn = "";
     state.expandedSeries.clear();
     state.seriesViewSignature = "";
     state.cardLimit = 24;
