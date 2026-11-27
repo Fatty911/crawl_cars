@@ -162,3 +162,18 @@ def test_user_price_default_is_never_a_saved_data_deletion_rule():
     for price in ("35.8万", "80万", "0", "-"):
         record = dict(FULLY_GOOD_EV, 官方指导价=price)
         assert MD.filter_car(record) is True, "UI price budget cannot remove source records"
+
+
+def test_ev_range_distinguishes_missing_evidence_from_non_plugin_powertrains():
+    for energy in ("", "待查", "暂无", "未知", "易车:待查", "纯电动", "增程式"):
+        for sentinel in ("0", "0.00", 0, "999", 999):
+            row = {"能源类型": energy, "纯电续航(km)": sentinel}
+            assert MD.annotate_ev_range(row)["纯电续航(km)"] == "-"
+        row = {"能源类型": energy, "纯电续航(km)": "999", "CLTC纯电续航(km)": "635"}
+        assert MD.annotate_ev_range(row)["纯电续航(km)"] == "CLTC:635"
+    assert MD.annotate_ev_range({"能源类型": "未知", "纯电续航(km)": "CLTC:535"})["纯电续航(km)"] == "CLTC:535"
+    assert MD.annotate_ev_range({"能源类型": "纯电动"}) == {"能源类型": "纯电动"}
+    assert MD.annotate_ev_range({"能源类型": "汽车之家:汽油|懂车帝:48V轻混系统"})["纯电续航(km)"] == "0"
+    assert MD.annotate_ev_range({"能源类型": "氢燃料电池"})["纯电续航(km)"] == "0"
+    mixed = {"能源类型": "汽车之家:油电混合|易车:插电混合", "CLTC纯电续航(km)": "165"}
+    assert MD.annotate_ev_range(mixed)["纯电续航(km)"] == "CLTC:165"

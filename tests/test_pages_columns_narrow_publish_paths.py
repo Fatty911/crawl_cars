@@ -69,7 +69,13 @@ PPB = _load("preserve_publish_baseline", "scripts/preserve_publish_baseline.py")
 # 评审 S3：身份列**不许在本判据里另抄一份**（以前写死 7 列，实现加了第 8 列后判据就与实现脱钩，
 # 越界没人报）。必须等 MD 装载完再取，所以放在这里而不是文件顶部常量区。
 IDENTITY = tuple(MD.PAGES_IDENTITY_COLUMNS)
-ALLOWED = set(VISIBLE) | set(IDENTITY)
+FILTER_FIELDS = {
+    field
+    for condition in CONFIG["conditions"]
+    for field in [condition.get("field"), *condition.get("fields", [])]
+    if field
+}
+ALLOWED = set(VISIBLE) | set(IDENTITY) | FILTER_FIELDS
 
 
 def _wide_row(i: int) -> dict:
@@ -105,8 +111,11 @@ def test_merge_data_resolver_stays_inside_declared_set() -> None:
     cols = list(MD.resolve_pages_columns(_rows(12)))
     extra = [c for c in cols if c not in ALLOWED]
     assert not extra, "发布列越出仓库声明的默认可见集合（+7 身份列）：越界 %d 个，例 %s" % (len(extra), extra[:6])
-    assert len(cols) <= len(VISIBLE) + 8, (
-        "发布列 %d 超过默认可见 %d + 容差 8 ⇒ 每行载荷会远超 1000 B 预算" % (len(cols), len(VISIBLE)))
+    narrow_row = {k: _rows(1)[0][k] for k in cols if k in _rows(1)[0]}
+    row_bytes = len(json.dumps(narrow_row, ensure_ascii=False).encode("utf-8"))
+    assert len(cols) <= len(VISIBLE) + len(IDENTITY) and row_bytes <= 1000, (
+        "发布列 %d（单行 %d B）超过预算（列上限 %d / 载荷上限 1000 B）"
+        % (len(cols), row_bytes, len(VISIBLE) + len(IDENTITY)))
 
 
 def test_preserve_write_publish_assets_output_is_narrow(tmp_path) -> None:
@@ -257,3 +266,44 @@ def test_source_presence_gate_uses_the_same_identity_declaration_as_the_impl() -
     cols = {c for c, _n in blank}
     assert cols == set(MD.PAGES_IDENTITY_COLUMNS) - {"数据来源"}, (
         "发布面把身份列全裁空却只报出 %s ⇒ 闸没跟着实现的那份清单走" % sorted(cols))
+
+
+def test_source_sale_status_survives_narrowing_without_becoming_equipment_evidence():
+    fields = ("上市状态_汽车之家", "上市状态_懂车帝", "上市状态_易车")
+    evidence = dict.fromkeys(fields, "在售")
+    identity = {"品牌": "测试品牌", "车系": "测试车系", "车型名称": "测试车型", "年款": "2026"}
+    assert not MD._has_substantive_evidence({**identity, **evidence})
+    assert not MD._has_substantive_evidence({**identity, "上市状态": "在售"})
+    assert MD._has_substantive_evidence({**identity, **evidence, "官方指导价": "30万"})
+    assert MD.narrow_pages_rows([{**identity, **evidence}]) == [{**identity, **evidence}]
+
+def test_filtered_evidence_keeps_active_filter_fields_and_legacy_sku_links(tmp_path):
+    row = {
+        "车系": "深蓝L06", "车型名称": "670Ultra激光版", "品牌": "深蓝汽车",
+        "年款": "2027", "车系ID": "25628", "数据来源": "仅懂车帝", "懂车帝车型ID": "263532",
+        "能源类型": "纯电动", "官方指导价": "13.99万", "上市状态_懂车帝": "在售",
+        "导航辅助驾驶": "高速导航驾驶辅助 / 城市导航驾驶辅助",
+        "感应雨刷功能": "雨量感应式", "哨兵模式/千里眼": "标配", "热泵空调": "标配",
+        "不相关选装说明": "选装",
+    }
+    paths = [tmp_path / n for n in ("merged.json", "merged.csv", "filtered.json", "filtered.csv")]
+    PPB.write_publish_assets([row], *paths)
+    assert json.loads(paths[0].read_bytes()) == [row]
+    narrowed = json.loads(paths[2].read_bytes())
+    assert narrowed == [{k: v for k, v in row.items() if k != "不相关选装说明"}]
+
+
+def test_filtered_evidence_preserves_exact_split_configuration_values():
+    evidence = {
+        "导航辅助驾驶 - 城市导航驾驶辅助": "○",
+        "辅助驾驶路段 - 城市路段": "懂车帝:●|易车:不支持",
+        "手机APP远程功能 - 车辆启动": "●",
+        "遥控钥匙类型 - UWB数字钥匙": "选装",
+    }
+    other = {
+        "导航辅助驾驶 - 赠送智驾套装": "●",
+        "轮圈 - 19英寸": "●",
+        "遥控钥匙类型 - 遥控钥匙": "●",
+        "手机APP远程功能 - 启动": "●",
+    }
+    assert MD.narrow_pages_rows([{**evidence, **other}]) == [evidence]

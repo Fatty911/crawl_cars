@@ -313,8 +313,19 @@ class CloudflareWorkflowTests(unittest.TestCase):
         cls.publish_jobs = [job for job in jobs(workflow)
                             if any(stage.get("name") == "组装Cloudflare完整分片"
                                    for stage in job["stages"])]
+        cls.gh_workflow = yaml.safe_load((SCRIPT.parents[1] / ".github/workflows/cnb-pages.yml").read_text(encoding="utf-8"))
 
     def test_both_workflows_publish_full_primary_site_before_cloudflare_sharding(self):
+        if not self.publish_jobs:
+            # Post-AWS-cutover: Cloudflare publication runs in GitHub Actions deploy_cloudflare job
+            cf_job = self.gh_workflow["jobs"]["deploy_cloudflare"]
+            steps = cf_job["steps"]
+            scripts = "\n".join(str(s.get("run", "")) for s in steps)
+            self.assertIn("prepare_cnb_pages.py --archive release/verified-site.zip", scripts)
+            self.assertIn("prepare_cloudflare_payload.py --input cnb-site --output cf-site", scripts)
+            self.assertIn("pages deploy", scripts)
+            self.assertIn("cf-site", scripts)
+            return
         self.assertEqual(len(self.publish_jobs), 2)
         for job in self.publish_jobs:
             stages = job["stages"]
@@ -332,6 +343,12 @@ class CloudflareWorkflowTests(unittest.TestCase):
                 self.assertIn("pages deploy cf-site", stages[cloudflare_index]["script"])
 
     def test_python_sharding_and_node_upload_use_their_own_runtime_stages(self):
+        if not self.publish_jobs:
+            cf_steps = self.gh_workflow["jobs"]["deploy_cloudflare"]["steps"]
+            uses = [str(s.get("uses", "")) for s in cf_steps]
+            self.assertTrue(any("setup-python" in u for u in uses))
+            self.assertTrue(any("setup-node" in u for u in uses))
+            return
         self.assertEqual(len(self.publish_jobs), 2)
         for job in self.publish_jobs:
             named = {stage.get("name"): stage for stage in job["stages"]}
@@ -344,6 +361,12 @@ class CloudflareWorkflowTests(unittest.TestCase):
             self.assertNotIn("prepare_cloudflare_payload", deploy["script"])
 
     def test_no_size_based_deletion_or_filtered_to_latest_alias_in_either_pipeline(self):
+        if not self.publish_jobs:
+            cf_steps = self.gh_workflow["jobs"]["deploy_cloudflare"]["steps"]
+            scripts = "\n".join(str(s.get("run", "")) for s in cf_steps)
+            self.assertNotRegex(scripts, r"(?m)\b(?:cp|ln|mv)\s+[^\n;]*filtered[^\n;]*latest")
+            self.assertNotRegex(scripts, r"(?m)\bfind\s+(?:site|cnb-site|cf-site)[^\n]*-size[^\n]*(?:-delete|\brm\b)")
+            return
         self.assertEqual(len(self.publish_jobs), 2)
         for job in self.publish_jobs:
             scripts = "\n".join(str(stage.get("script", "")) for stage in job["stages"])

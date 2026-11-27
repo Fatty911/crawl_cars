@@ -30,6 +30,33 @@ def paginate(*pages):
 
 
 class VerifiedReleaseTests(unittest.TestCase):
+
+    def test_fanout_uses_source_run_and_attempt_receipt(self):
+        tag = 'cnb-data-20261112-remerged-verified-r43171769053a2'
+        api = Mock()
+        api.request.return_value = {'artifacts': [
+            {'name': tag.replace('a2', 'a1')}, {'name': 'unrelated'}, {'name': tag},
+        ]}
+        api.get_release.return_value = chosen = release(tag)
+        chosen['immutable'] = True
+        for asset in chosen['assets']:
+            asset['digest'] = 'sha256:' + 'c' * 64
+        self.assertIs(downloader.select_workflow_release(api, '43171769053', '2'), chosen)
+        api.request.assert_called_once_with('GET', '/actions/runs/43171769053/artifacts?per_page=100')
+        api.get_release.assert_called_once_with(tag)
+        chosen['immutable'] = False
+        with self.assertRaisesRegex(ValueError, 'immutable'):
+            downloader.select_workflow_release(api, '43171769053', '2')
+
+    def test_missing_or_ambiguous_source_receipt_never_resolves_latest(self):
+        tag = 'cnb-data-20261112-remerged-verified-r123a1'
+        for receipts in ([{'name': tag, 'expired': True}], [{'name': tag}, {'name': tag}]):
+            api = Mock()
+            api.request.return_value = {'artifacts': receipts}
+            with self.assertRaisesRegex(ValueError, 'missing or ambiguous'):
+                downloader.select_workflow_release(api, '123', '1')
+            api.get_release.assert_not_called()
+
     def test_newest_complete_cnb_build_wins_over_manual_legacy_and_drafts(self):
         old = release('cnb-data-old', '2026-10-09T00:00:00Z')
         newest = release('cnb-data-new')

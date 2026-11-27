@@ -156,3 +156,143 @@ def test_partial_aws_input_does_not_enrich_an_explicitly_different_trim():
 
     assert out == [published]
     assert stats["ambiguous_baseline_matches"] == 1
+
+def test_partial_aws_exact_autohome_status_refines_unmarked_city_scope():
+    legacy = _row(车系ID="10213", 车款ID="78600", 车款ID_汽车之家="78600",
+                  辅助驾驶路段="城市路段 / 高速路段", 远程启动="标配")
+    fresh = _row(车系ID="7740", 车款ID="78600", 数据来源="仅汽车之家",
+                 官方指导价="10.00万", 辅助驾驶路段="○城市路段 / 高速路段")
+
+    out, stats = PB.preserve_partial_rows([legacy], [fresh])
+
+    assert out == [{**legacy, "辅助驾驶路段": "○城市路段 / 高速路段"}, fresh]
+    assert legacy["辅助驾驶路段"] == "城市路段 / 高速路段"
+    assert stats["candidate_city_status_refined"] == 1
+
+
+def test_partial_aws_city_refinement_preserves_conflicting_or_ambiguous_evidence():
+    base = _row(车系ID="10213", 车款ID="78600", 车款ID_汽车之家="78600",
+                辅助驾驶路段="城市路段 / 高速路段")
+    fresh = _row(车系ID="7740", 车款ID="78600", 数据来源="仅汽车之家",
+                 辅助驾驶路段="○城市路段 / 高速路段")
+    scenarios = [
+        [dict(base, 辅助驾驶路段="懂车帝:●城市路段 / 高速路段")],
+        [dict(base, 官方指导价="11万")],
+        [base, dict(base, 车系ID="7306")],
+    ]
+    for old in scenarios:
+        out, stats = PB.preserve_partial_rows(old, [fresh])
+        assert out[:len(old)] == old
+        assert "candidate_city_status_refined" not in stats
+
+
+def test_partial_aws_can_fill_legacy_zero_range_with_exact_sku_evidence():
+    field = "纯电续航(km)"
+    base = _row(车款ID="185655", 懂车帝车型ID="263532", **{field: "0"})
+    fresh = dict(base, 能源类型="纯电动", **{field: "CLTC:670"})
+
+    out, stats = PB.preserve_partial_rows([base], [fresh])
+
+    assert out == [fresh]
+    assert stats["candidate_enriched"] == 1
+    assert base[field] == "0"
+    repeated, stats = PB.preserve_partial_rows(out, [fresh])
+    assert repeated == out and stats["candidate_enriched"] == 0
+    for existing in ("WLTC:552", "CLTC:650", "0|CLTC:670"):
+        original = dict(base, **{field: existing})
+        rows, _ = PB.preserve_partial_rows([original], [fresh])
+        assert rows[0][field] == existing
+    gas = dict(base, 能源类型="汽油")
+    out, _ = PB.preserve_partial_rows([gas], [fresh])
+    assert out == [gas]
+    for invalid in ("未公布", "0", "999", "CLTC:0", "CLTC:999"):
+        observed = dict(fresh, **{field: invalid})
+        out, _ = PB.preserve_partial_rows([base], [observed])
+        assert out[0][field] == "0"
+    out, _ = PB.preserve_partial_rows([base], [dict(fresh, 懂车帝车型ID="263533")])
+    assert out == [base]
+
+
+def test_partial_aws_rebinds_exact_legacy_p7_without_appending():
+    legacy = _row(品牌="小鹏汽车", 车系="小鹏P7", 车系ID="3352", 年款="2025",
+                  车型名称="小鹏P7 2025款 750 四驱鹏翼 Ultra", 车款ID="74221",
+                  懂车帝车型ID="250722", 官方指导价="30.18万", 辅助驾驶路段="城市路段 / 高速路段")
+    fresh = dict(legacy, 车系ID="5213", 数据来源="仅汽车之家", 车款ID_汽车之家="74221",
+                 辅助驾驶路段="●城市路段 / 高速路段")
+    fresh.pop("懂车帝车型ID")
+    rows, stats = PB.preserve_partial_rows([legacy], [fresh])
+    assert rows == [dict(legacy, 车款ID_汽车之家="74221", 辅助驾驶路段="●城市路段 / 高速路段")]
+    assert stats["candidate_added"] == 0
+    assert stats["candidate_city_status_refined"] == 1
+    repeated, stats = PB.preserve_partial_rows(rows, [fresh])
+    assert repeated == rows and stats["candidate_enriched"] == 0
+    for conflict in (dict(legacy, 官方指导价="31万"), dict(legacy, 车款ID_易车="74221"),
+                     dict(legacy, 车款ID_汽车之家="99999")):
+        rows, _ = PB.preserve_partial_rows([conflict], [fresh])
+        assert rows[0] == conflict
+    rows, _ = PB.preserve_partial_rows([legacy, dict(legacy, 车系ID="3353")], [fresh])
+    assert rows[:2] == [legacy, dict(legacy, 车系ID="3353")]
+
+
+def test_partial_aws_city_marker_survives_price_drift_with_matching_native_specs():
+    specs = {
+        "纯电续航(CLTC)": "670",
+        "轴距(mm)": "3000",
+        "座位数(个)": "5",
+        "电动机总功率(kW)": "257",
+        "辅助驾驶系统": "视觉司南智驾",
+    }
+    base = _row(品牌="红旗", 车系="红旗天工08", 车系ID="6913", 车款ID="78394",
+                车型名称="红旗天工08 2026款 670 Max", 车款ID_汽车之家="78394",
+                能源类型="纯电动", 官方指导价="19.98万",
+                辅助驾驶路段="城市路段 / 高速路段", **specs)
+    fresh = dict(base, 数据来源="仅汽车之家", 官方指导价="19.79万",
+                 辅助驾驶路段="●城市路段 / 高速路段")
+
+    out, stats = PB.preserve_partial_rows([base], [fresh])
+    assert out == [dict(base, 辅助驾驶路段=fresh["辅助驾驶路段"])]
+    assert stats["candidate_city_status_refined"] == 1
+    repeated, _ = PB.preserve_partial_rows(out, [fresh])
+    assert repeated == out
+
+    for field, value in {
+        "车系ID": "9999",
+        "品牌": "其他品牌",
+        "官方指导价": "-",
+        "能源类型": "增程式",
+        "纯电续航(CLTC)": "550",
+        "轴距(mm)": "",
+        "座位数(个)": "6",
+        "电动机总功率(kW)": "220",
+        "辅助驾驶系统": "其他系统",
+    }.items():
+        rejected, stats = PB.preserve_partial_rows([base], [dict(fresh, **{field: value})])
+        assert rejected[0]["辅助驾驶路段"] == base["辅助驾驶路段"], field
+        assert "candidate_city_status_refined" not in stats
+
+
+def test_road_status_refines_optional_city_and_highway_without_overwriting_marked_values():
+    legacy = "城市路段 / 高速路段"
+    observed = "○城市路段 / ○高速路段"
+    assert PB.city_road_status_refines(legacy, observed)
+    assert PB.city_road_status_refines("○城市路段 / 高速路段", observed)
+    assert not PB.city_road_status_refines("●城市路段 / 高速路段", observed)
+    assert not PB.city_road_status_refines(legacy, "○城市路段 / ●其他路段")
+
+
+def test_partial_aws_exact_autohome_observation_retires_stale_on_sale_status():
+    base = _row(车系ID="7822", 车款ID="75935", 车款ID_汽车之家="75935",
+                上市状态_汽车之家="在售", 上市状态="在售", 上市状态_懂车帝="在售")
+    fresh = _row(车系ID="7822", 车款ID="75935", 车款ID_汽车之家="75935",
+                 数据来源="仅汽车之家", 上市状态_汽车之家="停产在售")
+    rows, stats = PB.preserve_partial_rows([base], [fresh])
+    expected = dict(base, 上市状态_汽车之家="停产在售")
+    del expected["上市状态"]
+    assert rows == [expected]
+    assert stats["candidate_autohome_sale_status_refined"] == 1
+    assert PB.preserve_partial_rows(rows, [fresh])[0] == rows
+    for altered in (dict(fresh, 车系ID="9999"), dict(fresh, 车款ID_汽车之家="75936"),
+                    dict(fresh, 官方指导价="11万"), dict(fresh, 上市状态_汽车之家="-")):
+        rows, stats = PB.preserve_partial_rows([base], [altered])
+        assert rows[0] == base
+        assert "candidate_autohome_sale_status_refined" not in stats

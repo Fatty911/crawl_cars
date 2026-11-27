@@ -18,7 +18,7 @@ def workflow():
 
 
 def step_code(name):
-    step = next(s for s in workflow()['jobs']['deploy']['steps'] if s.get('name') == name)
+    step = next(s for s in workflow()['jobs']['deploy_cloudflare']['steps'] if s.get('name') == name)
     return step['run'].split("python - <<'PY'\n", 1)[1].split('\nPY', 1)[0]
 
 
@@ -35,10 +35,40 @@ def test_real_job_condition_rejects_failed_or_nondefault_upstreams(event, ref, c
     spec = importlib.util.spec_from_file_location('ref_guard', ROOT / 'tests/test_workflow_pages_env_ref_guard.py')
     guard = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(guard)
-    expression = workflow()['jobs']['deploy']['if'].strip()[3:-2].strip()
     ctx = guard._Ctx({'github': {'ref': ref, 'event_name': event,
                      'event': {'workflow_run': {'conclusion': conclusion, 'head_branch': branch}}}}, fill='')
-    assert guard.truthy(guard.evaluate(expression, ctx)) is allowed
+    for job in ('resolve_release', 'deploy', 'deploy_cloudflare'):
+        expression = workflow()['jobs'][job]['if'].strip()[3:-2].strip()
+        assert guard.truthy(guard.evaluate(expression, ctx)) is allowed
+
+
+@pytest.mark.parametrize('target,github_allowed,cloudflare_allowed', [
+    ('both', True, True), ('github', True, False), ('cloudflare', False, True),
+])
+def test_manual_dispatch_selects_independent_sites(target, github_allowed, cloudflare_allowed):
+    spec = importlib.util.spec_from_file_location('ref_guard', ROOT / 'tests/test_workflow_pages_env_ref_guard.py')
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    ctx = guard._Ctx({'github': {'ref': 'refs/heads/main', 'event_name': 'workflow_dispatch'},
+                      'inputs': {'target': target}}, fill='')
+    jobs = workflow()['jobs']
+    for key, allowed in [('deploy', github_allowed), ('deploy_cloudflare', cloudflare_allowed)]:
+        expression = jobs[key]['if'].strip()[3:-2].strip()
+        assert guard.truthy(guard.evaluate(expression, ctx)) is allowed
+        assert jobs[key]['needs'] == 'resolve_release'
+    assert jobs['deploy']['concurrency']['group'] != jobs['deploy_cloudflare']['concurrency']['group']
+
+
+def test_split_keeps_the_existing_deployment_environment_and_target_permissions():
+    doc = workflow()
+    jobs = doc['jobs']
+    assert jobs['deploy']['environment']['name'] == 'github-pages'
+    assert jobs['deploy_cloudflare']['environment'] == {'name': 'github-pages'}
+    assert 'environment' not in jobs['resolve_release']
+    assert jobs['deploy']['permissions']['pages'] == 'write'
+    assert 'pages' not in jobs['deploy_cloudflare'].get('permissions', doc['permissions'])
+    assert 'id-token' not in jobs['deploy_cloudflare'].get('permissions', doc['permissions'])
+    assert all('CLOUDFLARE_API_TOKEN' not in s.get('env', {}) for s in jobs['deploy']['steps'])
 
 
 @pytest.mark.parametrize('status,success,branch,domains,allowed', [

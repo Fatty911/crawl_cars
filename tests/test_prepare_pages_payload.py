@@ -889,3 +889,16 @@ def test_normalize_keeps_ev_zero_when_standard_field_arrives_first() -> None:
     ):
         out = normalize_publish_row_headers(row)
     assert out["纯电续航(km)"] == "0"
+
+def test_structured_option_packages_survive_display_column_hiding():
+    from scripts import prepare_pages_payload as payload
+
+    key = "选装包列表"
+    packages = {"滑移智慧屏": {"状态": "选配", "描述": "包含：滑移智慧屏", "价格": "8000元"}}
+    assert key in payload._load_hidden_columns()
+    for value in (packages, json.dumps(packages, ensure_ascii=False)):
+        result = payload.normalize_publish_row_headers({key: value, "车型名称": "2026款 A"})
+        assert result[key] == value
+        assert result["车型名称"] == "2026款 A"
+    for value in ("选配", '["滑移智慧屏"]', {}, []):
+        assert key not in payload.normalize_publish_row_headers({key: value})

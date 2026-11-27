@@ -60,7 +60,9 @@ def _dump(workflow):
 
 
 def _steps(workflow):
-    return next(iter(workflow["jobs"].values()))["steps"]
+    jobs = workflow["jobs"]
+    job = jobs.get("deploy") if "deploy" in jobs else next(iter(jobs.values()))
+    return job["steps"]
 
 
 def _step(workflow, marker):
@@ -116,15 +118,24 @@ def test_merge_release_identity_and_returning_inline_consumer_are_guarded(tmp_pa
     assert errors
 
 
-@pytest.mark.parametrize("broken", ["exact_tag", "tag_env", "optional_extract", "upload_first", "other_site"])
+@pytest.mark.parametrize("broken", ["exact_tag", "tag_env", "step_tag_override", "conditional_resolve", "optional_extract", "upload_first", "other_site"])
 def test_verified_deploy_rejects_unbound_tags_and_upload_before_validation(tmp_path, broken):
     def mutate(workflow):
-        if broken in {"exact_tag", "tag_env"}:
+        if broken in {"exact_tag", "tag_env", "step_tag_override"}:
             download = _step(workflow, "python scripts/download_verified_release.py")
             if broken == "exact_tag":
                 download["run"] = download["run"].replace('--tag "$RELEASE_TAG"', "")
+            elif broken == "step_tag_override":
+                download.setdefault("env", {})["RELEASE_TAG"] = "latest"
             else:
-                download["env"]["RELEASE_TAG"] = "latest"
+                if "env" in download and "RELEASE_TAG" in download["env"]:
+                    download["env"]["RELEASE_TAG"] = "latest"
+                else:
+                    workflow["jobs"]["deploy"]["env"]["RELEASE_TAG"] = "latest"
+        elif broken == "conditional_resolve":
+            for step in workflow["jobs"]["resolve_release"]["steps"]:
+                if step.get("id") == "pin":
+                    step["if"] = False
         elif broken == "optional_extract":
             _step(workflow, "--archive")["if"] = False
         elif broken == "upload_first":

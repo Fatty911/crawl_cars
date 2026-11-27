@@ -614,9 +614,39 @@ def check_verified_archive_deployment(path: Path, errors: list[str]) -> None:
         )
     else:
         inputs = data.get(True, {}).get("workflow_dispatch", {}).get("inputs", {})
+        deploy_job = data.get("jobs", {}).get(job_id, {})
+        job_env = deploy_job.get("env", {}) or {}
+        download_env = download.get("env", {}) or {}
+        needs = deploy_job.get("needs")
+        needs_resolve = needs == "resolve_release" or (isinstance(needs, list) and "resolve_release" in needs)
+        resolve_job = data.get("jobs", {}).get("resolve_release", {}) or {}
+        resolve_outputs = resolve_job.get("outputs", {}) or {}
+        resolve_steps = resolve_job.get("steps", [])
+        pinned_resolve = (
+            needs_resolve
+            and job_env.get("RELEASE_TAG") == "${{ needs.resolve_release.outputs.release_tag }}"
+            and download_env.get("RELEASE_TAG") in (None, "${{ needs.resolve_release.outputs.release_tag }}")
+            and any(
+                "if" not in step
+                and not step.get("continue-on-error")
+                and "|| true" not in str(step.get("run", ""))
+                and bool(step.get("id"))
+                and resolve_outputs.get("release_tag") == f"${{{{ steps.{step['id']}.outputs.release_tag }}}}"
+                and (step.get("env") or {}).get("REQUESTED_TAG") == "${{ inputs.release_tag }}"
+                and '--tag "$REQUESTED_TAG"' in str(step.get("run", ""))
+                and "--no-legacy" in str(step.get("run", ""))
+                and "release_tag=" in str(step.get("run", ""))
+                and "$GITHUB_OUTPUT" in str(step.get("run", ""))
+                for step in resolve_steps
+            )
+            and 'test -n "$RELEASE_TAG"' in download_run
+            and "set -euo pipefail" in download_run
+            and "sha256sum --check" in download_run
+        )
+        direct_tag = download_env.get("RELEASE_TAG") == "${{ inputs.release_tag }}"
         assert_condition(
             "release_tag" in inputs
-            and download.get("env", {}).get("RELEASE_TAG") == "${{ inputs.release_tag }}"
+            and (direct_tag or pinned_resolve)
             and '--tag "$RELEASE_TAG"' in download_run and "--no-legacy" in download_run
             and "||" not in download_run and "--verify-data" in str(verify.get("run", "")),
             f"{path.name} 显式 release_tag 必须精确传给 fail-closed 下载器，禁止 latest 兜底", errors,
