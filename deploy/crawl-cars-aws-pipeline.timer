@@ -1,0 +1,12 @@
+[Unit]
+Description=Candidate AWS pipeline retry/check schedule (not installed)
+
+[Timer]
+OnBootSec=10min
+OnUnitInactiveSec=15min
+AccuracySec=1min
+Unit=crawl-cars-aws-pipeline.service
+# The pipeline starts at most one new batch per UTC day, and resumes pending batches.
+
+[Install]
+WantedBy=timers.target

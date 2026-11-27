@@ -235,6 +235,29 @@ jobs:
             --head-sha "$GITHUB_SHA" --full-validation \
             --wide-baseline "$RAW_WIDE" \
             --source-identity-evidence config/source_identity_evidence.json
+          python - <<'PY'
+          import hashlib, json, shutil
+          from pathlib import Path
+
+          # Restore only the history bound to the selected verified archive.
+          published = Path("src-data/published-site")
+          manifest = json.loads((published / "data/manifest.json").read_bytes())
+          relative = "data/column-scan-history.json"
+          entries = [entry for entry in manifest["files"].get("additionalDataAssets", [])
+                     if entry["path"] == relative]
+          if entries:
+              path = published / relative
+              payload = path.read_bytes()
+              if len(entries) != 1 or len(payload) != entries[0].get("size") or (
+                  hashlib.sha256(payload).hexdigest() != entries[0].get("sha256")
+              ):
+                  raise ValueError("column scan history differs from verified manifest")
+              shutil.copyfile(path, "column-scan-history.json")
+          PY
+          node scripts/scan_pages_columns.js --no-browser --require-data \
+            --data site/data/latest.json --repo-root . \
+            --history column-scan-history.json --out column-scan-report.json
+          cp column-scan-history.json site/data/column-scan-history.json
           python - "$DATE" <<'PY'
           import hashlib, json, os, shutil, sys
           from datetime import datetime, timezone
@@ -319,12 +342,6 @@ jobs:
                     ensure_ascii=False, indent=2)
           print(manifest)
           PY
-          if [ -f src-data/column-scan-history.json ]; then
-            cp src-data/column-scan-history.json column-scan-history.json
-          fi
-          node scripts/scan_pages_columns.js --no-browser --require-data \
-            --data site/data/latest.json --repo-root . \
-            --history column-scan-history.json --out column-scan-report.json
           touch site/.nojekyll
 
       - name: 配置 GitHub Pages
@@ -504,3 +521,15 @@ jobs:
           TAG="cnb-data-${DATE}-remerged-verified-r${{ github.run_id }}a${{ github.run_attempt }}"
           python scripts/publish_github_release.py --site-dir site --repo "$GITHUB_REPOSITORY" --tag "$TAG" --ref "$GITHUB_SHA"
           echo "✅ verified 面已发布 $TAG"
+      - name: Record exact Pages release for downstream workflows
+        run: |
+          set -euo pipefail
+          mkdir -p .pages-release-receipt
+          printf '%s\n' 'cnb-data-${{ steps.remerge.outputs.date }}-remerged-verified-r${{ github.run_id }}a${{ github.run_attempt }}' > .pages-release-receipt/release-tag.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cnb-data-${{ steps.remerge.outputs.date }}-remerged-verified-r${{ github.run_id }}a${{ github.run_attempt }}
+          path: .pages-release-receipt/release-tag.txt
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3

@@ -1,21 +1,63 @@
-# GitLab Pages 部署 — 爬虫筛选中心
-# 仅在 Pages 面向用户的文件变更时触发，节省 CI 分钟
-pages:
+# Data-only Pages deployment. Crawling stays on AWS; this job consumes the
+# already processed, verified GitHub Release produced by the data workflow.
+default:
+  image: python:3.12-slim
+
+stages: [deploy]
+
+deploy_verified_pages:
   stage: deploy
+  resource_group: crawl-cars-pages
+  pages:
+    publish: public
   script:
-    - echo "Deploying pages from docs/"
-  artifacts:
-    paths:
-      - docs
-  publish: docs
+    - |
+      set -eu
+      if [ "$CI_PIPELINE_SOURCE" = api ]; then
+        : "${CARS_PROCESSED_RELEASE:?missing processed release}"
+        : "${CARS_AWS_RAW_RELEASE:?missing AWS raw release}"
+        : "${CARS_AWS_PRODUCER_COMMIT:?missing AWS producer commit}"
+        : "${CARS_AWS_RAW_MANIFEST_SHA256:?missing AWS raw manifest hash}"
+      fi
+      python scripts/download_verified_release.py \
+        --repo Fatty911/crawl_cars --no-legacy --require-immutable \
+        --tag "${CARS_PROCESSED_RELEASE:-}" --dir .verified-release
+      python scripts/prepare_cnb_pages.py \
+        --archive .verified-release/verified-site.zip \
+        --manifest .verified-release/manifest.json --site public
+      python - <<'PY'
+      import json, os, re
+      from pathlib import Path
+      manifest = json.loads(Path('public/data/manifest.json').read_bytes())
+      provenance = manifest.get('provenance', {})
+      requirements = (
+          ('awsRawRelease', 'CARS_AWS_RAW_RELEASE', r'aws-raw-[0-9]{8}T[0-9]{6}Z'),
+          ('awsRawProducerCommit', 'CARS_AWS_PRODUCER_COMMIT', r'[0-9a-f]{40}'),
+          ('awsRawManifestSha256', 'CARS_AWS_RAW_MANIFEST_SHA256', r'[0-9a-f]{64}'),
+      )
+      for field, variable, pattern in requirements:
+          observed = provenance.get(field)
+          expected = os.environ.get(variable, '')
+          if not isinstance(observed, str) or not re.fullmatch(pattern, observed):
+              raise ValueError('verified release lacks AWS provenance: ' + field)
+          if expected and observed != expected:
+              raise ValueError('verified release provenance differs: ' + field)
+      if not isinstance(manifest.get('rowCount'), int) or manifest['rowCount'] <= 0:
+          raise ValueError('verified Pages dataset is empty')
+      if not Path('public/index.html').stat().st_size:
+          raise ValueError('verified Pages index is empty')
+      PY
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "api" && $CARS_PROCESSED_RELEASE && $CARS_AWS_RAW_RELEASE && $CARS_AWS_PRODUCER_COMMIT && $CARS_AWS_RAW_MANIFEST_SHA256'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"'
       changes:
+        - .gitlab-ci.yml
         - docs/index.html
         - docs/app.js
         - docs/style.css
         - docs/styles.css
         - docs/config.js
+        - docs/filter_conditions.json
         - docs/_headers
         - docs/CNAME
         - docs/data/latest.json

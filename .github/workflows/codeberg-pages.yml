@@ -1,0 +1,116 @@
+name: Deploy verified Codeberg Pages
+
+on:
+  workflow_run:
+    workflows: ["重合并并发布（不爬取）"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Exact verified processing release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: crawl-cars-codeberg-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.repository == 'Fatty911/crawl_cars' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (vars.CODEBERG_PAGES_ENABLED == 'true' && github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check Codeberg publishing credentials
+        env:
+          CODEBERG_PAGES_DEPLOY_KEY: ${{ secrets.CODEBERG_PAGES_DEPLOY_KEY }}
+          CODEBERG_COMMIT_EMAIL: ${{ secrets.CODEBERG_COMMIT_EMAIL }}
+        run: |
+          test -n "$CODEBERG_PAGES_DEPLOY_KEY" && test -n "$CODEBERG_COMMIT_EMAIL"
+
+      - name: Download and verify immutable Pages release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
+            RELEASE_TAG=$(python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
+              --workflow-run-id "$SOURCE_RUN_ID" --workflow-run-attempt "$SOURCE_RUN_ATTEMPT" --print-tag)
+          fi
+          export RELEASE_TAG
+          [[ "$RELEASE_TAG" =~ ^cnb-data-[0-9]{8}-remerged-verified-r[1-9][0-9]*a[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > release-metadata.json
+          python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" --no-legacy --tag "$RELEASE_TAG" --dir release
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from scripts.publish_github_release import file_hash
+          metadata = json.loads(Path("release-metadata.json").read_bytes())
+          if (metadata.get("tag_name") != os.environ["RELEASE_TAG"]
+                  or metadata.get("immutable") is not True or metadata.get("draft") is not False
+                  or metadata.get("prerelease") is not False):
+              raise ValueError("Codeberg input must be an immutable published release")
+          for name in ("manifest.json", "verified-site.zip"):
+              assets = [asset for asset in metadata["assets"] if asset["name"] == name]
+              file = Path("release") / name
+              if len(assets) != 1 or assets[0]["size"] != file.stat().st_size or assets[0].get("digest") != "sha256:" + file_hash(file):
+                  raise ValueError("verified release asset bytes mismatch: " + name)
+          PY
+          python scripts/prepare_cnb_pages.py --archive release/verified-site.zip --manifest release/manifest.json --site verified-site
+          python scripts/prepare_cloudflare_payload.py --input verified-site --output codeberg-site
+
+      - name: Update the existing Codeberg Pages branch
+        env:
+          CODEBERG_PAGES_DEPLOY_KEY: ${{ secrets.CODEBERG_PAGES_DEPLOY_KEY }}
+          CODEBERG_COMMIT_EMAIL: ${{ secrets.CODEBERG_COMMIT_EMAIL }}
+          GIT_TERMINAL_PROMPT: "0"
+          LC_ALL: C
+        run: |
+          set -euo pipefail
+          RELEASE_TAG=$(cat release/selected-release.txt)
+          target="$RUNNER_TEMP/codeberg-pages"
+          ssh_key="$(mktemp "$RUNNER_TEMP/codeberg-deploy-key.XXXXXX")"
+          trap 'rm -f "$ssh_key"' EXIT
+          chmod 600 "$ssh_key"
+          printf '%s\n' "$CODEBERG_PAGES_DEPLOY_KEY" > "$ssh_key"
+          unset CODEBERG_PAGES_DEPLOY_KEY
+          ssh-keygen -y -P '' -f "$ssh_key" >/dev/null
+          export GIT_SSH_COMMAND="ssh -F /dev/null -i \"$ssh_key\" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o UserKnownHostsFile=\"$GITHUB_WORKSPACE/.github/codeberg-pages-known-hosts\""
+          git clone --depth 1 --single-branch --branch pages \
+            ssh://git@codeberg.org/xuerui911/crawl-cars.git "$target"
+          python -m scripts.stage_codeberg_pages --site codeberg-site --checkout "$target" \
+            --release "$RELEASE_TAG" --release-manifest release/manifest.json
+          git -C "$target" add -A
+          if ! git -C "$target" diff --cached --quiet; then
+            GIT_AUTHOR_NAME='github-actions[bot]' GIT_COMMITTER_NAME='github-actions[bot]' \
+              GIT_AUTHOR_EMAIL="$CODEBERG_COMMIT_EMAIL" GIT_COMMITTER_EMAIL="$CODEBERG_COMMIT_EMAIL" \
+              git -C "$target" commit -m "Publish verified Pages data $RELEASE_TAG"
+            git -C "$target" -c pack.window=0 -c pack.threads=1 -c pack.compression=1 \
+              push origin HEAD:refs/heads/pages
+          fi
+          expected="$(git -C "$target" rev-parse HEAD)"
+          actual="$(git -C "$target" ls-remote --exit-code origin refs/heads/pages | cut -f1)"
+          test "$actual" = "$expected"
+
+      - name: Verify both deployed Pages sites
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/codeberg-pages"
+          python scripts/prepare_cnb_pages.py --site "$target" --verify-url https://cars3.jiucai.eu.org/ --verify-data
+          python scripts/prepare_cnb_pages.py --site "$target" --verify-url https://xuerui911.codeberg.page/crawl-cars/ --verify-data

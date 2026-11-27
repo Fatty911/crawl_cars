@@ -1,0 +1,30 @@
+[Unit]
+Description=Candidate AWS source-only car pipeline (requires reviewed cutover)
+After=network-online.target crawl-cars-mihomo.service
+Wants=network-online.target
+Requires=crawl-cars-mihomo.service
+ConditionPathExists=/etc/crawl-cars/aws-production-authorized.env
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/crawl-cars-ingest-candidate
+EnvironmentFile=/etc/crawl-cars/aws-production-authorized.env
+# This private file must set AWS_CRAWL_PRODUCTION_AUTHORIZED=1 after reviewed installation.
+# Replace this path with the existing Python pinned in the approved private plan.
+ExecStart=/usr/bin/python3 -m scripts.aws_crawl_pipeline --apply
+UMask=0077
+TimeoutStartSec=6h
+MemoryMax=3G
+TasksMax=96
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+# Preserve home isolation while exposing only the pre-existing GitHub CLI profile.
+BindReadOnlyPaths=/root/.config/gh:/run/crawl-cars-gh
+Environment=GH_CONFIG_DIR=/run/crawl-cars-gh
+# Collector subprocesses use their own fixed, loopback-only 2G transient unit.
+# No Restart: ambiguous dispatches require recorded-identity reconciliation, not a new POST.
+
+[Install]
+WantedBy=multi-user.target

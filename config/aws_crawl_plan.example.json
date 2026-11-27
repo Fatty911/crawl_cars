@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "plan_id": "aws-raw-approved-v1",
+  "mode": "debug",
+  "producer_commit": "REPLACE_WITH_REVIEWED_GITHUB_COMMIT",
+  "python": {
+    "path": "REPLACE_WITH_EXISTING_REAL_PYTHON_PATH",
+    "sha256": "REPLACE_WITH_PYTHON_BINARY_SHA256"
+  },
+  "source_manifest": {
+    "path": "/etc/crawl-cars/approved-source-manifest.json",
+    "sha256": "REPLACE_WITH_APPROVED_SOURCE_MANIFEST_SHA256"
+  },
+  "targets": {
+    "autohome": {
+      "priority": {
+        "catalog_path": "/etc/crawl-cars/catalogs/autohome-priority.json",
+        "catalog_sha256": "REPLACE_WITH_APPROVED_CATALOG_SHA256",
+        "rankings_path": "/etc/crawl-cars/rankings/autohome.json",
+        "refresh": true
+      },
+      "row_limit": 10,
+      "runtime_seconds": 240
+    },
+    "dongchedi": {
+      "path": "/etc/crawl-cars/targets/dongchedi.json",
+      "sha256": "REPLACE_WITH_APPROVED_TARGET_SHA256",
+      "row_limit": 10,
+      "runtime_seconds": 600
+    },
+    "yiche": {
+      "path": "/etc/crawl-cars/targets/yiche.json",
+      "sha256": "REPLACE_WITH_APPROVED_TARGET_SHA256",
+      "row_limit": 10,
+      "runtime_seconds": 240
+    }
+  },
+  "network": {
+    "probe_ip": "REPLACE_WITH_APPROVED_REACHABLE_NON_LOOPBACK_IPV4",
+    "probe_port": 22
+  },
+  "platforms": {
+    "github": { "repo": "Fatty911/crawl_cars" },
+    "cnb": {
+      "repo": "xuerui911-mirror/crawl_cars",
+      "storage": { "ref": "main", "commit": "REPLACE_WITH_REVIEWED_CNB_NATIVE_COMMIT" },
+      "acceptance": { "ci_sha256": "REPLACE_WITH_REVIEWED_CNB_DATA_ONLY_CI_SHA256", "credential": "dedicated" }
+    },
+    "gitee": {
+      "project": "xuerui911/crawl_cars",
+      "storage": { "ref": "main", "commit": "REPLACE_WITH_GITEE_NATIVE_STORAGE_COMMIT" }
+    },
+    "gitlab": {
+      "project": "xuerui911/crawl_cars",
+      "storage": { "ref": "main", "commit": "REPLACE_WITH_GITLAB_NATIVE_STORAGE_COMMIT" },
+      "pages": {
+        "url": "https://crawl-cars-5b0684.gitlab.io/",
+        "ci_sha256": "REPLACE_WITH_REVIEWED_GITLAB_DATA_ONLY_CI_SHA256"
+      }
+    }
+  },
+  "processing": {
+    "workflow": "remerge-and-publish.yml",
+    "ref": "main",
+    "commit": "REPLACE_WITH_REVIEWED_GITHUB_COMMIT",
+    "workflow_sha256": "REPLACE_WITH_REVIEWED_WORKFLOW_SHA256",
+    "pages_base": "https://cars.jiucai.eu.org/",
+    "page_mirrors": ["cloudflare", "codeberg"]
+  }
+}

@@ -110,10 +110,21 @@ def checked_assets(site, manifest):
     return assets
 
 
+def checked_publication_manifest(raw):
+    manifest = json.loads(raw)
+    if not isinstance(manifest, dict):
+        raise ValueError("manifest must be a JSON object")
+    if "publication_authorized" in manifest and manifest["publication_authorized"] is not True:
+        raise ValueError("release manifest does not authorize publication")
+    return manifest
+
+
 def prepare(archive, expected_manifest, site):
     site = Path(site)
     if site.exists():
         raise ValueError(f"destination must not exist: {site}")
+    expected = Path(expected_manifest).read_bytes()
+    manifest = checked_publication_manifest(expected)
     with zipfile.ZipFile(archive) as bundle:
         members = bundle.infolist()
         seen = set()
@@ -136,11 +147,8 @@ def prepare(archive, expected_manifest, site):
                 with bundle.open(entry) as source, target.open("xb") as destination:
                     shutil.copyfileobj(source, destination)
     staged = site / "data" / "manifest.json"
-    if staged.read_bytes() != Path(expected_manifest).read_bytes():
+    if staged.read_bytes() != expected:
         raise ValueError("archive manifest differs from Release manifest asset")
-    manifest = json.loads(staged.read_bytes())
-    if not isinstance(manifest, dict):
-        raise ValueError("manifest must be a JSON object")
     if not (site / "index.html").is_file():
         raise ValueError("site index.html is missing")
     assets = checked_assets(site, manifest)
@@ -149,7 +157,8 @@ def prepare(archive, expected_manifest, site):
 
 def verify(site, page_url, attempts=12, interval=10, verify_data=False):
     expected = (Path(site) / "data" / "manifest.json").read_bytes()
-    assets = checked_assets(site, json.loads(expected)) if verify_data else {}
+    manifest = checked_publication_manifest(expected)
+    assets = checked_assets(site, manifest) if verify_data else {}
     url = urllib.parse.urljoin(page_url.rstrip("/") + "/", "data/manifest.json")
     for attempt in range(1, attempts + 1):
         separator = "&" if "?" in url else "?"

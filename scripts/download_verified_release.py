@@ -61,6 +61,29 @@ def select_release(api, tag=None, *, allow_legacy=True, original_only=False):
     raise ValueError('no complete published CNB build or legacy data-latest Release')
 
 
+def require_immutable(release):
+    assets = release.get('assets', [])
+    if (not complete_release(release) or release.get('immutable') is not True
+            or any(len(matches := [item for item in assets if item.get('name') == name]) != 1
+                   or not re.fullmatch(r'sha256:[0-9a-f]{64}', matches[0].get('digest') or '')
+                   for name in ('manifest.json', 'verified-site.zip'))):
+        raise ValueError('Pages fan-out requires an immutable release with exact asset digests')
+    return release
+
+
+def select_workflow_release(api, run_id, attempt):
+    if not re.fullmatch(r'[1-9][0-9]{0,17}', run_id) or not re.fullmatch(r'[1-9][0-9]{0,5}', attempt):
+        raise ValueError('invalid Pages source workflow run or attempt')
+    pattern = re.compile(r'cnb-data-\d{8}-remerged-verified-r' + run_id + 'a' + attempt)
+    # Use the attempt-specific artifact name to bind the release date, even across UTC midnight.
+    response = api.request('GET', f'/actions/runs/{run_id}/artifacts?per_page=100')
+    receipts = [artifact['name'] for artifact in response['artifacts']
+                if not artifact.get('expired') and pattern.fullmatch(artifact.get('name', ''))]
+    if len(receipts) != 1:
+        raise ValueError('exact source-run Pages receipt is missing or ambiguous')
+    return require_immutable(select_release(api, receipts[0], allow_legacy=False))
+
+
 class SafeRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, new_url):
         redirected = super().redirect_request(request, fp, code, message, headers, new_url)
@@ -109,6 +132,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--repo', default=os.getenv('GITHUB_REPOSITORY') or os.getenv('GITHUB_REPO_SLUG'))
     parser.add_argument('--tag', default='')
+    parser.add_argument('--workflow-run-id', default='')
+    parser.add_argument('--workflow-run-attempt', default='')
+    parser.add_argument('--require-immutable', action='store_true')
     parser.add_argument('--pattern', action='append')
     parser.add_argument('--dir', type=Path)
     parser.add_argument('--print-tag', action='store_true')
@@ -121,7 +147,14 @@ def main(argv=None):
     api = GitHub(args.repo, os.getenv('GH_TOKEN') or os.getenv('GITHUB_TOKEN') or os.getenv('GITHUB_PAT') or '')
     if not any(os.getenv(name) for name in ('GH_TOKEN', 'GITHUB_TOKEN', 'GITHUB_PAT')):
         api.headers.pop('Authorization')
-    release = select_release(api, args.tag, allow_legacy=not args.no_legacy, original_only=args.original_only)
+    if args.workflow_run_id or args.workflow_run_attempt:
+        if args.tag or args.original_only:
+            raise ValueError('workflow receipt selection cannot be combined with a manual tag or original-only mode')
+        release = select_workflow_release(api, args.workflow_run_id, args.workflow_run_attempt)
+    else:
+        release = select_release(api, args.tag, allow_legacy=not args.no_legacy, original_only=args.original_only)
+        if args.require_immutable:
+            require_immutable(release)
     if args.print_tag:
         print(release['tag_name'])
         return
