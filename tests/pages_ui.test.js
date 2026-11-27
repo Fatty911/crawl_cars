@@ -1507,7 +1507,7 @@ test("Pages filter center groups models by series and uses price extrema as repr
   toggle = firstCard.children[0];
   assert.equal(toggle.getAttribute("aria-expanded"), "true");
   assert.equal(firstCard.children[2].children.length, 2);
-  assert.deepEqual(Array.from(firstCard.children[2].children, (item) => item.children[0].textContent), ["S2 低配 2026款", "S2 高配 2026款"]);
+  assert.deepEqual(Array.from(firstCard.children[2].children, (item) => item.children[0].textContent), ["2026款 低配", "2026款 高配"]);
 
   hooks.state.search = "S1";
   hooks.renderResultsOnly();
@@ -2097,7 +2097,7 @@ test("series card: common attrs in one meta line, differing attrs per model row"
   const singleSnap = hooks.renderCards(singleGroups);
   assert.ok(singleSnap[0].meta.indexOf("能源类型: 纯电") !== -1 && singleSnap[0].meta.indexOf("纯电/") === -1, "能源全一致 -> 单值");
   assert.ok(singleSnap[0].meta.indexOf("官方指导价: 25万") !== -1 && singleSnap[0].meta.indexOf("-") === -1 || singleSnap[0].meta.indexOf("25万") !== -1, "价格全一致 -> 单值");
-  assert.ok(snapshots[0].rows[0].indexOf("A 1 2025款") !== -1, "年款作为型号结尾（2025款）");
+  assert.ok(snapshots[0].rows[0].indexOf("2025款 A 1") !== -1, "年款统一前置（2025款）");
   assert.ok(snapshots[0].rows[1].indexOf("A 2 2026款") !== -1, "年款作为型号结尾（2026款）");
   assert.ok(snapshots[0].rows[0].indexOf("年款:") === -1, "年款不再作为独立属性 chip");
   assert.ok(snapshots[0].rows[0].indexOf("2025款 2025款") === -1, "年款后缀不重复");
@@ -3511,4 +3511,63 @@ test("stock and per-provider sale conflicts override a stale on-sale summary in 
   const combined = {...active, "数据来源":"汽车之家+懂车帝", "上市状态_懂车帝":"停售"};
   hooks.initializeRows([combined, {...base, "车型名称":"可售", "上市状态":"在售", "上市状态_汽车之家":"-"}]);
   assert.deepEqual(Array.from(hooks.getFilteredRows(), row=>row["车型名称"]), ["可售"]);
+});
+
+test("SPU card SKU titles strip redundant series prefix, unify leading year, and align within-SPU km units", () => {
+  const { elements, hooks } = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("仅汽车之家", 2026, "红旗天工05 2026款 650 Max版"), {
+      "品牌": "红旗", "车系": "红旗天工05", "能源类型": "纯电动", "官方指导价": "17.18万", "纯电续航(km)": "CLTC:650"
+    }),
+    Object.assign(row("仅易车", 2026, "26款 750km 长续航版"), {
+      "品牌": "红旗", "车系": "红旗天工05", "能源类型": "纯电动", "官方指导价": "18.58万", "纯电续航(km)": "CLTC:750"
+    }),
+    Object.assign(row("仅易车", 2026, "26款 850km 极充性能版"), {
+      "品牌": "红旗", "车系": "红旗天工05", "能源类型": "纯电动", "官方指导价": "22.28万", "纯电续航(km)": "CLTC:850"
+    }),
+    Object.assign(row("仅汽车之家", 2025, "宋L EV 2025款 智驾版 662km 激光雷达卓越型"), {
+      "品牌": "比亚迪", "车系": "宋L EV", "能源类型": "纯电动", "官方指导价": "22.58万", "纯电续航(km)": "CLTC:662"
+    }),
+    Object.assign(row("懂车帝+易车", 2025, "2025款 智驾版 602km 四驱激光雷达型"), {
+      "品牌": "比亚迪", "车系": "宋L EV", "能源类型": "纯电动", "官方指导价": "24.98万", "纯电续航(km)": "CLTC:602"
+    }),
+    Object.assign(row("懂车帝+易车", 2026, "2026款 625 后驱Max"), {
+      "品牌": "小鹏汽车", "车系": "小鹏G9", "能源类型": "纯电动", "官方指导价": "24.88万", "纯电续航(km)": "CLTC:625"
+    }),
+    Object.assign(row("懂车帝+易车", 2026, "2026款 725 后驱Max"), {
+      "品牌": "小鹏汽车", "车系": "小鹏G9", "能源类型": "纯电动", "官方指导价": "25.88万", "纯电续航(km)": "CLTC:725"
+    }),
+    Object.assign(row("汽车之家+懂车帝+易车", 2026, "小鹏G9 2026款 680 四驱 Max"), {
+      "品牌": "小鹏汽车", "车系": "小鹏G9", "能源类型": "纯电动", "官方指导价": "27.88万", "纯电续航(km)": "CLTC:680"
+    }),
+    Object.assign(row("仅汽车之家", 2026, "途昂Pro 450TSI 四驱纵横版"), {
+      "品牌": "大众", "车系": "途昂", "能源类型": "汽油", "官方指导价": "29.90万"
+    }),
+  ]);
+  const groups = hooks.groupRowsBySeries(hooks.getFilteredRows());
+  groups.forEach((g) => hooks.state.expandedSeries.add(g.key));
+  hooks.renderCards(groups);
+  const bySeries = new Map();
+  elements.get("cardList").children.forEach((card) => {
+    const seriesTitle = card.children[0].children[0].textContent;
+    const skuTitles = Array.from(card.children[2].children, (item) => item.children[0].textContent);
+    bySeries.set(seriesTitle, skuTitles);
+  });
+  assert.deepEqual(bySeries.get("红旗天工05"), [
+    "2026款 650km Max版",
+    "2026款 750km 长续航版",
+    "2026款 850km 极充性能版",
+  ]);
+  assert.deepEqual(bySeries.get("宋L EV"), [
+    "2025款 智驾版 662km 激光雷达卓越型",
+    "2025款 智驾版 602km 四驱激光雷达型",
+  ]);
+  assert.deepEqual(bySeries.get("小鹏G9"), [
+    "2026款 625 后驱Max",
+    "2026款 725 后驱Max",
+    "2026款 680 四驱 Max",
+  ]);
+  assert.deepEqual(bySeries.get("途昂"), [
+    "2026款 途昂Pro 450TSI 四驱纵横版",
+  ]);
 });
