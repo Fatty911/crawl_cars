@@ -12,6 +12,225 @@ test("header evidence stays internal without hiding unrelated double-underscore 
   assert.equal(hooks.shouldHideColumn("__custom_equipment", []), false);
 });
 
+test("display columns can sort by matching series and show normalized brand counts", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.state.columns = ["广泛字段", "品牌专属字段", "选装样式", "无有效配置"];
+  hooks.state.visibleColumns = new Set(["选装样式"]);
+  hooks.state.rows = [
+    { "品牌": "小鹏", "车系": "小鹏 G6", "广泛字段": "●", "品牌专属字段": "7.0", "选装样式": "汽车之家:○", "无有效配置": "不支持" },
+    { "品牌": "小鹏汽车", "车系": "小鹏G6", "广泛字段": "●", "选装样式": "-", "无有效配置": "待查" },
+    { "品牌": "小鹏汽车", "车系": "小鹏G7", "广泛字段": "●", "品牌专属字段": "7" },
+    { "品牌": "比亚迪", "车系": "海豹", "广泛字段": "●", "选装样式": "易车:无" },
+  ];
+  elements.get("columnOrder").value = "coverage";
+  hooks.renderColumnList();
+  const labels = descendants(elements.get("columnList")).filter((node) => node.tagName === "SPAN");
+  assert.deepEqual(labels.map((node) => node.textContent), [
+    "无有效配置 · 0 车系 / 0 品牌", "选装样式 · 1 车系 / 1 品牌",
+    "品牌专属字段 · 2 车系 / 1 品牌", "广泛字段 · 3 车系 / 2 品牌",
+  ]);
+  const selected = descendants(elements.get("columnList")).find((node) => node.dataset.column === "选装样式");
+  assert.equal(selected.checked, true);
+});
+
+test("rare and common surround-view fields share a category without losing source values", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  const row = {"180°透明底盘":"○", "透明底盘/540°影像":"●"};
+  for (const column of Object.keys(row)) {
+    assert.equal(hooks.columnPath(column).minor, "全景影像与底盘透视");
+  }
+  const source = {...row, ["180°透明底盘系统"]: "汽车之家:○ 3000元|易车:不支持", ["底盘透视"]: "懂车帝:●"};
+  const [normalized] = hooks.normalizeRowColumns([source]);
+  assert.equal(normalized["底盘透视"], "懂车帝:●|○|汽车之家:○ 3000元|易车:不支持");
+  assert.equal(normalized["透明底盘/540°影像"], "●");
+  assert.equal(normalized["180°透明底盘"], undefined);
+  assert.equal(normalized["180°透明底盘系统"], undefined);
+  assert.equal(source["180°透明底盘"], "○");
+  for (const alias of ["180°透明底盘", "180°透明底盘系统", "180°透明底盘_2", "底盘透视_2", "透明底盘_2"]) {
+    const [optional] = hooks.normalizeRowColumns([{[alias]: "○"}]);
+    assert.equal(optional["底盘透视"], "○");
+    assert.equal(hooks.columnPath("底盘透视").minor, "全景影像与底盘透视");
+  }
+});
+
+test("instrument display sizes consolidate inch aliases and preserve real differences", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  const rows = hooks.normalizeRowColumns([
+    {"液晶仪表尺寸": "汽车之家:12.30", "液晶仪表尺寸(in)": "12.3英寸|懂车帝:10.25 in"},
+    {"液晶仪表尺寸": "●", "液晶仪表尺寸(in)": "10.25"},
+    {"液晶仪表尺寸": "—", "液晶仪表尺寸(in)": "○"},
+    {"液晶仪表尺寸(in)": "8.88|8.880"},
+    {"液晶仪表尺寸": "25.4cm", "液晶仪表尺寸(in)": "10.25"},
+  ]);
+  assert.equal(rows[0]["液晶仪表尺寸(in)"], "汽车之家:12.3|懂车帝:10.25");
+  assert.equal(rows[1]["液晶仪表尺寸(in)"], "10.25");
+  assert.equal(rows[2]["液晶仪表尺寸(in)"], undefined);
+  assert.equal(rows[3]["液晶仪表尺寸(in)"], "8.88");
+  assert.equal(rows[4]["液晶仪表尺寸(in)"], "10.25");
+  assert.equal(rows[4]["液晶仪表尺寸"], "25.4cm");
+  assert.ok(rows.slice(0, 4).every((row) => !Object.hasOwn(row, "液晶仪表尺寸")));
+});
+
+test("column coverage preview shows and exports the selected value without changing column preferences", async () => {
+  const { hooks, elements, downloads } = loadAppForTest();
+  hooks.state.config = { conditions: [], defaultVisibleColumns: [] };
+  hooks.state.columns = ["待核字段", "第二字段"];
+  const first = { ...row("汽车之家", 2026, "选装车款"), "车系": "甲", "品牌": "比亚迪", "待核字段": "汽车之家:○" };
+  const second = { ...row("汽车之家", 2026, "默认车款"), "车系": "乙", "品牌": "吉利", "待核字段": "不支持", "第二字段": "●" };
+  const unknown = { ...first, "车系": "-", "车型名称": "缺车系" };
+  hooks.state.rows = [first, second, unknown];
+  hooks.state.saleScope = "all";
+  hooks.state.brand = "吉利";
+  hooks.state.columnFilters = {"第二字段": { operator: "contains", value: "●" }};
+  assert.deepEqual(Array.from(hooks.getFilteredRows()), [second]);
+
+  elements.get("columnOrder").value = "coverage";
+  hooks.renderColumnList();
+  const preview = descendants(elements.get("columnList")).find((item) => item.dataset.previewColumn === "待核字段");
+  preview.dispatch("click");
+  assert.deepEqual(Array.from(hooks.getFilteredRows()), [first]);
+  assert.equal(hooks.state.brand, "吉利");
+  assert.equal(hooks.state.columnFilters["第二字段"].value, "●");
+  assert.match(elements.get("columnPreviewLabel").textContent, /待核字段/);
+  assert.equal(hooks.state.visibleColumns.has("待核字段"), false);
+  const headers = descendants(elements.get("tableHead"));
+  assert.ok(headers.some((item) => item.textContent === "待核字段"));
+  assert.ok(descendants(elements.get("tableBody")).some((item) => item.textContent === "汽车之家:○"));
+  const groups = hooks.groupRowsBySeries([first]);
+  hooks.state.expandedSeries.add(groups[0].key);
+  hooks.renderCards(groups);
+  const card = descendants(elements.get("cardList"));
+  assert.ok(card.some((item) => item.textContent === "待核字段: 汽车之家:○"));
+  hooks.exportCurrentCsv();
+  assert.equal((await downloads[0].text()).trim(), "待核字段\n汽车之家:○");
+
+  const other = descendants(elements.get("columnList")).find((item) => item.dataset.previewColumn === "第二字段");
+  other.dispatch("click");
+  assert.deepEqual(Array.from(hooks.getFilteredRows()), [second]);
+  elements.get("clearColumnPreview").dispatch("click");
+  assert.deepEqual(Array.from(hooks.getFilteredRows()), [second]);
+  assert.equal(elements.get("columnPreviewStatus").hidden, true);
+  assert.ok(!descendants(elements.get("tableHead")).some((item) => item.textContent === "待核字段"));
+  assert.equal(hooks.state.visibleColumns.has("待核字段"), false);
+});
+
+test("instrument size accepts explicit lists without guessing ambiguous measurements", () => {
+  const { hooks } = loadAppForTest();
+  const rows = hooks.normalizeRowColumns([
+    {"液晶仪表尺寸": "汽车之家:3.5英寸 / 9.2英寸 / 10.25英寸|懂车帝:3.50+10.25+9.2"},
+    {"液晶仪表尺寸": "7英寸／12.3英寸", "液晶仪表尺寸(in)": "7.00|12.30"},
+    {"液晶仪表尺寸": "10.25英寸 / 32cm"},
+    {"液晶仪表尺寸": "12 / 3英寸（副屏）"},
+    {"液晶仪表尺寸": "10.25英寸 / 12.3英寸|未知", "液晶仪表尺寸(in)": "10.25 in"},
+  ]);
+  assert.equal(rows[0]["液晶仪表尺寸(in)"], "汽车之家:3.5|汽车之家:9.2|汽车之家:10.25");
+  assert.equal(rows[1]["液晶仪表尺寸(in)"], "7|12.3");
+  assert.equal(rows[2]["液晶仪表尺寸(in)"], undefined);
+  assert.equal(rows[2]["液晶仪表尺寸"], "10.25英寸 / 32cm");
+  assert.equal(rows[3]["液晶仪表尺寸"], "12 / 3英寸（副屏）");
+  assert.equal(rows[4]["液晶仪表尺寸(in)"], "10.25|12.3");
+  assert.ok([rows[0], rows[1], rows[4]].every(row => !Object.hasOwn(row, "液晶仪表尺寸")));
+});
+
+test("audited spelling aliases preserve source values and leave different packages separate", () => {
+  const { hooks } = loadAppForTest();
+  const original = {
+    "MBUX 智能人机交互系统实景穿越导航": "●",
+    "MBUX 智能人机交互系统实景穿越导航_2": "汽车之家:○ 4100元|○ 4700元",
+    "MBUX智能人机交互系统实景穿越导航_2": "懂车帝:不支持|●",
+    "AMG 扰流板": "○",
+    "AMG扰流板": "○",
+    "AMG 外观组件_1": "运动排气系统",
+    "AMG外观组件_1": "红色制动卡钳"
+  };
+  const [row] = hooks.normalizeRowColumns([original]);
+  assert.equal(row["MBUX智能人机交互系统实景穿越导航"], "●");
+  assert.equal(row["MBUX智能人机交互系统实景穿越导航_2"], "懂车帝:不支持|懂车帝:●|汽车之家:○ 4100元|汽车之家:○ 4700元");
+  assert.equal(row["AMG扰流板"], "○");
+  assert.equal(row["AMG 外观组件_1"], "运动排气系统");
+  assert.equal(row["AMG外观组件_1"], "红色制动卡钳");
+  assert.ok(!Object.hasOwn(row, "AMG 扰流板"));
+  assert.ok(Object.hasOwn(original, "AMG 扰流板"));
+});
+
+test("sensor count aliases combine measurements and preserve unquantified observations", () => {
+  const { hooks } = loadAppForTest();
+  const [row, zero] = hooks.normalizeRowColumns([
+    {"车内摄像头数量":"1个 / 2个","车内摄像头数量(个)":"2.0",
+     "激光雷达数量":"汽车之家:1个|懂车帝:●|待查","激光雷达数量(个)":"易车:2",
+     "激光雷达数量(2)":"○ 暂无价格","摄像头数量":"5个"},
+    {"毫米波雷达数量":"0个","超声波雷达数量":"4 / 8","车外摄像头数量":"5个"},
+  ]);
+  assert.equal(row["车内摄像头数量(个)"], "2|1");
+  assert.equal(row["车内摄像头数量"], undefined);
+  assert.equal(row["激光雷达数量(个)"], "易车:2|汽车之家:1");
+  assert.equal(row["激光雷达数量"], "懂车帝:●|懂车帝:待查");
+  assert.equal(row["激光雷达数量(2)"], "○ 暂无价格");
+  assert.equal(row["摄像头数量"], "5个");
+  assert.equal(zero["毫米波雷达数量(个)"], "0");
+  assert.equal(zero["超声波雷达数量"], "4 / 8");
+  assert.equal(zero["车外摄像头数量(个)"], "5");
+});
+
+test("sensor count ranges keep numeric controls and exclude unquantified records", () => {
+  const { hooks, elements } = loadAppForTest();
+  const column = "激光雷达数量(个)";
+  const base = row("汽车之家", 2026, "样本");
+  const sample = (name, value) => ({...base, "车型名称": name, "车系": name, [column]: value});
+  hooks.state.config = {conditions: [], defaultVisibleColumns: [column]};
+  hooks.initializeRows([
+    sample("混合证据", "汽车之家:2|懂车帝:支持|待查"),
+    sample("仅支持", "支持"),
+    sample("明确零个", "0"),
+    sample("两种数值", "2|3"),
+    sample("歧义文本", "2|4 / 8"),
+  ]);
+  hooks.state.saleScope = "all";
+  hooks.state.visibleColumns = new Set([column]);
+  hooks.renderTableHead();
+  assert.equal(descendants(elements.get("tableHead")).filter(x => x.tagName === "INPUT" && x.type === "number").length, 2);
+
+  hooks.state.columnFilters = {[column]: {operator: "range", min: "2", max: "2"}};
+  assert.deepEqual(Array.from(hooks.getFilteredRows(), x => x["车型名称"]), ["混合证据"]);
+  hooks.state.columnFilters = {[column]: {operator: "range", min: "0", max: "0"}};
+  assert.deepEqual(Array.from(hooks.getFilteredRows(), x => x["车型名称"]), ["明确零个"]);
+
+  elements.get("columnOrder").value = "coverage";
+  hooks.renderColumnList();
+  const preview = descendants(elements.get("columnList")).find(x => x.dataset.previewColumn === column);
+  preview.dispatch("click");
+  assert.ok(Array.from(hooks.getFilteredRows(), x => x["车型名称"]).includes("明确零个"));
+});
+
+test("verified placeholder-only source columns reappear as soon as a source provides an observation", () => {
+  const {hooks} = loadAppForTest();
+  hooks.state.config = {conditions: [], defaultVisibleColumns: []};
+  const base = row("汽车之家", 2026, "数据样本");
+  hooks.initializeRows([
+    {...base, "camera_count_v4": "待查", "battery_brand_v4": "懂车帝:未知|易车:暂无", "自定义字段_v4": "待查"},
+    {...base, "车型名称": "第二款", "camera_count_v4": "—", "battery_brand_v4": "N/A"},
+  ]);
+  assert.ok(!hooks.state.columns.includes("camera_count_v4"));
+  assert.ok(!hooks.state.columns.includes("battery_brand_v4"));
+  assert.ok(hooks.state.columns.includes("自定义字段_v4"));
+
+  hooks.initializeRows([
+    {...base, "camera_count_v4": "易车:0", "battery_brand_v4": "汽车之家:待查|懂车帝:宁德时代"},
+  ]);
+  assert.ok(hooks.state.columns.includes("camera_count_v4"));
+  assert.ok(hooks.state.columns.includes("battery_brand_v4"));
+});
+
+test("new provider ID columns remain internal", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = { hiddenByDefault: [], defaultVisibleColumns: [] };
+  for (const column of ["车款ID_汽车之家", "车款ID_懂车帝", "车款ID_易车"]) {
+    assert.equal(hooks.shouldHideColumn(column, []), true);
+  }
+});
+
 test("Pages hides only the provider-scoped dongchedi car id metadata column", () => {
   const { hooks } = loadAppForTest();
   hooks.state.config = { hiddenByDefault: [], dropIfUniformPositive: [], defaultVisibleColumns: [] };
@@ -230,6 +449,7 @@ function loadAppForTest() {
   const source = fs.readFileSync(appPath, "utf8").replace(
     /\}\(\)\);\s*$/,
     `window.CARS_TEST_HOOKS = {
+      skuProviderConflict: skuProviderConflict,
       atomicSources: typeof atomicSources === "function" ? atomicSources : undefined,
       getFilteredRows: getFilteredRows,
       groupRowsBySeries: groupRowsBySeries,
@@ -327,14 +547,14 @@ test("Pages combines equivalent measurement values without mixing driving cycles
   assert.equal(JSON.stringify(raw), original);
 });
 
-test("SKU expands in cards and table with exact source links and separate package values", () => {
+test("SKU expands in cards and table with exact source links only", () => {
   const { hooks, elements } = loadAppForTest();
   hooks.state.yicheSkuSlugs = { "测试品牌|链接样本": "jmev-468" };
   const common = { "车系": "链接样本", "跨源归并ID": "links-fixture" };
   hooks.initializeRows([
-    Object.assign(row("汽车之家", 2026, "同一车款"), common, { "车款ID": "76720", "12.3英寸": "●",
+    Object.assign(row("汽车之家+易车", 2026, "同一车款"), common, { "车款ID": "174772", "车款ID_汽车之家": "76720", "12.3英寸": "●",
       "智慧驾驶包(整包选装)_1": "抬头显示" }),
-    Object.assign(row("仅易车", 2026, "同一车款"), common, { "车款ID": "174772",
+    Object.assign(row("仅易车", 2026, "同一车款"), common, { "车款ID_易车": "174772",
       "智慧驾驶包(整包选装)_2": "○ 6000元", "易车车型链接": "https://car.yiche.com.evil.invalid/jmev-468/m174772/peizhi/" }),
     Object.assign(row("懂车帝", 2026, "同一车款"), common, { "懂车帝车型ID": "256585",
       "选装包列表": { "舒适包": { "描述": "座椅通风", "状态": "选装" } },
@@ -349,6 +569,8 @@ test("SKU expands in cards and table with exact source links and separate packag
   const groups = hooks.groupRowsBySeries(hooks.state.rows);
   hooks.state.expandedSeries.add(groups[0].key);
   hooks.renderCards(groups);
+  const cardDetails = descendants(elements.get("cardList")).find((node) => node.className === "sku-details");
+  assert.equal(cardDetails.children[0].textContent, "来源链接");
   hooks.state.mode = "table";
   hooks.renderTableBody(hooks.state.rows);
   for (const root of [elements.get("cardList"), elements.get("tableBody")]) {
@@ -365,27 +587,30 @@ test("SKU expands in cards and table with exact source links and separate packag
       "https://www.dongchedi.com/auto/params-carIds-256585",
     ]);
     assert.ok(links.every((node) => node.rel === "noopener noreferrer"));
-    const packageList = descendants(details).find((node) => node.className === "sku-option-packages");
-    assert.ok(packageList.children.some((node) => /舒适包.*座椅通风/.test(node.textContent)));
-    assert.ok(packageList.children.some((node) => /智慧驾驶包.*抬头显示.*6000元/.test(node.textContent)));
+    assert.equal(details.children.length, 2);
+    assert.ok(!descendants(details).some((node) => /舒适包|智慧驾驶包|抬头显示/.test(node.textContent)));
   }
 });
 
-test("package-only circle and dash columns become SKU option values, preserving real attributes", () => {
+test("package-only circle and dash columns stay hidden, preserving real attributes", () => {
   const { hooks, elements } = loadAppForTest();
   hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  const dependency = "1外后视镜记忆、防炫目功能：须与记忆座椅和自动防眩目内后视镜一起选";
   const first = Object.assign(row("懂车帝", 2026, "有选装"), {
+    [dependency]: "○",
     "灯光扩展包": "●", "定制迎宾投影": "●", "真实布尔属性": "●",
     "零重力座椅": "第一排",
     "选装包列表": { "灯光扩展包": { "描述": "包含：定制迎宾投影、零重力座椅" } },
   });
   const second = Object.assign(row("懂车帝", 2026, "无选装"), {
+    [dependency]: "-",
     "灯光扩展包": "-", "定制迎宾投影": "-", "真实布尔属性": "-", "零重力座椅": "●",
   });
   hooks.initializeRows([first, second]);
   const cols = Array.from(hooks.state.columns);
   assert.ok(!cols.includes("灯光扩展包"));
   assert.ok(!cols.includes("定制迎宾投影"));
+  assert.ok(!cols.includes(dependency));
   assert.ok(cols.includes("真实布尔属性"));
   assert.ok(cols.includes("零重力座椅"));
   const groups = hooks.groupRowsBySeries(hooks.state.rows);
@@ -394,9 +619,374 @@ test("package-only circle and dash columns become SKU option values, preserving 
   const details = descendants(elements.get("cardList")).filter((node) => node.className === "sku-details");
   assert.equal(details.length, 2);
   for (const item of details) { item.open = true; item.dispatch("toggle"); }
-  const optionList = descendants(details[0]).find((node) => node.className === "sku-option-packages");
-  assert.ok(optionList.children.some((node) => /定制迎宾投影.*●/.test(node.textContent)));
-  assert.ok(!descendants(details[1]).some((node) => node.className === "sku-option-packages"));
+  assert.ok(details.every((item) => !descendants(item).some((node) => node.className === "sku-option-packages")));
+});
+
+test("source-labelled package markers do not promote package content to attributes", () => {
+  const { hooks } = loadAppForTest();
+  const rows = [
+    { "选装包列表": { "灯光扩展包": { "描述": "包含：定制迎宾投影、专属照地灯、真实属性、跨车系通用功能" } },
+      "定制迎宾投影": "懂车帝:●", "专属照地灯": "汽车之家:○ 3000元", "真实属性": "汽车之家:前排",
+      "独立布尔属性": "懂车帝:●", "跨车系通用功能": "懂车帝:●" },
+    { "定制迎宾投影": "易车:-", "专属照地灯": "易车:无", "真实属性": "易车:●" },
+    { "车系": "另一个车系", "跨车系通用功能": "懂车帝:●" },
+  ];
+  assert.equal(hooks.shouldHideColumn("跨车系通用功能", rows), false);
+  assert.equal(hooks.shouldHideColumn("定制迎宾投影", rows), true);
+  assert.equal(hooks.shouldHideColumn("专属照地灯", rows), true);
+  assert.equal(hooks.shouldHideColumn("真实属性", rows), false);
+  assert.equal(hooks.shouldHideColumn("独立布尔属性", rows), false);
+  assert.equal(rows[0]["专属照地灯"], "汽车之家:○ 3000元");
+});
+
+test("named package editions and spaced legacy package pairs stay out of display columns", () => {
+  const { hooks } = loadAppForTest();
+  const rows = [
+    { ...row("仅易车", 2026, "套件样本"), "奥迪全方位辅助包 高端版": "○", "辅助驾驶包 Pro(绑定选择泊车辅助高级版)": "○|选配",
+      "豪华冬季包  _1": "前后排座椅加热,方向盘加热", "豪华冬季包  _2": "○ 3500元",
+      "奥迪手机盒子": "○", "背包 收纳空间": "4L", "纯文本字段 _2": "第二项" },
+    { ...row("仅汽车之家", 2026, "对照样本"), "奥迪全方位辅助包 高端版": "选配", "合法属性(高端版)": "●" },
+  ];
+  hooks.initializeRows(rows);
+  const columns = hooks.state.columns;
+  for (const name of ["奥迪全方位辅助包 高端版", "辅助驾驶包 Pro(绑定选择泊车辅助高级版)",
+    "豪华冬季包  _1", "豪华冬季包  _2"]) {
+    assert.equal(columns.includes(name), false, name);
+  }
+  for (const name of ["奥迪手机盒子", "背包 收纳空间", "纯文本字段 _2", "合法属性(高端版)"]) {
+    assert.equal(columns.includes(name), true, name);
+  }
+});
+
+test("numeric variants priced as options do not become independent property columns", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = { defaultVisibleColumns: ["扬声器数量"], hiddenByDefault: [], conditions: [] };
+  const samples = {
+    "扬声器数量(个)(27)": "○ 15800元",
+    "副驾驶屏幕尺寸(14)": "汽车之家:○ 暂无价格",
+    "激光雷达数量(2)": "○ 暂无价格",
+    "激光雷达数量(1)": "支持|○ 暂无价格",
+    "激光雷达数量(3)": "○ 5000元|●",
+    "外置扬声器数量(3)": "○ 5000元",
+    "扬声器数量": "12",
+  };
+  const rows = [samples, {"激光雷达数量(2)": "-", "扬声器数量(个)(27)": "—"}];
+  for (const column of ["扬声器数量(个)(27)", "副驾驶屏幕尺寸(14)", "激光雷达数量(2)"]) {
+    assert.equal(hooks.shouldHideColumn(column, rows), true, column);
+  }
+  for (const column of ["激光雷达数量(1)", "激光雷达数量(3)", "外置扬声器数量(3)", "扬声器数量"]) {
+    assert.equal(hooks.shouldHideColumn(column, rows), false, column);
+  }
+});
+
+test("concrete audio and wheel choices with only optional observations stay out of display columns", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = { defaultVisibleColumns: ["扬声器数量"], hiddenByDefault: [], conditions: [] };
+  const choices = {
+    "14扬声器哈曼卡顿音响":"○",
+    "23扬声器":"选配",
+    "音响品牌(劲浪)":"○ 暂无价格",
+    "5辐V型设计车轮":"选配",
+    "前19英寸，后20英寸锻造轮圈，双辐式样825M型，双色":"○|选配",
+  };
+  const preserved = {
+    "扬声器数量":"14",
+    "40W外置扬声器":"●",
+    "定制轮毂颜色":"选配",
+    "20扬声器高级定制音响":"选配|标配",
+    "NEVO Sound天枢源声音响系统":"●",
+  };
+  const rows = [{...choices,...preserved}];
+  for (const column of Object.keys(choices)) assert.equal(hooks.shouldHideColumn(column, rows), true, column);
+  for (const column of Object.keys(preserved)) assert.equal(hooks.shouldHideColumn(column, rows), false, column);
+});
+
+test("branded audio option spellings use the same evidence rule without hiding standard equipment", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = {defaultVisibleColumns: ["音响品牌"], hiddenByDefault: []};
+  const optional = {
+    "Bang & Olufsen 豪华音响系统带头枕音响": "○",
+    "Bang&Olufsen豪华音响系统+头枕音响": "○|选配",
+    "Bowers & Wilkins环绕式音响系统": "易车:○ 暂无价格",
+  };
+  const retained = {
+    "音响品牌": "Bang & Olufsen",
+    "Bang & Olufsen豪华音响系统": "○|标配",
+    "Bang & Olufsen扬声器数量": "14",
+    "NEVO Sound天枢源声音响系统": "●",
+  };
+  const rows = [{...optional, ...retained}];
+  for (const column of Object.keys(optional)) assert.equal(hooks.shouldHideColumn(column, rows), true, column);
+  for (const column of Object.keys(retained)) assert.equal(hooks.shouldHideColumn(column, rows), false, column);
+});
+
+test("option-only numbered safety systems and home charger packages stay out of display columns", () => {
+  const hooks = loadAppForTest().hooks;
+  hooks.state.config = { hiddenByDefault: [], defaultVisibleColumns: [], conditions: [] };
+  const rows = [
+    {"360°全场景安全系统1":"选配", "360°全场景安全系统2":"选装", "7kW智能家充桩套餐_30米_":"选配",
+     "21英寸星芒轮毂武士黑版":"选配", "21寸六芒星驰样式":"○", "普通套餐":"选配",
+     "180°透明底盘":"●", "360°全景透明影像系统_2":"●", "21英寸光幅轮毂":"●",
+     "360°全场景安全系统3":"选配"},
+    {"360°全场景安全系统3":"●", "21英寸光幅轮毂":"选配", "7kW智能家充桩套餐_30米_":"-"},
+  ];
+  const columns = new Set(Object.keys(rows[0]).filter((name) => hooks.shouldHideColumn(name, rows)));
+  ["360°全场景安全系统1", "360°全场景安全系统2", "7kW智能家充桩套餐_30米_",
+   "21英寸星芒轮毂武士黑版", "21寸六芒星驰样式"].forEach((name) => assert.equal(columns.has(name), true, name));
+  ["普通套餐", "180°透明底盘", "360°全景透明影像系统_2", "21英寸光幅轮毂",
+   "360°全场景安全系统3"].forEach((name) => assert.equal(columns.has(name), false, name));
+});
+
+test("sized option values without package metadata stay out of display columns", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  const choices = {
+    "19英寸AMG双五辐轻合金车轮": "○|选配",
+    "19英寸M轻合金轮圈": "○|选配",
+    "21英寸光幅轮毂": "选配",
+    "5幅Y型金属磨砂灰色车轮": "○|选配",
+    "12.3寸全彩液晶仪表": "○",
+    "7座_2": "选装",
+  };
+  hooks.initializeRows([
+    Object.assign(row("易车", 2026, "有选装"), choices, {
+      "180°透明底盘": "○", "轮圈尺寸(英寸)": "19", "座位数(个)": "7",
+      "21英寸星芒轮毂": "●", "21英寸实测轮圈": "21",
+    }),
+    Object.assign(row("汽车之家", 2026, "无选装"), {
+      "19英寸AMG双五辐轻合金车轮": "-", "21英寸星芒轮毂": "选装",
+      "21英寸实测轮圈": "选配",
+    }),
+  ]);
+  const columns = Array.from(hooks.state.columns);
+  for (const name of Object.keys(choices)) assert.ok(!columns.includes(name), name);
+  for (const name of ["底盘透视", "轮圈尺寸(英寸)", "座位数(个)", "21英寸星芒轮毂", "21英寸实测轮圈"]) {
+    assert.ok(columns.includes(name), name);
+  }
+});
+
+test("SKU details identify the provider whose exact link is unavailable", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("汽车之家+懂车帝(车系级)", 2026, "双源样本"), { "车款ID": "76720" }),
+  ]);
+  const groups = hooks.groupRowsBySeries(hooks.state.rows);
+  hooks.state.expandedSeries.add(groups[0].key);
+  hooks.renderCards(groups);
+  const item = descendants(elements.get("cardList")).find((node) => node.className === "sku-details");
+  item.open = true;
+  item.dispatch("toggle");
+  const content = descendants(item);
+  assert.equal(hooks.state.rows[0]["交叉核验"], "多源记录");
+  assert.ok(!descendants(elements.get("cardList")).some((node) => node.className === "verified-badge"));
+  assert.deepEqual(content.filter((node) => node.tagName === "A").map((node) => node.href),
+    ["https://car.autohome.com.cn/config/spec/76720.html"]);
+  assert.ok(content.some((node) => node.textContent === "懂车帝 · 暂无可确认的车款链接"));
+});
+
+test("dual-source badge requires exact SKU links from two distinct providers", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.initializeRows([
+    {...row("汽车之家+懂车帝", 2026, "有两家车款链接"), "车款ID_汽车之家": "76720", "车款ID_懂车帝": "125324"},
+    {...row("汽车之家+易车", 2026, "没有车款链接")},
+  ]);
+  assert.equal(hooks.state.rows[0]["交叉核验"], "双源核验");
+  assert.equal(hooks.state.rows[1]["交叉核验"], "多源记录");
+  const groups = hooks.groupRowsBySeries(hooks.state.rows);
+  groups.forEach(group => hooks.state.expandedSeries.add(group.key));
+  hooks.renderCards(groups);
+  const badges = descendants(elements.get("cardList")).filter(node => node.className === "verified-badge");
+  assert.equal(badges.length, 1);
+  const linked = descendants(elements.get("cardList")).find(node => node.className === "sku-details");
+  linked.open = true;
+  linked.dispatch("toggle");
+  assert.equal(descendants(linked).filter(node => node.tagName === "A").length, 2);
+});
+
+test("conflicting source links in one annotated SKU do not count towards verification", () => {
+  const { hooks, elements } = loadAppForTest();
+  const first = {...row("汽车之家+懂车帝", 2026, "组合车款"), "跨源归并ID": "test-conflict",
+    "汽车之家车款ID": "76720", "懂车帝车型ID": "125324"};
+  const second = {...first, "汽车之家车款ID": "76721"};
+  for (const records of [[first, second], [second, first]]) {
+    hooks.initializeRows(records);
+    assert.equal(hooks.state.rows.length, 1);
+    assert.equal(hooks.state.rows[0]["交叉核验"], "多源记录");
+    const groups = hooks.groupRowsBySeries(hooks.state.rows);
+    hooks.state.expandedSeries.add(groups[0].key);
+    hooks.renderCards(groups);
+    const details = descendants(elements.get("cardList")).find(node => node.className === "sku-details");
+    details.open = true;
+    details.dispatch("toggle");
+    assert.deepEqual(descendants(details).filter(node => node.tagName === "A").map(node => node.href),
+      ["https://www.dongchedi.com/auto/params-carIds-125324"]);
+    assert.ok(descendants(details).some(node => node.textContent === "汽车之家 · 暂无可确认的车款链接"));
+  }
+});
+
+test("911 Cabriolet does not borrow the hardtop's Dongchedi SKU ID or sale status", () => {
+  const { hooks, elements } = loadAppForTest();
+  const wrong = {...row("汽车之家+懂车帝", 2026, "保时捷911 2026款 Carrera Cabriolet 3.0T"),
+    "品牌": "保时捷", "车系": "保时捷911", "车款ID": "75254", "懂车帝车型ID": "252828",
+    "车款ID_懂车帝": "252828", "上市状态_懂车帝": "在售"};
+  const hardtop = {...wrong, "车型名称": "2026款 Carrera 3.0T", "车款ID": "75250"};
+  const correct = {...wrong, "懂车帝车型ID": "252832", "车款ID_懂车帝": "252832"};
+  hooks.initializeRows([wrong, hardtop]);
+  for (const item of hooks.state.rows) {
+    const isCabriolet = item["车型名称"].includes("Cabriolet");
+    assert.equal(item["交叉核验"], isCabriolet ? "多源记录" : "双源核验");
+    assert.equal(item["懂车帝车型ID"], isCabriolet ? undefined : "252828");
+    assert.equal(item["上市状态_懂车帝"], isCabriolet ? undefined : "在售");
+  }
+  const groups = hooks.groupRowsBySeries(hooks.state.rows);
+  hooks.state.expandedSeries.add(groups[0].key);
+  hooks.renderCards(groups);
+  for (const detail of descendants(elements.get("cardList")).filter(node => node.className === "sku-details")) {
+    detail.open = true;
+    detail.dispatch("toggle");
+    const links = descendants(detail).filter(node => node.tagName === "A").map(node => node.href);
+    if (links.includes("https://car.autohome.com.cn/config/spec/75254.html")) {
+      assert.deepEqual(links, ["https://car.autohome.com.cn/config/spec/75254.html"]);
+    }
+  }
+  hooks.initializeRows([correct]);
+  assert.equal(hooks.state.rows[0]["懂车帝车型ID"], "252832");
+  assert.equal(hooks.state.rows[0]["交叉核验"], "双源核验");
+  assert.equal(wrong["懂车帝车型ID"], "252828");
+});
+
+test("conflicting legacy Dongchedi IDs cannot attach to the same annotated cluster", () => {
+  const { hooks } = loadAppForTest();
+  const annotation = { "跨源归并ID": "linked-cohort" };
+  const max = {...row("仅懂车帝", 2026, "Max"), ...annotation, "懂车帝车型ID": "253768", "官方指导价": "28.99万"};
+  const plus = {...row("仅懂车帝", 2026, "Max Plus"), ...annotation, "懂车帝车型ID": "262910", "官方指导价": "26.99万"};
+  const autohome = {...row("仅汽车之家", 2026, "Max Plus"), ...annotation, "车款ID_汽车之家": "79167", "官方指导价": "26.99万"};
+  for (const rows of [[max, plus, autohome], [autohome, plus, max], [plus, autohome, max]]) {
+    hooks.initializeRows(rows);
+    assert.equal(hooks.state.rows.length, 3);
+    assert.ok(hooks.state.rows.every(r => r["交叉核验"] === "单源数据"));
+  }
+});
+
+test("frontend preserves distinct provider SKU identities even when names and generic IDs match", () => {
+  const { hooks } = loadAppForTest();
+  const first = { ...row("仅汽车之家", 2026, "测试款"), "车款ID": "76215", "车款ID_汽车之家": "76215" };
+  const other = { ...row("仅懂车帝", 2026, "测试款"), "车款ID": "76215", "车款ID_懂车帝": "76215" };
+  const ambiguous = { ...row("汽车之家+懂车帝", 2026, "测试款"), "车款ID": "76215" };
+  for (const rows of [[first, ambiguous, other], [ambiguous, other, first]]) {
+    hooks.initializeRows(rows);
+    assert.equal(hooks.state.rows.length, 3);
+  }
+
+  const distinct = { ...other, "车款ID": "162153", "车款ID_懂车帝": "162153" };
+  const legacy = row("汽车之家+懂车帝", 2026, "测试款");
+  for (const rows of [[first, distinct], [first, legacy, distinct], [distinct, legacy, first]]) {
+    hooks.initializeRows(rows);
+    assert.equal(hooks.state.rows.length, rows.length);
+  }
+  const annotated = "跨源归并ID";
+  hooks.initializeRows([{ ...first, [annotated]: "verified-1" }, { ...distinct, [annotated]: "verified-1" }]);
+  assert.equal(hooks.state.rows.length, 1);
+
+  hooks.initializeRows([first, { ...first, "车款ID_汽车之家": "76216" }]);
+  assert.equal(hooks.state.rows.length, 2);
+
+  hooks.initializeRows([first, { ...first }]);
+  assert.equal(hooks.state.rows.length, 1);
+});
+
+test("SKU links reject a conflicting source ID and do not use an ambiguous mixed ID", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("汽车之家+懂车帝+易车", 2026, "来源ID冲突"), {
+      "车款ID": "174772", "车款ID_汽车之家": "76720", "汽车之家车款ID": "76721",
+      "车款ID_易车": "174772", "易车车型ID": "174773",
+      "易车车型链接": "https://car.yiche.com/jmev-468/m174772/peizhi/",
+    }),
+    Object.assign(row("汽车之家+易车", 2026, "来源ID缺失"), { "车款ID": "174772" }),
+  ]);
+  const groups = hooks.groupRowsBySeries(hooks.state.rows);
+  hooks.state.expandedSeries.add(groups[0].key);
+  hooks.renderCards(groups);
+  const details = descendants(elements.get("cardList")).filter((node) => node.className === "sku-details");
+  assert.equal(details.length, 2);
+  for (const item of details) {
+    item.open = true;
+    item.dispatch("toggle");
+    assert.ok(!descendants(item).some((node) => node.tagName === "A"));
+    assert.ok(descendants(item).some((node) => node.textContent === "汽车之家 · 暂无可确认的车款链接"));
+    assert.ok(descendants(item).some((node) => node.textContent === "易车 · 暂无可确认的车款链接"));
+  }
+});
+
+test("core energy, dimensions and rear-wheel steering have the requested defaults", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  hooks.initializeRows([Object.assign(row("懂车帝", 2026, "尺寸样本"), {
+    "能源类型": "纯电动", "长*宽*高(mm)": "5000*1900*1500"
+  })]);
+  const conditions = Object.fromEntries(hooks.state.config.conditions.map(c => [c.id, c]));
+  assert.equal(hooks.state.featureFilters.energy_type.join(","), "bev");
+  assert.equal(hooks.state.rangeFilters.vehicle_length.max, "5000");
+  assert.equal(hooks.state.rangeFilters.vehicle_height.max, "1500");
+  assert.ok(!hooks.state.featureFilters.rear_wheel_steering);
+  assert.ok(hooks.conditionMatches(hooks.state.rows[0], conditions.vehicle_length));
+  assert.ok(hooks.conditionMatches(hooks.state.rows[0], conditions.vehicle_height));
+  assert.equal(hooks.conditionMatches({ "长(mm)": "5001mm" }, conditions.vehicle_length), false);
+  assert.equal(hooks.conditionMatches({ "高(mm)": "1501" }, conditions.vehicle_height), false);
+  assert.equal(hooks.conditionMatches({}, conditions.vehicle_height), false);
+  assert.ok(hooks.conditionMatches({ "能源类型": "纯电动|纯电" }, conditions.energy_type));
+  assert.equal(hooks.conditionMatches({ "能源类型": "增程式纯电动" }, conditions.energy_type), false);
+  assert.equal(hooks.conditionMatches({ "能源类型": "纯电动|汽油" }, conditions.energy_type), false);
+  hooks.renderCenterFilters();
+  const inputs = descendants(elements.get("centerConditionList")).filter(node => node.type === "checkbox" && node.dataset.conditionId === "energy_type");
+  assert.equal(inputs.filter(node => node.checked).map(node => node.dataset.conditionChoice).join(","), "bev");
+  const rangeExtender = inputs.find(node => node.dataset.conditionChoice === "erev");
+  rangeExtender.checked = true;
+  elements.get("centerConditionList").dispatch("change", { target: rangeExtender });
+  assert.ok(hooks.conditionMatches({ "能源类型": "增程式纯电动" }, conditions.energy_type));
+  hooks.state.featureFilters.rear_wheel_steering = true;
+  assert.ok(hooks.conditionMatches({ "主动后轮转向": "●" }, conditions.rear_wheel_steering));
+  assert.equal(hooks.conditionMatches({ "后轮转向": "选装" }, conditions.rear_wheel_steering), false);
+  assert.equal(hooks.conditionMatches({ "四轮驱动": "●" }, conditions.rear_wheel_steering), false);
+});
+
+test("numeric SKU columns and field filters use inclusive bounds and preserve old equality", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.initializeRows([
+    Object.assign(row("懂车帝", 2026, "矮"), { "样本值(mm)": "1495mm" }),
+    Object.assign(row("懂车帝", 2026, "中"), { "样本值(mm)": "1500" }),
+    Object.assign(row("懂车帝", 2026, "高"), { "样本值(mm)": "1505" }),
+    Object.assign(row("懂车帝", 2026, "空"), { "样本值(mm)": "-" }),
+  ]);
+  hooks.state.saleScope = "all";
+  hooks.state.visibleColumns = new Set(["车型名称", "样本值(mm)"]);
+  hooks.renderTableHead();
+  const inputs = descendants(elements.get("tableHead")).filter(node => node.tagName === "INPUT");
+  const numeric = inputs.filter(node => node.dataset.column === "样本值(mm)");
+  assert.deepEqual(numeric.map(node => node.dataset.columnBound), ["min", "max"]);
+  assert.equal(inputs.filter(node => node.dataset.column === "车型名称").length, 1);
+  const names = () => Array.from(hooks.getFilteredRows(), x => x["车型名称"]).sort();
+  const selectedField = elements.get("fieldSelect");
+  selectedField.value = numeric[0].dataset.column;
+  selectedField.dispatch("change");
+  numeric[0].value = "1495";
+  elements.get("tableHead").dispatch("input", { target: numeric[0] });
+  numeric[1].value = "1500";
+  elements.get("tableHead").dispatch("input", { target: numeric[1] });
+  assert.equal(elements.get("fieldMin").value, "1495");
+  assert.equal(elements.get("fieldMax").value, "1500");
+  assert.deepEqual(names(), ["中", "矮"]);
+  const field = elements.get("fieldSelect");
+  field.value = "样本值(mm)";
+  field.dispatch("change");
+  assert.ok(!elements.get("fieldMin").hidden && !elements.get("fieldMax").hidden);
+  elements.get("fieldMin").value = "";
+  elements.get("fieldMax").value = "1495";
+  elements.get("applyFieldFilter").dispatch("click");
+  assert.deepEqual(names(), ["矮"]);
+  hooks.state.columnFilters["样本值(mm)"] = { operator: "equals", value: "1500" };
+  assert.deepEqual(names(), ["中"]);
 });
 
 test("real range aliases retain their cycle and card control reflects inherited price", () => {
@@ -548,21 +1138,21 @@ test("Pages only uses the deduplicated 2022+ display set for source coverage and
   );
 
   const verified = hooks.state.rows.find((item) => item["车型名称"] === "双源款");
-  assert.equal(verified["交叉核验"], "双源核验");
+  assert.equal(verified["交叉核验"], "多源记录");
   assert.deepEqual(
     verified["核验来源"].split(" + ").sort(),
     ["懂车帝", "汽车之家", "易车"].sort()
   );
 
   const unknown = hooks.state.rows.find((item) => item["车型名称"] === "未知来源合并款");
-  assert.equal(unknown["交叉核验"], "双源核验");
+  assert.equal(unknown["交叉核验"], "多源记录");
   assert.deepEqual(
     unknown["核验来源"].split(" + ").sort(),
     ["合作数据源", "懂车帝", "易车"].sort()
   );
 
   const splitSource = hooks.state.rows.find((item) => item["车型名称"] === "分行双源款");
-  assert.equal(splitSource["交叉核验"], "双源核验");
+  assert.equal(splitSource["交叉核验"], "多源记录");
   assert.deepEqual(
     splitSource["核验来源"].split(" + ").sort(),
     ["懂车帝", "汽车之家", "易车"].sort()
@@ -572,7 +1162,7 @@ test("Pages only uses the deduplicated 2022+ display set for source coverage and
   hooks.state.saleScope = "all";
   assert.equal(hooks.getFilteredRows().length, 5, "all recorded rows remain available");
   assert.equal(elements.get("totalCount").textContent, "5");
-  assert.equal(elements.get("verifiedCount").textContent, "3");
+  assert.equal(elements.get("verifiedCount").textContent, "0");
   assert.equal(elements.get("dongchediCount").textContent, "4");
   assert.equal(elements.get("autohomeCount").textContent, "2");
   assert.equal(elements.get("yicheCount").textContent, "4");
@@ -581,7 +1171,7 @@ test("Pages only uses the deduplicated 2022+ display set for source coverage and
   hooks.renderResultsOnly();
   assert.equal(elements.get("visibleCount").textContent, "0");
   assert.equal(elements.get("totalCount").textContent, "5");
-  assert.equal(elements.get("verifiedCount").textContent, "3");
+  assert.equal(elements.get("verifiedCount").textContent, "0");
   assert.equal(elements.get("dongchediCount").textContent, "4");
   assert.equal(elements.get("autohomeCount").textContent, "2");
   assert.equal(elements.get("yicheCount").textContent, "4");
@@ -606,7 +1196,7 @@ test("Pages groups only rows carrying the same audited cross-source component id
   hooks.initializeRows([autohome, yiche, unrelated]);
 
   assert.equal(hooks.state.rows.length, 2);
-  const merged = hooks.state.rows.find((item) => item["交叉核验"] === "双源核验");
+  const merged = hooks.state.rows.find((item) => item["交叉核验"] === "多源记录");
   assert.deepEqual(Array.from(hooks.atomicSources(merged["数据来源"])).sort(), ["易车", "汽车之家"].sort());
   assert.equal(merged["跨源归并ID"], "visible-f-v1:test");
   assert.equal(hooks.state.rows.find((item) => item["交叉核验"] === "单源数据")["车型名称"], unrelated["车型名称"]);
@@ -634,6 +1224,111 @@ test("display merge joins an annotated row with its unannotated same-key twin", 
   assert.equal(hooks.state.rows.length, 1,
     "同主键两行必须并成一条：一行带归并注解、一行不带，不是把它们分开的理由");
   assert.equal(hooks.state.rows[0]["车款ID"], "182656");
+});
+
+test("a uniquely matching on-sale observation can join an existing verified SKU", () => {
+  const { hooks } = loadAppForTest();
+  const shared = { "能源类型": "增程式", "座位数(个)": "6", "官方指导价": "21.98万" };
+  const base = {
+    "车款ID": "77357", "车款ID_汽车之家": "77357", "城市领航辅助": "●", "哨兵模式": "●"
+  };
+  const older = Object.assign(row("汽车之家+懂车帝", 2026, "测试车系 2026款 增程400尊享版 六座"), shared, base);
+  const duplicate = Object.assign({}, older, { "数据来源": "仅汽车之家" });
+  const fresh = Object.assign(row("仅懂车帝", 2026, "增程400尊享版 六座"), shared, {
+    "懂车帝车型ID": "257872", "上市状态_懂车帝": "在售"
+  });
+  hooks.initializeRows([older, duplicate, fresh]);
+  assert.equal(hooks.state.rows.length, 1);
+  const [merged] = hooks.state.rows;
+  assert.equal(merged["车款ID"], "77357");
+  assert.equal(merged["懂车帝车型ID"], "257872");
+  assert.equal(merged["上市状态_懂车帝"], "在售");
+  assert.equal(merged["哨兵模式"], "●");
+});
+
+test("on-sale evidence stays separate with conflicting, missing, or ambiguous SKU identity", () => {
+  const { hooks } = loadAppForTest();
+  const shared = { "能源类型": "增程式", "座位数(个)": "6", "官方指导价": "21.98万" };
+  const base = Object.assign(row("汽车之家+懂车帝", 2026, "测试车系 2026款 增程400尊享版 六座"), shared, {
+    "车款ID": "77357", "车款ID_汽车之家": "77357"
+  });
+  const duplicate = Object.assign({}, base, { "数据来源": "仅汽车之家" });
+  const fresh = Object.assign(row("仅懂车帝", 2026, "增程400尊享版 六座"), shared, {
+    "懂车帝车型ID": "257872", "上市状态_懂车帝": "在售"
+  });
+  for (const change of [
+    { "座位数(个)": "7" }, { "座位数(个)": "-" }, { "官方指导价": "22.98万" }, { "年款": "2025" },
+  ]) {
+    hooks.initializeRows([base, duplicate, Object.assign({}, fresh, change)]);
+    assert.equal(hooks.state.rows.length, 2, JSON.stringify(change));
+  }
+  const rival = Object.assign({}, base, { "车款ID": "77358", "车款ID_汽车之家": "77358" });
+  hooks.initializeRows([base, duplicate, rival, Object.assign({}, rival, { "数据来源": "仅汽车之家" }), fresh]);
+  assert.equal(hooks.state.rows.length, 3);
+  hooks.initializeRows([base, duplicate, fresh, Object.assign({}, fresh, { "懂车帝车型ID": "257873" })]);
+  assert.equal(hooks.state.rows.find(item => item["车款ID"] === "77357")["上市状态_懂车帝"], undefined);
+});
+
+test("verified Yuzhong 08 Max Plus pair excludes the distinct Max in its published group", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  const common = { ...row("仅懂车帝", 2026, "Max Plus"), "品牌": "大众", "车系": "与众08",
+    "跨源归并ID": "published-mixed", "官方指导价": "26.99万", "能源类型": "纯电动",
+    "纯电续航(km)": "700", "座位数(个)": "5", "轴距(mm)": "3030", "电动机总功率(kW)": "370" };
+  const dcd = {...common, "懂车帝车型ID": "262910", "上市状态_懂车帝": "在售"};
+  const max = {...common, "车型名称": "Max", "官方指导价": "28.99万", "懂车帝车型ID": "253768"};
+  const ah = {...common, "数据来源": "仅汽车之家", "车款ID_汽车之家": "79167"};
+  for (const rows of [[dcd, max, ah], [max, ah, dcd], [ah, dcd, max]]) {
+    hooks.initializeRows(rows);
+    assert.equal(hooks.state.rows.length, 2);
+    const plus = hooks.state.rows.find(r => r["车款ID_汽车之家"] === "79167");
+    assert.equal(plus["懂车帝车型ID"], "262910");
+    assert.equal(plus["交叉核验"], "双源核验");
+    assert.ok(hooks.state.rows.some(r => r["懂车帝车型ID"] === "253768" && r["车型名称"] === "Max"));
+  }
+  hooks.initializeRows([ah, {...dcd, "官方指导价": "27.99万"}, max]);
+  assert.equal(hooks.state.rows.length, 3);
+});
+
+test("verified cross-source EV pair joins one trim and keeps separate powertrains", () => {
+  const { hooks } = loadAppForTest();
+  const metadata = { "能源类型": "纯电动", "官方指导价": "21.58万", "座位数(个)": "5",
+    "轴距(mm)": "2920", "电动机总功率(kW)": "170", "纯电续航(km)": "CLTC:705" };
+  hooks.state.config.verifiedEvSkuPairs = [{
+    brand: "测试品牌", autohomeId: "75198", dongchediId: "252747", autohomeSeries: "汉",
+    dongchediSeries: "汉EV", modelYear: "2025", msrp: "21.58", seats: 5, rangeKm: 705, wheelbaseMm: 2920, motorKw: 170
+  }];
+  const left = Object.assign(row("仅汽车之家", 2025, "2025款 EV 705KM激光雷达旗舰型"), metadata, {
+    "车系": "汉", "车款ID_汽车之家": "75198", "车款ID": "75198", "哨兵模式": "●"
+  });
+  const right = Object.assign(row("仅懂车帝", 2025, "长续航智驾版705KM激光雷达旗舰型"), metadata, {
+    "车系": "汉EV", "懂车帝车型ID": "252747", "上市状态_懂车帝": "在售"
+  });
+  const hybrid = Object.assign({}, left, { "车款ID_汽车之家": "75192", "车款ID": "75192",
+    "能源类型": "插电式混合动力", "车型名称": "2025款 DM-i 245KM旗舰型" });
+  hooks.initializeRows([left, right, hybrid]);
+  assert.equal(hooks.state.rows.length, 2);
+  const joined = hooks.state.rows.find(row => row["车系"] === "汉EV");
+  assert.equal(joined["车款ID_汽车之家"], "75198");
+  assert.equal(joined["懂车帝车型ID"], "252747");
+  assert.equal(joined["哨兵模式"], "●");
+  assert.equal(hooks.state.rows.find(row => row["车系"] === "汉")["能源类型"], "插电式混合动力");
+  const leftBattery = Object.assign({}, left, { "电池能量(kWh)": "130.15" });
+  const rightBattery = Object.assign({}, right, { "电池容量(kWh)": "130.1" });
+  hooks.initializeRows([leftBattery, rightBattery]);
+  assert.equal(hooks.state.rows.length, 2);
+  hooks.state.config.verifiedEvSkuPairs[0].batteryKwh = [130.15, 130.1];
+  hooks.initializeRows([leftBattery, rightBattery]);
+  assert.equal(hooks.state.rows.length, 1);
+  assert.equal(hooks.state.rows[0]["电池能量(kWh)"], "130.15");
+  assert.equal(hooks.state.rows[0]["电池容量(kWh)"], "130.1");
+  hooks.initializeRows([leftBattery, Object.assign({}, rightBattery, { "电池容量(kWh)": "130.16" })]);
+  assert.equal(hooks.state.rows.length, 2);
+  for (const change of [{ "电动机总功率(kW)": "240" }, { "纯电续航(km)": "CLTC:635" },
+    { "轴距(mm)": "2900" }, { "能源类型": "插电式混合动力" }]) {
+    hooks.initializeRows([left, Object.assign({}, right, change)]);
+    assert.equal(hooks.state.rows.length, 2, JSON.stringify(change));
+  }
 });
 
 test("Pages page jump rejects invalid values and clamps valid integers", () => {
@@ -679,6 +1374,7 @@ const liveDataPath = process.env.CARS_LIVE_DATA;
 // 现在断**不变式**：计数自洽、年款在范围内、同一车款ID 不许留两条同归一名的行、三源至少各有人看见。
 test("live Pages data satisfies the acceptance invariants (not a frozen snapshot)", { skip: !liveDataPath }, () => {
   const { elements, hooks } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, '../config/filter_conditions.json'), 'utf8'));
   const raw = JSON.parse(fs.readFileSync(liveDataPath, "utf8"));
   const rows = Array.isArray(raw) ? raw : raw.rows;
   assert.ok(Array.isArray(rows) && rows.length > 0, "读到的不是非空行数组 ⇒ 取数面坏了，不许出结论");
@@ -710,15 +1406,20 @@ test("live Pages data satisfies the acceptance invariants (not a frozen snapshot
     `年款里出现不可解析的值（min=${Math.min(...years)} max=${Math.max(...years)}）`);
 
   const norm = (s) => String(s || "").replace(/\s+/g, "").toLowerCase();
-  // 这条也要跑在**展示层之后**的行上：输入面里同 ID 多行是常态（跨源各写一行），
-  // `mergeVerifiedRows` 正是为此存在——断在输入上等于要求数据层提前做完展示层的活（我第一版就断错了地方）。
-  const seenPair = new Set();
+  // 通用 ID 不带来源命名空间。同 ID 同名的行只有在平台身份
+  // 阻止归并时才可保留，避免把不同来源的数字 ID 当成同一个 SKU。
+  const skuBuckets = new Map();
   for (const r of hooks.state.rows) {
     const id = String(r["车款ID"] || "").trim();
     if (!id || id === "-") continue;
     const key = id + "\u0000" + norm(r["车型名称"]);
-    assert.ok(!seenPair.has(key), `展示层仍留有同车款ID 同名的两行（${id}）⇒ 合并没生效`);
-    seenPair.add(key);
+    const priorRows = skuBuckets.get(key) || [];
+    for (const prior of priorRows) {
+      assert.ok(hooks.skuProviderConflict(prior, r, false),
+        `展示层仍有可归并的同 ID 同名车款（${id}）`);
+    }
+    priorRows.push(r);
+    skuBuckets.set(key, priorRows);
   }
   const perSource = { 懂车帝: 0, 汽车之家: 0, 易车: 0 };
   for (const r of hooks.state.rows) {
@@ -1269,7 +1970,7 @@ test("Pages mobile category activation and badges use the same filter state", ()
   assert.equal(hooks.state.mobileCategoryId, "lighting");
 });
 
-test("Pages restore-default semantics are schema-driven and preserve the three required range defaults", () => {
+test("Pages restore-default semantics are schema-driven for range and energy controls", () => {
   const { elements, hooks } = loadAppForTest();
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
   hooks.state.config = config;
@@ -1282,12 +1983,16 @@ test("Pages restore-default semantics are schema-driven and preserve the three r
     msrp: { min: "", max: "35" },
     zero_to_hundred: { min: "0", max: "7" },
     ev_range: { min: "150", max: "" },
-    top_speed: { min: "180", max: "" }
+    top_speed: { min: "180", max: "" },
+    vehicle_length: { min: "", max: "5000" },
+    vehicle_height: { min: "", max: "1500" }
   });
+  assert.equal(hooks.state.featureFilters.energy_type.join(","), "bev");
   assert.equal(hooks.state.search, "");
   assert.equal(elements.get("globalSearch").value, "");
   assert.equal(Object.keys(hooks.state.featureFilters).length,
-    config.conditions.filter((condition) => ["feature", "pagesFeature"].includes(condition.type) && condition.defaultEnabled !== false).length);
+    config.conditions.filter((condition) => condition.type === "pagesChoice" ||
+      ["feature", "pagesFeature", "pagesEquipment"].includes(condition.type) && condition.defaultEnabled !== false).length);
 });
 
 test("Pages first load renders and applies acceleration, speed, and EV range defaults", () => {
@@ -1298,7 +2003,9 @@ test("Pages first load renders and applies acceleration, speed, and EV range def
     const result = Object.assign(row("仅懂车帝", 2026, name), {
       "百公里加速(s)": String(acceleration),
       "最高车速(km/h)": String(speed),
-      "纯电续航(km)": String(range)
+      "纯电续航(km)": String(range),
+      "能源类型": "纯电动",
+      "长x宽x高(mm)": "4900x1900x1450"
     });
     config.conditions.filter((condition) => ["feature", "pagesFeature"].includes(condition.type)).forEach((condition) => {
       result[condition.fields[0]] = condition.requireKeyword ? condition.keywords[0] : "支持";
@@ -1550,7 +2257,10 @@ test("semantic SKU equivalence retains known battery, motor, sensor, drive and i
   for (const [field, a, b] of [["电池容量(kWh)","70","80"], ["电动机总功率(kW)","200","250"], ["激光雷达数量","0","1"], ["激光雷达数量",0,"1个"], ["激光雷达数量",0,1], ["驱动电机数",0,1], ["驱动方式","后驱","四驱"]]) {
     hooks.initializeRows([Object.assign({},base,{[field]:a}), Object.assign({},base,{"车型名称":"测试车系 Pro",[field]:b})]);
     assert.equal(hooks.state.rows.length, 2, field);
-    if (a === 0) { assert.equal(hooks.state.rows[0][field], "0", "known numeric zero count survives display merging"); }
+    if (a === 0) {
+      const displayed = field === "激光雷达数量" ? "激光雷达数量(个)" : field;
+      assert.equal(hooks.state.rows[0][displayed], "0", "known numeric zero count survives display merging");
+    }
   }
   hooks.initializeRows([Object.assign({},base,{"官方指导价":"35.8万"}), Object.assign({},base,{"车型名称":"测试车系 Pro", "官方指导价":"35.800000000000001万"})]);
   assert.equal(hooks.state.rows.length,2,"identity price comparison must not round distinct decimal observations");
@@ -1995,6 +2705,68 @@ test("merged phone control retains both raw source columns and does not promote 
   ])[0], condition), true);
 });
 
+test("saved column preferences follow verified spelling aliases", () => {
+  const { hooks } = loadAppForTest();
+  hooks.initializeRows([{ ...row("仅汽车之家", 2026, "样本"), "底盘透视": "●" }]);
+  const alias = "180°透明底盘";
+  const canonical = "底盘透视";
+  const filter = Object.freeze({ operator: "contains", value: "●" });
+  const snapshot = Object.freeze({
+    saleScope: "all",
+    visibleColumns: Object.freeze([alias, canonical, "不存在"]),
+    columnFilters: Object.freeze({ [alias]: filter }),
+    sortField: alias,
+    sortLevels: Object.freeze([{ field: alias, dir: "desc" }, { field: canonical, dir: "asc" }]),
+  });
+  const original = JSON.stringify(snapshot);
+  hooks.applySnapshot(snapshot);
+  assert.deepEqual(Array.from(hooks.state.visibleColumns), [canonical]);
+  assert.equal(hooks.state.columnFilters[canonical], filter);
+  assert.equal(hooks.state.columnFilters[alias], undefined);
+  assert.equal(hooks.getFilteredRows().length, 1);
+  assert.equal(hooks.state.sortField, canonical);
+  assert.deepEqual(JSON.parse(JSON.stringify(hooks.state.sortLevels)), [{ field: canonical, dir: "desc" }]);
+  assert.equal(JSON.stringify(snapshot), original);
+
+  const explicitFilter = { operator: "contains", value: "○" };
+  hooks.applySnapshot({ columnFilters: { [alias]: filter, [canonical]: explicitFilter } });
+  assert.equal(hooks.state.columnFilters[canonical], explicitFilter);
+});
+
+test("restoring history ignores columns removed from the display inventory", () => {
+  const { hooks } = loadAppForTest();
+  const pkg = "奥迪全方位辅助包 高端版";
+  const price = "官方指导价";
+  hooks.initializeRows([
+    { ...row("仅易车", 2026, "有套件"), [pkg]: "○", [price]: "28万" },
+    { ...row("仅易车", 2026, "无套件"), [pkg]: "-", [price]: "20万" },
+  ]);
+  const saved = Object.freeze({
+    saleScope: "all",
+    visibleColumns: Object.freeze([pkg, price]),
+    columnFilters: Object.freeze({[pkg]: {operator: "contains", value: "○"}}),
+    sortField: pkg,
+    sortDir: "desc",
+    sortLevels: Object.freeze([{field: pkg, dir: "desc"}]),
+  });
+  assert.ok(!hooks.state.columns.includes(pkg));
+  const original = JSON.stringify(saved);
+  hooks.applySnapshot(saved);
+  assert.equal(hooks.getFilteredRows().length, 2);
+  assert.deepEqual(Array.from(hooks.state.visibleColumns), [price]);
+  assert.deepEqual(Object.keys(hooks.state.columnFilters), []);
+  assert.equal(hooks.state.sortField, price);
+  assert.equal(hooks.state.sortDir, "asc");
+  assert.equal(hooks.state.sortLevels.length, 0);
+  assert.equal(JSON.stringify(saved), original);
+  hooks.applySnapshot({ ...saved, visibleColumns: [pkg], sortLevels: [{field: price, dir: "desc"}] });
+  assert.ok(hooks.state.visibleColumns.has(price));
+  assert.equal(hooks.state.sortField, "");
+  assert.equal(hooks.state.sortLevels[0].dir, "desc");
+  hooks.applySnapshot({visibleColumns: []});
+  assert.equal(hooks.state.visibleColumns.size, 0);
+});
+
 test("historical phone control switches migrate by OR without mutating snapshot input", () => {
   const { hooks } = strictFilterContext("remote_control");
   hooks.initializeRows([]);
@@ -2048,6 +2820,26 @@ test("city navigation requires dedicated or typed urban driving evidence, never 
     [{ "导航辅助驾驶": "高快领航|城市领航" }, true],
     [{ "导航辅助驾驶": "懂车帝:高快领航|易车:城市领航" }, true],
     [{ "导航辅助驾驶": "城区NOA" }, true],
+    [{ "辅助驾驶路段": "城市路段 / 高速路段" }, false],
+    [{ "辅助驾驶路段": "●高速路段 / 城市路段" }, false],
+    [{ "辅助驾驶路段": "汽车之家:●城市路段 / 高速路段|易车:○城市路段" }, false],
+    [{ "辅助驾驶路段 - 城市路段": "●" }, true],
+    [{ "NOA城市领航": "●", "辅助驾驶路段": "易车:○城市路段 / ●高速路段" }, false],
+    [{ "NOA城市领航": "●", "辅助驾驶路段 - 城市路段": "不支持" }, false],
+    [{ "辅助驾驶路段": "●城市路段 / ○高速路段" }, true],
+    [{ "NOA城市领航": "●", "辅助驾驶路段": "不支持高速路段" }, true],
+    [{ "导航辅助驾驶": "城市领航", "辅助驾驶路段": "城市路段（选配）" }, false],
+    [{ "导航辅助驾驶": "高速导航驾驶辅助 / 城市导航驾驶辅助" }, true],
+    [{ "导航辅助驾驶": "城区导航驾驶辅助" }, true],
+    [{ "导航辅助驾驶": "高速导航驾驶辅助" }, false],
+    [{ "导航辅助驾驶": "城市导航驾驶辅助（选装）" }, false],
+    [{ "辅助驾驶路段": "●城市路段 / 高速路段" }, true],
+    [{ "辅助驾驶路段": "○城市路段 / 高速路段" }, false],
+    [{ "辅助驾驶路段": "不支持城市路段 / 高速路段" }, false],
+    [{ "辅助驾驶路段": "高速路段" }, false],
+    [{ "辅助驾驶路段": "●" }, false],
+    [{ "辅助驾驶路段": "城市路段（选装）" }, false],
+    [{ "辅助驾驶路段": "城区路段", "NOA城市领航": "不支持" }, false],
     [{ "导航辅助驾驶": "城市地图|城市导航" }, false],
     [{ "地图导航": "城市领航", "销售说明": "NOA城市领航" }, false],
     [{ "NOA城市领航": "●" }, true],
@@ -2208,6 +3000,11 @@ test("phone key accepts either Bluetooth or UWB and requires technology evidence
   assert.equal(matches({ "销售说明": "UWB数字钥匙" }), false);
   assert.equal(matches({ "蓝牙": "●" }), false);
   assert.equal(matches({ "遥控钥匙类型": "遥控钥匙 / 蓝牙钥匙" }), true);
+  assert.equal(matches({ "遥控钥匙类型": "○ 暂无价格|手机蓝牙钥匙" }), false);
+  assert.equal(matches({ "遥控钥匙类型": "懂车帝:○ 暂无价格|手机蓝牙钥匙|易车:UWB数字钥匙" }), true);
+  assert.equal(matches({ "蓝牙/数字钥匙": "○|手机蓝牙钥匙|●|UWB数字钥匙" }), true);
+  assert.equal(matches({ "蓝牙/数字钥匙": "汽车之家:遥控钥匙 / 蓝牙钥匙|懂车帝:●|○ 599元" }), true);
+
   hooks.initializeRows([Object.assign(row("易车", 2026, "UWB 钥匙"), {
     "级别": "中型车", "UWB钥匙": "●"
   })]);
@@ -2557,4 +3354,161 @@ test("known remote-operation parents prove startup only through explicit start a
   });
   hooks.initializeRows([Object.assign(row("汽车之家", 2026, "营销文案"), { "销售说明": "车辆启动" })]);
   assert.equal(hooks.conditionMatches(hooks.state.rows[0], condition), false);
+});
+
+test("verified legacy source option groups stay out of the property inventory", () => {
+  const { hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  const skuRows = [
+    { "车系": "英仕派", "安心舒享包PLUS": "○|选配", "座椅记忆": "驾驶位" },
+    { "车系": "捷豹E-PACE", "安全控(驾驶辅助包)": "选配" },
+    { "车系": "揽胜极光", "安全控(智能驾驶辅助包)": "360°全方位车身影像系统",
+      "安全控(智能驾驶辅助包)_1": "自适应巡航ACC", "自适应巡航": "●" },
+    { "车系": "熊猫", "安心驾控包": "选配", "安心驾控包_1": "ESP车身稳定控制系统",
+      "安芯守护包": "选配", "安芯守护包_1": "宁德时代电池" },
+    { "车系": "奥迪S4", "奥迪全方位辅助包 高端版": "选配", "品牌独有驾驶辅助功能": "●" },
+  ];
+  for (const name of ["安全控(驾驶辅助包)", "安全控(智能驾驶辅助包)", "安全控(智能驾驶辅助包)_1", "安心驾控包", "安心驾控包_1", "安心舒享包PLUS", "安芯守护包", "安芯守护包_1", "奥迪全方位辅助包 高端版"]) {
+    assert.equal(hooks.shouldHideColumn(name, skuRows), true, name);
+    assert.ok(skuRows.some((row) => Object.hasOwn(row, name)), name);
+  }
+  for (const name of ["座椅记忆", "自适应巡航", "品牌独有驾驶辅助功能"]) {
+    assert.equal(hooks.shouldHideColumn(name, skuRows), false, name);
+  }
+});
+
+test("legacy package descriptions reuse explicit same-series optional status", () => {
+  const { hooks } = loadAppForTest();
+  hooks.state.config = { hiddenByDefault: [], dropIfUniformPositive: [] };
+  const sourceRows = [
+    { "品牌": "哈弗", "车系": "哈弗大狗", "HWA高速智驾辅助包": "汽车之家:选配|易车:○" },
+    { "品牌": "哈弗", "车系": "哈弗大狗", "HWA高速智驾辅助包_1": "高速领航、自动变道、前向横穿预警" },
+    { "品牌": "大众", "车系": "迈腾PHEV", "前排按摩包": "选配" },
+    { "品牌": "大众", "车系": "迈腾PHEV", "前排按摩包_1": "前排按摩、驾驶席记忆、老板键" },
+    { "品牌": "大众", "车系": "迈腾PHEV", "老板键": "○" },
+    { "品牌": "甲", "车系": "示例", "稀有辅助包": "○" },
+    { "品牌": "乙", "车系": "示例", "稀有辅助包_1": "其它品牌的独立功能说明" },
+    { "品牌": "甲", "车系": "其他", "底盘增强包": "●" },
+    { "品牌": "甲", "车系": "其他", "底盘增强包_1": "明确标配的功能说明" },
+    { "品牌": "甲", "车系": "其他", "高速辅助": "选配", "高速辅助_1": "持续保持车道" }
+  ];
+  for (const name of ["HWA高速智驾辅助包_1", "前排按摩包_1"]) {
+    assert.equal(hooks.shouldHideColumn(name, sourceRows), true, name);
+  }
+  for (const name of ["稀有辅助包_1", "底盘增强包_1", "高速辅助_1", "老板键"]) {
+    assert.equal(hooks.shouldHideColumn(name, sourceRows), false, name);
+  }
+});
+
+test("manufacturer-named option packages and seat variants stay out of displayed columns", () => {
+  const { hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  const optional = {
+    "AMG 动态增强版组件": "选配",
+    "科技增强组件_2": "○ 3900元",
+    "魏斯阿赫组件": "选配",
+    "M碳纤维外装组件": "○",
+    "M碳纤维外观组件": "○|选配",
+    "前排M碳纤维桶形座椅": "○",
+  };
+  const row = { "车系": "验证车系", ...optional, "座椅记忆": "驾驶位", "方向盘记忆": "●" };
+  for (const name of Object.keys(optional)) {
+    assert.equal(hooks.shouldHideColumn(name, [row]), true, name);
+    assert.equal(row[name], optional[name]);
+  }
+  assert.equal(hooks.shouldHideColumn("座椅记忆", [row]), false);
+  assert.equal(hooks.shouldHideColumn("方向盘记忆", [row]), false);
+});
+
+test("conflicting native and generic IDs on single-source rows expose no source link", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.initializeRows([{
+    ...row("仅汽车之家", 2026, "冲突来源车款"),
+    "车款ID": "77823", "车款ID_汽车之家": "77981",
+  }]);
+  assert.equal(hooks.state.rows.length, 1);
+  hooks.renderTableBody(hooks.state.rows);
+  const details = descendants(elements.get("tableBody")).find(node => node.className === "sku-details");
+  details.open = true;
+  details.dispatch("toggle");
+  assert.equal(descendants(details).filter(node => node.tagName === "A").length, 0);
+  assert.ok(descendants(details).some(node => node.textContent === "汽车之家 · 暂无可确认的车款链接"));
+});
+
+test("verified cockpit variant names become numeric attributes with equipment status", () => {
+  const { hooks } = loadAppForTest();
+  const input = [
+    {"35.4英寸4K一体远端屏": "懂车帝:●|易车:标配", "中控屏幕尺寸": "15.6"},
+    {"48 英寸 Skyline 数字天际线": "●", "远端屏尺寸(in)": "48.0"},
+    {"40W外置扬声器": "汽车之家:●", "扬声器数量": "25"},
+    {"40W外置扬声器": "○ 2000元", "未核验的60W扬声器": "●"},
+    {"40W外置扬声器": "汽车之家:●|易车:不支持"},
+  ];
+  const out = hooks.normalizeRowColumns(input);
+  assert.equal(out[0]["远端屏尺寸(in)"], "懂车帝:35.4|易车:35.4");
+  assert.equal(out[0]["中控屏幕尺寸"], "15.6");
+  assert.equal(out[1]["远端屏尺寸(in)"], "48.0");
+  assert.equal(out[2]["外置扬声器功率(W)"], "汽车之家:40");
+  assert.equal(out[2]["扬声器数量"], "25");
+  assert.equal(out[3]["40W外置扬声器"], "○ 2000元");
+  assert.equal(out[3]["未核验的60W扬声器"], "●");
+  assert.equal(out[4]["外置扬声器功率(W)"], undefined);
+  assert.equal(out[4]["40W外置扬声器"], "汽车之家:●|易车:不支持");
+  assert.equal(input[0]["35.4英寸4K一体远端屏"], "懂车帝:●|易车:标配");
+  assert.equal(out[0]["35.4英寸4K一体远端屏"], undefined);
+  assert.equal(out[1]["48 英寸 Skyline 数字天际线"], undefined);
+  assert.equal(out[2]["40W外置扬声器"], undefined);
+});
+
+test("verified MONA catalog pair retains both links and rejects identity drift", () => {
+  const { hooks, elements } = loadAppForTest();
+  hooks.state.config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config/filter_conditions.json"), "utf8"));
+  const pair = hooks.state.config.verifiedCatalogSkuPairs.find(item => item.autohomeId === "79491");
+  const fields = { "车系": pair.autohomeSeries, "品牌": pair.brand,
+    "官方指导价": "16.48万", "上市时间": "2026-10-29" };
+  const left = { ...row("仅汽车之家", 2027, pair.autohomeName), ...fields, "车系ID": "8662",
+    "车款ID": "79491", "车款ID_汽车之家": "79491", "能源类型": "纯电动", "纯电续航(km)": "CLTC:635" };
+  const right = { ...row("仅懂车帝", 2027, pair.dongchediName), ...fields, "车系ID": "26149",
+    "懂车帝车型ID": "263234", "上市时间": "2026.10", "纯电续航(km)": "0" };
+  hooks.initializeRows([left, right]);
+  assert.equal(hooks.state.rows.length, 1);
+  assert.equal(hooks.state.rows[0]["交叉核验"], "双源核验");
+  hooks.renderTableBody(hooks.state.rows);
+  const details = descendants(elements.get("tableBody")).find(node => node.className === "sku-details");
+  details.open = true;
+  details.dispatch("toggle");
+  assert.deepEqual(descendants(details).filter(node => node.tagName === "A").map(node => node.href).sort(), [
+    "https://car.autohome.com.cn/config/spec/79491.html",
+    "https://www.dongchedi.com/auto/params-carIds-263234",
+  ]);
+  for (const changed of [
+    { "车型名称": "纯电 635 Ultra SE" }, { "上市时间": "2026.11" }, { "车系ID": "26349" },
+    { "官方指导价": "17.68万" }, { "能源类型": "增程式" }, { "纯电续航(km)": "CLTC:535" },
+    { "车款ID_懂车帝": "263231" },
+  ]) {
+    hooks.initializeRows([left, { ...right, ...changed }]);
+    assert.equal(hooks.state.rows.length, 2, JSON.stringify(changed));
+  }
+});
+
+
+test("stock and per-provider sale conflicts override a stale on-sale summary in either order", () => {
+  const {hooks}=loadAppForTest();
+  const base = {...row("汽车之家",2026,"同车款库存"), "上市时间":"2026.01"};
+  const active = {...base, "上市状态":"在售", "上市状态_汽车之家":"在售"};
+  const stock = {...base, "上市状态_汽车之家":"停产在售"};
+  for (const records of [[active, stock], [stock, active]]) {
+    hooks.initializeRows(records);
+    assert.equal(hooks.state.rows.length, 1);
+    assert.ok(hooks.state.rows[0]["上市状态_汽车之家"].split("|").includes("停产在售"));
+    assert.equal(hooks.getFilteredRows().length, 0);
+    hooks.state.saleScope="all";
+    assert.equal(hooks.getFilteredRows().length, 1);
+    hooks.state.saleScope="onSale";
+  }
+  const combined = {...active, "数据来源":"汽车之家+懂车帝", "上市状态_懂车帝":"停售"};
+  hooks.initializeRows([combined, {...base, "车型名称":"可售", "上市状态":"在售", "上市状态_汽车之家":"-"}]);
+  assert.deepEqual(Array.from(hooks.getFilteredRows(), row=>row["车型名称"]), ["可售"]);
 });
