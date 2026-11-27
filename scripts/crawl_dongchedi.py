@@ -113,7 +113,7 @@ if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
 
 # 工作目录
 working_dir = os.path.dirname(os.path.abspath(__file__))
-dcd_dir = os.path.join(working_dir, "dongchedi")
+dcd_dir = os.getenv("DCD_RUN_STATE_DIR") or os.path.join(working_dir, "dongchedi")
 dcd_json_dir = os.path.join(dcd_dir, "json")
 dcd_exception_dir = os.path.join(dcd_dir, "exception")
 
@@ -916,7 +916,7 @@ def _request_dongchedi_json(url, params=None):
     return response.json()
 
 
-def fetch_series_entity_payload(series):
+def fetch_series_entity_payload(series, *, max_cars=None):
     series_id = str(series["id"])
     garage_url = f"https://www.dongchedi.com/motor/garage/get_cars_by_series_id/{series_id}/"
     garage_payload = _request_dongchedi_json(garage_url, {"no_sales": 1})
@@ -925,6 +925,8 @@ def fetch_series_entity_payload(series):
 
     car_sale_status = _extract_car_sale_status(garage_payload)
     car_ids = _extract_car_ids(garage_payload.get("data", garage_payload))
+    if max_cars is not None and len(car_ids) > max_cars:
+        raise ValueError("Dongchedi series exceeds the remaining trim request budget")
     if not car_ids:
         return {
             "source": "dongchedi_entity_api",
@@ -1103,7 +1105,7 @@ def parse_config_pages(series_list):
 
     series_map = {s["id"]: s for s in series_list}
 
-    for html_file in os.listdir(dcd_json_dir):
+    for html_file in sorted(os.listdir(dcd_json_dir)):
         if not (html_file.endswith(".html") or html_file.endswith(".json")):
             continue
 
@@ -1350,7 +1352,7 @@ def parse_config_pages(series_list):
                             for car in car_info:
                                 info = car.get("info", {})
                                 _car_pkgs = {}
-                                for pkg_name in _pkg_entries:
+                                for pkg_name in sorted(_pkg_entries):
                                     _pkg_desc = ""
                                     _pkg_status = ""
                                     for idx_str in ["1", "2"]:

@@ -498,6 +498,8 @@ def is_captcha_challenge(html):
 def new_session():
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0"})
+    if os.getenv("PROXY_ENABLED") == "true":
+        session.headers["Connection"] = "close"
     return session
 
 
@@ -1676,6 +1678,8 @@ def crawl(
     })
     degrade_cause_counts = {code: 0 for code in DEGRADE_CAUSE_CODES}
     start = start_time if start_time is not None else time.monotonic()
+    if 0 < (time_limit or 0) <= finish_buffer:
+        finish_buffer = time_limit // 4
     deadline = start + time_limit if time_limit else 0
     known_targets = {
         url: target_meta(value) for url, value in (resume_state.get("known_targets") or {}).items()
@@ -2052,12 +2056,34 @@ def crawl(
     return deduped_rows
 
 
+def load_explicit_targets(path, urls):
+    """Load only the identities for the requested HTTPS series URLs."""
+    with open(path, "rb") as handle:
+        raw = handle.read(65537)
+    if len(raw) > 65536:
+        raise ValueError("explicit target manifest exceeds size limit")
+    entries = json.loads(raw)
+    if not isinstance(entries, dict) or set(entries) != set(urls) or not entries:
+        raise ValueError("explicit target manifest must match the requested URLs")
+    for url, entry in entries.items():
+        if (not re.fullmatch(r"https://car\.yiche\.com/[a-z0-9-]+/peizhi/", url)
+                or not is_series_path(url)
+                or not isinstance(entry, dict)
+                or set(entry) != {"serial_id", "series", "brand"}
+                or not all(isinstance(value, str) and value.strip() for value in entry.values())
+                or not re.fullmatch(r"[1-9][0-9]{0,9}", entry["serial_id"])):
+            raise ValueError("invalid explicit Yiche target identity")
+    return entries
+
+
 def main():
     started_at = time.monotonic()
     parser = argparse.ArgumentParser(description="易车爬虫")
     parser.add_argument("--url", action="append", help="易车车系页 URL，可重复传入")
     parser.add_argument("--url-file", default="config/yiche_series_urls.txt", help="易车车系 URL 列表")
     parser.add_argument("--discover-url", action="append", help="未配置车系 URL 时用于自动发现的易车入口页，可重复传入")
+    parser.add_argument("--target-manifest", default="", help="与显式 URL 一一对应的已知车系身份")
+    parser.add_argument("--no-discovery", action="store_true", help="仅处理显式或断点中的目标")
     parser.add_argument("--output", default="", help="输出 JSON 路径")
     parser.add_argument("--delay", type=float, default=float(os.getenv("CRAWL_MIN_DELAY_SECONDS", "8")))
     parser.add_argument("--time-limit", type=int, default=0, help="最大运行时间(秒)，0表示不限制")
@@ -2090,8 +2116,13 @@ def main():
         if args.max_series != 0:
             raise SystemExit("恢复模式不接受 --max-series；短烟测请使用 --resume-smoke-targets")
     urls = [] if resume_state else load_urls(args)
-    targets = {} if resume_state else {normalize_series_url(url): serial_id_from_url(url) for url in urls}
-    if not targets and not resume_state:
+    if args.target_manifest:
+        if resume_state or not args.no_discovery:
+            parser.error("--target-manifest requires --no-discovery and no resume checkpoint")
+        targets = load_explicit_targets(args.target_manifest, [normalize_series_url(url) for url in urls])
+    else:
+        targets = {} if resume_state else {normalize_series_url(url): serial_id_from_url(url) for url in urls}
+    if not targets and not resume_state and not args.no_discovery:
         discovery_urls = args.discover_url or split_urls(os.getenv("YICHE_DISCOVERY_URLS", "")) or DEFAULT_DISCOVERY_URLS
         session = new_session()
         targets = {normalize_series_url(url): make_target(serial_id_from_url(url)) for url in DEFAULT_SERIES_URLS}
@@ -2101,7 +2132,7 @@ def main():
     if not targets and not resume_state:
         print("未配置且未发现易车车系 URL，生成空数据文件。可通过 --url、--url-file、YICHE_SERIES_URLS 或 YICHE_DISCOVERY_URLS 配置。")
     discovery_callback = None
-    if resume_state:
+    if resume_state and not args.no_discovery:
         session = new_session()
         legacy_frontier = resume_state.get("legacy_frontier") or {}
         discovery_callback = YicheDiscoveryFrontier(
@@ -2113,7 +2144,7 @@ def main():
         )
         if resume_state.get("frontier"):
             discovery_callback.restore_state(resume_state["frontier"])
-    elif not urls:
+    elif not urls and not args.no_discovery:
         discovery_callback = YicheDiscoveryFrontier(session, initial_brands=LAST_DISCOVERED_MASTER_BRANDS)
     observer = CrawlObserver(args.checkpoint, args.heartbeat_interval)
     previous_handlers = {}
