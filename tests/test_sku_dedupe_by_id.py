@@ -1899,3 +1899,64 @@ def test_strict_fold_folds_acceleration_measurement_noise() -> None:
     b = dict(b, **{"百公里加速(s)": "2.98"})
     out = MD.dedupe_merged_rows([a, b], declared_conflict_strict=True)
     assert len(out) == 1, "加速测量差把同款拆成两行 ⇒ 违反 round-8C 的现网实测裁定"
+
+
+def test_same_provider_id_does_not_collapse_restyle_and_original():
+    plain = _row("76215", "2026款 Ultra", "测试车系", "2026", "26.58万", "仅汽车之家", "8045")
+    revised = {**plain, "车型名称": "2026款 改款 Ultra"}
+    for options in ({}, {"declared_conflict_strict": True}):
+        result = MD.dedupe_merged_rows(copy.deepcopy([plain, revised]), **options)
+        assert {row["车型名称"] for row in result} == {"2026款 Ultra", "2026款 改款 Ultra"}
+
+
+def test_same_restyle_can_still_collapse_different_name_formats():
+    short = _row("76215", "2026款 改款 Ultra", "测试车系", "2026", "26.58万", "仅汽车之家", "8045")
+    long = {**short, "车型名称": "测试车系 2026款 改款 Ultra"}
+    assert len(MD.dedupe_merged_rows(copy.deepcopy([short, long]))) == 1
+
+
+def test_matching_legacy_number_cannot_merge_disjoint_provider_ids():
+    autohome = _row("76215", "2026款 Ultra", "测试车系", "2026", "26.58万", "仅汽车之家", "8045")
+    autohome["车款ID_汽车之家"] = "76215"
+    dongchedi = {**autohome, "数据来源": "仅懂车帝", "车款ID_懂车帝": "76215"}
+    del dongchedi["车款ID_汽车之家"]
+    for mode in (False, True):
+        rows = MD.dedupe_merged_rows(copy.deepcopy([autohome, dongchedi]), declared_conflict_strict=mode)
+        assert len(rows) == 2
+
+
+def test_shared_provider_id_still_merges_and_conflicting_id_blocks():
+    base = _row("76215", "2026款 Ultra", "测试车系", "2026", "26.58万", "仅汽车之家", "8045")
+    base["车款ID_汽车之家"] = "76215"
+    sibling = {**base, "车型名称": "测试车系 2026款 Ultra"}
+    assert len(MD.dedupe_merged_rows(copy.deepcopy([base, sibling]))) == 1
+    sibling["车款ID_汽车之家"] = "76216"
+    assert len(MD.dedupe_merged_rows(copy.deepcopy([base, sibling]))) == 2
+
+
+def test_ambiguous_legacy_id_does_not_choose_a_provider():
+    legacy = _row("76215", "2026款 Ultra", "测试车系", "2026", "26.58万", "汽车之家+懂车帝", "8045")
+    ah = {**legacy, "数据来源": "仅汽车之家", "车款ID_汽车之家": "76215"}
+    dcd = {**legacy, "数据来源": "仅懂车帝", "车款ID_懂车帝": "76215"}
+    for rows in ([legacy, ah, dcd], [dcd, ah, legacy]):
+        merged = MD.dedupe_merged_rows(copy.deepcopy(rows))
+        assert len(merged) == 3
+
+
+def test_source_ingest_retains_exact_ids_in_both_publish_shapes():
+    base = _row("76215", "2026款 Ultra", "测试车系", "2026", "26.58万", "仅汽车之家", "8045")
+    autohome = MD.norm_rows([base], "汽车之家")[0]
+    dongchedi = MD.norm_rows([{**base, "懂车帝车型ID": "252722"}], "懂车帝")[0]
+    yiche = MD.norm_rows([{**base, "车款ID": "180731"}], "易车")[0]
+    merged = MD.merge_source_rows([("汽车之家", autohome), ("懂车帝", dongchedi), ("易车", yiche)])
+    expected = {"车款ID_汽车之家": "76215", "车款ID_懂车帝": "252722", "车款ID_易车": "180731"}
+    for row in (merged, MD.narrow_pages_rows([merged])[0]):
+        assert {key: row.get(key) for key in expected} == expected
+
+
+def test_source_ingest_does_not_assign_conflicting_or_foreign_ids():
+    base = _row("76215", "2026款 Ultra", "测试车系", "2026", "26.58万", "仅汽车之家", "8045")
+    row = {**base, "汽车之家车款ID": "76216", "车款ID_懂车帝": "252722"}
+    normalized = MD.norm_rows([row], "汽车之家")[0]
+    assert "车款ID_汽车之家" not in normalized
+    assert "车款ID_懂车帝" not in normalized

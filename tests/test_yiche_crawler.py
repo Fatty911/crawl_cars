@@ -198,6 +198,22 @@ def test_budgeted_crawl_expands_beyond_twenty_targets(monkeypatch):
     assert len(rows) == 1
 
 
+@pytest.mark.parametrize(("time_limit", "expected_buffer"), [(60, 15), (None, 60)])
+def test_short_runtime_starts_before_default_finish_buffer(monkeypatch, capsys, time_limit, expected_buffer):
+    url = "https://car.yiche.com/seed/peizhi/"
+    html = ("<table><tr><th>\u8f66\u578b</th><th>2026\u6b3e \u6837\u672c</th></tr>"
+            "<tr><td>\u8f74\u8ddd</td><td>2900</td></tr>"
+            "<tr><td>\u4e0a\u5e02\u72b6\u6001</td><td>\u5728\u552e</td></tr></table>")
+    attempted = []
+    monkeypatch.setattr(yiche.time, "monotonic", lambda: 0.3)
+    monkeypatch.setattr(yiche, "fetch", lambda session, current_url: attempted.append(current_url) or html)
+    rows = yiche.crawl({url: {"brand": "\u6837\u672c\u54c1\u724c", "series": "\u6837\u672c\u8f66\u7cfb", "serial_id": ""}},
+                       delay=0, time_limit=time_limit, start_time=0)
+    assert attempted == [url]
+    assert len(rows) == 1
+    assert f"finish_buffer_seconds={expected_buffer}" in capsys.readouterr().out
+
+
 def test_deadline_stops_before_new_request_and_reports_reason(monkeypatch, capsys):
     monkeypatch.setattr(yiche.time, "monotonic", lambda: 95)
     monkeypatch.setattr(yiche, "fetch", lambda session, url: (_ for _ in ()).throw(AssertionError("request after deadline")))
@@ -1305,3 +1321,41 @@ def test_degrade_causes_cover_403_branch_and_share_one_sum(monkeypatch, capsys):
     assert stats_value(output, "degraded_identity") == 1
     assert stats_value(output, "failed") == 3
     assert sum(counts.values()) == stats_value(output, "degraded_identity") + stats_value(output, "failed")
+
+
+def test_explicit_target_manifest_binds_serial_id_to_requested_url(tmp_path):
+    url = "https://car.yiche.com/hanl/peizhi/"
+    path = tmp_path / "targets.json"
+    entry = {"serial_id": "11182", "series": "汉L", "brand": "比亚迪"}
+    path.write_text(json.dumps({url: entry}), encoding="utf-8")
+
+    assert yiche.load_explicit_targets(path, [url]) == {url: entry}
+    with pytest.raises(ValueError, match="match the requested URLs"):
+        yiche.load_explicit_targets(path, ["https://car.yiche.com/other/peizhi/"])
+    invalid = "https://unrelated.example/hanl/peizhi/"
+    path.write_text(json.dumps({invalid: entry}), encoding="utf-8")
+    with pytest.raises(ValueError, match="invalid explicit Yiche target identity"):
+        yiche.load_explicit_targets(path, [invalid])
+
+
+def test_explicit_checkpoint_does_not_expand_discovery(tmp_path, monkeypatch):
+    resume = valid_v2_checkpoint_payload()["resume_state"]
+    monkeypatch.setattr(yiche, "load_resume_checkpoint", lambda *args, **kwargs: resume)
+
+    def unexpected_discovery(*args, **kwargs):
+        pytest.fail("explicit checkpoint must not discover additional series")
+
+    monkeypatch.setattr(yiche, "YicheDiscoveryFrontier", unexpected_discovery)
+
+    def crawl(targets, *args, **kwargs):
+        assert targets == {}
+        assert kwargs["resume_state"] == resume
+        assert kwargs["discovery_callback"] is None
+        return valid_v2_checkpoint_payload()["rows"]
+
+    monkeypatch.setattr(yiche, "crawl", crawl)
+    monkeypatch.setattr(sys, "argv", [
+        "crawl_yiche.py", "--resume-checkpoint", "bound.json", "--no-discovery",
+        "--output", str(tmp_path / "output.json"), "--checkpoint", str(tmp_path / "checkpoint.json"),
+    ])
+    assert yiche.main() == 0

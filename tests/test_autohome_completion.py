@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import json
 import sys
 import tempfile
@@ -26,7 +27,11 @@ def load_autohome_module():
 class AutohomeCompletionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.autohome = load_autohome_module()
+        state = tempfile.TemporaryDirectory(prefix="autohome-test-state-")
+        cls.state_root = Path(state.name)
+        cls.addClassCleanup(state.cleanup)
+        with mock.patch.dict(os.environ, {"AUTOHOME_RUN_STATE_DIR": state.name}):
+            cls.autohome = load_autohome_module()
 
     def valid_html(self, series: str = "Model 3", model: str = "2022款 后轮驱动版") -> str:
         config = {
@@ -117,6 +122,91 @@ class AutohomeCompletionTests(unittest.TestCase):
             ):
                 self.assertFalse(self.autohome.is_step1_completed())
 
+
+    def test_city_road_keeps_its_own_availability_marker(self) -> None:
+        specs = [
+            {"paramconflist": [{"sublist": [
+                {"name": "城市路段", "value": status},
+                {"name": "高速路段", "value": "○"},
+            ]}]} for status in ("●", "○", "-", "")
+        ]
+        self.assertEqual(
+            self.autohome.build_value_items(specs, 0, "辅助驾驶路段"),
+            [{"value": text + " / ○高速路段"} for text in
+             ("●城市路段", "○城市路段", "不支持城市路段", "城市路段")],
+        )
+        self.assertEqual(self.autohome.build_value_items(specs, 0, "他项"),
+                         [{"value": "城市路段 / 高速路段"}] * 4)
+
+    def test_remote_start_keeps_unnamed_source_status_markers(self):
+        specs = [{"paramconflist": [{"sublist": [{"name": "", "value": mark}]}]}
+                 for mark in ("●", "○", "-", "")] + [
+            {"paramconflist": [{"sublist": [{"value": "●"}, {"value": "○"}]}]},
+            {"paramconflist": [{"sublist": [{"name": "其他功能", "value": "●"}]}]},
+        ]
+        self.assertEqual(self.autohome.build_value_items(specs, 0, "远程启动功能"),
+                         [{"value": value} for value in ("●", "○", "不支持", "-", "●|○", "其他功能")])
+        self.assertEqual(self.autohome.build_value_items(specs[:1], 0, "其他功能"),
+                         [{"value": "-"}])
+
+    def test_current_sales_status_is_carried_with_the_same_autohome_spec(self):
+        values = self.autohome.build_value_items([
+            {"specid": 78853, "specstatus": 20},
+            {"specid": 78854, "specstatus": "20"},
+            {"specid": 75935, "specstatus": 30},
+            {"specid": 77777, "specstatus": 40},
+            {"specid": 79173},
+        ], None, "上市状态_汽车之家")
+        self.assertEqual(values, [
+            {"value": "在售"}, {"value": "在售"}, {"value": "停产在售"}, {"value": "-"}, {"value": "-"},
+        ])
+
+    def test_native_option_group_stays_in_package_metadata_and_mg_is_canonical(self) -> None:
+        payload = {
+            "result": {
+                "bread": {"seriesname": "MG 07"},
+                "titlelist": [
+                    {"groupname": "参数信息", "items": [{"itemname": "车型名称"}, {"itemname": "级别"}]},
+                    {"groupname": "智能座舱", "itemtype": "配置",
+                     "items": [{"itemname": "空间模式"}]},
+                    {"groupname": "个性化", "itemtype": "选装包",
+                     "items": [{"itemname": "21英寸星芒轮毂"}]},
+                ],
+                "datalist": [
+                    {"specid": 111, "specname": "2026款 A", "paramconflist": [
+                        {"itemname": "2026款 A"}, {"itemname": "中型车"}, {"itemname": "会客模式"},
+                        {"itemname": "包含：21英寸星芒轮毂",
+                         "sublist": [{"name": "选配", "priceinfo": "8000元", "value": "○"}]},
+                    ]},
+                    {"specid": 112, "specname": "2026款 B", "paramconflist": [
+                        {"itemname": "2026款 B"}, {"itemname": "中型车"}, {"itemname": "对坐模式"}, {"itemname": "-"},
+                    ]},
+                ],
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cache = root / "cache"
+            cache.mkdir()
+            html = self.autohome.build_autohome_api_html("8563", payload)
+            self.assertIsNotNone(html)
+            (cache / "8563").write_text(html, encoding="utf-8")
+            with (
+                mock.patch.object(self.autohome, "newjson_dir", str(cache)),
+                mock.patch.object(self.autohome, "working_dir", str(root)),
+                mock.patch.object(self.autohome, "target_meta_for_cache_key",
+                                  return_value={"car_id": "8563", "series": "MG 07", "brand": "MG"}),
+            ):
+                self.autohome.generate_csv()
+            rows = json.loads(next(root.glob("autoHome_*.json")).read_bytes())
+        self.assertEqual([row["车款ID"] for row in rows], ["111", "112"])
+        self.assertEqual([row["品牌"] for row in rows], ["名爵", "名爵"])
+        self.assertEqual([row["空间模式"] for row in rows], ["会客模式", "对坐模式"])
+        self.assertNotIn("21英寸星芒轮毂", rows[0])
+        self.assertEqual(json.loads(rows[0]["选装包列表"]),
+                         {"21英寸星芒轮毂": {"描述": "包含：21英寸星芒轮毂",
+                                                "状态": "选配", "价格": "8000元"}})
+        self.assertEqual(rows[1]["选装包列表"], "-")
 
     def test_api_html_preserves_spec_id_as_car_id(self) -> None:
         payload = {
@@ -671,6 +761,20 @@ class AutohomeCompletionTests(unittest.TestCase):
             self.assertEqual(0, progress["target_idx"])
             self.assertNotIn("queue_idx", progress)
 
+    def test_current_api_trim_budget_rejects_before_building_output(self) -> None:
+        response = mock.Mock(
+            status_code=200,
+            headers={"content-type": "application/json"},
+        )
+        response.json.return_value = {"returncode": 0, "result": {"datalist": [{}, {}]}}
+        with (
+            mock.patch.object(self.autohome.session, "get", return_value=response),
+            mock.patch.object(self.autohome, "build_autohome_api_html") as build,
+        ):
+            with self.assertRaisesRegex(ValueError, "trim request budget"):
+                self.autohome.fetch_autohome_api_html("7694", max_specs=1)
+            build.assert_not_called()
+
     def test_current_api_empty_data_records_current_terminal(self) -> None:
         response = mock.Mock(
             status_code=200,
@@ -784,19 +888,23 @@ class AutohomeCompletionTests(unittest.TestCase):
         self.assertEqual(10, raised.exception.code)
 
     def test_runtime_and_workflow_share_isolated_state_root(self) -> None:
+        self.assertEqual(self.state_root, Path(self.autohome.state_dir))
+        with mock.patch.dict(os.environ):
+            os.environ.pop("AUTOHOME_RUN_STATE_DIR", None)
+            default = load_autohome_module()
         expected_root = ROOT / "crawl_state/autohome"
-        self.assertEqual(expected_root, Path(self.autohome.state_dir))
+        self.assertEqual(expected_root, Path(default.state_dir))
         for path in [
-            self.autohome.html_dir,
-            self.autohome.newhtml_dir,
-            self.autohome.json_dir,
-            self.autohome.content_dir,
-            self.autohome.newjson_dir,
-            self.autohome.exception_dir,
+            default.html_dir,
+            default.newhtml_dir,
+            default.json_dir,
+            default.content_dir,
+            default.newjson_dir,
+            default.exception_dir,
         ]:
             self.assertEqual(expected_root, Path(path).parent)
-        self.assertEqual(expected_root / "progress.json", Path(self.autohome.progress_file))
-        self.assertEqual(ROOT / "scripts/data/autohome_series_queue.json", Path(self.autohome.series_queue_file))
+        self.assertEqual(expected_root / "progress.json", Path(default.progress_file))
+        self.assertEqual(ROOT / "scripts/data/autohome_series_queue.json", Path(default.series_queue_file))
 
         workflow = (ROOT / ".github/workflows/crawl-autohome.yml").read_text(encoding="utf-8")
         self.assertIn("path: crawl_state/autohome", workflow)
