@@ -348,8 +348,8 @@ def check_ai_monitor(path: Path, errors: list[str]) -> None:
     text = resolve_workflow_file(path).read_text(encoding="utf-8")
     workflow_run = data.get(True, {}).get("workflow_run", {})
     workflows = set(workflow_run.get("workflows", []))
-    expected = {"重合并并发布（不爬取）", "Deploy verified CNB Pages", "部署前端展示",
-                "Markdown privacy (candidate)", "Runtime proxy cache guard", "CI"}
+    expected = {"重合并并发布（不爬取）", "Deploy verified CNB Pages", "Deploy verified Codeberg Pages",
+                "部署前端展示", "Markdown privacy (candidate)", "Runtime proxy cache guard", "CI"}
 
     assert_condition(workflows == expected,
                      "AI 监控名单必须精确覆盖三条发布链、两条保护链和 CI（实际：%s）" % sorted(workflows),
