@@ -109,6 +109,38 @@ class RawReleaseTest(unittest.TestCase):
                 raw.publish_github(self.bundle, TAG, REPO)
         self.assertFalse(any(call.args[:2] == ("release", "edit") for call in gh.call_args_list))
 
+    def test_pipeline_waits_for_tag_after_lost_create_response(self):
+        journal = {}
+        save = unittest.mock.Mock()
+        with patch.object(raw, "gh", side_effect=[None, None, RuntimeError("response lost")]):
+            with self.assertRaisesRegex(RuntimeError, "response lost"):
+                raw.publish_github(self.bundle, TAG, REPO, journal=journal, save=save)
+        save.assert_called_once()
+        with patch.object(raw, "gh", side_effect=[None, None]) as gh:
+            with self.assertRaisesRegex(ValueError, "awaiting visible tag"):
+                raw.publish_github(self.bundle, TAG, REPO, journal=journal, save=save)
+            self.assertEqual(gh.call_count, 2)
+        with patch.object(raw, "gh", side_effect=[self.ref, json.dumps(self.release), self.ref]):
+            self.assertEqual(raw.publish_github(self.bundle, TAG, REPO, journal=journal, save=save)["tag"], TAG)
+
+    def test_pipeline_does_not_repeat_draft_creation_before_readback(self):
+        journal = {}
+        save = unittest.mock.Mock()
+        with patch.object(raw, "gh", side_effect=[self.ref, None, RuntimeError("response lost")]):
+            with self.assertRaisesRegex(RuntimeError, "response lost"):
+                raw.publish_github(self.bundle, TAG, REPO, journal=journal, save=save)
+        save.assert_called_once()
+        with patch.object(raw, "gh", side_effect=[self.ref, None]) as gh:
+            with self.assertRaisesRegex(ValueError, "awaiting visible release"):
+                raw.publish_github(self.bundle, TAG, REPO, journal=journal, save=save)
+            self.assertEqual(gh.call_count, 2)
+        draft = dict(self.release, isDraft=True)
+        with patch.object(raw, "gh", side_effect=[
+            self.ref, json.dumps(draft), json.dumps(draft), self.ref, "", json.dumps(self.release), self.ref,
+        ]) as gh:
+            self.assertEqual(raw.publish_github(self.bundle, TAG, REPO, journal=journal, save=save)["tag"], TAG)
+            self.assertFalse(any(call.args[:2] == ("release", "create") for call in gh.call_args_list))
+
     def test_missing_release_in_check_only_never_creates_tag(self):
         with patch.object(raw, "gh", side_effect=[None, None]) as gh:
             with self.assertRaisesRegex(ValueError, "raw release is missing"):

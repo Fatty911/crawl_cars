@@ -45,3 +45,21 @@ def test_existing_multi_feature_defer_requires_complete_matching_variant():
                       ('座位数(个)','6'),('驱动形式','四驱'),
                       ('能源类型','纯电动'),('车型名称','2026款 Pro 后驱增程版')]:
         assert not _strong_existing_multi_variant(row,dict(row,**{key:value})),key
+
+@pytest.mark.parametrize(("source", "legacy"), [
+    ("懂车帝", "懂车帝车型ID"),
+    ("汽车之家", "汽车之家车款ID"),
+    ("易车", "易车车型ID"),
+])
+def test_conflicting_provider_ids_remain_evidence_without_matching(source, legacy):
+    from scripts.merge_data import norm_rows
+
+    column = "车款ID_" + source
+    other = "易车" if source != "易车" else "懂车帝"
+    [row] = norm_rows([{column: "111", legacy: "222"}], source)
+    assert row[column] == "111"
+    assert row[legacy] == "222"
+    assert _model_ids(row) == set()
+    row["车款ID_" + other] = "333"
+    row["数据来源"] += "+" + other
+    assert _model_ids(row) == {other + "|333"}

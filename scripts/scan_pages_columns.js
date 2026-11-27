@@ -348,8 +348,9 @@ function buildPendingColumns(unmapped, rows, source) {
     for (const f of IDENTITY_FIELDS) {
       if (row[f] !== undefined && row[f] !== null && String(row[f]).trim() !== "") identity[f] = String(row[f]);
     }
-    for (const [col, stat] of byColumn) {
-      if (!Object.prototype.hasOwnProperty.call(row, col)) continue;
+    for (const col of Object.keys(row)) {
+      const stat = byColumn.get(col);
+      if (!stat) continue;
       stat.occurrences += 1;
       const raw = row[col];
       const jsonValue = JSON.stringify(raw);
@@ -385,6 +386,43 @@ function buildPendingColumns(unmapped, rows, source) {
       nonEmptyCount: stat.nonEmptyCount,
       samples: stat.samples,
     }));
+}
+
+// Count the raw publication columns for review triage. The frontend may
+// combine aliases or hide columns when it builds the display inventory.
+function rawColumnCoverage(columns, rows) {
+  const inventory = new Map(columns.map((column) => [column, { series: new Set(), brands: new Set() }]));
+  const unknown = /^(?:[-－—]+|×|待查|未知|暂无(?:报价)?|未公布|未提供|N\/A|不支持|没有|无|否)$/i;
+  const normalize = (value) => String(value ?? "").normalize("NFKC").trim().replace(/\s+/g, "").toLowerCase();
+  const named = (value) => value && !unknown.test(value);
+  const observations = new Map();
+  for (const row of rows) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+    const series = normalize(row["车系"]);
+    if (!named(series)) continue;
+    const brand = normalize(row["品牌"]);
+    const seriesKey = JSON.stringify([named(brand) ? brand : "", series]);
+    for (const [column, raw] of Object.entries(row)) {
+      const item = inventory.get(column);
+      if (!item || raw === null || raw === undefined || raw === false ||
+          (!["string", "number", "boolean"].includes(typeof raw))) continue;
+      let present = observations.get(raw);
+      if (present === undefined) {
+        present = String(raw).split(/[|·]/).some((part) => {
+          const text = part.trim().replace(/^(?:汽车之家|懂车帝|易车)\s*[:：]\s*/, "");
+          return Boolean(named(text));
+        });
+        if (observations.size < 65536) observations.set(raw, present);
+      }
+      if (!present) continue;
+      item.series.add(seriesKey);
+      if (named(brand)) item.brands.add(brand);
+    }
+  }
+  return [...inventory].map(([column, item]) =>
+    ({ column, seriesCount: item.series.size, brandCount: item.brands.size })
+  ).sort((a, b) => a.seriesCount - b.seriesCount || a.brandCount - b.brandCount ||
+    Buffer.compare(Buffer.from(a.column, "utf8"), Buffer.from(b.column, "utf8")));
 }
 
 // A signal routes a name to the value/option review queue. It does not approve a mapping.
@@ -593,6 +631,7 @@ async function main() {
     unmappedCount: result.unmapped.length,
     unmapped: result.unmapped.slice(0, 200),  // 兼容字段；完整集合见 pendingColumns
     columnValueSignals: columnValueSignals(scanColumns, kb),
+    rawColumnCoverage: rawColumnCoverage(scanColumns, rowsForEvidence),
     pendingCount: pendingColumns.length,
     pendingColumns: pendingColumns,           // 完整待审证据队列（不截断，按列名排序）
     aliasHits: result.aliasHits,              // 命中别名映射的归并记录

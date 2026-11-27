@@ -113,6 +113,22 @@ class DongchediApiPayloadTest(unittest.TestCase):
         self.assertEqual(calls[0][1], {"no_sales": 1})
         self.assertEqual(calls[1][1], {"car_id_list": "256890,256891"})
 
+    def test_trim_budget_rejects_before_fetching_entity_config(self):
+        calls = []
+
+        def garage_only(url, params=None):
+            calls.append(url)
+            self.assertIn("garage", url)
+            return {"status": 0, "data": {"list": [
+                {"info": {"id": 256890}},
+                {"info": {"id": 256891}},
+            ]}}
+
+        self.module._request_dongchedi_json = garage_only
+        with self.assertRaisesRegex(ValueError, "trim request budget"):
+            self.module.fetch_series_entity_payload({"id": "3504"}, max_cars=1)
+        self.assertEqual(len(calls), 1)
+
     def test_extract_car_sale_status_maps_garage_info(self):
         payload = {
             "data": {

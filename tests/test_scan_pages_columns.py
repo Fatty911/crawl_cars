@@ -647,3 +647,23 @@ def test_legacy_github_api_resolver_passes_credential_via_stdin_only(scan_env, t
     assert all(sentinel not in arg for arg in observed["args"])
     assert observed["args"][:3] == ["--disable", "--config", "-"]
     assert observed["input"] == 'header = ' + json.dumps("Authorization: Bearer " + sentinel) + '\n'
+
+
+def test_scan_ranks_all_raw_columns_by_observed_series(scan_env, tmp_path):
+    rows = [
+        {"品牌": "甲", "车系": "一号", "车系ID": "123", "单车配置": "●", "多车配置": "0",
+         "只有占位": "汽车之家:待查"},
+        {"品牌": "甲", "车系": "一号", "车系ID": "456", "单车配置": "选配", "多车配置": "0"},
+        {"品牌": "乙", "车系": "二号", "车系ID": "123", "单车配置": "-", "多车配置": "易车:●"},
+        {"品牌": "乙", "车系": "-", "单车配置": "●"},
+    ]
+    scan_env["data"].write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    report = _run_scan(scan_env["data"], tmp_path / "hist.json", scan_env["repo"], tmp_path / "report.json")
+    coverage = report["rawColumnCoverage"]
+    by_name = {row["column"]: row for row in coverage}
+    assert len(by_name) == report["totalScanned"]
+    assert [row["seriesCount"] for row in coverage] == sorted(row["seriesCount"] for row in coverage)
+    assert by_name["只有占位"]["seriesCount"] == 0
+    assert by_name["单车配置"] == {"column": "单车配置", "seriesCount": 1, "brandCount": 1}
+    assert by_name["多车配置"] == {"column": "多车配置", "seriesCount": 2, "brandCount": 2}
+    assert "单车配置" in {row["column"] for row in report["pendingColumns"]}

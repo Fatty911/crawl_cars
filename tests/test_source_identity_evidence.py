@@ -180,3 +180,58 @@ def test_api_evidence_keeps_complete_authorized_capture_url(query):
         "https://car-web-api.autohome.com.cn/car/param/getParamConf?" + query)
     with pytest.raises(ValueError, match="bound to the requested spec"):
         reconcile(rows, document)
+
+
+def test_saved_autohome_row_repairs_require_exact_old_evidence():
+    document = json.loads(EVIDENCE.read_bytes())
+    rules = document["saved_row_repairs"]
+    rows = [{**rule["match"], **rule["before"], "其他配置": "保留"} for rule in rules]
+    repaired, changes = reconcile(rows, document)
+    assert len(repaired) == 3
+    assert {r["车款ID"] for r in repaired} == {"77823", "77981", "66826"}
+    assert len(changes) == sum(len(rule["after"]) for rule in rules)
+    assert all(r["其他配置"] == "保留" for r in repaired)
+    assert reconcile(repaired, document) == (repaired, [])
+    for key in ("数据来源", "车系ID", "官方指导价", "车款ID_汽车之家"):
+        different = {**rows[1], key: "其他"}
+        assert reconcile([different], document) == ([different], [])
+
+    invalid = copy.deepcopy(document)
+    invalid["saved_row_repairs"][0]["source"]["url"] += "?wrong=1"
+    with pytest.raises(ValueError, match="does not match"):
+        reconcile(rows, invalid)
+
+
+def test_saved_autohome_repair_commutes_with_filtered_projection():
+    from merge_data import narrow_pages_rows
+
+    document = json.loads(EVIDENCE.read_bytes())
+    rows = [{**rule["match"], **rule["before"]} for rule in document["saved_row_repairs"]]
+    corrected, _ = reconcile(rows, document)
+    original_projection = narrow_pages_rows(rows)
+    corrected_projection, _ = reconcile(original_projection, document)
+    assert corrected_projection == narrow_pages_rows(corrected)
+    assert reconcile(corrected_projection, document) == (corrected_projection, [])
+    for old, new in zip(original_projection, corrected_projection, strict=True):
+        assert old.keys() == new.keys()
+    # A present but different range cannot masquerade as a projected-out field.
+    original_projection[0]["纯电续航(CLTC)"] = "999"
+    assert reconcile(original_projection[:1], document) == (original_projection[:1], [])
+
+
+def test_exact_legacy_filtered_projection_repairs_only_generic_autohome_id():
+    document = json.loads(EVIDENCE.read_bytes())
+    row = {"品牌": "蔚来", "车系": "蔚来EC7", "车系ID": "6994", "年款": "2024",
+           "车型名称": "蔚来EC7 2024款 100kWh", "车款ID": "66804",
+           "数据来源": "仅汽车之家", "上市时间": "2024.02",
+           "官方指导价": "45.8万|45.80万", "纯电续航(km)": "CLTC:635"}
+    output, changes = reconcile([row], document)
+    assert output == [dict(row, 车款ID="66826")]
+    assert [change["field"] for change in changes] == ["车款ID"]
+    assert reconcile(output, document) == (output, [])
+    for key in row:
+        different = {**row, key: "其他"}
+        assert reconcile([different], document) == ([different], [])
+    for fields in ({"车款ID_汽车之家": "66999"}, {"纯电续航(CLTC)": "490"}):
+        different = {**row, **fields}
+        assert reconcile([different], document) == ([different], [])
