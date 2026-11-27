@@ -213,28 +213,31 @@ class ProxyCachePrivacyTests(unittest.TestCase):
         self.assert_blocked()
         old_head = self.git("rev-parse", "HEAD").stdout
         old_index = self.git("ls-files", "--stage", "-z").stdout
-        lines = (ROOT / ".cnb.yml").read_text(encoding="utf-8").splitlines()
-        start = next(i for i, line in enumerate(lines) if line.strip() == "- name: 失败诊断保留")
-        body_start = start + 1
-        while lines[body_start].strip() != "script: |":
-            body_start += 1
-        body_start += 1
-        indent = len(lines[body_start]) - len(lines[body_start].lstrip())
-        body_end = body_start
-        while body_end < len(lines) and (not lines[body_end].strip() or len(lines[body_end]) - len(lines[body_end].lstrip()) >= indent):
-            body_end += 1
-        script = textwrap.dedent("\n".join(lines[body_start:body_end]))
-        # This newly authored failure handler is local-only; no legacy workflow is executed.
-        self.assertEqual(2, len(script.splitlines()))
-        self.assertTrue(script.splitlines()[0] == "set -e")
-        self.assertTrue(script.splitlines()[1].startswith("printf '%s\\n' "))
-        probe = self.root / "git-was-invoked"
-        git_stub = self.write("restricted-bin/git", ('#!/bin/sh\nprintf called > "' + str(probe) + '"\nexit 99\n').encode())
-        git_stub.chmod(0o700)
-        result = subprocess.run(["/bin/bash", "-e", "-c", script], cwd=self.root,
-                                env=dict(self.env, PATH=str(git_stub.parent)), capture_output=True)
-        self.assertEqual(0, result.returncode)
-        self.assertFalse(probe.exists())
+        cnb_text = (ROOT / ".cnb.yml").read_text(encoding="utf-8")
+        self.assertNotIn("HEAD:refs/heads/diag", cnb_text)
+        self.assertNotIn("git add diag", cnb_text)
+        self.assertNotIn("data/proxies.json", cnb_text)
+        fail_block = cnb_text.split("failStages:", 1)[1].split("\n  api_trigger:", 1)[0]
+        self.assertIn("_fail_context_.md", fail_block)
+        self.assertIn("scripts/check_delivery_artifacts.py", fail_block)
+        script_lines = []
+        in_script = False
+        script_indent = 0
+        for line in fail_block.splitlines():
+            stripped = line.lstrip()
+            indent = len(line) - len(stripped)
+            if re.match(r"script:\s*(?:&\S+\s*)?\|", stripped):
+                in_script = True
+                script_indent = indent
+                continue
+            if in_script:
+                if stripped and indent <= script_indent:
+                    in_script = False
+                elif stripped:
+                    script_lines.append(stripped)
+        script_body = "\n".join(script_lines)
+        for forbidden in ("git commit", "git push", "git add"):
+            self.assertNotIn(forbidden, script_body)
         self.assertEqual(old_head, self.git("rev-parse", "HEAD").stdout)
         self.assertEqual(old_index, self.git("ls-files", "--stage", "-z").stdout)
         self.assertTrue(cache.is_file())
@@ -265,43 +268,21 @@ class ProxyCachePrivacyTests(unittest.TestCase):
 
 class ProxyCacheWiringTests(unittest.TestCase):
     def test_all_three_cnb_pushbacks_check_index_then_rebased_head(self):
-        lines = (ROOT / ".cnb.yml").read_text(encoding="utf-8").splitlines()
-        blocks = []
-        for start, line in enumerate(lines):
-            if not re.fullmatch(r"\s*- name: (回推增量状态|回推报价数据)", line):
-                continue
-            indent = len(line) - len(line.lstrip())
-            end = start + 1
-            while end < len(lines):
-                following = lines[end]
-                if following.strip() and len(following) - len(following.lstrip()) <= indent:
-                    break
-                end += 1
-            blocks.append("\n".join(lines[start:end]))
-        self.assertEqual(3, len(blocks))
-        self.assertFalse("HEAD:refs/heads/diag" in "\n".join(lines))
-        self.assertFalse("git add diag" in "\n".join(lines))
-        precommit = "python scripts/validate_storage_policy.py --proxy-cache-only"
-        prepush = precommit + " --check-head"
-        for number, block in enumerate(blocks):
-            with self.subTest(pushback=number):
-                stripped = [line.strip() for line in block.splitlines()]
-                self.assertEqual(1, stripped.count(precommit))
-                self.assertEqual(1, stripped.count(prepush))
-                self.assertTrue("set -e" in stripped)
-                self.assertTrue(block.index(precommit) < block.index("git commit "))
-                self.assertTrue(block.index("git rebase ") < block.index(prepush) < block.index("git push "))
-                self.assertFalse("git add -f data/proxies.json" in block)
+        cnb_text = (ROOT / ".cnb.yml").read_text(encoding="utf-8")
+        for removed in ("回推增量状态", "回推报价数据", "git add -f data/proxies.json",
+                        "HEAD:refs/heads/diag", "git add diag"):
+            self.assertNotIn(removed, cnb_text)
+        api_block = cnb_text.split("\n  api_trigger:", 1)[1].split("\n  pull_request:", 1)[0]
+        self.assertIn("验收AWS原始镜像", api_block)
+        self.assertIn("验收已处理 Pages 制品", api_block)
+        for forbidden in ("git commit", "git push", "git add", "git rebase"):
+            self.assertNotIn(forbidden, api_block)
 
     def test_npc_finalize_checks_raw_index_and_head_before_publishing(self):
-        lines = (ROOT / ".cnb.yml").read_text(encoding="utf-8").splitlines()
-        sites = [i for i, line in enumerate(lines)
-                 if line.strip() == "python /tmp/cars-npc-guard.py finalize"]
-        self.assertEqual(1, len(sites))  # Shared YAML failStages anchor serves all three chains.
-        for site in sites:
-            self.assertEqual("python scripts/validate_storage_policy.py --proxy-cache-only --check-head",
-                             lines[site - 1].strip())
-            self.assertEqual("set -e", lines[site - 2].strip())
+        cnb_text = (ROOT / ".cnb.yml").read_text(encoding="utf-8")
+        self.assertNotIn("cars-npc-guard.py finalize", cnb_text)
+        fail_block = cnb_text.split("failStages:", 1)[1].split("\n  api_trigger:", 1)[0]
+        self.assertNotIn("git push ", fail_block)
 
     def test_existing_storage_ci_runs_fixture_tests_and_head_guard(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
