@@ -3626,6 +3626,78 @@
     });
   }
 
+  function stripCardSeriesLead(text, token) {
+    var target = cleanText(token);
+    if (!target) { return text; }
+    var acc = "";
+    var index = 0;
+    while (index < text.length && acc.length < target.length) {
+      var ch = text.charAt(index);
+      if (!/\s/.test(ch)) { acc += ch.toLowerCase(); }
+      index += 1;
+    }
+    if (acc !== target) { return text; }
+    var rest = text.slice(index);
+    if (!rest.trim()) { return text; }
+    if (!/^[\s·・\-/（(]/.test(rest) && !/^(?:19|20)?\d{2}\s*款/.test(rest)) {
+      return text;
+    }
+    var stripped = rest.replace(/^[\s·・\-/]+/, "").trim();
+    if (/^(?:(?:19|20)?\d{2}\s*款)?$/.test(stripped)) { return text; }
+    return stripped;
+  }
+
+  function formatCardSkuBaseTitle(row, group) {
+    var text = String(row["车型名称"] || "").replace(SKU_SOURCE_PREFIX, "").replace(/\s+/g, " ").trim();
+    if (!text) { return "未命名车型"; }
+    if (group && String(group.key || "").indexOf("series|") === 0) {
+      var brand = String(row["品牌"] || "").trim();
+      var series = String(row["车系"] || "").trim();
+      var groupName = String(group.name || "").trim();
+      var candidates = [brand + series, brand && series ? brand + " " + series : "", groupName, series]
+        .filter(function (v, idx, arr) { return Boolean(v && cleanText(v)) && arr.indexOf(v) === idx; })
+        .sort(function (a, b) { return cleanText(b).length - cleanText(a).length; });
+      var changed = true;
+      while (changed) {
+        changed = false;
+        candidates.forEach(function (cand) {
+          var next = stripCardSeriesLead(text, cand);
+          if (next !== text) { text = next; changed = true; }
+        });
+      }
+    }
+    var year = modelYear(row);
+    text = text.replace(/(^|[\s（(])\s*(\d{2})\s*款/g, function (_match, prefix, yy) {
+      return prefix + (year || ("20" + yy)) + "款";
+    });
+    if (year && !/(?:19|20)\d{2}\s*款/.test(text)) {
+      text = year + "款 " + text;
+    }
+    return text.replace(/\s+/g, " ").trim();
+  }
+
+  function formatCardGroupSkuTitles(group) {
+    var titles = group.rows.map(function (row) { return formatCardSkuBaseTitle(row, group); });
+    var spuUsesKm = titles.some(function (t) { return /\d{3,4}(?:\.\d+)?\s*km(?![a-zA-Z0-9])/i.test(t); });
+    if (!spuUsesKm) { return titles; }
+    return titles.map(function (title, idx) {
+      if (/\d+(?:\.\d+)?\s*km/i.test(title)) { return title; }
+      var ranges = skuRangeSet(group.rows[idx])
+        .map(function (v) { return Math.round(Number(v)); })
+        .filter(function (v) { return Number.isFinite(v) && v >= 100; })
+        .filter(function (v, i, arr) { return arr.indexOf(v) === i; })
+        .sort(function (a, b) { return b - a; });
+      for (var r = 0; r < ranges.length; r += 1) {
+        var n = String(ranges[r]);
+        var re = new RegExp("(^|[\\s（(])(" + n + ")(?=$|[\\s）)版型款])(?!\\s*(?:km|kWh|kW|PS|马力|座|款|T|L|V|线))");
+        if (re.test(title)) {
+          return title.replace(re, "$1" + n + "km");
+        }
+      }
+      return title;
+    });
+  }
+
   function renderCards(groups) {
     els.cardList.textContent = "";
     var cardSnapshots = [];
@@ -3674,14 +3746,12 @@
         var details = document.createElement("div");
         details.className = "series-model-list";
         details.id = detailId;
-        group.rows.forEach(function (row) {
+        var skuTitles = formatCardGroupSkuTitles(group);
+        group.rows.forEach(function (row, rowIndex) {
           var model = document.createElement("div");
           model.className = "series-model-row";
           var modelTitle = document.createElement("h4");
-          var yearSuffix = row["年款"] ? " " + row["年款"] + "款" : "";
-          var baseName = row["车型名称"] || "未命名车型";
-          if (yearSuffix && new RegExp("(?:19|20)\\d{2}款").test(baseName)) yearSuffix = "";
-          modelTitle.textContent = baseName + yearSuffix;
+          modelTitle.textContent = skuTitles[rowIndex];
           var modelMeta = document.createElement("div");
           modelMeta.className = "card-meta";
           appendCardMeta(modelMeta, row, columnsWithPreview(["能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]));
