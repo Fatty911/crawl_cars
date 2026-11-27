@@ -129,7 +129,8 @@ def release_missing_assets(release: dict, manifest: dict, expected: dict) -> lis
     return sorted(expected.keys() - seen)
 
 
-def publish_github(bundle: Path, tag: str, repo: str, *, check_only: bool = False) -> dict:
+def publish_github(bundle: Path, tag: str, repo: str, *, check_only: bool = False,
+                   journal: dict | None = None, save=None) -> dict:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
         raise ValueError("repo must be owner/repository")
     bundle = bundle.resolve()
@@ -141,6 +142,20 @@ def publish_github(bundle: Path, tag: str, repo: str, *, check_only: bool = Fals
                      for entry in manifest["assets"].values()})
     remote = "github.com/" + repo
     ref_path = f"repos/{repo}/git/ref/tags/{tag}"
+    binding = {"repo": repo, "tag": tag, "commit": commit,
+               "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest()}
+    if (journal is None) != (save is None):
+        raise ValueError("GitHub release journal requires a save callback")
+    if journal and journal.get("binding") != binding:
+        raise ValueError("GitHub release journal belongs to another raw batch")
+
+    def mark_creation(phase, missing_message):
+        if journal is None:
+            return
+        if journal.get("phase") == phase:
+            raise ValueError(missing_message)
+        journal.update(binding=binding, phase=phase)
+        save()
 
     def check_ref() -> bool:
         ref = gh("api", "--hostname", "github.com", ref_path, missing="gh: Not Found (HTTP 404)")
@@ -153,6 +168,7 @@ def publish_github(bundle: Path, tag: str, repo: str, *, check_only: bool = Fals
 
     def create_ref() -> None:
         # POST never moves an existing tag. A concurrent creation fails closed.
+        mark_creation("creating-tag", "GitHub tag creation is pending; awaiting visible tag")
         gh("api", "--hostname", "github.com", "--method", "POST", f"repos/{repo}/git/refs",
            "-f", f"ref=refs/tags/{tag}", "-f", f"sha={commit}")
         if not check_ref():
@@ -165,9 +181,12 @@ def publish_github(bundle: Path, tag: str, repo: str, *, check_only: bool = Fals
     if current is None:
         if check_only:
             raise ValueError("GitHub raw release is missing")
+        if journal and journal.get("phase") == "creating-draft":
+            raise ValueError("GitHub draft creation is pending; awaiting visible release")
         if not ref_exists:
             create_ref()
             ref_exists = True
+        mark_creation("creating-draft", "GitHub draft creation is pending; awaiting visible release")
         gh("release", "create", tag, "--repo", remote, "--target", commit, "--verify-tag", "--draft",
            "--prerelease", "--latest=false", "--title", f"AWS source-only data {tag}",
            "--notes", "AWS crawler input for the Pages workflow. Raw source assets only.")
