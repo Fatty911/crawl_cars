@@ -8188,9 +8188,22 @@ def _publish_row_identity_present(row):
     return not re.fullmatch(r"[a-z][a-z0-9-]*-\d+", series)
 
 
+SOURCE_LISTING_STATUS_FIELDS = ("上市状态_汽车之家", "上市状态_懂车帝", "上市状态_易车")
+PROVIDER_SKU_ID_FIELDS = {
+    "汽车之家": ("车款ID_汽车之家", "汽车之家车款ID", "车款ID"),
+    "懂车帝": ("车款ID_懂车帝", "懂车帝车型ID"),
+    "易车": ("车款ID_易车", "易车车型ID", "车款ID"),
+}
+PROVIDER_SKU_COLUMNS = tuple(fields[0] for fields in PROVIDER_SKU_ID_FIELDS.values())
+
+
+def _valid_provider_id(value):
+    return re.fullmatch(r"[1-9][0-9]{0,11}", str(value or "").strip()) is not None
+
 IDENTITY_ONLY_FIELDS = {
     "数据来源", "品牌", "车系", "车系ID", "车型名称", "年款",
-    "车款ID", "易车车型ID", "易车上市状态",
+    "车款ID", "易车车型ID", "懂车帝车型ID", "汽车之家车款ID", "易车上市状态", "上市状态",
+    *SOURCE_LISTING_STATUS_FIELDS, *PROVIDER_SKU_COLUMNS,
 }
 
 
@@ -10916,6 +10929,20 @@ def norm_rows(rows, source):
 
 
 
+        for column in PROVIDER_SKU_COLUMNS:
+            normalized.pop(column, None)
+        if fields := PROVIDER_SKU_ID_FIELDS.get(source):
+            observed = {
+                str(value).strip()
+                for field in fields
+                if _valid_provider_id(value := row.get(field))
+            }
+            if len(observed) == 1:
+                normalized[fields[0]] = observed.pop()
+            elif _valid_provider_id(explicit := row.get(fields[0])):
+                # Keep a conflicting qualified ID alongside the source aliases.
+                # Consumers need both values to detect the disagreement.
+                normalized[fields[0]] = str(explicit).strip()
         out.append(normalized)
 
 
@@ -15555,13 +15582,51 @@ def report_source_coverage(analysis_dir, today, rows, filtered_rows):
 # 只保留本列出的列 ⇒ 以前这里少了该列，门禁永远读到空串，
 # **每一轮都把整源（实测 5069 行含易车标签）从 filtered 面删掉且没有任何计数**。
 PAGES_IDENTITY_COLUMNS = ("品牌", "车系", "车型名称", "年款", "车系ID", "数据来源", "车款ID",
-                          "易车上市状态")
+                          "易车上市状态", *SOURCE_LISTING_STATUS_FIELDS, *PROVIDER_SKU_COLUMNS,
+                          "懂车帝车型ID", "汽车之家车款ID", "易车车型ID", "易车车型链接")
+
+
+def split_filter_evidence_columns(present):
+    """Keep split columns whose names the typed Pages filters recognize."""
+    values_by_filter = {
+        "city_navigation": lambda condition: condition.get("cityNavigationValues", []),
+        "remote_start": lambda condition: ("远程启动", "车辆启动", "发动机启动"),
+        "remote_control": lambda condition: condition.get("controlValues", []),
+        "bluetooth_key": lambda condition: [
+            name for terms in condition.get("keyTechnologies", []) for name in terms
+        ],
+    }
+
+    def normalize(text):
+        return re.sub(r"\s+", "", text).lower()
+
+    accepted = set()
+    for condition in FILTER_CONFIG.get("conditions", []):
+        values = values_by_filter.get(condition.get("id"))
+        if values is None:
+            continue
+        fields = (condition.get("fields") or []) + (condition.get("genericFields") or [])
+        accepted.update((normalize(field), normalize(value)) for field in fields for value in values(condition))
+
+    result = []
+    for column in sorted(present):
+        split = re.fullmatch(r"(.+?)\s+-\s+(\S+.*)", column)
+        if split and (normalize(split[1]), normalize(split[2])) in accepted:
+            result.append(column)
+    return result
 
 
 def resolve_pages_columns(rows):
     declared = [str(col) for col in (FILTER_CONFIG.get("defaultVisibleColumns") or [])]
+    filter_fields = [
+        field
+        for condition in FILTER_CONFIG.get("conditions", [])
+        for field in ([condition.get("field")] + (condition.get("fields") or [])
+                      + (condition.get("genericFields") or []))
+        if isinstance(field, str)
+    ]
     allowed, seen = [], set()
-    for col in declared + list(PAGES_IDENTITY_COLUMNS):
+    for col in declared + list(PAGES_IDENTITY_COLUMNS) + filter_fields:
         if col and col not in seen:
             seen.add(col)
             allowed.append(col)
@@ -15569,7 +15634,9 @@ def resolve_pages_columns(rows):
     for row in rows or []:
         if isinstance(row, dict):
             present.update(str(key) for key in row.keys())
-    return [col for col in allowed if col in present] or allowed[:1]
+    selected = [col for col in allowed if col in present]
+    selected.extend(col for col in split_filter_evidence_columns(present) if col not in seen)
+    return selected or allowed[:1]
 
 
 def narrow_pages_rows(rows):
@@ -17041,11 +17108,33 @@ def _unbackfilled(row):
     return q
 
 
+def _explicit_provider_sku_ids(row):
+    ids = {}
+    for provider, fields in PROVIDER_SKU_ID_FIELDS.items():
+        value = _sku_spec_field(row, fields[:1])
+        if _valid_provider_id(value):
+            ids[provider] = value
+    return ids
+
+
+def _provider_sku_conflict(group):
+    qualified = [ids for row in group if (ids := _explicit_provider_sku_ids(row))]
+    for index, left in enumerate(qualified):
+        for right in qualified[index + 1:]:
+            shared = left.keys() & right.keys()
+            if not shared or any(left[provider] != right[provider] for provider in shared):
+                return True
+    return False
+
+
 def _sku_spec_conflict(group: list) -> bool:
     """组内是否出现"两侧都有值却对不上"的实质属性冲突。缺数据不算冲突。
     车款ID 要求严格相等（源侧主键）；电池/驱动/能源按**规范值集合是否相交**判：
     交集为空 ⇒ 真配置差异（实测昊铂HT 2024 的 80.06 与 83.3 仍拦得住）；
     交集非空 ⇒ 同一属性的两种跨源写法（实测阿维塔07 `懂车帝:纯电动|易车:纯电` vs `纯电`）。"""
+    # 合并后带入的来源 ID 仍然代表真实身份，不能像普通配置回填一样忽略。
+    if _provider_sku_conflict(group):
+        return True
     group = [_unbackfilled(r) for r in group]   # 判断只吃"自己声明过"的值，见上面的注释
     ids = {_sku_spec_field(r, ("车款ID",)) for r in group}
     ids.discard("")
@@ -17204,6 +17293,10 @@ def _sku_spec_conflict(group: list) -> bool:
              for r in group]
     if any(marks) and not all(marks):
         return True
+    # 改款标记区分两个批次，即使源站重复使用车款 ID。
+    restyle = {"改款" in normalize_match_text(str(r.get("车型名称") or "")) for r in group}
+    if len(restyle) > 1:
+        return True
     # 限量/纪念/联名这类是**产品身份**而不是可省的写法。三种形状都要判冲突（评审 E①/D1）：
     # ①一侧写了、另一侧没写（`纽北限量版` vs `Ultra`，实测 小米SU7 70545 两行同价但
     #   520km/1.98s 与 630km/2.1s 是两台车的数）⇒ 不对称即冲突；
@@ -17253,6 +17346,15 @@ def _sku_spec_conflict(group: list) -> bool:
     return False
 
 _MERGE_IDENTITY_COLS = ('品牌', '车系', '车系ID', '年款', '车款ID', '车型名称', '数据来源', '官方指导价')
+_YICHE_EXCLUSIVE_COLS = frozenset({
+    *(c for c in PROVIDER_SKU_ID_FIELDS.get('易车', ()) if c != '车款ID'),
+    *(c for c in SOURCE_LISTING_STATUS_FIELDS if '易车' in c),
+})
+
+
+def _is_yiche_only_col(col) -> bool:
+    name = str(col)
+    return name.startswith('易车') or name in _YICHE_EXCLUSIVE_COLS
 
 
 def _cell_blank(v):
@@ -17420,8 +17522,7 @@ def dedupe_merged_rows(rows, *, _observe_merge=None, declared_conflict_strict=Fa
         # 而 `_row_seat_values` 认 {5,7} 与 {5} 相容。等价性检查本就是多余的
         # （`_collapse` 已先按 `_sku_spec_conflict` 成对分裂过，座位互斥的进不了同一簇）。
         words = {_version_words(str(r.get('车型名称') or '')) for r in group}
-        restyle = {('改款' in normalize_match_text(str(r.get('车型名称') or ''))) for r in group}
-        if len(words) != 1 or len(restyle) != 1:
+        if len(words) != 1:
             return False
         # 无锚 ⇒ 与冲突闸同一个严格度（取值集合必须相同），只是**取值来源**统一成 `_row_seat_values`
         return not _seat_sets_conflict([_row_seat_values(r) for r in group], anchored=False)
@@ -17548,7 +17649,7 @@ def _collapse(rows: list, key_fn, accept=None, *, _observe_merge=None, _pair_con
             # X6（10-18 hy4 黑箱票的阻断件，构造面已复现）：簇里没有 approved 易车行时上面会把
             # `数据来源` 里的"易车"标签剥掉；此时若还把易车行独有的 `易车*` 列搬进 keeper，
             # 出口就成了"带易车身份却没有易车标签"的伪装同源行 ⇒ 一律不搬。
-            if str(col).startswith('易车') and not any('易车' in str(l) for l in labels):
+            if _is_yiche_only_col(col) and not any('易车' in str(l) for l in labels):
                 continue
             cands = {str(row.get(col)).strip() for row in group if _backfill_candidate(row.get(col))}
             # 同义写法要先过**文件里已有口径**的归一再数（票面①-b）：`●` 与 `支持` 是同一个意思，
@@ -17578,7 +17679,7 @@ def _collapse(rows: list, key_fn, accept=None, *, _observe_merge=None, _pair_con
         # 出口会带着 `易车上市状态` 却没有易车标签 ⇒ 伪装同源（用户看不出这一行的身份来自谁）。
         # 规则：这一簇的存活标签里没有易车，易车身份列就一并撤掉（显式 approved 富集路径在上面，不受影响）。
         if labels and not any('易车' in str(l) for l in labels):
-            for _c in [k for k in base if str(k).startswith('易车')]:
+            for _c in [k for k in base if _is_yiche_only_col(k)]:
                 base.pop(_c, None)
         base['数据来源'] = '、'.join(labels) if labels else base.get('数据来源', '')
         # D2：合并出口做一次规范化，同一来源集合只留一个标签（原子去重 + 固定顺序 +
@@ -17606,7 +17707,11 @@ def _collapse(rows: list, key_fn, accept=None, *, _observe_merge=None, _pair_con
         # 就 `not accept(group) ⇒ 整簇原样带走`，于是"1 个 ID 行 + 2 个无 ID 行"里
         # 只要有一条与 ID 行驱动形式不同，本可以折的那一对也一起被留下 ⇒ 发布面多出真重复。
         cells = []
+        provider_conflict = _provider_sku_conflict(group)
         for row in group:
+            if provider_conflict and not _explicit_provider_sku_ids(row):
+                out.append(row)
+                continue
             for cell in cells:
                 if all(not _sku_spec_conflict([row, other])
                    and not (_pair_conflict is not None and _pair_conflict(row, other))
@@ -17815,28 +17920,29 @@ def annotate_ev_range(row):
 
 
 
-    et = str(row.get('能源类型', '') or '')
-
-
-
-
-
-
-    if et and not any(k in et for k in ('插电', '纯电', '增程', '电动')):
-
-
-
-
-
-
+    energy = re.split(r"[|｜]", str(row.get('能源类型') or ''))
+    values = [re.split(r"[:：]", part, maxsplit=1)[-1].strip().lower()
+              for part in energy]
+    non_plugin = r"(?:汽油|柴油|燃油|油电混合|油电混动|混合动力|轻混|汽油电驱|氢燃料|燃料电池|甲醇混动|^hev$|^ice$)"
+    plugin = r"(?:插电|插混|纯电|增程|电动|^bev$|^ev$|^phev$|^erev$)"
+    if any(re.search(non_plugin, value) for value in values) and not any(re.search(plugin, value) for value in values):
         row['纯电续航(km)'] = '0'
-
-
-
-
-
-
         return row
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17976,14 +18082,14 @@ def annotate_ev_range(row):
 
 
 
-    elif str(row.get('纯电续航(km)', '') or '').strip() == '999':
+    elif re.fullmatch(r"(?:0|999)(?:\.0+)?", str(row.get('纯电续航(km)', '')).strip()):
+        row['纯电续航(km)'] = '-'
 
 
 
 
 
 
-        row['纯电续航(km)'] = '0'
 
 
 
