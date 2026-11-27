@@ -7,11 +7,13 @@ import argparse
 from collections import Counter
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 
 from merge_data import (
     _preserved_value_parts,
+    _price_norm,
     IDENTITY_FIELDS,
     atomic_source_names,
     collect_fields,
@@ -107,7 +109,21 @@ def enrich_baseline_row(
     for field, value in candidate.items():
         if field == "数据来源" or field in IDENTITY_FIELDS:
             continue
-        if missing_value(enriched.get(field)) and not missing_value(value):
+        existing = enriched.get(field)
+        if field == "纯电续航(km)" and re.fullmatch(r"(?:0|999)(?:\.0+)?", str(existing).strip()):
+            normalized = annotate_ev_range(dict(baseline)).get(field)
+            observed = annotate_ev_range(dict(candidate)).get(field)
+            # A retained legacy sentinel is replaceable only when the old row
+            # does not establish a real zero and a source supplies a distance.
+            if missing_value(normalized) and any(
+                (match := re.fullmatch(r"(?:(?:CLTC|WLTC|NEDC|WLTP|EPA|工信部)\s*[:：]\s*)?(\d+(?:\.\d+)?)\s*(?:km)?", part.strip(), flags=re.I))
+                and float(match[1]) not in (0, 999)
+                for part in re.split(r"[|｜/／]", str(observed or ""))
+            ):
+                enriched[field] = observed
+                changed = True
+            continue
+        if missing_value(existing) and not missing_value(value):
             enriched[field] = value
             changed = True
     return enriched, changed
@@ -343,12 +359,169 @@ def preserve_rows(baseline_rows: list[dict], candidate_rows: list[dict]) -> tupl
     return preserved, stats
 
 
+def autohome_trim_id(row: dict) -> str:
+    sources = set(atomic_source_names(row.get("数据来源")))
+    if "汽车之家" not in sources:
+        return ""
+    native = str(row.get("车款ID_汽车之家") or "").strip()
+    if sources == {"汽车之家"}:
+        primary = str(row.get("车款ID") or "").strip()
+        if native and primary and native != primary:
+            return ""
+        native = native or primary
+    return native if native.isascii() and native.isdecimal() and not native.startswith("0") else ""
+
+
+def city_road_status_refines(legacy: object, fresh: object) -> bool:
+    if not isinstance(legacy, str) or not isinstance(fresh, str):
+        return False
+    old_parts = [part.strip() for part in legacy.replace("／", "/").split("/")]
+    new_parts = [part.strip() for part in fresh.replace("／", "/").split("/")]
+    if len(old_parts) != len(new_parts):
+        return False
+    marked = False
+    for old, new in zip(old_parts, new_parts):
+        if old == new:
+            continue
+        if old not in {"城市路段", "城区路段", "高速路段"} or new not in {"●" + old, "○" + old, "不支持" + old}:
+            return False
+        marked = True
+    return marked
+
+
+def refine_published_autohome_evidence(
+    output: list[dict], baseline_rows: list[dict], candidate_rows: list[dict],
+    verified_legacy_ids: dict[int, str] | None = None,
+) -> tuple[int, int]:
+    """Refresh road and sales evidence from a uniquely identified Autohome trim."""
+    verified_legacy_ids = verified_legacy_ids or {}
+    baseline_ids = [verified_legacy_ids.get(i) or autohome_trim_id(row) for i, row in enumerate(baseline_rows)]
+    counts = Counter(baseline_ids)
+    incoming: dict[str, list[dict]] = {}
+    for row in candidate_rows:
+        native = autohome_trim_id(row)
+        if native:
+            incoming.setdefault(native, []).append(row)
+
+    road_refined = sale_refined = 0
+    road_field = "辅助驾驶路段"
+    sale_field = "上市状态_汽车之家"
+    for index, (base, native) in enumerate(zip(baseline_rows, baseline_ids)):
+        matches = incoming.get(native, [])
+        if not native or counts[native] != 1 or len(matches) != 1:
+            continue
+        fresh = matches[0]
+        if set(atomic_source_names(fresh.get("数据来源"))) != {"汽车之家"}:
+            continue
+        refine_road = city_road_status_refines(base.get(road_field), fresh.get(road_field))
+        base_series = str(base.get("车系ID") or "").strip()
+        refine_sale = (
+            base.get(sale_field) == "在售" and fresh.get(sale_field) == "停产在售"
+            and autohome_trim_id(base) == native and base_series.isdecimal()
+            and base_series == str(fresh.get("车系ID") or "").strip()
+            and bool(base.get("品牌")) and base["品牌"] == fresh.get("品牌")
+        )
+        if not refine_road and not refine_sale:
+            continue
+        if any(str(base.get(key) or "").strip() != str(fresh.get(key) or "").strip()
+               for key in ("车系", "车型名称")) or row_year(base) != row_year(fresh):
+            continue
+        price = _price_norm(base.get("官方指导价"))
+        fresh_price = _price_norm(fresh.get("官方指导价"))
+        if missing_value(price) or missing_value(fresh_price):
+            continue
+        if price != fresh_price:
+            refine_sale = False
+            if not refine_road:
+                continue
+            # A source can revise the price of the same trim. Require its
+            # published native ID, series and matching configuration before
+            # taking the city marker alone from the newer observation.
+            fields = (
+                "品牌", "车系ID", "能源类型", "纯电续航(CLTC)", "轴距(mm)",
+                "座位数(个)", "电动机总功率(kW)", "辅助驾驶系统",
+            )
+            if (autohome_trim_id(base) != native
+                    or any(missing_value(base.get(key)) or base[key] != fresh.get(key)
+                           for key in fields)):
+                continue
+        if model_variant_conflict_reason(base, fresh):
+            continue
+        updated = dict(output[index])
+        if refine_road:
+            updated[road_field] = fresh[road_field]
+            road_refined += 1
+        if refine_sale:
+            updated[sale_field] = fresh[sale_field]
+            if updated.get("上市状态") == "在售":
+                # Force callers to read the refreshed per-source evidence.
+                del updated["上市状态"]
+            sale_refined += 1
+        output[index] = updated
+    return road_refined, sale_refined
+
+
 def preserve_partial_rows(
     baseline_rows: list[dict], candidate_rows: list[dict]
 ) -> tuple[list[dict], dict[str, int]]:
     """Supplement a verified baseline from a partial snapshot; absence is not retirement."""
     if not baseline_rows or not candidate_rows:
         raise ValueError("partial publication needs a nonempty baseline and observations")
+    # Reuse the published spelling for exact native matches that differ only
+    # in spacing after a period, so enrichment preserves the published key.
+    native_baseline: dict[str, list[dict]] = {}
+    legacy_p7: dict[str, list[tuple[int, dict]]] = {}
+    for index, row in enumerate(baseline_rows):
+        native = str(row.get("车款ID") or "").strip()
+        if native:
+            legacy_p7.setdefault(native, []).append((index, row))
+    verified_legacy_ids = {}
+    for base in baseline_rows:
+        native = autohome_trim_id(base)
+        if native:
+            native_baseline.setdefault(native, []).append(base)
+    native_counts = Counter(autohome_trim_id(row) for row in candidate_rows)
+    normalized = []
+    for fresh in candidate_rows:
+        native = autohome_trim_id(fresh)
+        matches = native_baseline.get(native, [])
+        if len(matches) == 1 and native_counts[native] == 1 and set(atomic_source_names(fresh.get("数据来源"))) == {"汽车之家"}:
+            base = matches[0]
+            fields = ("车系", "车型名称")
+            old = [str(base.get(key) or "").strip() for key in fields]
+            new = [str(fresh.get(key) or "").strip() for key in fields]
+            series_id = str(base.get("车系ID") or "").strip()
+            if (old != new and all(old) and all(new)
+                    and [re.sub(r"\.\s+", ".", name) for name in old] ==
+                        [re.sub(r"\.\s+", ".", name) for name in new]
+                    and series_id and series_id == str(fresh.get("车系ID") or "").strip()
+                    and row_year(base) == row_year(fresh)
+                    and _price_norm(base.get("官方指导价"))
+                    and _price_norm(base.get("官方指导价")) == _price_norm(fresh.get("官方指导价"))
+                    and not model_variant_conflict_reason(base, fresh)):
+                fresh = {**fresh, **dict(zip(fields, old))}
+        # Autohome moved the new-generation P7 trims from the shared legacy
+        # series key to its own series. Match the original trim and keep its key.
+        legacy = legacy_p7.get(native, [])
+        if len(legacy) == 1 and native_counts[native] == 1 and not fresh.get("懂车帝车型ID"):
+            index, base = legacy[0]
+            fresh_price = _price_norm(fresh.get("官方指导价"))
+            if (str(fresh.get("车系ID")) == "5213" and str(base.get("车系ID")) == "3352"
+                    and set(atomic_source_names(fresh.get("数据来源"))) == {"汽车之家"}
+                    and set(atomic_source_names(base.get("数据来源"))) == {"汽车之家", "懂车帝"}
+                    and all(base.get(k) == fresh.get(k) for k in ("品牌", "车系", "车型名称"))
+                    and base.get("品牌") == "小鹏汽车" and base.get("车系") == "小鹏P7"
+                    and str(base.get("懂车帝车型ID") or "").isdigit()
+                    and str(base.get("懂车帝车型ID")) != native
+                    and not base.get("车款ID_易车") and not base.get("易车车型ID")
+                    and str(base.get("车款ID_汽车之家") or native) == native
+                    and fresh_price and fresh_price == _price_norm(base.get("官方指导价"))
+                    and row_year(base) == row_year(fresh)
+                    and not model_variant_conflict_reason(base, fresh)):
+                verified_legacy_ids[index] = native
+                fresh = {**fresh, "车系ID": base["车系ID"]}
+        normalized.append(fresh)
+    candidate_rows = normalized
     baseline_keys = [identity_key(row) for row in baseline_rows]
     counts = Counter(baseline_keys)
     indexes = {key: idx for idx, key in enumerate(baseline_keys)}
@@ -381,6 +554,13 @@ def preserve_partial_rows(
         else:
             output.append(row)
             stats["candidate_added"] += 1
+    road_refined, sale_refined = refine_published_autohome_evidence(
+        output, baseline_rows, candidate_rows, verified_legacy_ids
+    )
+    if road_refined:
+        stats["candidate_city_status_refined"] = road_refined
+    if sale_refined:
+        stats["candidate_autohome_sale_status_refined"] = sale_refined
     stats["candidate_output_rows"] = len(output)
     return output, stats
 

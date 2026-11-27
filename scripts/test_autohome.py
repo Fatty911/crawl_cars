@@ -46,7 +46,7 @@ if CRAWL_MAX_DELAY_SECONDS < CRAWL_MIN_DELAY_SECONDS:
 # 设置代码目录与隔离的运行状态目录
 working_dir = os.path.dirname(os.path.abspath(__file__))
 repo_dir = os.path.dirname(working_dir)
-state_dir = os.path.join(repo_dir, "crawl_state", "autohome")
+state_dir = os.getenv("AUTOHOME_RUN_STATE_DIR") or os.path.join(repo_dir, "crawl_state", "autohome")
 
 # 创建目录
 html_dir = os.path.join(state_dir, "html")
@@ -196,6 +196,9 @@ session.headers.update(
 )
 
 # 检查是否存在进度文件
+if os.getenv("PROXY_ENABLED") == "true":
+    session.headers["Connection"] = "close"
+
 progress_file = os.path.join(state_dir, "progress.json")
 if os.path.exists(progress_file):
     with open(progress_file, "r") as f:
@@ -278,30 +281,72 @@ def extract_model_year(spec):
     return ""
 
 
-def flatten_param_value(item):
+def flatten_param_value(item, *, retain_city_road_status=False, retain_unnamed_status=False):
     value = item.get("itemname") or ""
-    sublist = item.get("sublist") or []
-    if sublist:
-        sub_values = [str(sub.get("subitemname") or sub.get("name") or "") for sub in sublist]
-        sub_values = [sub for sub in sub_values if sub]
-        if sub_values:
-            value = " / ".join(sub_values)
-    return value or "-"
+    sub_values = []
+    for sub in item.get("sublist") or []:
+        label = str(sub.get("subitemname") or sub.get("name") or "")
+        if not label:
+            continue
+        if retain_city_road_status and label in {"城市路段", "城区路段", "高速路段"}:
+            status = sub.get("value")
+            if status in ("●", "○"):
+                label = status + label
+            elif status in ("-", "—", "－"):
+                label = "不支持" + label
+        sub_values.append(label)
+    if retain_unnamed_status and not sub_values and value.strip() in ("", "-", "—", "－"):
+        marks = {"●": "●", "○": "○", "-": "不支持", "—": "不支持", "－": "不支持"}
+        statuses = dict.fromkeys(
+            marks[entry["value"]] for entry in item.get("sublist") or []
+            if entry.get("value") in marks
+        )
+        if statuses:
+            return "|".join(statuses)
+    return (" / ".join(sub_values) or value) or "-"
 
 
-def build_value_items(api_rows, title_index, fallback_name=None):
+def autohome_rear_steering_status(item):
+    statuses = {entry.get("value") for entry in item.get("sublist") or []}
+    if statuses == {"●"}:
+        return "●"
+    if statuses == {"○"}:
+        return "○"
+    return "-"
+
+
+def build_value_items(api_rows, title_index, fallback_name=None, *, option_package=False, value_of=None):
     values = []
     for spec in api_rows:
         value = "-"
+        metadata = {}
         if fallback_name == "年款":
             value = extract_model_year(spec) or "-"
         elif fallback_name == "车款ID":
             value = clean_value(str(spec.get("specid") or spec.get("specId") or spec.get("id") or "")) or "-"
+        elif fallback_name == "上市状态_汽车之家":
+            # Autohome lists status 30 as remaining stock after production ends.
+            # Preserve it separately from regular on-sale inventory.
+            value = {"20": "在售", "30": "停产在售"}.get(str(spec.get("specstatus") or ""), "-")
         else:
             paramconf = spec.get("paramconflist") or []
             if isinstance(title_index, int) and title_index < len(paramconf):
-                value = flatten_param_value(paramconf[title_index])
-        values.append({"value": value})
+                item = paramconf[title_index]
+                value = value_of(item) if value_of else flatten_param_value(
+                    item, retain_city_road_status=(fallback_name == "辅助驾驶路段"),
+                    retain_unnamed_status=(fallback_name in ("远程启动", "远程启动功能", "发动机远程启动")),
+                )
+                if option_package and item.get("sublist"):
+                    description = str(item.get("itemname") or "").strip()
+                    if description and description not in ("-", "●", "○", "选配", "选装", "标配"):
+                        metadata["描述"] = description
+                    prices = dict.fromkeys(
+                        str(entry["priceinfo"]).strip()
+                        for entry in item["sublist"] if entry.get("priceinfo")
+                    )
+                    if prices:
+                        metadata["价格"] = " / ".join(prices)
+        values.append({"value": value, **metadata})
     return values
 
 
@@ -316,6 +361,7 @@ def build_autohome_api_html(car_id, api_payload):
     paramtypeitems = []
     configtypeitems = []
     has_model_year = False
+    rear_steering_angle_index = None
     title_index = 0
     for group in title_list:
         group_name = group.get("groupname") or group.get("itemtype") or "参数信息"
@@ -326,7 +372,11 @@ def build_autohome_api_html(car_id, api_payload):
             if not name:
                 title_index += 1
                 continue
-            valueitems = build_value_items(data_list, title_index, name)
+            if name == "后轮转向角度(°)":
+                rear_steering_angle_index = title_index
+            valueitems = build_value_items(
+                data_list, title_index, name, option_package=(group.get("itemtype") == "选装包"),
+            )
             title_index += 1
             target = {"name": name, "valueitems": valueitems}
             if group_name == "参数信息":
@@ -338,12 +388,27 @@ def build_autohome_api_html(car_id, api_payload):
         if paramitems:
             paramtypeitems.append({"name": group_name, "paramitems": paramitems})
         if configitems:
-            configtypeitems.append({"name": group_name, "configitems": configitems})
+            configtypeitems.append({
+                "name": group_name,
+                "itemtype": group.get("itemtype"),
+                "configitems": configitems,
+            })
+
+    if rear_steering_angle_index is not None:
+        steering_items = build_value_items(data_list, rear_steering_angle_index, value_of=autohome_rear_steering_status)
+        if any(item["value"] != "-" for item in steering_items):
+            configtypeitems.append({"name": "底盘转向", "configitems": [
+                {"name": "后轮转向", "valueitems": steering_items},
+            ]})
 
     identity_items = []
     if not has_model_year:
         identity_items.append({"name": "年款", "valueitems": build_value_items(data_list, None, "年款")})
     identity_items.append({"name": "车款ID", "valueitems": build_value_items(data_list, None, "车款ID")})
+    status = "上市状态_汽车之家"
+    statuses = build_value_items(data_list, None, status)
+    if any(item["value"] != "-" for item in statuses):
+        identity_items.append({"name": status, "valueitems": statuses})
     if identity_items:
         paramtypeitems.insert(0, {"name": "基本参数", "paramitems": identity_items})
     if not any(
@@ -389,7 +454,7 @@ def filter_autohome_api_payload_by_spec(api_payload, spec_id):
     return filtered_payload
 
 
-def fetch_autohome_api_html(car_id):
+def fetch_autohome_api_html(car_id, *, max_specs=None):
     api_url = f"https://car-web-api.autohome.com.cn/car/param/getParamConf?mode=1&site=1&seriesid={car_id}"
     resp = session.get(api_url, timeout=15, headers={"Referer": "https://car.autohome.com.cn/"})
     content_type = resp.headers.get("content-type", "")
@@ -408,6 +473,8 @@ def fetch_autohome_api_html(car_id):
     if not (result.get("titlelist") or []) and not (result.get("datalist") or []):
         print(f"车型{car_id} API确认无当前在售配置数据")
         return None, True
+    if max_specs is not None and len(result.get("datalist") or []) > max_specs:
+        raise ValueError("Autohome series exceeds the trim request budget")
     html = build_autohome_api_html(car_id, payload)
     if not html:
         print(f"车型{car_id} API缺少有效titlelist/datalist，回退HTML")
@@ -1781,14 +1848,14 @@ def target_meta_for_cache_key(file_id):
     return meta if isinstance(meta, dict) else {}
 
 
-def generate_csv():
+def generate_csv(output_dir=None):
     print("第六步,生成CSV")
     today = date.today().strftime("%Y%m%d")
 
     fixed = ["数据来源", "品牌", "车系", "车系ID", "车型名称", "年款", "车款ID"]
     all_h, rows = [], []
 
-    for file in os.listdir(newjson_dir):
+    for file in sorted(os.listdir(newjson_dir)):
         with open(os.path.join(newjson_dir, file), "r", encoding="utf-8") as f:
             content = "".join(f.readlines())
 
@@ -1809,6 +1876,8 @@ def generate_csv():
             target_meta = target_meta_for_cache_key(file)
             series_name = target_meta.get("series") or extract_series_from_html(file)
             brand = target_meta.get("brand") or derive_brand_from_series(series_name)
+            if str(brand).strip().casefold() == "mg":
+                brand = "名爵"
             series_id = target_meta.get("car_id") or original_series_id_from_cache_key(file)
 
             if "result" in cd and "paramtypeitems" in cd["result"]:
@@ -1824,16 +1893,50 @@ def generate_csv():
                         if h not in all_h and h not in fixed:
                             all_h.append(h)
 
+            packages_by_trim = {}
             if "result" in od and "configtypeitems" in od["result"]:
                 for ct in od["result"]["configtypeitems"]:
+                    is_package_group = "选装包" in (ct.get("itemtype"), ct.get("name"))
                     for it in ct.get("configitems", []):
-                        h = clean_header(it["name"])
                         vals = [clean_value(v["value"]) for v in it["valueitems"]]
+                        if is_package_group:
+                            package_name = clean_value(it["name"]).strip()
+                            for index, value in enumerate(vals):
+                                if package_name and value.strip() not in {"", "-", "—", "－", "无", "不支持"}:
+                                    source = it["valueitems"][index]
+                                    package = {"描述": clean_value(str(source.get("描述") or "")), "状态": value}
+                                    if source.get("价格"):
+                                        package["价格"] = clean_value(str(source["价格"]))
+                                    packages_by_trim.setdefault(index, {})[package_name] = package
+                            continue
+                        h = clean_header(it["name"])
                         data[h] = vals
                         if h not in all_h and h not in fixed:
                             all_h.append(h)
 
             n = max((len(v) for v in data.values()), default=0)
+            package_column = "选装包列表"
+            if packages_by_trim:
+                existing = data.get(package_column, [])
+                package_values = (existing + ["-"] * n)[:n]
+                for index, packages in packages_by_trim.items():
+                    if index >= n:
+                        continue
+                    try:
+                        declared = json.loads(package_values[index])
+                    except (TypeError, ValueError):
+                        declared = {}
+                    if isinstance(declared, dict):
+                        for package_name, observed in packages.items():
+                            prior = declared.get(package_name)
+                            if isinstance(prior, dict):
+                                observed = {**prior, **{key: value for key, value in observed.items() if value}}
+                            declared[package_name] = observed
+                        packages = declared
+                    package_values[index] = json.dumps(packages, ensure_ascii=False)
+                data[package_column] = package_values
+                if package_column not in all_h:
+                    all_h.append(package_column)
             for i in range(n):
                 ys = years[i] if i < len(years) else ""
                 ym = re.search(r"(\d{4})", ys)
@@ -1873,20 +1976,21 @@ def generate_csv():
         print(f"Debug模式：输出从 {len(rows)} 条截断为 {DEBUG_OUTPUT_MAX_ROWS} 条，避免缩小稳定全量 Pages")
         rows = rows[:DEBUG_OUTPUT_MAX_ROWS]
 
-    csv_path = os.path.join(working_dir, f"autoHome_{today}.csv")
+    csv_path = os.path.join(output_dir or working_dir, f"autoHome_{today}.csv")
     with open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         for rd in rows:
             w.writerow({h: rd.get(h, "-") for h in fieldnames})
 
-    json_path = os.path.join(working_dir, f"autoHome_{today}.json")
+    json_path = os.path.join(output_dir or working_dir, f"autoHome_{today}.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=2)
 
     print(f"第六步完成，共{len(rows)}条")
     print(f"  CSV: {csv_path}")
     print(f"  JSON: {json_path}")
+    return rows
 
 
 def is_step1_completed():

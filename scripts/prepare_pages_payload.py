@@ -346,6 +346,15 @@ def normalize_publish_row_headers(row: dict[str, Any]) -> dict[str, Any]:
             # 内部审计字段：只做证据合并，不参与属性归一。
             _absorb_header_normalization_evidence(normalized, value)
             continue
+        if key == "选装包列表":
+            # 页面用结构化选装证据判断哪些名称不能作为独立属性列。
+            try:
+                packages = json.loads(value) if isinstance(value, str) else value
+            except ValueError:
+                continue
+            if isinstance(packages, dict) and packages:
+                normalized[key] = value
+            continue
         canonical = normalize_audited_publish_header(key)
         if _fold_value_suffix_header(normalized, key, value, canonical):
             continue
@@ -846,6 +855,7 @@ _SKU_ID_BASE_FIELDS = ("车款id", "车型id", "spec_id", "specid")
 _MODEL_ID_FIELD_NAMES = frozenset(
     {base for base in _SKU_ID_BASE_FIELDS}
     | {source + base for source in _SKU_ID_SOURCES for base in _SKU_ID_BASE_FIELDS}
+    | {"车款id_" + source for source in _SKU_ID_SOURCES}
 )
 _MODEL_ID_QUALIFIED_VALUE = re.compile(
     r"^(?P<source>" + "|".join(_SKU_ID_SOURCES) + r")\s*[:：|]\s*(?P<id>\d+)$"
@@ -857,6 +867,8 @@ def _model_id_field_source(field: str) -> str:
     """字段名自带来源前缀时返回该来源，否则返回空串。"""
     compact = re.sub(r"\s+", "", str(field))
     for source in _SKU_ID_SOURCES:
+        if compact.lower() == "车款id_" + source:
+            return source
         if compact.startswith(source) and compact[len(source):].lower() in _SKU_ID_BASE_FIELDS:
             return source
     return ""
@@ -884,6 +896,7 @@ def _model_id_evidence(row: dict[str, Any]) -> set[tuple[str, str]]:
     """
     row_sources = atomic_source_names(row.get("数据来源"))
     evidence: set[tuple[str, str]] = set()
+    generic: set[tuple[str, str]] = set()
     for field, text in _model_id_fields(row).items():
         field_source = _model_id_field_source(field)
         qualified = _MODEL_ID_QUALIFIED_VALUE.fullmatch(text)
@@ -901,8 +914,13 @@ def _model_id_evidence(row: dict[str, Any]) -> set[tuple[str, str]]:
         if field_source:
             evidence.add((field_source, text))
         elif len(row_sources) == 1:
-            evidence.add((row_sources[0], text))
-    return evidence
+            generic.add((row_sources[0], text))
+    explicit_dcd = any(source == "懂车帝" for source, _ in evidence)
+    # Historical 懂车帝 rows can carry a generic ID from another source.
+    evidence.update((source, value) for source, value in generic
+                    if source != "懂车帝" or not explicit_dcd)
+    counts = Counter(source for source, _ in evidence)
+    return {pair for pair in evidence if counts[pair[0]] == 1}
 
 
 def _model_ids(row: dict[str, Any]) -> set[str]:
