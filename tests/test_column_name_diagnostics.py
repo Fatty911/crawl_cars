@@ -117,3 +117,15 @@ def test_english_identifiers_stay_attributes_and_internal_columns_are_hide_candi
     diag2 = diagnose_columns(rows2)
     kinds2 = {item["kind"] for item in diag2["suspects"] if item["column"] == "speaker_speaker_count_6"}
     assert kinds2 == {"value_only_header"}, kinds2
+
+
+def test_diagnoses_self_echo_and_low_brand_option_only_headers() -> None:
+    rows = [
+        {"品牌": "品牌甲", "车型名称": "M1", "前排座椅通风、加热": "前排座椅通风、加热", "高定卡钳": "选配", "常规属性": "支持"},
+        {"品牌": "品牌甲", "车型名称": "M2", "高定卡钳": "○ 5000元", "常规属性": "选配"},
+    ]
+    diag = diagnose_columns(rows)
+    kinds = {item["column"]: item["kind"] for item in diag["suspects"]}
+    assert kinds.get("前排座椅通风、加热") == "value_only_header"
+    assert kinds.get("高定卡钳") == "value_only_header"
+    assert "常规属性" not in kinds

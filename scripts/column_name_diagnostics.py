@@ -642,6 +642,61 @@ def diagnose_columns(rows: list[dict[str, Any]], *, limit: int = 120) -> dict[st
         )
         suspect_columns.add(column)
 
+    # Low-brand (<= 2 brands) option-only, package-description, or self-echoing
+    # headers typically represent single-brand option items leaked as columns.
+    brand_sets: dict[str, set[str]] = {}
+    for row in rows:
+        brand = str(row.get("品牌") or "").strip()
+        if not brand or brand in ("-", "—"):
+            continue
+        for column, value in row.items():
+            if str(value if value is not None else "").strip() not in ("", "-", "—", "待查", "未知"):
+                brand_sets.setdefault(str(column), set()).add(brand)
+
+    for column, occurrences in counts.items():
+        if column in proven_columns or column in suspect_columns or column in PROTECTED_ATTRIBUTES:
+            continue
+        if "(" in column or "（" in column:
+            continue
+        values = [
+            v for v, _ in value_counts.get(column, Counter()).items()
+            if v not in ("-", "—", "--", "待查", "未知", "暂无", "未公布", "未提供", "不支持", "无", "否")
+        ]
+        if not values:
+            continue
+        if all(v == column for v in values):
+            suspects.append(
+                _record(
+                    kind="value_only_header",
+                    column=column,
+                    occurrences=occurrences,
+                    confidence=0.94,
+                    sample_values=_sample_values(value_counts, column),
+                )
+            )
+            suspect_columns.add(column)
+            continue
+        brands_n = len(brand_sets.get(column, set()))
+        if 1 <= brands_n <= 2 and all(
+            re.match(
+                r"^(?:(?:汽车之家|懂车帝|易车)[:：]\s*)?(?:○(?:\s*\d+(?:\.\d+)?万?元|\s*暂无价格|\s*选配|\s*选装)?|选配|选装)$",
+                seg.strip(),
+            )
+            for v in values
+            for seg in str(v).split("|")
+            if seg.strip()
+        ):
+            suspects.append(
+                _record(
+                    kind="value_only_header",
+                    column=column,
+                    occurrences=occurrences,
+                    confidence=0.92,
+                    sample_values=_sample_values(value_counts, column),
+                )
+            )
+            suspect_columns.add(column)
+
     suspects.sort(
         key=lambda item: (
             -float(item["confidence"]),
