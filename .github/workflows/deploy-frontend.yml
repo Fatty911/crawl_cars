@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@main
+        with:
+          fetch-depth: 0
 
       - name: 设置 Python
         uses: actions/setup-python@main
@@ -72,6 +74,13 @@ jobs:
           shutil.copyfile("config/filter_conditions.json", target_config)
           PY
           cmp release-files/manifest.json site/data/manifest.json
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, "scripts")
+          from overlay_pages_frontend import resolve_frontend_updated_at, stamp_frontend_updated
+          stamp_frontend_updated(Path("site/index.html"), resolve_frontend_updated_at())
+          PY
 
       - name: 验证渲染数据（解析前端JS逻辑）
         run: |

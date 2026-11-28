@@ -1,0 +1,46 @@
+name: Pages 跨平台巡检与自动对齐
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "检测到差异时自动触发对应站点发布"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: pages-mesh-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout mesh scripts
+        uses: actions/checkout@main
+
+      - name: Set up Python
+        uses: actions/setup-python@main
+        with:
+          python-version: "3.12"
+
+      - name: Compare cars/cars2/cars3 and reconcile drift
+        run: |
+          set -euo pipefail
+          python -m pip install requests
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.apply }}" == "false" ]]; then
+            python scripts/pages_mesh_reconcile.py --check
+          else
+            python scripts/pages_mesh_reconcile.py --apply --repo "$GITHUB_REPOSITORY"
+          fi

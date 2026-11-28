@@ -2,7 +2,7 @@ name: Deploy verified Codeberg Pages
 
 on:
   workflow_run:
-    workflows: ["重合并并发布（不爬取）"]
+    workflows: ["重合并并发布（不爬取）", "部署前端展示"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -33,6 +33,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Check Codeberg publishing credentials
         env:
@@ -49,9 +50,11 @@ jobs:
           SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == workflow_run && "${{ github.event.workflow_run.name }}" == "重合并并发布（不爬取）" ]]; then
             RELEASE_TAG=$(python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" \
               --workflow-run-id "$SOURCE_RUN_ID" --workflow-run-attempt "$SOURCE_RUN_ATTEMPT" --print-tag)
+          elif [[ -z "${RELEASE_TAG:-}" ]]; then
+            RELEASE_TAG=$(python scripts/download_verified_release.py --repo "$GITHUB_REPOSITORY" --no-legacy --require-immutable --print-tag)
           fi
           export RELEASE_TAG
           [[ "$RELEASE_TAG" =~ ^cnb-data-[0-9]{8}-remerged-verified-r[1-9][0-9]*a[1-9][0-9]*$ ]]
@@ -73,6 +76,7 @@ jobs:
                   raise ValueError("verified release asset bytes mismatch: " + name)
           PY
           python scripts/prepare_cnb_pages.py --archive release/verified-site.zip --manifest release/manifest.json --site verified-site
+          python scripts/overlay_pages_frontend.py --site verified-site --manifest release/manifest.json
           python scripts/prepare_cloudflare_payload.py --input verified-site --output codeberg-site
 
       - name: Update the existing Codeberg Pages branch

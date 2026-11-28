@@ -2,7 +2,7 @@ name: Deploy verified CNB Pages
 
 on:
   workflow_run:
-    workflows: ["重合并并发布（不爬取）"]
+    workflows: ["重合并并发布（不爬取）", "部署前端展示"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -38,6 +38,7 @@ jobs:
         uses: actions/checkout@main
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@main
@@ -84,6 +85,7 @@ jobs:
         uses: actions/checkout@main
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@main
@@ -111,7 +113,7 @@ jobs:
         run: python scripts/prepare_cnb_pages.py --archive release/verified-site.zip --manifest release/manifest.json --site cnb-site
 
       - name: Use reviewed frontend while retaining the complete verified data
-        run: cp docs/app.js cnb-site/app.js
+        run: python scripts/overlay_pages_frontend.py --site cnb-site --manifest release/manifest.json
 
       - name: Configure Pages
         uses: actions/configure-pages@main
@@ -151,6 +153,7 @@ jobs:
         uses: actions/checkout@main
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@main
@@ -183,7 +186,7 @@ jobs:
         run: python scripts/prepare_cnb_pages.py --archive release/verified-site.zip --manifest release/manifest.json --site cnb-site
 
       - name: Use reviewed frontend while retaining the complete verified data
-        run: cp docs/app.js cnb-site/app.js
+        run: python scripts/overlay_pages_frontend.py --site cnb-site --manifest release/manifest.json
 
       - name: Check Cloudflare packaging and publication
         run: python -m pytest -q tests/test_prepare_cloudflare_payload.py tests/test_cloudflare_saved_workflow.py
