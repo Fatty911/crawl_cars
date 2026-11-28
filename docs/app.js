@@ -33,7 +33,8 @@
     msrp: { min: "", max: "35" },
     zero_to_hundred: { min: "0", max: "7" },
     top_speed: { min: "180", max: "" },
-    ev_range: { min: "150", max: "" }
+    ev_range: { min: "150", max: "" },
+    curb_weight: { min: "", max: "2000" }
   };
   var VALUE_COLUMN_PATTERN = /^(.+?)\s+-\s+(\S+.*)$/;
   var DEFAULT_FEATURE_FILTERS = {
@@ -90,8 +91,6 @@
     tableRenderEpoch: 0,
     lastResultSignature: "",
     columnSearch: "",
-    columnCoverage: null,
-    previewColumn: "",
     composing: false,
     saleScope: "onSale",
     syncId: "",
@@ -139,10 +138,6 @@
     showCoreColumns: document.getElementById("showCoreColumns"),
     showAllColumns: document.getElementById("showAllColumns"),
     columnSearch: document.getElementById("columnSearch"),
-    columnOrder: document.getElementById("columnOrder"),
-    columnPreviewStatus: document.getElementById("columnPreviewStatus"),
-    columnPreviewLabel: document.getElementById("columnPreviewLabel"),
-    clearColumnPreview: document.getElementById("clearColumnPreview"),
     columnList: document.getElementById("columnList"),
     historySyncId: document.getElementById("historySyncId"),
     githubToken: document.getElementById("githubToken"),
@@ -1314,6 +1309,17 @@
     var optionalPackagesBySeries = new Set();
     var specificOptions = new Set();
     var specificStandardValues = new Set();
+    var columnBrands = new Map();
+    var columnHasNonMissing = new Set();
+    var columnHasExplicitOption = new Set();
+    var columnHasOptionValue = new Set();
+    var columnHasNonOptionValue = new Set();
+    var columnHasPackDesc = new Set();
+    var columnHasNonPackDesc = new Set();
+    var columnHasNonPresence = new Set();
+    var columnHasSelfEcho = new Set();
+    var columnHasNonSelfEcho = new Set();
+    var unpairedSuffixValues = new Map();
     (rows || []).forEach(function (row) {
       var rowPackageContent = new Set();
       var packages = readOptionPackages(row["选装包列表"]);
@@ -1339,6 +1345,38 @@
             var text = stripSourceSegmentPrefix(part);
             return /^(?:○|选配|选装)\s*(?:暂无价格|(?:[1-9]\d*|0)(?:\.\d+)?\s*(?:万元|元))?$/.test(text) ? "○" : text;
           });
+          var strippedSegments = rawSignals.map(stripSourceSegmentPrefix).filter(Boolean);
+          var effectiveSignals = signals.filter(function (part) {
+            return part && !/^[-－—]+$/.test(part) && !isMissingColumnObservation(part) && !/^(?:不提供|否|无|不支持)$/.test(part);
+          });
+          if (effectiveSignals.length) {
+            columnHasNonMissing.add(column);
+            if (brand && brand !== "-") {
+              if (!columnBrands.has(column)) { columnBrands.set(column, new Set()); }
+              columnBrands.get(column).add(brand);
+            }
+            if (effectiveSignals.every(function (part) { return part === "○"; })) {
+              columnHasOptionValue.add(column);
+              if (strippedSegments.some(function (part) { return /(?:选配|选装|暂无价格|元)/.test(part); })) {
+                columnHasExplicitOption.add(column);
+              }
+            } else {
+              columnHasNonOptionValue.add(column);
+            }
+            if (value.length >= 16 && /[、,，+＋\n]/.test(value) && !/质保|公里|营运/.test(value)) {
+              columnHasPackDesc.add(column);
+            } else {
+              columnHasNonPackDesc.add(column);
+            }
+            if (!effectiveSignals.every(function (part) { return /^(?:[●○]|标配|选配|选装|支持|有|是)$/.test(part); })) {
+              columnHasNonPresence.add(column);
+            }
+            if (strippedSegments.length && strippedSegments.every(function (part) { return part === column; })) {
+              columnHasSelfEcho.add(column);
+            } else {
+              columnHasNonSelfEcho.add(column);
+            }
+          }
           if (seriesKey && isPackageName(column) && !OPTION_SUFFIX_PATTERN.test(column) &&
               signals.indexOf("○") !== -1 && signals.every(function (part) { return /^(?:[-－—]+|○)$/.test(part); })) {
             optionalPackagesBySeries.add(seriesKey + column);
@@ -1352,12 +1390,12 @@
             }
           }
           var legacySignals = specific ? signals : rawSignals;
-          if (legacySignals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part); })) {
+          if (legacySignals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part) && !(specific && isMissingColumnObservation(part)); })) {
             legacySubstantiveColumns.add(column);
           } else if (legacySignals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
             legacyPresenceColumns.add(column);
           }
-          if (signals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part); })) {
+          if (signals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part) && !isMissingColumnObservation(part); })) {
             substantiveColumns.add(column);
           } else if (signals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
             presenceColumns.add(column);
@@ -1367,11 +1405,36 @@
               independentStandardColumns.add(column);
             }
           }
+        } else if (value) {
+          var rawTailSignals = splitDisplaySegments(value);
+          var tailSignals = rawTailSignals.map(function (part) {
+            var text = stripSourceSegmentPrefix(part);
+            return /^(?:○|选配|选装)\s*(?:暂无价格|(?:[1-9]\d*|0)(?:\.\d+)?\s*(?:万元|元))?$/.test(text) ? "○" : text;
+          });
+          var tailEffective = tailSignals.filter(function (part) {
+            return part && !/^[-－—]+$/.test(part) && !isMissingColumnObservation(part) && !/^(?:不提供|否|无|不支持)$/.test(part);
+          });
+          if (tailEffective.length) {
+            columnHasNonMissing.add(column);
+            if (brand && brand !== "-") {
+              if (!columnBrands.has(column)) { columnBrands.set(column, new Set()); }
+              columnBrands.get(column).add(brand);
+            }
+            if (!tailEffective.every(function (part) { return part === "○"; })) { columnHasNonOptionValue.add(column); }
+            if (!(value.length >= 16 && /[、,，+＋\n]/.test(value) && !/质保|公里|营运/.test(value))) { columnHasNonPackDesc.add(column); }
+            if (!tailEffective.every(function (part) { return /^(?:[●○]|标配|选配|选装|支持|有|是)$/.test(part); })) { columnHasNonPresence.add(column); }
+            var tailStripped = rawTailSignals.map(stripSourceSegmentPrefix).filter(Boolean);
+            if (!(tailStripped.length && tailStripped.every(function (part) { return part === column; }))) { columnHasNonSelfEcho.add(column); }
+          }
         }
         var match = OPTION_SUFFIX_PATTERN.exec(column);
         if (!match) { return; }
         if (!pairs[match[1]]) { pairs[match[1]] = Object.create(null); }
         pairs[match[1]][match[2]] = row[column];
+        if ((match[2] === "1" || match[2] === "2") && value && !isMissingColumnObservation(value)) {
+          if (!unpairedSuffixValues.has(column)) { unpairedSuffixValues.set(column, []); }
+          unpairedSuffixValues.get(column).push({ suffix: match[2], base: match[1], value: value });
+        }
         if (match[2] === "1" && isPackageDescription(value)) {
           descriptions.add(match[1]);
           if (seriesKey && isPackageName(match[1])) {
@@ -1424,6 +1487,61 @@
         /[：:]须与.+一起选$/.test(name) || (specificOptions.has(name) && !specificStandardValues.has(name));
       if (!substantiveColumns.has(name) && !declared.has(name) && hasOptionEvidence) {
         columns.add(name);
+      }
+    });
+    // 识别未成对的 _1/_2 选装包后缀、自反值列名及低品牌覆盖的“属性值作列名”字段。
+    unpairedSuffixValues.forEach(function (items, column) {
+      if (declared.has(column) || columns.has(column)) { return; }
+      var suffix = items[0].suffix;
+      var brandCount = columnBrands.has(column) ? columnBrands.get(column).size : 0;
+      if (suffix === "1" && items.every(function (it) {
+        var txt = it.value;
+        return (txt.length >= 12 && /[、,，+＋\n]/.test(txt) && !/质保|公里|营运/.test(txt)) ||
+          /^包含\s*[:：]/.test(txt);
+      })) {
+        columns.add(column);
+      } else if (suffix === "2" && items.every(function (it) {
+        var parts = splitDisplaySegments(it.value).map(stripSourceSegmentPrefix);
+        var onlyOpt = parts.every(function (part) {
+          return !part || /^[-－—]+$/.test(part) || isMissingColumnObservation(part) ||
+            /^(?:○(?:\s*\d+(?:\.\d+)?万?元|\s*暂无价格|\s*选配|\s*选装)?|选配|选装)$/.test(part);
+        });
+        var onlyPres = brandCount >= 1 && parts.every(function (part) {
+          return !part || /^[-－—]+$/.test(part) || isMissingColumnObservation(part) ||
+            /^(?:●|○(?:\s*\d+(?:\.\d+)?万?元|\s*暂无价格|\s*选配|\s*选装)?|标配|选配|选装|支持|不支持|有|无|是|否)$/.test(part);
+        });
+        return onlyOpt || onlyPres;
+      })) {
+        columns.add(column);
+      }
+    });
+    columnHasNonMissing.forEach(function (column) {
+      if (declared.has(column) || columns.has(column)) { return; }
+      if (columnHasSelfEcho.has(column) && !columnHasNonSelfEcho.has(column)) {
+        columns.add(column);
+        return;
+      }
+      var brandCount = columnBrands.has(column) ? columnBrands.get(column).size : 0;
+      var isLowBrand = brandCount >= 1 && brandCount <= 2;
+      if (!isLowBrand) { return; }
+      var onlyOption = columnHasOptionValue.has(column) && !columnHasNonOptionValue.has(column);
+      var onlyPackDesc = columnHasPackDesc.has(column) && !columnHasNonPackDesc.has(column);
+      var onlyPresence = !columnHasNonPresence.has(column);
+      var isValueShapedHeader =
+        /(?:包|组件|套装|套件|装备|礼包|套餐|方案)(?:\s*[-+＋（(]|\s*[A-Za-z0-9]+|\s*(?:Pro|Plus|Max|I{1,3}|基础版|高级版|豪华版|尊享版|运动版|哑光版|限量版|已停售))*$/i.test(column) ||
+        /(?:专享定制|个性化定制|定制专属|专属设计|选装包|限时赠送|须与.+一起选)/.test(column) ||
+        /^\d+(?:\.\d+)?\s*(?:(?:厘米|幅|辐|座|扬|段|L|m|㎡|kW|km\/h|°|D)|(?:英寸|寸|吋)\s*.+(?:屏|仪表|车轮|样式))/i.test(column) ||
+        /(?:车轮|轮毂|轮圈|轮辋|卡钳|车漆|漆饰|涂装|拉花|饰板|饰条|车标|脚垫|车衣|贴膜|尾翼|前脸|排气管|软车顶)/.test(column) ||
+        column.length >= 16 ||
+        /[+＋,，]/.test(column);
+      if (onlyPackDesc || (onlyOption && (columnHasExplicitOption.has(column) || isValueShapedHeader))) {
+        columns.add(column);
+        return;
+      }
+      if (onlyPresence && (isValueShapedHeader ||
+        /^(?:AMG|Audi|MANUFAKTUR|MBUX|BMW|M运动|M碳纤维|M高性能|RS |GTS|MSO|NOMI|Flyme|IQ\.|IM AD|Brembo|Bilstein|DJI)/i.test(column)) &&
+        !/^\d+(?:\.\d+)?\s*英寸.+轮毂$/.test(column)) {
+        columns.add(column);
       }
     });
     return columns;
@@ -1656,6 +1774,42 @@
     });
   }
 
+  var VERIFIED_PAREN_VALUE_PARENTS = new Set([
+    "温度分区控制",
+    "车内氛围灯",
+    "音响品牌",
+    "近光灯",
+    "远光灯",
+    "手机互联映射"
+  ]);
+
+  function normalizeParenthesizedValueColumns(row) {
+    Object.keys(row).forEach(function (column) {
+      var match = /^(.+?)[(（]([^()（）]+)[)）]$/.exec(column);
+      if (!match) { return; }
+      var parent = match[1].trim();
+      var valueText = match[2].trim();
+      if (!VERIFIED_PAREN_VALUE_PARENTS.has(parent) || !valueText) { return; }
+      var parts = splitDisplaySegments(row[column]);
+      if (!parts.length) { return; }
+      var standardParts = [];
+      var onlyMarkers = parts.every(function (part) {
+        var text = stripSourceSegmentPrefix(part);
+        var source = /^(汽车之家|懂车帝|易车)\s*[:：]\s*/.exec(part);
+        if (/^(?:●|标配|支持)$/.test(text)) {
+          standardParts.push((source ? source[1] + ":" : "") + valueText);
+          return true;
+        }
+        return /^(?:[-－—]+|○(?:\s*\d+(?:\.\d+)?万?元|\s*暂无价格|\s*选配|\s*选装)?|选配|选装|无|不支持|待查|未知|暂无|未公布|未提供)$/.test(text);
+      });
+      if (!onlyMarkers) { return; }
+      standardParts.forEach(function (merged) {
+        row[parent] = mergeDistinctColumnValues(row[parent], merged);
+      });
+      delete row[column];
+    });
+  }
+
   function normalizeRowColumns(rows) {
     var aliasMap = columnAliasMap();
     var evidenceColumns = typedEquipmentColumns();
@@ -1715,6 +1869,7 @@
       normalizeInstrumentSize(row, next);
       normalizeCockpitMeasurements(next);
       normalizeSensorCounts(next);
+      normalizeParenthesizedValueColumns(next);
       return next;
     });
   }
@@ -1972,7 +2127,7 @@
           return (!hasMin || Number(value) >= Number(filter.min)) && (!hasMax || Number(value) <= Number(filter.max));
         });
       }
-      if (condition.id === "vehicle_length" || condition.id === "vehicle_height") {
+      if (condition.id === "vehicle_length" || condition.id === "vehicle_height" || condition.id === "curb_weight") {
         return withinNumericBounds(numericObservations(condition.field, row[condition.field]), filter);
       }
       var rowValue = firstNumber(row[condition.field]);
@@ -2363,7 +2518,6 @@
 
   function currentSeriesViewSignature() {
     return JSON.stringify({
-      previewColumn: state.previewColumn,
       search: state.search,
       brand: state.brand,
       series: state.series,
@@ -2387,11 +2541,6 @@
   }
 
   function getFilteredRows() {
-    if (state.previewColumn) {
-      return sortRows(state.rows.filter(function (row) {
-        return rowMatchesColumnPreview(row, state.previewColumn);
-      }));
-    }
     var rows = state.rows.slice();
 
     // 默认隐藏越野车/货车/皮卡/大客车等用户配置的车型分类
@@ -2661,13 +2810,8 @@
     els.tableHead.setAttribute("data-measured", "true");
   }
 
-  function columnsWithPreview(columns) {
-    var column = state.previewColumn;
-    return column && columns.indexOf(column) === -1 ? columns.concat(column) : columns;
-  }
-
   function visibleResultColumns() {
-    return columnsWithPreview(state.columns.filter(function (column) { return state.visibleColumns.has(column); }));
+    return state.columns.filter(function (column) { return state.visibleColumns.has(column); });
   }
 
   function renderTableHead() {
@@ -2853,53 +2997,14 @@
     return result;
   }
 
-  function hasColumnObservation(value) {
-    return splitDisplaySegments(value).some(function (part) {
-      var text = stripSourceSegmentPrefix(part);
-      return hasPositiveValue(text) && !isMissingColumnObservation(text);
-    });
-  }
-
-  function rowMatchesColumnPreview(row, column) {
-    var series = String(row["车系"] || "").trim();
-    var counts = isSensorCountColumn(column) ? sensorCountObservations(row[column]) : null;
-    return Boolean(series && series !== "-" && ((counts && counts.length) || hasColumnObservation(row[column])));
-  }
-
-  function setColumnPreview(column) {
-    state.previewColumn = column;
-    state.page = 1;
-    renderTableHead();
-    renderResultsOnly();
-  }
-
-  function countColumnCoverage(rows, columns) {
-    var observations = new Map(columns.map(function (column) {
-      return [column, { series: new Set(), brands: new Set() }];
-    }));
-    rows.forEach(function (row) {
-      var brand = normBrand(String(row["品牌"] || "").trim());
-      var key = seriesIdentity(row).key;
-      Object.keys(row).forEach(function (column) {
-        var coverage = observations.get(column);
-        if (!coverage || !rowMatchesColumnPreview(row, column)) { return; }
-        coverage.series.add(key);
-        if (brand && brand !== "-") { coverage.brands.add(brand); }
-      });
-    });
-    return new Map(Array.from(observations, function (entry) {
-      return [entry[0], { series: entry[1].series.size, brands: entry[1].brands.size }];
-    }));
-  }
-
-  function columnToggle(column, coverage) {
+  function columnToggle(column) {
     var label = document.createElement("label");
     var checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = state.visibleColumns.has(column);
     checkbox.dataset.column = column;
     var text = document.createElement("span");
-    text.textContent = coverage ? column + " · " + coverage.series + " 车系 / " + coverage.brands + " 品牌" : column;
+    text.textContent = column;
     label.appendChild(checkbox);
     label.appendChild(text);
     return label;
@@ -2909,31 +3014,6 @@
     var query = normalizeText(state.columnSearch);
     els.columnList.textContent = "";
     var columns = state.columns.filter(function (column) { return !query || normalizeText(column).indexOf(query) !== -1; });
-    if (els.columnOrder && els.columnOrder.value === "coverage") {
-      var coverage = state.columnCoverage;
-      if (!coverage) {
-        coverage = countColumnCoverage(state.rows, state.columns);
-        state.columnCoverage = coverage;
-      }
-      columns.sort(function (a, b) {
-        var left = coverage.get(a), right = coverage.get(b);
-        return left.series - right.series || left.brands - right.brands || a.localeCompare(b, "zh-Hans");
-      }).forEach(function (column) {
-        var entry = document.createElement("div");
-        entry.className = "column-coverage-entry";
-        entry.appendChild(columnToggle(column, coverage.get(column)));
-        var button = document.createElement("button");
-        button.type = "button";
-        button.className = "link-button";
-        button.textContent = "看车款";
-        button.dataset.previewColumn = column;
-        button.setAttribute("aria-label", "查看有「" + column + "」记录的车款");
-        button.addEventListener("click", function () { setColumnPreview(column); });
-        entry.appendChild(button);
-        els.columnList.appendChild(entry);
-      });
-      return;
-    }
     var previousMajor = "";
     var major = null;
     columnGroups(columns).forEach(function (group) {
@@ -3754,7 +3834,7 @@
           modelTitle.textContent = skuTitles[rowIndex];
           var modelMeta = document.createElement("div");
           modelMeta.className = "card-meta";
-          appendCardMeta(modelMeta, row, columnsWithPreview(["能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]));
+          appendCardMeta(modelMeta, row, ["能源类型", "官方指导价", "百公里加速(s)", "驱动方式", "纯电续航(km)"]);
           model.appendChild(modelTitle);
           model.appendChild(modelMeta);
           model.appendChild(skuDetails(row, "来源链接"));
@@ -3800,10 +3880,6 @@
   }
 
   function renderResultsOnly() {
-    if (els.columnPreviewStatus && els.columnPreviewLabel) {
-      els.columnPreviewStatus.hidden = !state.previewColumn;
-      els.columnPreviewLabel.textContent = state.previewColumn ? "逐列核对 · " + state.previewColumn + "（全站车款，含选配）" : "";
-    }
     syncSeriesViewState();
     var filtered = getFilteredRows();
     var seriesGroups = sortSeriesGroups(groupRowsBySeries(filtered));
@@ -3940,7 +4016,6 @@
   }
 
   function applySnapshot(snapshot) {
-    state.previewColumn = "";
     state.search = snapshot.search || "";
     state.brand = snapshot.brand || "";
     state.series = snapshot.series || "";
@@ -4212,7 +4287,6 @@
   }
 
   function restoreDefaultFilters() {
-    state.previewColumn = "";
     state.columnFilters = {};
     state.rangeFilters = cloneDefaultRangeFilters();
     state.featureFilters = cloneDefaultFeatureFilters();
@@ -4509,10 +4583,6 @@
       renderResultsOnly();
     });
 
-    if (els.clearColumnPreview) {
-      els.clearColumnPreview.addEventListener("click", function () { setColumnPreview(""); });
-    }
-    if (els.columnOrder) { els.columnOrder.addEventListener("change", renderColumnList); }
     els.columnSearch.addEventListener("input", function (event) {
       state.columnSearch = event.target.value;
       renderColumnList();
@@ -4654,8 +4724,6 @@
     state.rows = normalizeRowColumns(state.rows);
     state.rows = normalizeDisplayValues(state.rows);
     state.numericColumns.clear();
-    state.columnCoverage = null;
-    state.previewColumn = "";
     state.expandedSeries.clear();
     state.seriesViewSignature = "";
     state.cardLimit = 24;
