@@ -12,25 +12,18 @@ test("header evidence stays internal without hiding unrelated double-underscore 
   assert.equal(hooks.shouldHideColumn("__custom_equipment", []), false);
 });
 
-test("display columns can sort by matching series and show normalized brand counts", () => {
+test("display columns render grouped by category without series coverage sort or counts", () => {
   const { hooks, elements } = loadAppForTest();
-  hooks.state.columns = ["广泛字段", "品牌专属字段", "选装样式", "无有效配置"];
-  hooks.state.visibleColumns = new Set(["选装样式"]);
+  hooks.state.columns = ["品牌", "自定义特征"];
+  hooks.state.visibleColumns = new Set(["品牌"]);
   hooks.state.rows = [
-    { "品牌": "小鹏", "车系": "小鹏 G6", "广泛字段": "●", "品牌专属字段": "7.0", "选装样式": "汽车之家:○", "无有效配置": "不支持" },
-    { "品牌": "小鹏汽车", "车系": "小鹏G6", "广泛字段": "●", "选装样式": "-", "无有效配置": "待查" },
-    { "品牌": "小鹏汽车", "车系": "小鹏G7", "广泛字段": "●", "品牌专属字段": "7" },
-    { "品牌": "比亚迪", "车系": "海豹", "广泛字段": "●", "选装样式": "易车:无" },
+    { "品牌": "小鹏汽车", "车系": "小鹏G6", "自定义特征": "●" },
+    { "品牌": "比亚迪", "车系": "海豹", "自定义特征": "●" },
   ];
-  elements.get("columnOrder").value = "coverage";
   hooks.renderColumnList();
   const labels = descendants(elements.get("columnList")).filter((node) => node.tagName === "SPAN");
-  assert.deepEqual(labels.map((node) => node.textContent), [
-    "无有效配置 · 0 车系 / 0 品牌", "选装样式 · 1 车系 / 1 品牌",
-    "品牌专属字段 · 2 车系 / 1 品牌", "广泛字段 · 3 车系 / 2 品牌",
-  ]);
-  const selected = descendants(elements.get("columnList")).find((node) => node.dataset.column === "选装样式");
-  assert.equal(selected.checked, true);
+  assert.deepEqual(labels.map((node) => node.textContent), ["品牌", "自定义特征"]);
+  assert.equal(descendants(elements.get("columnList")).some((node) => node.textContent === "看车款"), false);
 });
 
 test("rare and common surround-view fields share a category without losing source values", () => {
@@ -71,49 +64,6 @@ test("instrument display sizes consolidate inch aliases and preserve real differ
   assert.equal(rows[4]["液晶仪表尺寸(in)"], "10.25");
   assert.equal(rows[4]["液晶仪表尺寸"], "25.4cm");
   assert.ok(rows.slice(0, 4).every((row) => !Object.hasOwn(row, "液晶仪表尺寸")));
-});
-
-test("column coverage preview shows and exports the selected value without changing column preferences", async () => {
-  const { hooks, elements, downloads } = loadAppForTest();
-  hooks.state.config = { conditions: [], defaultVisibleColumns: [] };
-  hooks.state.columns = ["待核字段", "第二字段"];
-  const first = { ...row("汽车之家", 2026, "选装车款"), "车系": "甲", "品牌": "比亚迪", "待核字段": "汽车之家:○" };
-  const second = { ...row("汽车之家", 2026, "默认车款"), "车系": "乙", "品牌": "吉利", "待核字段": "不支持", "第二字段": "●" };
-  const unknown = { ...first, "车系": "-", "车型名称": "缺车系" };
-  hooks.state.rows = [first, second, unknown];
-  hooks.state.saleScope = "all";
-  hooks.state.brand = "吉利";
-  hooks.state.columnFilters = {"第二字段": { operator: "contains", value: "●" }};
-  assert.deepEqual(Array.from(hooks.getFilteredRows()), [second]);
-
-  elements.get("columnOrder").value = "coverage";
-  hooks.renderColumnList();
-  const preview = descendants(elements.get("columnList")).find((item) => item.dataset.previewColumn === "待核字段");
-  preview.dispatch("click");
-  assert.deepEqual(Array.from(hooks.getFilteredRows()), [first]);
-  assert.equal(hooks.state.brand, "吉利");
-  assert.equal(hooks.state.columnFilters["第二字段"].value, "●");
-  assert.match(elements.get("columnPreviewLabel").textContent, /待核字段/);
-  assert.equal(hooks.state.visibleColumns.has("待核字段"), false);
-  const headers = descendants(elements.get("tableHead"));
-  assert.ok(headers.some((item) => item.textContent === "待核字段"));
-  assert.ok(descendants(elements.get("tableBody")).some((item) => item.textContent === "汽车之家:○"));
-  const groups = hooks.groupRowsBySeries([first]);
-  hooks.state.expandedSeries.add(groups[0].key);
-  hooks.renderCards(groups);
-  const card = descendants(elements.get("cardList"));
-  assert.ok(card.some((item) => item.textContent === "待核字段: 汽车之家:○"));
-  hooks.exportCurrentCsv();
-  assert.equal((await downloads[0].text()).trim(), "待核字段\n汽车之家:○");
-
-  const other = descendants(elements.get("columnList")).find((item) => item.dataset.previewColumn === "第二字段");
-  other.dispatch("click");
-  assert.deepEqual(Array.from(hooks.getFilteredRows()), [second]);
-  elements.get("clearColumnPreview").dispatch("click");
-  assert.deepEqual(Array.from(hooks.getFilteredRows()), [second]);
-  assert.equal(elements.get("columnPreviewStatus").hidden, true);
-  assert.ok(!descendants(elements.get("tableHead")).some((item) => item.textContent === "待核字段"));
-  assert.equal(hooks.state.visibleColumns.has("待核字段"), false);
 });
 
 test("instrument size accepts explicit lists without guessing ambiguous measurements", () => {
@@ -196,12 +146,6 @@ test("sensor count ranges keep numeric controls and exclude unquantified records
   assert.deepEqual(Array.from(hooks.getFilteredRows(), x => x["车型名称"]), ["混合证据"]);
   hooks.state.columnFilters = {[column]: {operator: "range", min: "0", max: "0"}};
   assert.deepEqual(Array.from(hooks.getFilteredRows(), x => x["车型名称"]), ["明确零个"]);
-
-  elements.get("columnOrder").value = "coverage";
-  hooks.renderColumnList();
-  const preview = descendants(elements.get("columnList")).find(x => x.dataset.previewColumn === column);
-  preview.dispatch("click");
-  assert.ok(Array.from(hooks.getFilteredRows(), x => x["车型名称"]).includes("明确零个"));
 });
 
 test("verified placeholder-only source columns reappear as soon as a source provides an observation", () => {
@@ -1715,7 +1659,8 @@ test("Pages range defaults keep acceleration at most 7, speed at least 180, and 
     msrp: { min: "", max: "35" },
     zero_to_hundred: { min: "0", max: "7" },
     top_speed: { min: "180", max: "" },
-    ev_range: { min: "150", max: "" }
+    ev_range: { min: "150", max: "" },
+    curb_weight: { min: "", max: "2000" }
   });
 });
 
@@ -1985,7 +1930,8 @@ test("Pages restore-default semantics are schema-driven for range and energy con
     ev_range: { min: "150", max: "" },
     top_speed: { min: "180", max: "" },
     vehicle_length: { min: "", max: "5000" },
-    vehicle_height: { min: "", max: "1500" }
+    vehicle_height: { min: "", max: "1500" },
+    curb_weight: { min: "", max: "2000" }
   });
   assert.equal(hooks.state.featureFilters.energy_type.join(","), "bev");
   assert.equal(hooks.state.search, "");
@@ -1999,11 +1945,12 @@ test("Pages first load renders and applies acceleration, speed, and EV range def
   const { elements, hooks } = loadAppForTest();
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs", "filter_conditions.json"), "utf8"));
   hooks.state.config = config;
-  function model(name, acceleration, speed, range) {
+  function model(name, acceleration, speed, range, weight = 1900) {
     const result = Object.assign(row("仅懂车帝", 2026, name), {
       "百公里加速(s)": String(acceleration),
       "最高车速(km/h)": String(speed),
       "纯电续航(km)": String(range),
+      "整备质量(kg)": String(weight),
       "能源类型": "纯电动",
       "长x宽x高(mm)": "4900x1900x1450"
     });
@@ -3570,4 +3517,92 @@ test("SPU card SKU titles strip redundant series prefix, unify leading year, and
   assert.deepEqual(bySeries.get("途昂"), [
     "2026款 途昂Pro 450TSI 四驱纵横版",
   ]);
+});
+
+test("curb_weight core condition defaults to <= 2000 kg and filters multi-source weights safely", () => {
+  const { elements, hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../docs/filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  const base = (name, weight) => {
+    const item = Object.assign(row("仅懂车帝", 2026, name), {
+      "百公里加速(s)": "5.5",
+      "最高车速(km/h)": "200",
+      "纯电续航(km)": "500",
+      "能源类型": "纯电动",
+      "长x宽x高(mm)": "4800x1900x1450"
+    });
+    if (weight !== undefined) { item["整备质量(kg)"] = weight; }
+    config.conditions.filter((c) => ["feature", "pagesFeature"].includes(c.type)).forEach((c) => {
+      item[c.fields[0]] = c.requireKeyword ? c.keywords[0] : "支持";
+    });
+    return item;
+  };
+  hooks.initializeRows([
+    base("轻盈版", "1850"),
+    base("临界版", "2000"),
+    base("超重版", "2001"),
+    base("冲突超重版", "汽车之家:1950|懂车帝:2050"),
+    base("缺失质量版", undefined),
+  ]);
+  hooks.renderEverything();
+  assert.deepEqual(Array.from(hooks.getFilteredRows(), (item) => item["车型名称"]), ["轻盈版", "临界版"]);
+  const tags = elements.get("selectedTags").children.map((tag) => tag.textContent);
+  assert.ok(tags.includes("整备质量 ≤2000"));
+});
+
+test("value-as-header cleanup folds paren values and hides low-brand option/package leaks while preserving real specs", () => {
+  const { hooks } = loadAppForTest();
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../docs/filter_conditions.json"), "utf8"));
+  hooks.state.config = config;
+  const rows = [
+    {
+      ...row("汽车之家", 2026, "样车A"),
+      "品牌": "品牌甲",
+      "车系": "车系甲",
+      "车内氛围灯": "多色",
+      "车内氛围灯(7色)": "●",
+      "音响品牌": "Bose",
+      "音响品牌(JBL)": "支持",
+      "上坡辅助": "标配",
+      "上坡辅助(HAC)": "支持",
+      "7座 2-2-3布局+二排座椅加热及通风_1": "7座布局、二排航空座椅、三排座椅加热",
+      "奥迪专享黑光包_2": "○ 2000元",
+      "19英寸AMG双五辐轻合金车轮": "○|选配",
+      "前排座椅通风、加热": "前排座椅通风、加热",
+      "气罐容积(L)": "90",
+      "氢气装载量(kg)": "3.99",
+      "电控系统质保": "首任车主终身质保",
+      "坦克转弯": "支持"
+    },
+    {
+      ...row("汽车之家", 2026, "样车B"),
+      "品牌": "品牌乙",
+      "车系": "车系乙",
+      "坦克转弯": "●"
+    },
+    {
+      ...row("汽车之家", 2026, "样车C"),
+      "品牌": "品牌丙",
+      "车系": "车系丙",
+      "坦克转弯": "支持"
+    }
+  ];
+  hooks.initializeRows(rows);
+  const cols = hooks.state.columns;
+  assert.equal(hooks.state.rows[0]["车内氛围灯"], "多色|7色");
+  assert.equal(hooks.state.rows[0]["音响品牌"], "Bose|JBL");
+  for (const hiddenCol of [
+    "车内氛围灯(7色)",
+    "音响品牌(JBL)",
+    "上坡辅助(HAC)",
+    "7座 2-2-3布局+二排座椅加热及通风_1",
+    "奥迪专享黑光包_2",
+    "19英寸AMG双五辐轻合金车轮",
+    "前排座椅通风、加热"
+  ]) {
+    assert.equal(cols.includes(hiddenCol), false, hiddenCol);
+  }
+  for (const keptCol of ["气罐容积(L)", "氢气装载量(kg)", "电控系统质保", "坦克转弯", "车内氛围灯", "音响品牌", "上坡辅助"]) {
+    assert.equal(cols.includes(keptCol), true, keptCol);
+  }
 });
