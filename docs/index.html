@@ -32,10 +32,6 @@
         </div>
       </header>
 
-      <div class="column-preview-status" id="columnPreviewStatus" hidden>
-        <span id="columnPreviewLabel" aria-live="polite"></span>
-        <button class="link-button" id="clearColumnPreview" type="button">返回原筛选</button>
-      </div>
       <main class="workspace" id="workspace">
         <section class="summary-strip" aria-label="数据概览">
           <div>
@@ -235,14 +231,6 @@
               <span>查找列</span>
               <input id="columnSearch" type="search" placeholder="配置名称">
             </label>
-            <label>
-              <span>显示列排序</span>
-              <select id="columnOrder">
-                <option value="category">按类别</option>
-                <option value="coverage">按车系数从少到多</option>
-              </select>
-            </label>
-            <p class="scope-note">按全站车款统计，含选配。按车系数排序后，可逐列查看命中的车款。</p>
             <div class="column-list" id="columnList"></div>
           </section>
 

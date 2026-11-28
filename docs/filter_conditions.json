@@ -463,6 +463,15 @@
       "defaultMax": "1500"
     },
     {
+      "id": "curb_weight",
+      "type": "range",
+      "label": "整备质量",
+      "field": "整备质量(kg)",
+      "unit": "kg",
+      "defaultMin": "",
+      "defaultMax": "2000"
+    },
+    {
       "id": "rear_wheel_steering",
       "type": "pagesEquipment",
       "label": "后轮转向",
@@ -1019,7 +1028,8 @@
           "desktopGroupId": "performance",
           "conditionIds": [
             "vehicle_length",
-            "vehicle_height"
+            "vehicle_height",
+            "curb_weight"
           ],
           "columnPatterns": [
             "^长[×*x宽]|^长度|^宽度|^高度|^车长|^车宽|^车高|^轴距|^车身|^车门|^车窗|^车顶|^后备|^后尾|^天窗|^行李|^整备|^满载|^最大载|^风阻|^接近角|^离去角|^通过角|^离地|^涉水|^车重|^整车质量|^(?:长|宽|高)\\(mm\\)$"
@@ -1431,6 +1441,21 @@
     ],
     "电池组质保": [
       "battery_warranty_v3"
+    ],
+    "上坡辅助": [
+      "上坡辅助(HAC)"
+    ],
+    "儿童座椅接口": [
+      "儿童座椅接口(ISOFIX)"
+    ],
+    "并线辅助": [
+      "并线辅助(BSM/BSD)"
+    ],
+    "自动驻车": [
+      "自动驻车(AUTOHOLD)"
+    ],
+    "陡坡缓降": [
+      "陡坡缓降(HDC)"
     ]
   }
 }
