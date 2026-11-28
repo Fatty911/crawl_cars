@@ -17,14 +17,16 @@ MONITOR = ROOT / ".github/workflows/AI_Auto_Fix_Monitor.yml"
 # 刷新：gh api 'repos/Fatty911/crawl_cars/actions/workflows?per_page=50'。
 # 更新 read_at 和完整状态表，保留停用项来验证双向覆盖。
 PLATFORM_READING = {
-    "read_at": "2026-11-06T01:23:03+00:00",
+    "read_at": "2026-11-28T03:32:26+00:00",
     "source": "GET https://api.github.com/repos/Fatty911/crawl_cars/actions/workflows?per_page=50",
-    "total_count": 14,
+    "total_count": 16,
     "states": {
         "AI Auto Fix Monitor": "active",
         "CI": "active",
         "部署前端展示": "active",
         "Deploy verified CNB Pages": "active",
+        "Deploy verified Codeberg Pages": "active",
+        "Pages 跨平台巡检与自动对齐": "active",
         "重合并并发布（不爬取）": "active",
         "Markdown privacy (candidate)": "active",
         "Runtime proxy cache guard": "active",
