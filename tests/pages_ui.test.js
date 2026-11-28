@@ -420,8 +420,11 @@ function loadAppForTest() {
       activateMobileCategory: activateMobileCategory,
       restoreDefaultFilters: restoreDefaultFilters,
       formatDataTimestamp: formatDataTimestamp,
+      parseAwsRawReleaseTimestamp: parseAwsRawReleaseTimestamp,
+      renderDataMeta: renderDataMeta,
       renderTableBody: renderTableBody,
       renderTableHead: renderTableHead,
+      tableColumnWidthClass: tableColumnWidthClass,
       syncTableHeaderOffsets: syncTableHeaderOffsets,
       renderColumnList: renderColumnList,
       renderFilters: renderFilters,
@@ -448,13 +451,27 @@ function loadAppForTest() {
 
 
 test("data generation time formats to minute precision", () => {
-  const { hooks } = loadAppForTest();
+  const { elements, hooks } = loadAppForTest();
   // 2026-08-10 11:43 UTC -> local minute precision, no seconds
   const out = hooks.formatDataTimestamp("2026-08-10T11:43:47.546481+00:00");
   assert.match(out, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/, "YYYY-MM-DD HH:mm");
   assert.ok(!/:\d{2}:\d{2}/.test(out), "no seconds in output");
   assert.equal(hooks.formatDataTimestamp(""), "", "empty iso -> empty");
   assert.equal(hooks.formatDataTimestamp("not-a-date"), "", "invalid iso -> empty");
+  assert.equal(hooks.parseAwsRawReleaseTimestamp("aws-raw-20261113T230500Z"), "2026-11-13T23:05:00Z");
+
+  hooks.state.manifest = {
+    date: "20261113",
+    updatedAt: "2026-11-27T10:12:44.119512+00:00",
+    provenance: { awsRawRelease: "aws-raw-20261113T230500Z" },
+    publication: { frontendUpdatedAt: "2026-11-28T03:00:00+00:00" },
+  };
+  hooks.renderDataMeta(hooks.state.manifest, 19174);
+  const text = descendants(elements.get("dataMeta")).map((node) => node.textContent).join("|");
+  assert.match(text, /数据爬取时间/);
+  assert.match(text, /数据处理时间/);
+  assert.match(text, /前端格式变化时间/);
+  assert.match(text, /综合核验 19174 款车型/);
 });
 test("Pages combines equivalent measurement values without mixing driving cycles", () => {
   const { hooks } = loadAppForTest();
@@ -3605,4 +3622,57 @@ test("value-as-header cleanup folds paren values and hides low-brand option/pack
   for (const keptCol of ["气罐容积(L)", "氢气装载量(kg)", "电控系统质保", "坦克转弯", "车内氛围灯", "音响品牌", "上坡辅助"]) {
     assert.equal(cols.includes(keptCol), true, keptCol);
   }
+});
+
+test("table mode uses compact classes for brand, series, and short numeric range columns and supports collapsing side column", () => {
+  const { elements, hooks, flushFrames } = loadAppForTest();
+  hooks.state.config.conditions = [];
+  hooks.state.config.defaultVisibleColumns = ["品牌", "车系", "年款", "官方指导价", "车型名称"];
+  hooks.initializeRows([
+    Object.assign(row("汽车之家", 2026, "2026款 650 Max版"), { "品牌": "红旗", "车系": "红旗天工05", "官方指导价": "17.18万" })
+  ]);
+  elements.get("tableMode").dispatch("click");
+  hooks.renderEverything();
+  flushFrames();
+
+  assert.equal(hooks.tableColumnWidthClass("品牌"), "col-compact-brand");
+  assert.equal(hooks.tableColumnWidthClass("车系"), "col-compact-series");
+  assert.equal(hooks.tableColumnWidthClass("年款"), "col-compact-range");
+  assert.equal(hooks.tableColumnWidthClass("官方指导价"), "col-compact-range");
+  assert.equal(hooks.tableColumnWidthClass("车型名称"), "");
+
+  const headRows = elements.get("tableHead").children;
+  const titleCells = headRows[2].children;
+  const filterCells = headRows[3].children;
+  assert.equal(titleCells[0].className, "col-compact-brand");
+  assert.equal(titleCells[1].className, "col-compact-series");
+  assert.equal(titleCells[2].className, "col-compact-range");
+  assert.equal(titleCells[3].className, "col-compact-range");
+  assert.equal(filterCells[2].className, "col-compact-range");
+  assert.equal(filterCells[3].className, "col-compact-range");
+  const bodyCells = elements.get("tableBody").children[0].children;
+  assert.equal(bodyCells[0].className, "col-compact-brand");
+  assert.equal(bodyCells[3].className, "col-compact-range");
+
+  assert.equal(elements.get("columnPanelBody").hidden, false);
+  elements.get("toggleColumnPanel").dispatch("click");
+  assert.equal(elements.get("columnPanelBody").hidden, true);
+  elements.get("toggleColumnPanel").dispatch("click");
+  assert.equal(elements.get("columnPanelBody").hidden, false);
+
+  assert.equal(elements.get("sidePanel").hidden, false);
+  elements.get("toggleSidePanel").dispatch("click");
+  assert.equal(elements.get("sidePanel").hidden, true);
+  assert.equal(elements.get("toggleSidePanel").getAttribute("aria-expanded"), "false");
+  assert.equal(elements.get("toggleSidePanel").textContent, "展开侧栏");
+  assert.ok(String(elements.get("workspace").className).split(/\s+/).includes("side-panel-collapsed"));
+
+  elements.get("centerMode").dispatch("click");
+  assert.equal(elements.get("sidePanel").hidden, false);
+  elements.get("tableMode").dispatch("click");
+  assert.equal(elements.get("sidePanel").hidden, true);
+
+  elements.get("toggleSidePanel").dispatch("click");
+  assert.equal(elements.get("sidePanel").hidden, false);
+  assert.equal(elements.get("toggleSidePanel").textContent, "隐藏侧栏");
 });
