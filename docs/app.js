@@ -1309,17 +1309,76 @@
     var optionalPackagesBySeries = new Set();
     var specificOptions = new Set();
     var specificStandardValues = new Set();
+    var datasetBrands = new Set();
     var columnBrands = new Map();
+    var columnObservedCounts = new Map();
+    var columnHasAnyObserved = new Set();
     var columnHasNonMissing = new Set();
     var columnHasExplicitOption = new Set();
     var columnHasOptionValue = new Set();
     var columnHasNonOptionValue = new Set();
     var columnHasPackDesc = new Set();
     var columnHasNonPackDesc = new Set();
+    var columnHasMixedOptDesc = new Set();
+    var columnHasDescInMixed = new Set();
+    var columnHasNonOptOrDesc = new Set();
     var columnHasNonPresence = new Set();
     var columnHasSelfEcho = new Set();
     var columnHasNonSelfEcho = new Set();
     var unpairedSuffixValues = new Map();
+    function normHeaderCompare(text) {
+      return String(text || "").replace(/\s+/g, "").replace(/（/g, "(").replace(/）/g, ")").toLowerCase();
+    }
+    function isPackDescText(text, colName) {
+      if (!text) { return false; }
+      if (/^包含\s*[:：]/.test(text)) { return true; }
+      if (colName && normHeaderCompare(text).indexOf(normHeaderCompare(colName)) === 0 && text.length >= colName.length) { return true; }
+      return text.length >= 8 && (/[、,，+＋\n]/.test(text) || /(?:搭载|含|配备|标配|带|（)/.test(text)) && !/质保|公里|营运/.test(text);
+    }
+    function recordColumnObservation(column, value, brand, rawSignals, signals) {
+      columnHasAnyObserved.add(column);
+      var strippedSegments = rawSignals.map(stripSourceSegmentPrefix).filter(Boolean);
+      var effectiveSignals = signals.filter(function (part) {
+        return part && !/^[-－—]+$/.test(part) && !isMissingColumnObservation(part) && !/^(?:不提供|否|无|不支持)$/.test(part);
+      });
+      if (!effectiveSignals.length) { return; }
+      columnHasNonMissing.add(column);
+      columnObservedCounts.set(column, (columnObservedCounts.get(column) || 0) + 1);
+      if (brand && brand !== "-") {
+        if (!columnBrands.has(column)) { columnBrands.set(column, new Set()); }
+        columnBrands.get(column).add(brand);
+      }
+      if (effectiveSignals.every(function (part) { return part === "○"; })) {
+        columnHasOptionValue.add(column);
+        if (strippedSegments.some(function (part) { return /(?:选配|选装|暂无价格|元)/.test(part); })) {
+          columnHasExplicitOption.add(column);
+        }
+      } else {
+        columnHasNonOptionValue.add(column);
+      }
+      if (value.length >= 16 && /[、,，+＋\n]/.test(value) && !/质保|公里|营运/.test(value)) {
+        columnHasPackDesc.add(column);
+      } else {
+        columnHasNonPackDesc.add(column);
+      }
+      var rowHasOptOrDesc = effectiveSignals.every(function (part) {
+        return part === "○" || part === "免费" || isPackDescText(part, column);
+      });
+      if (rowHasOptOrDesc) {
+        if (effectiveSignals.some(function (part) { return part === "○"; })) { columnHasMixedOptDesc.add(column); }
+        if (effectiveSignals.some(function (part) { return part !== "○" && isPackDescText(part, column); })) { columnHasDescInMixed.add(column); }
+      } else {
+        columnHasNonOptOrDesc.add(column);
+      }
+      if (!effectiveSignals.every(function (part) { return /^(?:[●○]|标配|选配|选装|支持|有|是)$/.test(part); })) {
+        columnHasNonPresence.add(column);
+      }
+      if (strippedSegments.length && strippedSegments.every(function (part) { return part === column; })) {
+        columnHasSelfEcho.add(column);
+      } else {
+        columnHasNonSelfEcho.add(column);
+      }
+    }
     (rows || []).forEach(function (row) {
       var rowPackageContent = new Set();
       var packages = readOptionPackages(row["选装包列表"]);
@@ -1334,97 +1393,48 @@
       rowPackageContent.forEach(function (name) { contentNames.add(name); });
       var pairs = Object.create(null);
       var brand = normBrand(String(row["品牌"] || "").trim());
+      if (brand && brand !== "-") { datasetBrands.add(brand); }
       var series = String(row["车系"] || "").replace(/\s+/g, "");
       var seriesKey = brand && brand !== "-" && series && series !== "-" ? brand + "|" + series + "|" : "";
       Object.keys(row).forEach(function (column) {
         var value = String(row[column] == null ? "" : row[column]).trim();
-        if (value && (!substantiveColumns.has(column) || !legacySubstantiveColumns.has(column))) {
+        if (value) {
           var rawSignals = splitDisplaySegments(value);
           var specific = isSpecificOptionValue(column);
           var signals = rawSignals.map(function (part) {
             var text = stripSourceSegmentPrefix(part);
             return /^(?:○|选配|选装)\s*(?:暂无价格|(?:[1-9]\d*|0)(?:\.\d+)?\s*(?:万元|元))?$/.test(text) ? "○" : text;
           });
-          var strippedSegments = rawSignals.map(stripSourceSegmentPrefix).filter(Boolean);
-          var effectiveSignals = signals.filter(function (part) {
-            return part && !/^[-－—]+$/.test(part) && !isMissingColumnObservation(part) && !/^(?:不提供|否|无|不支持)$/.test(part);
-          });
-          if (effectiveSignals.length) {
-            columnHasNonMissing.add(column);
-            if (brand && brand !== "-") {
-              if (!columnBrands.has(column)) { columnBrands.set(column, new Set()); }
-              columnBrands.get(column).add(brand);
+          recordColumnObservation(column, value, brand, rawSignals, signals);
+          if (!substantiveColumns.has(column) || !legacySubstantiveColumns.has(column)) {
+            if (seriesKey && isPackageName(column) && !OPTION_SUFFIX_PATTERN.test(column) &&
+                signals.indexOf("○") !== -1 && signals.every(function (part) { return /^(?:[-－—]+|○)$/.test(part); })) {
+              optionalPackagesBySeries.add(seriesKey + column);
             }
-            if (effectiveSignals.every(function (part) { return part === "○"; })) {
-              columnHasOptionValue.add(column);
-              if (strippedSegments.some(function (part) { return /(?:选配|选装|暂无价格|元)/.test(part); })) {
-                columnHasExplicitOption.add(column);
+            if (specific) {
+              if (signals.indexOf("○") !== -1) {
+                specificOptions.add(column);
               }
-            } else {
-              columnHasNonOptionValue.add(column);
+              if (signals.some(function (part) { return !/^(?:[-－—○]|选配|选装)$/.test(part); })) {
+                specificStandardValues.add(column);
+              }
             }
-            if (value.length >= 16 && /[、,，+＋\n]/.test(value) && !/质保|公里|营运/.test(value)) {
-              columnHasPackDesc.add(column);
-            } else {
-              columnHasNonPackDesc.add(column);
+            var legacySignals = specific ? signals : rawSignals;
+            if (legacySignals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part) && !(specific && isMissingColumnObservation(part)); })) {
+              legacySubstantiveColumns.add(column);
+            } else if (legacySignals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
+              legacyPresenceColumns.add(column);
             }
-            if (!effectiveSignals.every(function (part) { return /^(?:[●○]|标配|选配|选装|支持|有|是)$/.test(part); })) {
-              columnHasNonPresence.add(column);
+            if (signals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part) && !isMissingColumnObservation(part); })) {
+              substantiveColumns.add(column);
+            } else if (signals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
+              presenceColumns.add(column);
+              if (!rowPackageContent.has(column) && signals.some(function (part) {
+                return /^(?:●|标配|支持|有|是)$/.test(part);
+              })) {
+                independentStandardColumns.add(column);
+              }
             }
-            if (strippedSegments.length && strippedSegments.every(function (part) { return part === column; })) {
-              columnHasSelfEcho.add(column);
-            } else {
-              columnHasNonSelfEcho.add(column);
-            }
-          }
-          if (seriesKey && isPackageName(column) && !OPTION_SUFFIX_PATTERN.test(column) &&
-              signals.indexOf("○") !== -1 && signals.every(function (part) { return /^(?:[-－—]+|○)$/.test(part); })) {
-            optionalPackagesBySeries.add(seriesKey + column);
-          }
-          if (specific) {
-            if (signals.indexOf("○") !== -1) {
-              specificOptions.add(column);
-            }
-            if (signals.some(function (part) { return !/^(?:[-－—○]|选配|选装)$/.test(part); })) {
-              specificStandardValues.add(column);
-            }
-          }
-          var legacySignals = specific ? signals : rawSignals;
-          if (legacySignals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part) && !(specific && isMissingColumnObservation(part)); })) {
-            legacySubstantiveColumns.add(column);
-          } else if (legacySignals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
-            legacyPresenceColumns.add(column);
-          }
-          if (signals.some(function (part) { return !/^(?:[-－—●○]|有|无|支持|不支持|选配|选装|标配|是|否)$/.test(part) && !isMissingColumnObservation(part); })) {
-            substantiveColumns.add(column);
-          } else if (signals.some(function (part) { return /^(?:[●○]|有|无|选配|选装|标配)$/.test(part); })) {
-            presenceColumns.add(column);
-            if (!rowPackageContent.has(column) && signals.some(function (part) {
-              return /^(?:●|标配|支持|有|是)$/.test(part);
-            })) {
-              independentStandardColumns.add(column);
-            }
-          }
-        } else if (value) {
-          var rawTailSignals = splitDisplaySegments(value);
-          var tailSignals = rawTailSignals.map(function (part) {
-            var text = stripSourceSegmentPrefix(part);
-            return /^(?:○|选配|选装)\s*(?:暂无价格|(?:[1-9]\d*|0)(?:\.\d+)?\s*(?:万元|元))?$/.test(text) ? "○" : text;
-          });
-          var tailEffective = tailSignals.filter(function (part) {
-            return part && !/^[-－—]+$/.test(part) && !isMissingColumnObservation(part) && !/^(?:不提供|否|无|不支持)$/.test(part);
-          });
-          if (tailEffective.length) {
-            columnHasNonMissing.add(column);
-            if (brand && brand !== "-") {
-              if (!columnBrands.has(column)) { columnBrands.set(column, new Set()); }
-              columnBrands.get(column).add(brand);
-            }
-            if (!tailEffective.every(function (part) { return part === "○"; })) { columnHasNonOptionValue.add(column); }
-            if (!(value.length >= 16 && /[、,，+＋\n]/.test(value) && !/质保|公里|营运/.test(value))) { columnHasNonPackDesc.add(column); }
-            if (!tailEffective.every(function (part) { return /^(?:[●○]|标配|选配|选装|支持|有|是)$/.test(part); })) { columnHasNonPresence.add(column); }
-            var tailStripped = rawTailSignals.map(stripSourceSegmentPrefix).filter(Boolean);
-            if (!(tailStripped.length && tailStripped.every(function (part) { return part === column; }))) { columnHasNonSelfEcho.add(column); }
           }
         }
         var match = OPTION_SUFFIX_PATTERN.exec(column);
@@ -1475,6 +1485,7 @@
       }
     });
     var declared = declaredOptionIndependentColumns();
+    var hasMultiBrandDataset = datasetBrands.size >= 3;
     legacyPresenceColumns.forEach(function (name) {
       var originalEvidence = contentNames.has(name) || isPackageName(name) ||
         /[：:]须与.+一起选$/.test(name) || (specificOptions.has(name) && !specificStandardValues.has(name));
@@ -1489,14 +1500,17 @@
         columns.add(name);
       }
     });
-    // 识别未成对的 _1/_2 选装包后缀、自反值列名及低品牌覆盖的“属性值作列名”字段。
+    // 识别未成对的 _1/_2 选装包后缀、自反值列名、仅缺测占位列及低品牌覆盖的“属性值作列名”字段。
     unpairedSuffixValues.forEach(function (items, column) {
       if (declared.has(column) || columns.has(column)) { return; }
       var suffix = items[0].suffix;
+      var baseKey = normHeaderCompare(items[0].base);
       var brandCount = columnBrands.has(column) ? columnBrands.get(column).size : 0;
       if (suffix === "1" && items.every(function (it) {
         var txt = it.value;
-        return (txt.length >= 12 && /[、,，+＋\n]/.test(txt) && !/质保|公里|营运/.test(txt)) ||
+        var valKey = normHeaderCompare(txt);
+        return valKey === baseKey || (baseKey && valKey.indexOf(baseKey) === 0) ||
+          (txt.length >= 12 && /[、,，+＋\n]/.test(txt) && !/质保|公里|营运/.test(txt)) ||
           /^包含\s*[:：]/.test(txt);
       })) {
         columns.add(column);
@@ -1515,6 +1529,13 @@
         columns.add(column);
       }
     });
+    if (hasMultiBrandDataset) {
+      columnHasAnyObserved.forEach(function (column) {
+        if (!declared.has(column) && !columnHasNonMissing.has(column)) {
+          columns.add(column);
+        }
+      });
+    }
     columnHasNonMissing.forEach(function (column) {
       if (declared.has(column) || columns.has(column)) { return; }
       if (columnHasSelfEcho.has(column) && !columnHasNonSelfEcho.has(column)) {
@@ -1526,7 +1547,9 @@
       if (!isLowBrand) { return; }
       var onlyOption = columnHasOptionValue.has(column) && !columnHasNonOptionValue.has(column);
       var onlyPackDesc = columnHasPackDesc.has(column) && !columnHasNonPackDesc.has(column);
+      var onlyMixedOptDesc = columnHasMixedOptDesc.has(column) && columnHasDescInMixed.has(column) && !columnHasNonOptOrDesc.has(column);
       var onlyPresence = !columnHasNonPresence.has(column);
+      var obsCount = columnObservedCounts.get(column) || 0;
       var isValueShapedHeader =
         /(?:包|组件|套装|套件|装备|礼包|套餐|方案)(?:\s*[-+＋（(]|\s*[A-Za-z0-9]+|\s*(?:Pro|Plus|Max|I{1,3}|基础版|高级版|豪华版|尊享版|运动版|哑光版|限量版|已停售))*$/i.test(column) ||
         /(?:专享定制|个性化定制|定制专属|专属设计|选装包|限时赠送|须与.+一起选)/.test(column) ||
@@ -1534,13 +1557,22 @@
         /(?:车轮|轮毂|轮圈|轮辋|卡钳|车漆|漆饰|涂装|拉花|饰板|饰条|车标|脚垫|车衣|贴膜|尾翼|前脸|排气管|软车顶)/.test(column) ||
         column.length >= 16 ||
         /[+＋,，]/.test(column);
-      if (onlyPackDesc || (onlyOption && (columnHasExplicitOption.has(column) || isValueShapedHeader))) {
+      if (onlyPackDesc || (hasMultiBrandDataset && onlyMixedOptDesc)) {
         columns.add(column);
         return;
       }
-      if (onlyPresence && (isValueShapedHeader ||
-        /^(?:AMG|Audi|MANUFAKTUR|MBUX|BMW|M运动|M碳纤维|M高性能|RS |GTS|MSO|NOMI|Flyme|IQ\.|IM AD|Brembo|Bilstein|DJI)/i.test(column)) &&
-        !/^\d+(?:\.\d+)?\s*英寸.+轮毂$/.test(column)) {
+      if (onlyOption && (columnHasExplicitOption.has(column) || isValueShapedHeader ||
+          (hasMultiBrandDataset && (obsCount >= 2 || /[A-Za-z0-9]/.test(column))))) {
+        columns.add(column);
+        return;
+      }
+      if (onlyPresence && (
+        /^.+?：.+$/.test(column) ||
+        /^.+_v[23]_.+$/i.test(column) ||
+        ((isValueShapedHeader ||
+          /^(?:AMG|Audi|MANUFAKTUR|MBUX|BMW|M运动|M碳纤维|M高性能|RS |GTS|MSO|NOMI|Flyme|IQ\.|IM AD|Brembo|Bilstein|DJI)/i.test(column)) &&
+          !/^\d+(?:\.\d+)?\s*英寸.+轮毂$/.test(column))
+      )) {
         columns.add(column);
       }
     });
@@ -1780,7 +1812,8 @@
     "音响品牌",
     "近光灯",
     "远光灯",
-    "手机互联映射"
+    "手机互联映射",
+    "第三排座椅折叠形式"
   ]);
 
   function normalizeParenthesizedValueColumns(row) {
@@ -4753,6 +4786,57 @@
       " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
   }
 
+  function parseAwsRawReleaseTimestamp(tag) {
+    var m = /^aws-raw-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/i.exec(String(tag || "").trim());
+    if (!m) { return ""; }
+    return m[1] + "-" + m[2] + "-" + m[3] + "T" + m[4] + ":" + m[5] + ":" + m[6] + "Z";
+  }
+
+  function frontendUpdatedTimestamp() {
+    if (state.manifest && state.manifest.publication && state.manifest.publication.frontendUpdatedAt) {
+      return state.manifest.publication.frontendUpdatedAt;
+    }
+    if (typeof document.querySelector === "function") {
+      var meta = document.querySelector('meta[name="frontend-updated"]');
+      var content = meta && typeof meta.getAttribute === "function" ? meta.getAttribute("content") : (meta && meta.content);
+      if (content && String(content).trim()) { return String(content).trim(); }
+    }
+    return "";
+  }
+
+  function renderDataMeta(manifest, rowCount) {
+    var prov = (manifest && manifest.provenance) || {};
+    var crawledIso = (manifest && manifest.crawledAt) || prov.crawledAt || parseAwsRawReleaseTimestamp(prov.awsRawRelease);
+    var processedIso = (manifest && manifest.updatedAt) || "";
+    var frontendIso = frontendUpdatedTimestamp();
+    var items = [
+      ["数据爬取时间", formatDataTimestamp(crawledIso) || (manifest && manifest.date) || "待更新"],
+      ["数据处理时间", formatDataTimestamp(processedIso) || (manifest && manifest.date) || "待更新"],
+      ["前端格式变化时间", formatDataTimestamp(frontendIso) || "待更新"]
+    ];
+    els.dataMeta.textContent = "";
+    var grid = document.createElement("div");
+    grid.className = "data-meta-grid";
+    items.forEach(function (pair) {
+      var cell = document.createElement("span");
+      cell.className = "data-meta-item";
+      var label = document.createElement("span");
+      label.className = "data-meta-label";
+      label.textContent = pair[0];
+      var value = document.createElement("span");
+      value.className = "data-meta-value";
+      value.textContent = pair[1];
+      cell.appendChild(label);
+      cell.appendChild(value);
+      grid.appendChild(cell);
+    });
+    var summary = document.createElement("span");
+    summary.className = "data-meta-count";
+    summary.textContent = "综合核验 " + String(rowCount) + " 款车型";
+    grid.appendChild(summary);
+    els.dataMeta.appendChild(grid);
+  }
+
   function loadData() {
     return Promise.all([
       fetchJson("filter_conditions.json").catch(function () { return fallbackConfig; }),
@@ -4771,10 +4855,7 @@
       return loadPublishedRows(state.manifest).then(function (latest) {
         state.publishedRawRows = latest;
         initializeRows(latest);
-        var updatedText = formatDataTimestamp(state.manifest.updatedAt);
-        var dateText = updatedText ? "数据生成时间 " + updatedText
-          : (state.manifest.date ? "数据日期 " + state.manifest.date : "最新数据");
-        els.dataMeta.textContent = dateText + " · 综合核验 " + state.rows.length + " 款车型";
+        renderDataMeta(state.manifest, state.rows.length);
       });
     });
   }
