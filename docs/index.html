@@ -127,6 +127,7 @@
               <datalist id="pageSizeOptions"><option value="20"><option value="50"><option value="100"><option value="200"><option value="500"><option value="1000"></datalist>
             </label>
             <button id="applyPageSize" type="button" class="text-button">应用每页条数</button>
+            <button id="toggleSidePanel" type="button" class="text-button" aria-expanded="true" aria-controls="sidePanel">隐藏侧栏</button>
             <span id="tableRenderStatus" role="status" aria-live="polite"></span>
           </div>
 
@@ -164,7 +165,7 @@
           </footer>
         </section>
 
-        <aside class="side-panel" aria-label="筛选和列设置">
+        <aside class="side-panel" id="sidePanel" aria-label="筛选和列设置">
           <section id="advancedConditionSection" hidden>
             <h2>条件筛选</h2>
             <div class="condition-list" id="conditionList"></div>
@@ -226,13 +227,17 @@
               <div>
                 <button class="link-button" id="showCoreColumns" type="button">常用</button>
                 <button class="link-button" id="showAllColumns" type="button">全部</button>
+                <button class="link-button panel-toggle" id="toggleColumnPanel" type="button"
+                        aria-expanded="true" aria-controls="columnPanelBody">收起</button>
               </div>
             </div>
-            <label class="column-search">
-              <span>查找列</span>
-              <input id="columnSearch" type="search" placeholder="配置名称">
-            </label>
-            <div class="column-list" id="columnList"></div>
+            <div id="columnPanelBody">
+              <label class="column-search">
+                <span>查找列</span>
+                <input id="columnSearch" type="search" placeholder="配置名称">
+              </label>
+              <div class="column-list" id="columnList"></div>
+            </div>
           </section>
 
           <section>

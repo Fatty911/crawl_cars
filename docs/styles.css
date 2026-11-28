@@ -246,6 +246,9 @@ button {
 .workspace.mode-table .center-region { grid-column: 1 / -1; }
 .workspace.mode-table .table-region { grid-column: 1; }
 .workspace.mode-table .side-panel { grid-column: 2; }
+.workspace.mode-table.side-panel-collapsed { grid-template-columns: minmax(0, 1fr); }
+.workspace.mode-table.side-panel-collapsed .table-region { grid-column: 1 / -1; }
+.workspace.mode-table.side-panel-collapsed .side-panel { display: none; }
 
 .table-region,
 .side-panel {
@@ -332,6 +335,57 @@ td:first-child {
   z-index: 5;
   min-width: 178px;
   background: inherit;
+}
+
+th.col-compact-brand,
+td.col-compact-brand,
+th.col-compact-brand:first-child,
+td.col-compact-brand:first-child {
+  min-width: 78px;
+  max-width: 112px;
+  padding: 6px 8px;
+}
+
+th.col-compact-series,
+td.col-compact-series,
+th.col-compact-series:first-child,
+td.col-compact-series:first-child {
+  min-width: 96px;
+  max-width: 152px;
+  padding: 6px 8px;
+}
+
+th.col-compact-range,
+td.col-compact-range,
+th.col-compact-range:first-child,
+td.col-compact-range:first-child {
+  min-width: 76px;
+  max-width: 108px;
+  padding: 6px 7px;
+}
+
+.col-compact-range .sort-button,
+.col-compact-brand .sort-button,
+.col-compact-series .sort-button {
+  gap: 4px;
+}
+
+.col-compact-brand .filter-input,
+.col-compact-series .filter-input {
+  padding: 0 6px;
+}
+
+.col-compact-range .table-filter-range {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.col-compact-range .table-filter-range > input {
+  width: 100%;
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 5px;
+  font-size: 11px;
 }
 
 thead th {
