@@ -93,6 +93,7 @@
     columnSearch: "",
     composing: false,
     saleScope: "onSale",
+    sidePanelCollapsed: false,
     syncId: "",
     githubToken: "",
     histories: []
@@ -137,8 +138,12 @@
     activeFilters: document.getElementById("activeFilters"),
     showCoreColumns: document.getElementById("showCoreColumns"),
     showAllColumns: document.getElementById("showAllColumns"),
+    toggleColumnPanel: document.getElementById("toggleColumnPanel"),
+    columnPanelBody: document.getElementById("columnPanelBody"),
     columnSearch: document.getElementById("columnSearch"),
     columnList: document.getElementById("columnList"),
+    sidePanel: document.getElementById("sidePanel"),
+    toggleSidePanel: document.getElementById("toggleSidePanel"),
     historySyncId: document.getElementById("historySyncId"),
     githubToken: document.getElementById("githubToken"),
     copySyncId: document.getElementById("copySyncId"),
@@ -2847,6 +2852,14 @@
     return state.columns.filter(function (column) { return state.visibleColumns.has(column); });
   }
 
+  function tableColumnWidthClass(column) {
+    var name = String(column || "").trim();
+    if (name === "品牌") { return "col-compact-brand"; }
+    if (name === "车系") { return "col-compact-series"; }
+    if (isNumericColumn(column) && name.length <= 10) { return "col-compact-range"; }
+    return "";
+  }
+
   function renderTableHead() {
     var visibleColumns = visibleResultColumns();
     els.tableHead.setAttribute("data-measured", "false");
@@ -2882,6 +2895,8 @@
     titleRow.className = "table-column-row";
     visibleColumns.forEach(function (column) {
       var th = document.createElement("th");
+      var widthClass = tableColumnWidthClass(column);
+      if (widthClass) { th.className = widthClass; }
       var button = document.createElement("button");
       button.type = "button";
       button.className = "sort-button";
@@ -2902,6 +2917,8 @@
     filterRow.className = "filter-row";
     visibleColumns.forEach(function (column) {
       var th = document.createElement("th");
+      var widthClass = tableColumnWidthClass(column);
+      if (widthClass) { th.className = widthClass; }
       var numeric = isNumericColumn(column);
       var filter = state.columnFilters[column];
       var controls = numeric ? document.createElement("div") : th;
@@ -2918,7 +2935,7 @@
           input.dataset.columnBound = side;
         }
         input.value = rangeBoundText(side ? range[side] : filter && filter.value);
-        input.placeholder = side ? (side === "min" ? "最小" : "最大") : "筛选 " + column;
+        input.placeholder = side ? (side === "min" ? "最小" : "最大") : (widthClass ? "筛选" : "筛选 " + column);
         input.setAttribute("aria-label", column + (side ? " " + input.placeholder : " 筛选"));
         controls.appendChild(input);
       });
@@ -2993,6 +3010,8 @@
         var detailsColumn = visibleColumns.indexOf("车型名称") !== -1 ? "车型名称" : visibleColumns[0];
         visibleColumns.forEach(function (column) {
           var td = document.createElement("td");
+          var widthClass = tableColumnWidthClass(column);
+          if (widthClass) { td.className = widthClass; }
           var text = row[column] == null || row[column] === "" ? "-" : row[column];
           if (column === detailsColumn) {
             td.appendChild(skuDetails(row, String(text)));
@@ -3192,13 +3211,33 @@
     if (els.centerHero) { els.centerHero.hidden = table; }
     if (els.workspace) {
       var classes = String(els.workspace.className || "").split(/\s+/).filter(function (name) {
-        return name && name !== "mode-table";
+        return name && name !== "mode-table" && name !== "side-panel-collapsed";
       });
-      if (table) { classes.push("mode-table"); }
+      if (table) {
+        classes.push("mode-table");
+        if (state.sidePanelCollapsed) { classes.push("side-panel-collapsed"); }
+      }
       els.workspace.className = classes.join(" ");
     }
+    applySidePanelState();
     els.centerMode.className = table ? "segment" : "segment active";
     els.tableMode.className = table ? "segment active" : "segment";
+  }
+
+  function applySidePanelState() {
+    var collapsed = state.mode === "table" && Boolean(state.sidePanelCollapsed);
+    if (els.sidePanel) { els.sidePanel.hidden = collapsed; }
+    if (els.workspace) {
+      var classes = String(els.workspace.className || "").split(/\s+/).filter(function (name) {
+        return name && name !== "side-panel-collapsed";
+      });
+      if (collapsed) { classes.push("side-panel-collapsed"); }
+      els.workspace.className = classes.join(" ");
+    }
+    if (els.toggleSidePanel) {
+      els.toggleSidePanel.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      els.toggleSidePanel.textContent = collapsed ? "展开侧栏" : "隐藏侧栏";
+    }
   }
 
   function bindPanelToggle(toggleEl, bodyEl) {
@@ -4348,6 +4387,14 @@
     });
     bindPanelToggle(els.toggleFieldFilterPanel, els.fieldFilterBody);
     bindPanelToggle(els.toggleHistoryPanel, els.historyBody);
+    bindPanelToggle(els.toggleColumnPanel, els.columnPanelBody);
+    if (els.toggleSidePanel) {
+      els.toggleSidePanel.addEventListener("click", function () {
+        state.sidePanelCollapsed = !state.sidePanelCollapsed;
+        applySidePanelState();
+        if (state.mode === "table") { syncTableHeaderOffsets(); }
+      });
+    }
     if (els.saleScopeOnSale && els.saleScopeAll) {
       els.saleScopeOnSale.addEventListener("click", function () { state.saleScope = "onSale"; applySaleScopeButtons(); renderEverything(); });
       els.saleScopeAll.addEventListener("click", function () { state.saleScope = "all"; applySaleScopeButtons(); renderEverything(); });
