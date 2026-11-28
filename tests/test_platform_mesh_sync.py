@@ -169,12 +169,25 @@ class PlatformMeshSyncTests(unittest.TestCase):
             encoding="utf-8",
         )
         (fake_repo / "docs" / "app.js").write_text("window.__appReady = true;\n", encoding="utf-8")
+        (fake_repo / "docs" / "filter_conditions.json").write_text('{"conditions":["new"]}', encoding="utf-8")
         (fake_repo / "docs" / "data" / "manifest.json").write_text('{"rowCount":1}', encoding="utf-8")
-        (fake_repo / "config" / "filter_conditions.json").write_text('{"conditions":[]}', encoding="utf-8")
+        (fake_repo / "config" / "filter_conditions.json").write_text('{"conditions":["new"]}', encoding="utf-8")
 
         site = self.root / "site"
         (site / "data").mkdir(parents=True)
-        verified_manifest = b'{"rowCount":999,"date":"2026-11-28"}\n'
+        (site / "config").mkdir(parents=True)
+        (site / "filter_conditions.json").write_text('{"conditions":["verified"]}', encoding="utf-8")
+        (site / "config" / "filter_conditions.json").write_text('{"conditions":["verified"]}', encoding="utf-8")
+        verified_manifest = json.dumps({
+            "rowCount": 999,
+            "date": "2026-11-28",
+            "files": {
+                "additionalDataAssets": [
+                    {"path": "filter_conditions.json"},
+                    {"path": "config/filter_conditions.json"},
+                ]
+            },
+        }).encode("utf-8")
         (site / "data" / "manifest.json").write_bytes(verified_manifest)
         manifest_copy = self.root / "verified_manifest.json"
         manifest_copy.write_bytes(verified_manifest)
@@ -188,7 +201,8 @@ class PlatformMeshSyncTests(unittest.TestCase):
         self.assertEqual((site / "data" / "manifest.json").read_bytes(), verified_manifest)
         self.assertIn('content="2026-11-28T10:20:30+08:00"', (site / "index.html").read_text(encoding="utf-8"))
         self.assertEqual((site / "app.js").read_text(encoding="utf-8"), "window.__appReady = true;\n")
-        self.assertEqual((site / "config" / "filter_conditions.json").read_text(encoding="utf-8"), '{"conditions":[]}')
+        self.assertEqual((site / "filter_conditions.json").read_text(encoding="utf-8"), '{"conditions":["verified"]}')
+        self.assertEqual((site / "config" / "filter_conditions.json").read_text(encoding="utf-8"), '{"conditions":["verified"]}')
 
     def test_safe_asset_path_and_complete_raw_asset_names_reject_unsafe_or_partial(self) -> None:
         with self.assertRaises(mesh.MeshSyncError):
