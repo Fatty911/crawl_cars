@@ -677,6 +677,33 @@ def diagnose_columns(rows: list[dict[str, Any]], *, limit: int = 120) -> dict[st
             suspect_columns.add(column)
             continue
         brands_n = len(brand_sets.get(column, set()))
+        if 1 <= brands_n <= 2 and "：" in column:
+            left_part, right_part = column.split("：", 1)
+            right_key = re.sub(r"\s+", "", right_part).casefold()
+            col_key = re.sub(r"\s+", "", column).casefold()
+            if (
+                left_part.strip()
+                and right_part.strip()
+                and values
+                and all(
+                    (sv := re.sub(r"^(?:汽车之家|懂车帝|易车)[:：]\s*", "", v).strip())
+                    in {"●", "○", "标配", "选配", "选装", "支持", "有", "选装包"}
+                    or re.match(r"^[●○](?:\s*\d+(?:\.\d+)?万?元|\s*暂无价格|\s*选配|\s*选装)?$", sv) is not None
+                    or re.sub(r"\s+", "", sv).casefold() in {right_key, col_key}
+                    for v in values
+                )
+            ):
+                suspects.append(
+                    _record(
+                        kind="value_only_header",
+                        column=column,
+                        occurrences=occurrences,
+                        confidence=0.92,
+                        sample_values=_sample_values(value_counts, column),
+                    )
+                )
+                suspect_columns.add(column)
+                continue
         if 1 <= brands_n <= 2 and all(
             re.match(
                 r"^(?:(?:汽车之家|懂车帝|易车)[:：]\s*)?(?:○(?:\s*\d+(?:\.\d+)?万?元|\s*暂无价格|\s*选配|\s*选装)?|选配|选装)$",

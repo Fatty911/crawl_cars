@@ -129,3 +129,26 @@ def test_diagnoses_self_echo_and_low_brand_option_only_headers() -> None:
     assert kinds.get("前排座椅通风、加热") == "value_only_header"
     assert kinds.get("高定卡钳") == "value_only_header"
     assert "常规属性" not in kinds
+
+
+def test_diagnoses_self_echo_underscore_and_colon_subvalue_headers() -> None:
+    rows = [
+        {
+            "品牌": "品牌甲",
+            "车型名称": "M1",
+            "硅油风扇_1": "硅油风扇（含高寒包）",
+            "可拓展生态设备：平板电脑": "●",
+            "供电接口：功率": "60W",
+        },
+        {
+            "品牌": "品牌甲",
+            "车型名称": "M2",
+            "可拓展生态设备：平板电脑": "汽车之家:○",
+            "供电接口：功率": "100W",
+        },
+    ]
+    diag = diagnose_columns(rows)
+    kinds = {item["column"]: item["kind"] for item in diag["suspects"]}
+    assert kinds.get("硅油风扇_1") == "numeric_suffix_header"
+    assert kinds.get("可拓展生态设备：平板电脑") == "value_only_header"
+    assert "供电接口：功率" not in kinds
